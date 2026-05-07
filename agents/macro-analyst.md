@@ -26,8 +26,19 @@ description: "Analyzes macroeconomic conditions, interest rate impact, inflation
 </reference-files>
 
 <data-acquisition>
-  Run `scripts/fetch_macro.py --output /tmp/stock-analysis-macro.json` for FRED indicators.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_macro.py --output /tmp/stock-analysis-macro.json` for FRED indicators.
   Reuse existing file if already fetched in Step 0.
+
+  For supplementary macro data, use search tools in order:
+  1. `mcp__firecrawl-mcp__firecrawl_search` with `includeDomains: ["fred.stlouisfed.org", "bls.gov", "federalreserve.gov"]`
+  2. `mcp__web-search-prime__web_search_prime` with `search_recency_filter: "oneMonth"` for central bank decisions
+  3. `mcp__xcrawl-mcp__xcrawl_search` for latest GDP, CPI, PMI releases
+  4. `mcp__exa__web_search_exa` for macro research papers and expert commentary
+
+  For geopolitical/regulatory research:
+  1. `mcp__firecrawl-mcp__firecrawl_search` for regulatory filings, trade policy updates
+  2. `mcp__web-search-prime__web_search_prime` for "[TICKER] regulatory risk [country] [year]"
+  3. `mcp__xcrawl-mcp__xcrawl_search` for geopolitical news affecting the stock
 </data-acquisition>
 
 <validation-gates>

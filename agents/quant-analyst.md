@@ -23,10 +23,20 @@ description: "Performs multi-method valuation (DCF, comps, SOTP), relative value
 </reference-files>
 
 <data-acquisition>
-  Run `scripts/fetch_technicals.py [TICKER] --period 2y` for technical indicators.
-  Run `scripts/fetch_sentiment.py [TICKER] --sources news,social` for sentiment data.
-  Run `scripts/fetch_sentiment.py [TICKER] --sources analyst` for analyst consensus.
-  Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json` for computed valuations.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_technicals.py [TICKER] --period 2y` for technical indicators.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources news,social` for sentiment data.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources analyst` for analyst consensus.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json` for computed valuations.
+
+  For supplementary valuation/sentiment data, use search tools:
+  1. `mcp__firecrawl-mcp__firecrawl_search` — "[TICKER] analyst price target [year]", "[TICKER] short interest data"
+  2. `mcp__web-search-prime__web_search_prime` — "[TICKER] consensus EPS estimate", "[TICKER] options unusual activity"
+  3. `mcp__xcrawl-mcp__xcrawl_search` — "[TICKER] 13F institutional holdings", "[TICKER] insider buying selling"
+  4. `mcp__exa__web_search_exa` — "detailed valuation analysis [COMPANY] DCF model assumptions"
+
+  For peer comparison data:
+  1. `mcp__firecrawl-mcp__firecrawl_extract` — Extract financial tables from peer company pages
+  2. `mcp__xcrawl-mcp__xcrawl_search` — "[PEER_TICKER] EV/EBITDA P/E financial ratios"
 </data-acquisition>
 
 <validation-gates>

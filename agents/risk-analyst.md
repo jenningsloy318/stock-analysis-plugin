@@ -23,6 +23,15 @@ description: "Performs comprehensive risk assessment including risk identificati
   - references/institutional_odd.md (Operational Due Diligence checklists)
 </reference-files>
 
+<data-acquisition>
+  For risk research and dissenting view search, use search tools:
+  1. `mcp__firecrawl-mcp__firecrawl_search` — "[TICKER] short seller report bear case [year]", "[TICKER] litigation lawsuit regulatory risk"
+  2. `mcp__exa__web_search_exa` — "bear case against [COMPANY] risks analysis [year]" (find strongest dissenting views)
+  3. `mcp__web-search-prime__web_search_prime` — "[TICKER] short interest days to cover", "[TICKER] SEC investigation enforcement"
+  4. `mcp__xcrawl-mcp__xcrawl_search` — "[COMPANY] data breach cybersecurity incident", "[COMPANY] ESG controversy"
+  5. `mcp__firecrawl-mcp__firecrawl_scrape` — Scrape SEC EDGAR for comment letters, enforcement actions
+</data-acquisition>
+
 <validation-gates>
   - Beneish M-Score, Altman Z-Score, and 5+ forensic checks completed
   - At least 3 scenario assumptions explicitly stated with derived price targets

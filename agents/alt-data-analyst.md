@@ -21,9 +21,22 @@ description: "Analyzes alternative data signals: digital footprint (web traffic,
 </reference-files>
 
 <data-acquisition>
-  Run `scripts/fetch_alternatives.py [TICKER]` for alternative data.
-  Run `scripts/calculate_candor.py /tmp/stock-analysis-[TICKER]-transcript.txt` for NLP candor index.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_alternatives.py [TICKER]` for alternative data.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_candor.py /tmp/stock-analysis-[TICKER]-transcript.txt` for NLP candor index.
   Paywalled sources return `null` — this is expected, proceed.
+
+  For web/social alternative data, use search tools:
+  1. `mcp__firecrawl-mcp__firecrawl_search` with `includeDomains: ["similarweb.com", "glassdoor.com"]` — web traffic, employee sentiment
+  2. `mcp__firecrawl-mcp__firecrawl_search` with `includeDomains: ["reddit.com"]` — "[TICKER] stock discussion analysis [year]"
+  3. `mcp__xcrawl-mcp__xcrawl_search` — "[COMPANY] app downloads rankings [year]", "[COMPANY] hiring trends layoffs"
+  4. `mcp__web-search-prime__web_search_prime` — "[COMPANY] glassdoor reviews CEO approval trend", "[COMPANY] patent filings [year]"
+  5. `mcp__exa__web_search_exa` — "alternative data signals [COMPANY] consumer spending trends"
+  6. `mcp__xcrawl-mcp__xcrawl_search` with `serp_options: {tbs: "qdr:m"}` — "[TICKER] reddit wallstreetbets sentiment"
+
+  For earnings transcript scraping:
+  1. `mcp__firecrawl-mcp__firecrawl_search` — "[TICKER] earnings call transcript Q[N] [year]"
+  2. `mcp__firecrawl-mcp__firecrawl_scrape` — Scrape the transcript page for full text
+  3. Save to `/tmp/stock-analysis-[TICKER]-transcript.txt` for NLP analysis
 </data-acquisition>
 
 <validation-gates>

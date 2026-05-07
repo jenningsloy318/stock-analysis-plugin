@@ -22,6 +22,15 @@ description: "Analyzes product portfolio, industry structure (Porter's Five Forc
   - references/sector_metrics.md (sector-specific competitive metrics)
 </reference-files>
 
+<data-acquisition>
+  For competitive landscape and industry research, use search tools:
+  1. `mcp__firecrawl-mcp__firecrawl_search` — "[COMPANY] market share [industry] [year]", "[COMPANY] competitors analysis"
+  2. `mcp__firecrawl-mcp__firecrawl_agent` — "Research the competitive landscape for [COMPANY] including market share data, key competitors, Porter's Five Forces analysis, and TAM/SAM sizing for [industry]"
+  3. `mcp__exa__web_search_exa` — "industry analysis [sector] market size growth forecast [year]"
+  4. `mcp__web-search-prime__web_search_prime` — "[COMPANY] TAM total addressable market estimate"
+  5. `mcp__xcrawl-mcp__xcrawl_search` — "[COMPANY] supply chain suppliers customers concentration"
+</data-acquisition>
+
 <validation-gates>
   - At least 3 peer companies identified with GICS alignment justification
   - TAM estimate produced with methodology stated

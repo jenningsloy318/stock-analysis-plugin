@@ -32,3 +32,7 @@ config_file = "./agents/alt-data-analyst.toml"
 [agents.report-writer]
 description = "Synthesizes stage summaries into institutional-grade research reports"
 config_file = "./agents/report-writer.toml"
+
+[agents.search-agent]
+description = "Multi-source financial web search with Firecrawl, XCrawl, Tavily, and Exa"
+config_file = "./agents/search-agent.toml"

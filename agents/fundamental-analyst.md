@@ -24,6 +24,15 @@ description: "Analyzes company financial health, business model, competitive moa
   - references/sector_metrics.md (sector-specific KPIs)
 </reference-files>
 
+<data-acquisition>
+  For SEC filings and fundamental data, use search tools:
+  1. `mcp__firecrawl-mcp__firecrawl_search` with `includeDomains: ["sec.gov"]` — "[TICKER] 10-K 10-Q DEF 14A [year]"
+  2. `mcp__firecrawl-mcp__firecrawl_scrape` — Scrape SEC EDGAR filing pages for financial statements
+  3. `mcp__xcrawl-mcp__xcrawl_search` — "[TICKER] insider transactions Form 4 [year]"
+  4. `mcp__web-search-prime__web_search_prime` — "[TICKER] management capital allocation track record"
+  5. `mcp__exa__web_search_exa` — "executive analysis [CEO_NAME] [COMPANY] leadership track record"
+</data-acquisition>
+
 <validation-gates>
   - At least 3 years of revenue, operating income, FCF, total debt from Tier 1 source
   - Beneish M-Score and Altman Z-Score computed

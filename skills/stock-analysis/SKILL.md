@@ -10,9 +10,9 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.0"
+version: "1.0.1"
 license: MIT
-compatibility: Requires web_search, fetch_url, finance, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
+compatibility: Requires Firecrawl MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
 
 # Stock Analysis — Multi-Stage Equity Research
@@ -23,12 +23,27 @@ This skill performs institutional-grade stock analysis through 9 sequential stag
 
 **Critical constraint:** The context window is a shared resource. Follow the eviction protocol strictly. Raw data from completed stages is dropped; only stage summaries persist.
 
+## Search Tools
+
+This skill uses multiple web search tools for financial data acquisition. See `${CLAUDE_PLUGIN_ROOT}/agents/search-agent.md` for full search methodology.
+
+**Priority order:**
+1. **Firecrawl MCP** (`mcp__firecrawl-mcp__firecrawl_search`) — Primary search. Always run first.
+2. **XCrawl MCP** (`mcp__xcrawl-mcp__xcrawl_search`) — Google SERP for financial news, earnings dates.
+3. **Web Search Prime** (`mcp__web-search-prime__web_search_prime`) — Quick summaries, macro data, analyst consensus.
+4. **Exa** (`mcp__exa__web_search_exa`) — Semantic search for expert analysis, research papers, blogs.
+
+**Scraping tools (for specific URLs):**
+- `mcp__firecrawl-mcp__firecrawl_scrape` — SEC filings, earnings transcripts, IR pages
+- `mcp__firecrawl-mcp__firecrawl_extract` — Structured data extraction (financial tables)
+- `mcp__xcrawl-mcp__xcrawl_scrape` — JS-heavy financial sites
+
 ## Gotchas
 
 - Do not invent financial figures. If data is unavailable, state "Data not available" — never guess.
 - Company fiscal years vary. A "Q4 2025" filing may cover April-June 2025. Always check the filing's period-end date.
 - Tier 1 data sources (SEC filings, financial statements) block stage completion if unavailable. Do not proceed with stale data.
-- The `finance` tool returns real-time quotes. For historical context, use the script output or web_search.
+- The `finance` tool returns real-time quotes. For historical context, use the script output or search tools (Firecrawl/XCrawl/Tavily).
 - Insider transaction analysis: open-market purchases are the strongest signal. 10b5-1 plan sales are noise.
 - All source citations must use `[Source: ... | Retrieved: ... | Fact/Interpretation/Speculation]` format.
 
@@ -36,7 +51,7 @@ This skill performs institutional-grade stock analysis through 9 sequential stag
 
 ### Step 0: Triage
 
-1. Identify the ticker symbol from the user's request. If ambiguous (e.g., "Apple"), resolve via web_search: "Apple Inc stock ticker."
+1. Identify the ticker symbol from the user's request. If ambiguous (e.g., "Apple"), resolve via `mcp__xcrawl-mcp__xcrawl_search`: "Apple Inc stock ticker symbol."
 2. Determine report type(s) using the decision tree:
    - "long-term" / "invest" / "intrinsic value" → Long-term (1-3+ years)
    - "trade" / "swing" / "catalyst" / "earnings" → Mid-term (1-12 months)
@@ -44,10 +59,10 @@ This skill performs institutional-grade stock analysis through 9 sequential stag
    - "quick" / "overview" / "snapshot" → Quick Overview (reduced stages, Mid-term format)
    - Default (no horizon specified) → Mid-term, then ask: "Would you also like a long-term intrinsic value analysis?"
 3. Create output directory: `./reports/[TICKER]/`
-4. **Earnings calendar check**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources earnings` for upcoming earnings dates and past surprises. If FINNHUB_API_KEY is not set, fall back to `web_search` for "[TICKER] next earnings date". If earnings are within 14 days, warn the user: "Earnings report on [DATE] may invalidate this analysis. Proceed or wait?" If within 3 days, recommend waiting unless the user explicitly overrides.
+4. **Earnings calendar check**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources earnings` for upcoming earnings dates and past surprises. If FINNHUB_API_KEY is not set, fall back to `mcp__web-search-prime__web_search_prime` for "[TICKER] next earnings date [YEAR]". If earnings are within 14 days, warn the user: "Earnings report on [DATE] may invalidate this analysis. Proceed or wait?" If within 3 days, recommend waiting unless the user explicitly overrides.
 5. Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_financials.py [TICKER] --years 5 --output /tmp/stock-analysis-[TICKER]-raw-data.json` to retrieve financial data.
 6. Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output /tmp/stock-analysis-macro.json` to capture current macro regime context.
-7. **SEC Redline Analysis**: Fetch the previous year's 10-K. Identify "Risk Factor" deletions or new additions. Flag any hidden shifts in legal language or risk tolerance.
+7. **SEC Redline Analysis**: Use `mcp__firecrawl-mcp__firecrawl_search` with `includeDomains: ["sec.gov"]` to find the previous year's 10-K. Scrape via `mcp__firecrawl-mcp__firecrawl_scrape`. Identify "Risk Factor" deletions or new additions. Flag any hidden shifts in legal language or risk tolerance.
 8. Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --output /tmp/stock-analysis-[TICKER]-metrics.json` to compute ratios and valuation. If market cap is known, add `--market-cap [VALUE]`.
 9. Call `finance` tool for current price, market cap, 52-week range, shares outstanding.
 
