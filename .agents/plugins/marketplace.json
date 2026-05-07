@@ -7,8 +7,8 @@
     {
       "name": "stock-analysis",
       "source": {
-	"source": "local",
-        "path": "./"
+	"source": "url",
+        "url": "https://github.com/jenningsloy318/stock-analysis-plugin"
       },
       "policy": {
         "installation": "AVAILABLE",
