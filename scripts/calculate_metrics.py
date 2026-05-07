@@ -455,6 +455,152 @@ def compute_peer_comparison(ticker_data: dict, peer_data: dict) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Monte Carlo simulation for valuation (10K runs)
+# ---------------------------------------------------------------------------
+
+def compute_monte_carlo(
+    fcf_current: float,
+    growth_mu: float,
+    growth_sigma: float,
+    wacc: float,
+    terminal_growth: float = 0.025,
+    years: int = 5,
+    shares_outstanding: float | None = None,
+    simulations: int = 10000,
+    seed: int = 42,
+) -> dict:
+    """Run Monte Carlo simulation for DCF valuation.
+
+    Args:
+        fcf_current: Current free cash flow
+        growth_mu: Mean annual growth rate (from forecast.py ensemble)
+        growth_sigma: Standard deviation of growth rate (from forecast residuals)
+        wacc: Weighted average cost of capital
+        terminal_growth: Terminal perpetuity growth rate
+        years: Projection years
+        shares_outstanding: For per-share value
+        simulations: Number of Monte Carlo runs (default 10,000)
+        seed: Random seed for reproducibility
+
+    Returns distribution of enterprise values with confidence intervals.
+    """
+    import random as _random
+    import math
+
+    if fcf_current <= 0 or wacc <= 0 or wacc <= terminal_growth:
+        return {"methodology": "Monte Carlo DCF", "error": "Invalid inputs"}
+
+    np_random = __import__("numpy").random
+    np_random.seed(seed)
+
+    ev_results = []
+    per_share_results = []
+
+    for _ in range(simulations):
+        try:
+            # Draw growth rate from log-normal distribution
+            if growth_mu > 0:
+                sigma_log = max(0.01, growth_sigma / max(growth_mu, 0.01))
+                sigma_log = min(sigma_log, 2.0)
+                growth = np_random.lognormal(
+                    mean=math.log(max(growth_mu, 0.001)),
+                    sigma=sigma_log,
+                )
+                growth = max(-0.50, min(2.0, growth))
+            else:
+                growth = growth_mu
+
+            # Project FCF with annual variation
+            fcf_projections = []
+            fcf = fcf_current
+            for _ in range(years):
+                annual_growth = np_random.normal(growth, max(growth_sigma * 0.7, 0.01))
+                annual_growth = max(-0.30, min(1.0, annual_growth))
+                fcf = fcf * (1 + annual_growth)
+                fcf_projections.append(max(0, fcf))
+
+            # WACC variation
+            wacc_varied = max(wacc * 0.85, min(wacc * 1.15,
+                            np_random.normal(wacc, wacc * 0.15)))
+            if wacc_varied <= terminal_growth:
+                wacc_varied = terminal_growth + 0.01
+
+            terminal_value = fcf_projections[-1] * (1 + terminal_growth) / (wacc_varied - terminal_growth)
+            pv_fcfs = sum(f / ((1 + wacc_varied) ** y) for y, f in enumerate(fcf_projections, 1))
+            pv_terminal = terminal_value / ((1 + wacc_varied) ** years)
+            ev = pv_fcfs + pv_terminal
+
+            if ev > 0 and not math.isnan(ev) and not math.isinf(ev):
+                ev_results.append(ev)
+                if shares_outstanding and shares_outstanding > 0:
+                    per_share_results.append(ev / shares_outstanding)
+        except Exception:
+            continue
+
+    if not ev_results:
+        return {"methodology": "Monte Carlo DCF", "error": "All simulations failed"}
+
+    ev_sorted = sorted(ev_results)
+    n = len(ev_sorted)
+
+    percentiles = {}
+    for pct in [1, 5, 10, 25, 50, 75, 90, 95, 99]:
+        idx = int(n * pct / 100)
+        percentiles[f"p{pct}"] = round(ev_sorted[min(idx, n - 1)], 2)
+
+    mean_ev = sum(ev_results) / n
+    std_ev = (sum((x - mean_ev) ** 2 for x in ev_results) / n) ** 0.5
+
+    var_95 = percentiles.get("p5", 0)
+    cvar_95_entries = [x for x in ev_results if x <= var_95]
+    cvar_95 = sum(cvar_95_entries) / len(cvar_95_entries) if cvar_95_entries else var_95
+
+    result = {
+        "methodology": f"Monte Carlo DCF ({n} simulations, {years}-year projection)",
+        "simulations_run": n,
+        "simulations_planned": simulations,
+        "inputs": {
+            "fcf_current": fcf_current,
+            "growth_mu": round(growth_mu, 4),
+            "growth_sigma": round(growth_sigma, 4),
+            "wacc": wacc,
+            "terminal_growth": terminal_growth,
+            "years": years,
+        },
+        "enterprise_value": {
+            "mean": round(mean_ev, 2),
+            "median": round(percentiles["p50"], 2),
+            "std_dev": round(std_ev, 2),
+            "p10_p90_range": [percentiles["p10"], percentiles["p90"]],
+            "p5_p95_range": [percentiles["p5"], percentiles["p95"]],
+            "percentiles": percentiles,
+        },
+        "risk_metrics": {
+            "var_95": round(var_95, 2),
+            "cvar_95": round(cvar_95, 2),
+            "probability_above_mean": round(
+                sum(1 for x in ev_results if x > mean_ev) / n, 3
+            ),
+        },
+    }
+
+    if shares_outstanding and shares_outstanding > 0:
+        ps_sorted = sorted(per_share_results)
+        pn = len(ps_sorted)
+        ps_pct = {}
+        for pct in [1, 5, 10, 25, 50, 75, 90, 95, 99]:
+            idx = int(pn * pct / 100)
+            ps_pct[f"p{pct}"] = round(ps_sorted[min(idx, pn - 1)], 2)
+        result["per_share_value"] = {
+            "mean": round(sum(per_share_results) / pn, 2),
+            "median": round(ps_pct["p50"], 2),
+            "percentiles": ps_pct,
+        }
+
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description="Compute financial metrics from raw data")
     parser.add_argument("input", help="Path to raw financial data JSON")
@@ -464,6 +610,10 @@ def main():
     parser.add_argument("--market-cap", type=float, help="Market cap for valuation multiples, reverse DCF, and FCF yield")
     parser.add_argument("--shares", type=float, help="Shares outstanding for per-share DCF and EPS")
     parser.add_argument("--peers", help="Path to peer financial data JSON (same format as input, for relative valuation comparison)")
+    parser.add_argument("--monte-carlo", action="store_true", help="Run Monte Carlo simulation (10K runs)")
+    parser.add_argument("--mc-growth-mu", type=float, default=0.05, help="Monte Carlo mean growth rate")
+    parser.add_argument("--mc-growth-sigma", type=float, default=0.08, help="Monte Carlo growth rate std dev")
+    parser.add_argument("--mc-simulations", type=int, default=10000, help="Monte Carlo simulation count")
     parser.add_argument("--output", help="Output file path (default: stdout)")
     args = parser.parse_args()
 
@@ -538,6 +688,18 @@ def main():
             fcf_current=fcf,
             wacc=args.wacc,
             terminal_growth=args.terminal_growth,
+        )
+
+    # Monte Carlo simulation
+    if args.monte_carlo and fcf > 0:
+        metrics["monte_carlo"] = compute_monte_carlo(
+            fcf_current=fcf,
+            growth_mu=args.mc_growth_mu,
+            growth_sigma=args.mc_growth_sigma,
+            wacc=args.wacc,
+            terminal_growth=args.terminal_growth,
+            shares_outstanding=shares,
+            simulations=args.mc_simulations,
         )
 
     # Peer comparison

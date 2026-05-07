@@ -4,3 +4,5 @@ numpy>=1.24
 akshare>=1.14
 pytrends>=4.9
 praw>=7.7
+statsmodels>=0.14
+pandas>=2.0

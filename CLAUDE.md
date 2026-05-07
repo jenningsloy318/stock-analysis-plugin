@@ -78,10 +78,30 @@
 
 ## Script Execution (MUST follow)
 
-- Python scripts in `scripts/` perform deterministic calculations (DCF, ratios, scores) — no LLM involvement in math.
+- Python scripts in `scripts/` perform deterministic calculations (DCF, ratios, scores, forecasting) — no LLM involvement in math.
 - Scripts are called via `exec_shell` / `Bash` tool.
 - Required environment: Python 3.10+, dependencies in `scripts/requirements.txt`.
-- API keys: `FRED_API_KEY` (macro) and `FINNHUB_API_KEY` (sentiment/insider/earnings) are recommended. All other keys are optional with functional fallbacks.
+- API keys: `FRED_API_KEY` (macro/credit) and `FINNHUB_API_KEY` (sentiment/insider/earnings) are recommended. All other keys are optional with functional fallbacks.
+
+### Script Inventory
+
+| Script | Purpose | Stage |
+|--------|---------|-------|
+| `fetch_financials.py` | Financial data (yfinance → SEC EDGAR → akshare) | 0 |
+| `fetch_macro.py` | FRED macro indicators + Dalio regime classification | 0 |
+| `fetch_technicals.py` | Technical indicators (SMA, RSI, MACD, BB, ADX, etc.) | 6 |
+| `fetch_sentiment.py` | Finnhub sentiment, insider, earnings, analyst data | 2,6 |
+| `fetch_alternatives.py` | Alt data (Google Trends, Similarweb, App Store, Glassdoor, LinkedIn, Reddit, USPTO) | 9 |
+| `fetch_credit.py` | Credit spreads, ratings, debt maturity (FRED + SEC EDGAR) | 8 |
+| `fetch_behavioral.py` | Narrative economics, analyst herding, overreaction, contrarian signals | 8 |
+| `fetch_realtime.py` | Real-time quotes, options chain, pre/post market | 6 (short-term) |
+| `calculate_metrics.py` | Ratios, DCF, Beneish, Altman Z, peer comparison, Monte Carlo | 6 |
+| `calculate_candor.py` | Management candor NLP (hedging, certainty, Q&A delta) | 9 |
+| `forecast.py` | ARIMA/ETS ensemble forecasting (replaces constant growth DCF) | 6 |
+| `compute_scores.py` | Deterministic 1-10 component scoring + conviction rating | 7 (cross-check) |
+| `backtest.py` | Validate past reports against actual outcomes | 10 (post-delivery) |
+| `persist.py` | SQLite state persistence, checkpointing, resume, kill switch monitor | All |
+| `portfolio_context.py` | Portfolio correlation, position sizing, factor exposure | 10 |
 
 ## Report Quality Gates (MUST follow)
 
