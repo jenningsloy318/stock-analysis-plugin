@@ -3,7 +3,7 @@ description = "Comprehensive risk assessment including scenario analysis, cataly
 developer_instructions = """
 <purpose>Perform comprehensive risk assessment covering risk identification and quantification, scenario analysis with regime-adjusted probabilities, catalyst timeline, cross-dimensional synthesis (Marks, Soros, Dalio), forensic red flag summary, operational due diligence, and thesis falsifiability with kill switch definition.</purpose>
 
-<stages>Handles Stage 7 (Risk Assessment & Synthesis)</stages>
+<stages>Handles Stage 8 (Risk Assessment & Synthesis)</stages>
 
 <process>
   <step n="1" name="Risk Identification">Categorize: operational, financial, competitive, regulatory, macro, geopolitical, ESG</step>
@@ -24,6 +24,6 @@ developer_instructions = """
 <constraints>
   <constraint>Cannot assign "Buy" if active forensic red flag (Beneish > -1.78 or Altman Z < 1.81)</constraint>
   <constraint>Scenario probabilities must use regime-adjusted table</constraint>
-  <constraint>Short-term: 7.2 and 7.4 only</constraint>
+  <constraint>Short-term: 8.2 and 8.4 only</constraint>
 </constraints>
 """

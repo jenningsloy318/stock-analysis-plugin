@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.2"
+version: "1.0.3"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -174,33 +174,64 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 
 **After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage6.md`. Drop raw data. Retain: intrinsic value range, relative value assessment, key technical levels.
 
-### Stage 7: Risk Assessment
+### Stage 7: Market Regime & Positioning
 
 **Checklist:**
-- [ ] 7.1 Risk Identification — Categorize: operational, financial, competitive, regulatory, macro, geopolitical, ESG
-- [ ] 7.2 Risk Quantification — Probability × Impact matrix per risk, EPS impact, mitigants
-- [ ] 7.3 Scenario Analysis — Bull/Base/Bear with explicit assumptions, regime-adjusted probabilities, implied prices
-- [ ] 7.4 Catalyst Timeline — Upcoming events, timeframe, expected impact, probability
-- [ ] 7.5 Cross-Dimensional Synthesis — Marks's 2nd-level thinking, Soros reflexivity, Dalio cycle position
-- [ ] 7.6 Forensic Red Flag Summary — Flag if 3+ of the 9 red flags present
-- [ ] 7.7 Operational Due Diligence — Cybersecurity, legal history, DR/BC, insurance, IP, compliance, 3rd-party risk
-- [ ] 7.8 Thesis Falsifiability — Pre-mortem, falsification conditions, dissenting view search, inversion checklist, kill switch
+- [ ] 7.1 Risk-Off Indicators — VIX level + term structure (contango/backwardation), credit spreads (IG/HY OAS, TED spread), gold/USD/Treasury safe-haven flows, Fear & Greed Index
+- [ ] 7.2 Liquidity Conditions — Fed balance sheet trend, reverse repo facility, M2 growth, bank lending standards, repo rates
+- [ ] 7.3 Correlation Regime — Cross-asset correlation (risk-off = correlations → 1), sector dispersion, implied correlation index
+- [ ] 7.4 Speculative Positioning — NYSE margin debt levels vs S&P 500, FINRA margin statistics, leveraged ETF flows
+- [ ] 7.5 Retail Speculation — 0DTE options volume, call/put skew, retail order flow (PFOF data), meme stock momentum (social volume × price acceleration)
+- [ ] 7.6 Short Squeeze Metrics — Short interest % float, cost to borrow, days to cover, FTD data, utilization rate
+- [ ] 7.7 Fund Flows & Rotation — ETF inflows/outflows by sector, active fund positioning (CFTC COT), sector rotation signals
+- [ ] 7.8 Speculation Thermometer — IPO/SPAC pipeline activity, crypto correlation (BTC as risk appetite proxy), SPX put/call ratio, AAII sentiment
+
+**Classification output:**
+- Market Regime: `Risk-Off Defensive` | `Neutral` | `Risk-On Speculative`
+- Regime Confidence: High/Medium/Low with supporting evidence
+- Impact on [TICKER]: How current regime affects this stock specifically (beta-adjusted, sector sensitivity)
+
+**Data acquisition:**
+- Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
+- `mcp__firecrawl__firecrawl_search` — "VIX term structure credit spreads [month] [year]", "NYSE margin debt latest data"
+- `mcp__tavily-remote-mcp__tavily_search` with `time_range: "week"` — "market regime risk-on risk-off indicators [year]"
+- `mcp__tavily-remote-mcp__tavily_research` with `model: "mini"` — "Current market positioning: VIX, credit spreads, margin debt, retail speculation, fund flows as of [date]"
+- Tinyfish (post-auth): retail sentiment metrics, social media speculation intensity
+- `mcp__xcrawl-mcp__xcrawl_search` — "[TICKER] short interest days to cover cost to borrow"
+
+**Reference:** Load `${CLAUDE_PLUGIN_ROOT}/references/frameworks_macro_quant.md` for Dalio's risk regime framework and Soros's reflexivity model.
+
+**Validation gate:** VIX and credit spread data within 7 days freshness. At least 4 of 8 sub-items have current data.
+
+**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage7.md`. Drop raw data. Retain: regime classification, speculation score (1-10), top 3 positioning signals, impact assessment on [TICKER].
+
+### Stage 8: Risk Assessment
+
+**Checklist:**
+- [ ] 8.1 Risk Identification — Categorize: operational, financial, competitive, regulatory, macro, geopolitical, ESG
+- [ ] 8.2 Risk Quantification — Probability × Impact matrix per risk, EPS impact, mitigants
+- [ ] 8.3 Scenario Analysis — Bull/Base/Bear with explicit assumptions, regime-adjusted probabilities, implied prices
+- [ ] 8.4 Catalyst Timeline — Upcoming events, timeframe, expected impact, probability
+- [ ] 8.5 Cross-Dimensional Synthesis — Marks's 2nd-level thinking, Soros reflexivity, Dalio cycle position
+- [ ] 8.6 Forensic Red Flag Summary — Flag if 3+ of the 9 red flags present
+- [ ] 8.7 Operational Due Diligence — Cybersecurity, legal history, DR/BC, insurance, IP, compliance, 3rd-party risk
+- [ ] 8.8 Thesis Falsifiability — Pre-mortem, falsification conditions, dissenting view search, inversion checklist, kill switch
 
 **Reference:** Load `${CLAUDE_PLUGIN_ROOT}/references/frameworks_risk_alt.md` for Marks's risk framework and forensic red flag details. Load `${CLAUDE_PLUGIN_ROOT}/references/institutional_odd.md` for ODD checklists.
 
 **Validation gate:** Beneish M-Score, Altman Z-Score, and 5+ forensic checks completed.
 
-**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage7.md`. Drop raw data. Retain: risk score (1-10), top 3 risks, scenario price targets.
+**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage8.md`. Drop raw data. Retain: risk score (1-10), top 3 risks, scenario price targets.
 
-### Stage 8: Alternative Data
+### Stage 9: Alternative Data
 
 **Checklist:**
-- [ ] 8.1 Digital Footprint — Web traffic trends, app rankings/downloads, social media metrics, hiring trends, patents
-- [ ] 8.2 Transaction Data — Credit/debit card trends, revenue estimation, wallet share shifts
-- [ ] 8.3 Satellite/Sensor — Foot traffic, industrial activity, shipping/logistics flow
-- [ ] 8.4 NLP Earnings Call — Tone analysis, Q&A vs prepared remarks differential, uncertainty, deception indicators. Save the latest earnings transcript to `/tmp/stock-analysis-[TICKER]-transcript.txt`, then **run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_candor.py /tmp/stock-analysis-[TICKER]-transcript.txt`**.
-- [ ] 8.5 Composite Score — Weighted alternative data score (web 20%, app 20%, social 15%, employee 15%, hiring 15%, innovation 15%)
-- [ ] 8.6 Primary Research — Expert network synthesis, channel checks (supplier/customer/competitor/former employee), convergence scoring
+- [ ] 9.1 Digital Footprint — Web traffic trends, app rankings/downloads, social media metrics, hiring trends, patents
+- [ ] 9.2 Transaction Data — Credit/debit card trends, revenue estimation, wallet share shifts
+- [ ] 9.3 Satellite/Sensor — Foot traffic, industrial activity, shipping/logistics flow
+- [ ] 9.4 NLP Earnings Call — Tone analysis, Q&A vs prepared remarks differential, uncertainty, deception indicators. Save the latest earnings transcript to `/tmp/stock-analysis-[TICKER]-transcript.txt`, then **run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_candor.py /tmp/stock-analysis-[TICKER]-transcript.txt`**.
+- [ ] 9.5 Composite Score — Weighted alternative data score (web 20%, app 20%, social 15%, employee 15%, hiring 15%, innovation 15%)
+- [ ] 9.6 Primary Research — Expert network synthesis, channel checks (supplier/customer/competitor/former employee), convergence scoring
 
 **Reference:** Load `${CLAUDE_PLUGIN_ROOT}/references/frameworks_risk_alt.md` for ARK's disruption framework.
 
@@ -208,12 +239,12 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 
 **Validation gate:** At least 3 of 6 alternative data dimensions have non-null readings.
 
-**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage8.md`.
+**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage9.md`.
 
-### Stage 9: Report Generation
+### Stage 10: Report Generation
 
 **Workflow:**
-1. Read all stage summaries from `/tmp/stock-analysis-[TICKER]-stage[1-8].md`
+1. Read all stage summaries from `/tmp/stock-analysis-[TICKER]-stage[1-9].md`
 2. Load `${CLAUDE_PLUGIN_ROOT}/references/report_templates.md` for output structure
 3. Determine which report types to generate (from Step 0 triage)
 4. For each report type:
@@ -247,7 +278,7 @@ After every stage, execute this sequence:
 
 ## Validation Loops
 
-After Stage 9 report generation:
+After Stage 10 report generation:
 1. Select 5 random numeric claims from the report
 2. Trace each back to its source file
 3. If any claim is unverifiable → remove it, flag the gap
@@ -263,16 +294,17 @@ After Stage 9 report generation:
 | 4: Macro | Standard (4.1-4.3) | Deep (4.1-4.6) | Standard (4.1-4.2) |
 | 5: Geopolitics | Standard (5.1-5.4) | Deep (5.1-5.5) | Light (5.1 only) |
 | 6: Valuation | Deep (6.1-6.2) | Deep (6.1-6.5) | Standard (6.3-6.5) |
-| 7: Risk | Deep (7.1-7.8) | Standard (7.1-7.4) | Light (7.2, 7.4) |
-| 8: Alternative Data | Light (8.4 only) | Standard (8.1, 8.4-8.5) | Deep (8.1-8.6) |
-| 9: Reports | Full | Full | Full |
+| 7: Market Regime | Light (7.1-7.3) | Deep (7.1-7.8) | Deep (7.4-7.8) |
+| 8: Risk | Deep (8.1-8.8) | Standard (8.1-8.4) | Light (8.2, 8.4) |
+| 9: Alternative Data | Light (9.4 only) | Standard (9.1, 9.4-9.5) | Deep (9.1-9.6) |
+| 10: Reports | Full | Full | Full |
 
 ## Parallelism
 
 Use `agent_spawn` to parallelize independent stages:
-- Long-term: Stages 1-3 can run in parallel
-- Mid-term: Stages 4-6 can run in parallel; Stages 1+7, 2+8 can pair
-- Short-term: Stages 6+8 can pair
-- Quick Overview: Stages 1+6+7 can parallelize
+- Long-term: Stages 1-3 can run in parallel; Stage 7 can pair with Stage 4
+- Mid-term: Stages 4-6 can run in parallel; Stages 7+8 can pair; Stages 1+9 can pair
+- Short-term: Stages 6+7+9 can run in parallel
+- Quick Overview: Stages 1+6+7+8 can parallelize
 
 Cap parallel sub-agents at 2 (Long-term/Short-term) or 3 (Mid-term).

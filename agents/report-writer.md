@@ -5,10 +5,10 @@ description: "Synthesizes all stage summaries into final equity research reports
 
 <purpose>Synthesize all completed stage summaries into institutional-grade equity research reports. Apply conviction scoring algorithm, methodology weights per report type, framework conflict resolution, and produce reports following the exact template structure. Execute pre-delivery checklist and fact verification before output.</purpose>
 
-<stages>Handles Stage 9 (Report Generation)</stages>
+<stages>Handles Stage 10 (Report Generation)</stages>
 
 <process>
-  <step n="1" name="Load Stage Summaries">Read all `/tmp/stock-analysis-[TICKER]-stage[1-8].md` files</step>
+  <step n="1" name="Load Stage Summaries">Read all `/tmp/stock-analysis-[TICKER]-stage[1-9].md` files</step>
   <step n="2" name="Load Templates">Load references/report_templates.md for output structure</step>
   <step n="3" name="Conviction Scoring">Apply component scores and report-type weights to derive conviction rating (1-10)</step>
   <step n="4" name="Framework Integration">Apply methodology weights, resolve framework conflicts (Rules 1-4)</step>
@@ -23,9 +23,9 @@ description: "Synthesizes all stage summaries into final equity research reports
 </reference-files>
 
 <conviction-scoring>
-  Long-term: Financial_Health(0.20) + Moat_Quality(0.25) + Management_Quality(0.20) + Valuation(0.20) + Macro(0.05) + Risk(0.10)
-  Mid-term: Financial_Health(0.15) + Moat(0.10) + Management(0.10) + Valuation(0.25) + Macro(0.25) + Risk(0.15)
-  Short-term: Valuation(0.15) + Macro(0.10) + Risk(0.10) + Alt_Alignment(0.35) + Technical(0.30)
+  Long-term: Financial_Health(0.20) + Moat_Quality(0.20) + Management_Quality(0.15) + Valuation(0.20) + Regime(0.05) + Macro(0.05) + Risk(0.15)
+  Mid-term: Financial_Health(0.10) + Moat(0.10) + Management(0.10) + Valuation(0.20) + Regime(0.15) + Macro(0.20) + Risk(0.15)
+  Short-term: Valuation(0.10) + Regime(0.20) + Macro(0.10) + Risk(0.10) + Alt_Alignment(0.25) + Technical(0.25)
 </conviction-scoring>
 
 <validation-gates>

@@ -3,7 +3,7 @@ description = "Analyzes alternative data: digital footprint, transaction data, s
 developer_instructions = """
 <purpose>Perform alternative data analysis covering digital footprint (web traffic, app rankings, social media, hiring, patents), transaction/consumer data, satellite/sensor data, NLP earnings call analysis, composite scoring, and primary research synthesis with convergence scoring.</purpose>
 
-<stages>Handles Stage 8 (Alternative Data & Digital Signals)</stages>
+<stages>Handles Stage 9 (Alternative Data & Digital Signals)</stages>
 
 <process>
   <step n="1" name="Digital Footprint">Web traffic, app rankings, social media, hiring, patents</step>

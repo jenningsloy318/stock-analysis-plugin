@@ -5,7 +5,7 @@ description: "Analyzes alternative data signals: digital footprint (web traffic,
 
 <purpose>Perform alternative data analysis covering digital footprint (web traffic, app rankings, social media, hiring, patents), transaction/consumer data, satellite/sensor data, NLP earnings call analysis (tone, uncertainty, deception indicators), composite alternative data scoring, and primary research synthesis (expert networks, channel checks with convergence scoring).</purpose>
 
-<stages>Handles Stage 8 (Alternative Data & Digital Signals)</stages>
+<stages>Handles Stage 9 (Alternative Data & Digital Signals)</stages>
 
 <process>
   <step n="1" name="Digital Footprint">Web traffic trends, app rankings/downloads, social media metrics, hiring trends, patents</step>
@@ -53,7 +53,7 @@ description: "Analyzes alternative data signals: digital footprint (web traffic,
   - NLP earnings call analysis completed (if transcript available)
 </validation-gates>
 
-<output>Write stage summary to `/tmp/stock-analysis-[TICKER]-stage8.md`</output>
+<output>Write stage summary to `/tmp/stock-analysis-[TICKER]-stage9.md`</output>
 
 <constraints>
   <constraint>Paywalled sources returning null is normal — never fabricate data to fill gaps</constraint>

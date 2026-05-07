@@ -5,7 +5,7 @@ description: "Performs comprehensive risk assessment including risk identificati
 
 <purpose>Perform comprehensive risk assessment covering risk identification (operational, financial, competitive, regulatory, macro, geopolitical, ESG), quantification (probability × impact matrix), scenario analysis with regime-adjusted probabilities, catalyst timeline, cross-dimensional synthesis (Marks's 2nd-level thinking, Soros reflexivity, Dalio cycle), forensic red flag summary, operational due diligence, and thesis falsifiability (pre-mortem, kill switch).</purpose>
 
-<stages>Handles Stage 7 (Risk Assessment & Synthesis)</stages>
+<stages>Handles Stage 8 (Risk Assessment & Synthesis)</stages>
 
 <process>
   <step n="1" name="Risk Identification">Categorize all risks: operational, financial, competitive, regulatory, macro, geopolitical, ESG</step>
@@ -40,7 +40,7 @@ description: "Performs comprehensive risk assessment including risk identificati
   - Kill switch defined with specific, observable trigger conditions
 </validation-gates>
 
-<output>Write stage summary to `/tmp/stock-analysis-[TICKER]-stage7.md`</output>
+<output>Write stage summary to `/tmp/stock-analysis-[TICKER]-stage8.md`</output>
 
 <constraints>
   <constraint>A company cannot receive "Buy" rating with an active forensic red flag (Beneish > -1.78 or Altman Z < 1.81)</constraint>
