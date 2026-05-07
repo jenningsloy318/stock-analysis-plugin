@@ -26,11 +26,13 @@ description: "Analyzes company financial health, business model, competitive moa
 
 <data-acquisition>
   For SEC filings and fundamental data, use search tools:
-  1. `mcp__firecrawl-mcp__firecrawl_search` with `includeDomains: ["sec.gov"]` — "[TICKER] 10-K 10-Q DEF 14A [year]"
-  2. `mcp__firecrawl-mcp__firecrawl_scrape` — Scrape SEC EDGAR filing pages for financial statements
-  3. `mcp__xcrawl-mcp__xcrawl_search` — "[TICKER] insider transactions Form 4 [year]"
-  4. `mcp__web-search-prime__web_search_prime` — "[TICKER] management capital allocation track record"
-  5. `mcp__exa__web_search_exa` — "executive analysis [CEO_NAME] [COMPANY] leadership track record"
+  1. `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` — "[TICKER] 10-K 10-Q DEF 14A [year]"
+  2. `mcp__firecrawl__firecrawl_scrape` — Scrape SEC EDGAR filing pages for financial statements
+  3. `mcp__tavily-remote-mcp__tavily_search` with `include_domains: ["sec.gov"]` — "[TICKER] annual report proxy statement [year]"
+  4. `mcp__tavily-remote-mcp__tavily_extract` — Extract financial tables from SEC filing URLs
+  5. `mcp__xcrawl-mcp__xcrawl_search` — "[TICKER] insider transactions Form 4 [year]"
+  6. `mcp__web-search-prime__web_search_prime` — "[TICKER] management capital allocation track record"
+  7. `mcp__exa__web_search_exa` — "executive analysis [CEO_NAME] [COMPANY] leadership track record"
 </data-acquisition>
 
 <validation-gates>

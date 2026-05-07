@@ -10,9 +10,9 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.1"
+version: "1.0.2"
 license: MIT
-compatibility: Requires Firecrawl MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
+compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
 
 # Stock Analysis — Multi-Stage Equity Research
@@ -28,15 +28,23 @@ This skill performs institutional-grade stock analysis through 9 sequential stag
 This skill uses multiple web search tools for financial data acquisition. See `${CLAUDE_PLUGIN_ROOT}/agents/search-agent.md` for full search methodology.
 
 **Priority order:**
-1. **Firecrawl MCP** (`mcp__firecrawl-mcp__firecrawl_search`) — Primary search. Always run first.
-2. **XCrawl MCP** (`mcp__xcrawl-mcp__xcrawl_search`) — Google SERP for financial news, earnings dates.
-3. **Web Search Prime** (`mcp__web-search-prime__web_search_prime`) — Quick summaries, macro data, analyst consensus.
-4. **Exa** (`mcp__exa__web_search_exa`) — Semantic search for expert analysis, research papers, blogs.
+1. **Firecrawl MCP** (`mcp__firecrawl__firecrawl_search`) — Primary search. Always run first. Supports `includeDomains`, search operators.
+2. **Tavily MCP** (`mcp__tavily-remote-mcp__tavily_search`) — Domain-filtered search with date ranges. Use `tavily_research` for comprehensive multi-source analysis.
+3. **Tinyfish MCP** (`mcp__tinyfish__authenticate`) — Social/alternative data. Requires OAuth auth per session. Post-auth: social metrics, app data, web traffic.
+4. **XCrawl MCP** (`mcp__xcrawl-mcp__xcrawl_search`) — Google SERP for financial news, earnings dates.
+5. **Web Search Prime** (`mcp__web-search-prime__web_search_prime`) — Quick summaries, macro data, analyst consensus.
+6. **Exa** (`mcp__exa__web_search_exa`) — Semantic search for expert analysis, research papers, blogs.
 
-**Scraping tools (for specific URLs):**
-- `mcp__firecrawl-mcp__firecrawl_scrape` — SEC filings, earnings transcripts, IR pages
-- `mcp__firecrawl-mcp__firecrawl_extract` — Structured data extraction (financial tables)
+**Scraping/extraction tools (for specific URLs):**
+- `mcp__firecrawl__firecrawl_scrape` — SEC filings, earnings transcripts, IR pages (JSON format for structured data)
+- `mcp__firecrawl__firecrawl_extract` — LLM-powered structured extraction from multiple URLs
+- `mcp__tavily-remote-mcp__tavily_extract` — Extract content from known URLs in markdown
+- `mcp__tavily-remote-mcp__tavily_crawl` — Crawl financial sites with depth/breadth control
 - `mcp__xcrawl-mcp__xcrawl_scrape` — JS-heavy financial sites
+
+**Research tools (multi-source synthesis):**
+- `mcp__tavily-remote-mcp__tavily_research` — Comprehensive research agent (model: "pro" for broad, "mini" for narrow)
+- `mcp__firecrawl__firecrawl_agent` — Multi-page research with custom instructions
 
 ## Gotchas
 
@@ -62,7 +70,7 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 4. **Earnings calendar check**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources earnings` for upcoming earnings dates and past surprises. If FINNHUB_API_KEY is not set, fall back to `mcp__web-search-prime__web_search_prime` for "[TICKER] next earnings date [YEAR]". If earnings are within 14 days, warn the user: "Earnings report on [DATE] may invalidate this analysis. Proceed or wait?" If within 3 days, recommend waiting unless the user explicitly overrides.
 5. Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_financials.py [TICKER] --years 5 --output /tmp/stock-analysis-[TICKER]-raw-data.json` to retrieve financial data.
 6. Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output /tmp/stock-analysis-macro.json` to capture current macro regime context.
-7. **SEC Redline Analysis**: Use `mcp__firecrawl-mcp__firecrawl_search` with `includeDomains: ["sec.gov"]` to find the previous year's 10-K. Scrape via `mcp__firecrawl-mcp__firecrawl_scrape`. Identify "Risk Factor" deletions or new additions. Flag any hidden shifts in legal language or risk tolerance.
+7. **SEC Redline Analysis**: Use `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` to find the previous year's 10-K. Scrape via `mcp__firecrawl__firecrawl_scrape`. Identify "Risk Factor" deletions or new additions. Flag any hidden shifts in legal language or risk tolerance.
 8. Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --output /tmp/stock-analysis-[TICKER]-metrics.json` to compute ratios and valuation. If market cap is known, add `--market-cap [VALUE]`.
 9. Call `finance` tool for current price, market cap, 52-week range, shares outstanding.
 

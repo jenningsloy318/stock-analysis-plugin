@@ -17,7 +17,7 @@
 | **risk-analyst** | 7 | Risk identification/quantification, scenario analysis, forensic red flags, ODD, kill switch |
 | **alt-data-analyst** | 8 | Digital footprint, NLP earnings, transaction data, primary research, channel checks |
 | **report-writer** | 9 | Synthesizes stage summaries into final reports with conviction scoring |
-| **search-agent** | All | Multi-source financial web search (Firecrawl, XCrawl, Tavily, Exa) with provenance |
+| **search-agent** | All | Multi-source financial web search (Firecrawl, Tavily, Tinyfish, XCrawl, Exa) with provenance |
 
 ## Parallel Execution Map
 

@@ -25,18 +25,27 @@ description: "Analyzes alternative data signals: digital footprint (web traffic,
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_candor.py /tmp/stock-analysis-[TICKER]-transcript.txt` for NLP candor index.
   Paywalled sources return `null` — this is expected, proceed.
 
+  Tinyfish authentication (MUST do once per session before social/alt queries):
+  1. `mcp__tinyfish__authenticate` — Start OAuth flow, get authorization URL
+  2. `mcp__tinyfish__complete_authentication` — Complete with callback URL
+  3. After auth: use Tinyfish tools for social media analytics, web traffic, app metrics, hiring signals
+
   For web/social alternative data, use search tools:
-  1. `mcp__firecrawl-mcp__firecrawl_search` with `includeDomains: ["similarweb.com", "glassdoor.com"]` — web traffic, employee sentiment
-  2. `mcp__firecrawl-mcp__firecrawl_search` with `includeDomains: ["reddit.com"]` — "[TICKER] stock discussion analysis [year]"
-  3. `mcp__xcrawl-mcp__xcrawl_search` — "[COMPANY] app downloads rankings [year]", "[COMPANY] hiring trends layoffs"
-  4. `mcp__web-search-prime__web_search_prime` — "[COMPANY] glassdoor reviews CEO approval trend", "[COMPANY] patent filings [year]"
-  5. `mcp__exa__web_search_exa` — "alternative data signals [COMPANY] consumer spending trends"
-  6. `mcp__xcrawl-mcp__xcrawl_search` with `serp_options: {tbs: "qdr:m"}` — "[TICKER] reddit wallstreetbets sentiment"
+  1. Tinyfish (post-auth) — Social media metrics, mentions volume, sentiment trends, app store data, web traffic for [COMPANY]
+  2. `mcp__firecrawl__firecrawl_search` with `includeDomains: ["similarweb.com", "glassdoor.com"]` — web traffic, employee sentiment
+  3. `mcp__tavily-remote-mcp__tavily_search` with `include_domains: ["similarweb.com", "glassdoor.com", "linkedin.com"]` — "[COMPANY] traffic hiring trends [year]"
+  4. `mcp__tavily-remote-mcp__tavily_research` with `model: "mini"` — "alternative data signals for [COMPANY]: web traffic, app downloads, hiring velocity, social sentiment"
+  5. `mcp__firecrawl__firecrawl_search` with `includeDomains: ["reddit.com"]` — "[TICKER] stock discussion analysis [year]"
+  6. `mcp__xcrawl-mcp__xcrawl_search` — "[COMPANY] app downloads rankings [year]", "[COMPANY] hiring trends layoffs"
+  7. `mcp__web-search-prime__web_search_prime` — "[COMPANY] glassdoor reviews CEO approval trend", "[COMPANY] patent filings [year]"
+  8. `mcp__exa__web_search_exa` — "alternative data signals [COMPANY] consumer spending trends"
+  9. `mcp__xcrawl-mcp__xcrawl_search` with `serp_options: {tbs: "qdr:m"}` — "[TICKER] reddit wallstreetbets sentiment"
 
   For earnings transcript scraping:
-  1. `mcp__firecrawl-mcp__firecrawl_search` — "[TICKER] earnings call transcript Q[N] [year]"
-  2. `mcp__firecrawl-mcp__firecrawl_scrape` — Scrape the transcript page for full text
-  3. Save to `/tmp/stock-analysis-[TICKER]-transcript.txt` for NLP analysis
+  1. `mcp__firecrawl__firecrawl_search` — "[TICKER] earnings call transcript Q[N] [year]"
+  2. `mcp__firecrawl__firecrawl_scrape` — Scrape the transcript page for full text
+  3. `mcp__tavily-remote-mcp__tavily_extract` — Extract transcript content from known URL (use `extract_depth: "advanced"` for protected sites)
+  4. Save to `/tmp/stock-analysis-[TICKER]-transcript.txt` for NLP analysis
 </data-acquisition>
 
 <validation-gates>

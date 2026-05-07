@@ -32,25 +32,40 @@
 ### Search Tool Priority (ordered by preference)
 
 1. **Firecrawl MCP** (MANDATORY first for web research):
-   - `mcp__firecrawl-mcp__firecrawl_search` — Primary web search for financial news, analyst reports, SEC filings
-   - `mcp__firecrawl-mcp__firecrawl_scrape` — Scrape specific pages (earnings transcripts, IR pages, SEC EDGAR)
-   - `mcp__firecrawl-mcp__firecrawl_extract` — Extract structured data (financial tables, analyst estimates)
-   - `mcp__firecrawl-mcp__firecrawl_agent` — Complex multi-page research (industry reports, competitive analysis)
+   - `mcp__firecrawl__firecrawl_search` — Primary web search for financial news, analyst reports, SEC filings. Supports `includeDomains`, `excludeDomains`, search operators.
+   - `mcp__firecrawl__firecrawl_scrape` — Scrape specific pages (earnings transcripts, IR pages, SEC EDGAR). Use JSON format for structured extraction.
+   - `mcp__firecrawl__firecrawl_extract` — LLM-powered structured extraction from multiple URLs (financial tables, analyst estimates).
+   - `mcp__firecrawl__firecrawl_agent` — Complex multi-page research (industry reports, competitive analysis).
 
-2. **XCrawl MCP** (SERP results + news):
-   - `mcp__xcrawl-mcp__xcrawl_search` — Google SERP results for financial queries, news, earnings dates
-   - `mcp__xcrawl-mcp__xcrawl_scrape` — Scrape financial data pages with JS rendering support
+2. **Tavily MCP** (deep research + domain-filtered search):
+   - `mcp__tavily-remote-mcp__tavily_search` — Web search with `include_domains`, `exclude_domains`, date range (`start_date`/`end_date`), search depth (basic/advanced/fast).
+   - `mcp__tavily-remote-mcp__tavily_research` — Comprehensive multi-source research agent. Use `model: "pro"` for broad financial topics, `"mini"` for narrow queries.
+   - `mcp__tavily-remote-mcp__tavily_extract` — Extract content from known URLs in markdown/text format.
+   - `mcp__tavily-remote-mcp__tavily_crawl` — Crawl financial sites with depth/breadth control and path filtering.
+   - `mcp__tavily-remote-mcp__tavily_map` — Map website structure (e.g., SEC EDGAR filing index, company IR pages).
 
-3. **Web Search Prime / Tavily** (general financial research):
-   - `mcp__web-search-prime__web_search_prime` — Quick web search with summaries, good for macro data, analyst consensus, market news
+3. **Tinyfish MCP** (social/alternative data — requires OAuth):
+   - `mcp__tinyfish__authenticate` — Start OAuth flow. Must authenticate before first use each session.
+   - `mcp__tinyfish__complete_authentication` — Complete OAuth with callback URL.
+   - After auth: social media analytics, web traffic data, app store metrics, hiring signals.
+   - Best for: Stage 8 alternative data, social sentiment, digital footprint analysis.
 
-4. **Exa** (semantic search):
-   - `mcp__exa__web_search_exa` — Semantic search for research papers, financial blogs, expert analysis
-   - Best for: "find blog posts comparing [company] to [peer]", "research papers on [industry trend]"
+4. **XCrawl MCP** (SERP results + news):
+   - `mcp__xcrawl-mcp__xcrawl_search` — Google SERP results for financial queries, news, earnings dates.
+   - `mcp__xcrawl-mcp__xcrawl_scrape` — Scrape financial data pages with JS rendering support.
+
+5. **Web Search Prime** (quick summaries):
+   - `mcp__web-search-prime__web_search_prime` — Quick web search with summaries, good for macro data, analyst consensus, market news.
+
+6. **Exa** (semantic search):
+   - `mcp__exa__web_search_exa` — Semantic search for research papers, financial blogs, expert analysis.
+   - Best for: "find blog posts comparing [company] to [peer]", "research papers on [industry trend]".
 
 ### Search Rules
 
 - **Firecrawl FIRST**: Always run Firecrawl search before other tools. Use `includeDomains` for targeted financial sources.
+- **Tavily for deep research**: Use `tavily_research` (model: "pro") for comprehensive topics requiring multi-source synthesis (industry analysis, macro outlook). Use `tavily_search` with `include_domains` for targeted lookups.
+- **Tinyfish for social/alt data**: Authenticate once per session, then use for social media metrics, app rankings, web traffic signals.
 - **Multi-source cross-reference**: Never trust a single source. Cross-reference financial data across 2+ search tools.
 - **Financial domain targeting**: For financial data, prefer these domains:
   - SEC filings: `sec.gov`, `edgar.sec.gov`
@@ -58,8 +73,8 @@
   - Analyst: `finance.yahoo.com`, `marketwatch.com`, `bloomberg.com`
   - Macro: `fred.stlouisfed.org`, `bls.gov`, `federalreserve.gov`
   - Social/Sentiment: `reddit.com/r/stocks`, `reddit.com/r/wallstreetbets`, `stocktwits.com`
-- **Recency enforcement**: Always add current year to search queries. Apply freshness scoring.
-- **Rate limiting**: Space requests across tools to avoid throttling. Prefer batch queries.
+- **Recency enforcement**: Always add current year to search queries. Use Tavily `time_range` or `start_date`/`end_date` for time-sensitive data.
+- **Rate limiting**: Space requests across tools to avoid throttling. Prefer batch queries. Tavily research: max 20 req/min.
 
 ## Script Execution (MUST follow)
 

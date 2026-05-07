@@ -29,14 +29,17 @@ description: "Performs multi-method valuation (DCF, comps, SOTP), relative value
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json` for computed valuations.
 
   For supplementary valuation/sentiment data, use search tools:
-  1. `mcp__firecrawl-mcp__firecrawl_search` — "[TICKER] analyst price target [year]", "[TICKER] short interest data"
-  2. `mcp__web-search-prime__web_search_prime` — "[TICKER] consensus EPS estimate", "[TICKER] options unusual activity"
-  3. `mcp__xcrawl-mcp__xcrawl_search` — "[TICKER] 13F institutional holdings", "[TICKER] insider buying selling"
-  4. `mcp__exa__web_search_exa` — "detailed valuation analysis [COMPANY] DCF model assumptions"
+  1. `mcp__firecrawl__firecrawl_search` — "[TICKER] analyst price target [year]", "[TICKER] short interest data"
+  2. `mcp__tavily-remote-mcp__tavily_search` with `include_domains: ["finance.yahoo.com", "marketwatch.com"]` — "[TICKER] analyst consensus estimate EPS revenue [year]"
+  3. `mcp__tavily-remote-mcp__tavily_research` with `model: "mini"` — "Current analyst consensus, price targets, and valuation multiples for [TICKER]"
+  4. `mcp__web-search-prime__web_search_prime` — "[TICKER] consensus EPS estimate", "[TICKER] options unusual activity"
+  5. `mcp__xcrawl-mcp__xcrawl_search` — "[TICKER] 13F institutional holdings", "[TICKER] insider buying selling"
+  6. `mcp__exa__web_search_exa` — "detailed valuation analysis [COMPANY] DCF model assumptions"
 
   For peer comparison data:
-  1. `mcp__firecrawl-mcp__firecrawl_extract` — Extract financial tables from peer company pages
-  2. `mcp__xcrawl-mcp__xcrawl_search` — "[PEER_TICKER] EV/EBITDA P/E financial ratios"
+  1. `mcp__firecrawl__firecrawl_extract` — Extract financial tables from peer company pages
+  2. `mcp__tavily-remote-mcp__tavily_extract` — Extract structured peer data from known financial URLs
+  3. `mcp__xcrawl-mcp__xcrawl_search` — "[PEER_TICKER] EV/EBITDA P/E financial ratios"
 </data-acquisition>
 
 <validation-gates>

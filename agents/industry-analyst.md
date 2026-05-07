@@ -24,11 +24,13 @@ description: "Analyzes product portfolio, industry structure (Porter's Five Forc
 
 <data-acquisition>
   For competitive landscape and industry research, use search tools:
-  1. `mcp__firecrawl-mcp__firecrawl_search` — "[COMPANY] market share [industry] [year]", "[COMPANY] competitors analysis"
-  2. `mcp__firecrawl-mcp__firecrawl_agent` — "Research the competitive landscape for [COMPANY] including market share data, key competitors, Porter's Five Forces analysis, and TAM/SAM sizing for [industry]"
-  3. `mcp__exa__web_search_exa` — "industry analysis [sector] market size growth forecast [year]"
-  4. `mcp__web-search-prime__web_search_prime` — "[COMPANY] TAM total addressable market estimate"
-  5. `mcp__xcrawl-mcp__xcrawl_search` — "[COMPANY] supply chain suppliers customers concentration"
+  1. `mcp__firecrawl__firecrawl_search` — "[COMPANY] market share [industry] [year]", "[COMPANY] competitors analysis"
+  2. `mcp__firecrawl__firecrawl_agent` — "Research the competitive landscape for [COMPANY] including market share data, key competitors, Porter's Five Forces analysis, and TAM/SAM sizing for [industry]"
+  3. `mcp__tavily-remote-mcp__tavily_research` with `model: "pro"` — "Comprehensive competitive analysis of [COMPANY] in [industry]: market share, key competitors, moat assessment, TAM/SAM/SOM, and disruption threats"
+  4. `mcp__tavily-remote-mcp__tavily_search` with `search_depth: "advanced"` — "[COMPANY] market share vs competitors [year]"
+  5. `mcp__exa__web_search_exa` — "industry analysis [sector] market size growth forecast [year]"
+  6. `mcp__web-search-prime__web_search_prime` — "[COMPANY] TAM total addressable market estimate"
+  7. `mcp__xcrawl-mcp__xcrawl_search` — "[COMPANY] supply chain suppliers customers concentration"
 </data-acquisition>
 
 <validation-gates>
