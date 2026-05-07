@@ -21,8 +21,8 @@ description: "Analyzes alternative data signals: digital footprint (web traffic,
 </reference-files>
 
 <data-acquisition>
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_alternatives.py [TICKER]` for alternative data.
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_candor.py /tmp/stock-analysis-[TICKER]-transcript.txt` for NLP candor index.
+  Run `scripts/fetch_alternatives.py [TICKER]` for alternative data.
+  Run `scripts/calculate_candor.py /tmp/stock-analysis-[TICKER]-transcript.txt` for NLP candor index.
   Paywalled sources return `null` — this is expected, proceed.
 
   Tinyfish authentication (MUST do once per session before social/alt queries):

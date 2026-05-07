@@ -21,7 +21,6 @@ import math
 import os
 import re
 import sys
-from collections import Counter
 from datetime import datetime, timezone
 
 try:
@@ -40,45 +39,94 @@ HEADERS = {"User-Agent": "StockAnalysisSkill/2.0 (research@example.com)"}
 
 NARRATIVE_PATTERNS = {
     "AI Revolution": [
-        r"\bAI\b", r"\bartificial intelligence\b", r"\bmachine learning\b",
-        r"\bLLM\b", r"\bGPT\b", r"\bgenerative AI\b", r"\bNLP\b",
-        r"\bdeep learning\b", r"\btransformer\b",
+        r"\bAI\b",
+        r"\bartificial intelligence\b",
+        r"\bmachine learning\b",
+        r"\bLLM\b",
+        r"\bGPT\b",
+        r"\bgenerative AI\b",
+        r"\bNLP\b",
+        r"\bdeep learning\b",
+        r"\btransformer\b",
     ],
     "Rate Cut / Easing": [
-        r"\brate cut\b", r"\bfed cut\b", r"\beasing\b", r"\bdovish\b",
-        r"\baccommodative\b", r"\bmonetary easing\b",
+        r"\brate cut\b",
+        r"\bfed cut\b",
+        r"\beasing\b",
+        r"\bdovish\b",
+        r"\baccommodative\b",
+        r"\bmonetary easing\b",
     ],
     "Recession Fear": [
-        r"\brecession\b", r"\bhard landing\b", r"\bdownturn\b",
-        r"\blayoffs\b", r"\bcontraction\b", r"\bnegative growth\b",
+        r"\brecession\b",
+        r"\bhard landing\b",
+        r"\bdownturn\b",
+        r"\blayoffs\b",
+        r"\bcontraction\b",
+        r"\bnegative growth\b",
     ],
     "Inflation / Stagflation": [
-        r"\binflation\b", r"\bstagflation\b", r"\bCPI\b", r"\bprice increases\b",
-        r"\bcost pressure\b", r"\bwage spiral\b",
+        r"\binflation\b",
+        r"\bstagflation\b",
+        r"\bCPI\b",
+        r"\bprice increases\b",
+        r"\bcost pressure\b",
+        r"\bwage spiral\b",
     ],
     "China Risk": [
-        r"\bChina\b", r"\bChinese\b", r"\bCCP\b", r"\bBeijing\b",
-        r"\bTaiwan\b", r"\btariff\b", r"\bdecoupling\b", r"\bsupply chain\b",
+        r"\bChina\b",
+        r"\bChinese\b",
+        r"\bCCP\b",
+        r"\bBeijing\b",
+        r"\bTaiwan\b",
+        r"\btariff\b",
+        r"\bdecoupling\b",
+        r"\bsupply chain\b",
     ],
     "Earnings Growth": [
-        r"\bearnings beat\b", r"\brevenue growth\b", r"\bprofit margin\b",
-        r"\bEPS\b", r"\bquarterly results\b", r"\bguidance raise\b",
+        r"\bearnings beat\b",
+        r"\brevenue growth\b",
+        r"\bprofit margin\b",
+        r"\bEPS\b",
+        r"\bquarterly results\b",
+        r"\bguidance raise\b",
     ],
     "Regulatory / Antitrust": [
-        r"\bantitrust\b", r"\bregulation\b", r"\bFTC\b", r"\bDOJ\b",
-        r"\bEU\b", r"\bfine\b", r"\bcompliance\b", r"\blawsuit\b",
+        r"\bantitrust\b",
+        r"\bregulation\b",
+        r"\bFTC\b",
+        r"\bDOJ\b",
+        r"\bEU\b",
+        r"\bfine\b",
+        r"\bcompliance\b",
+        r"\blawsuit\b",
     ],
     "Innovation / Disruption": [
-        r"\bdisruption\b", r"\binnovation\b", r"\brevolutionary\b",
-        r"\bbreakthrough\b", r"\bgame.changer\b", r"\bnext generation\b",
+        r"\bdisruption\b",
+        r"\binnovation\b",
+        r"\brevolutionary\b",
+        r"\bbreakthrough\b",
+        r"\bgame.changer\b",
+        r"\bnext generation\b",
     ],
     "M&A Speculation": [
-        r"\bacquisition\b", r"\bmerger\b", r"\bbuyout\b", r"\btakeover\b",
-        r"\bactivist\b", r"\bbreakup\b", r"\bspin.off\b",
+        r"\bacquisition\b",
+        r"\bmerger\b",
+        r"\bbuyout\b",
+        r"\btakeover\b",
+        r"\bactivist\b",
+        r"\bbreakup\b",
+        r"\bspin.off\b",
     ],
     "Meme / Retail Frenzy": [
-        r"\bmeme stock\b", r"\bMOON\b", r"\bYOLO\b", r"\bdiamond hands\b",
-        r"\bto the moon\b", r"\bshort squeeze\b", r"\bWSB\b", r"\bwallstreetbets\b",
+        r"\bmeme stock\b",
+        r"\bMOON\b",
+        r"\bYOLO\b",
+        r"\bdiamond hands\b",
+        r"\bto the moon\b",
+        r"\bshort squeeze\b",
+        r"\bWSB\b",
+        r"\bwallstreetbets\b",
     ],
 }
 
@@ -133,6 +181,7 @@ def analyze_narrative(text_corpus: list[str]) -> dict:
 # Analyst herding detection
 # ---------------------------------------------------------------------------
 
+
 def compute_analyst_herding(analyst_data: dict) -> dict:
     """Detect analyst herding (consensus clustering)."""
     if not analyst_data:
@@ -171,7 +220,7 @@ def compute_analyst_herding(analyst_data: dict) -> dict:
     herding_score = round(max_pct * 10, 1)
 
     # Dispersion: standard deviation of recommendations
-    values = ([1] * strong_sell + [2] * sell + [3] * hold + [4] * buy + [5] * strong_buy)
+    values = [1] * strong_sell + [2] * sell + [3] * hold + [4] * buy + [5] * strong_buy
     mean_val = sum(values) / len(values)
     variance = sum((v - mean_val) ** 2 for v in values) / len(values)
     dispersion = math.sqrt(variance)
@@ -199,11 +248,14 @@ def compute_analyst_herding(analyst_data: dict) -> dict:
         "dominant_rating": max_cat,
         "dominant_share": round(max_pct, 3),
         "recommendation_dispersion": round(dispersion, 2),
-        "price_target_dispersion_ratio": round(pt_dispersion, 3) if pt_dispersion is not None else None,
+        "price_target_dispersion_ratio": round(pt_dispersion, 3)
+        if pt_dispersion is not None
+        else None,
         "total_analysts": total,
         "assessment": assessment,
         "warning": "High herding (>8.0) may indicate groupthink — consider contrarian view"
-            if herding_score >= 8.0 else None,
+        if herding_score >= 8.0
+        else None,
     }
 
 
@@ -211,8 +263,10 @@ def compute_analyst_herding(analyst_data: dict) -> dict:
 # Sentiment divergence analysis
 # ---------------------------------------------------------------------------
 
-def compute_sentiment_divergence(news_sentiment: dict, social_sentiment: dict,
-                                  insider_data: dict) -> dict:
+
+def compute_sentiment_divergence(
+    news_sentiment: dict, social_sentiment: dict, insider_data: dict
+) -> dict:
     """Analyze divergence between retail, institutional, and insider sentiment."""
     divergences = []
 
@@ -221,7 +275,11 @@ def compute_sentiment_divergence(news_sentiment: dict, social_sentiment: dict,
     if news_sentiment:
         dist = news_sentiment.get("sentiment_distribution", {})
         if dist:
-            total = dist.get("positive", 0) + dist.get("negative", 0) + dist.get("neutral", 0)
+            total = (
+                dist.get("positive", 0)
+                + dist.get("negative", 0)
+                + dist.get("neutral", 0)
+            )
             if total > 0:
                 news_bias = (dist.get("positive", 0) - dist.get("negative", 0)) / total
 
@@ -243,35 +301,53 @@ def compute_sentiment_divergence(news_sentiment: dict, social_sentiment: dict,
     if news_bias is not None and social_bias is not None:
         gap = abs(news_bias - social_bias)
         if gap > 0.4:
-            direction = "Retail more bullish than institutional" if social_bias > news_bias else "Retail more bearish than institutional"
-            divergences.append({
-                "type": "retail_vs_institutional",
-                "gap": round(gap, 3),
-                "direction": direction,
-                "significance": "high" if gap > 0.6 else "moderate",
-            })
+            direction = (
+                "Retail more bullish than institutional"
+                if social_bias > news_bias
+                else "Retail more bearish than institutional"
+            )
+            divergences.append(
+                {
+                    "type": "retail_vs_institutional",
+                    "gap": round(gap, 3),
+                    "direction": direction,
+                    "significance": "high" if gap > 0.6 else "moderate",
+                }
+            )
 
     if news_bias is not None and insider_bias is not None:
         gap = abs(news_bias - insider_bias)
         if gap > 0.4:
-            direction = "Insiders more bullish than media" if insider_bias > news_bias else "Insiders more bearish than media"
-            divergences.append({
-                "type": "insider_vs_media",
-                "gap": round(gap, 3),
-                "direction": direction,
-                "significance": "high" if gap > 0.6 else "moderate",
-            })
+            direction = (
+                "Insiders more bullish than media"
+                if insider_bias > news_bias
+                else "Insiders more bearish than media"
+            )
+            divergences.append(
+                {
+                    "type": "insider_vs_media",
+                    "gap": round(gap, 3),
+                    "direction": direction,
+                    "significance": "high" if gap > 0.6 else "moderate",
+                }
+            )
 
     if social_bias is not None and insider_bias is not None:
         gap = abs(social_bias - insider_bias)
         if gap > 0.5:
-            direction = "Insiders buying while retail selling" if insider_bias > social_bias else "Insiders selling while retail buying"
-            divergences.append({
-                "type": "insider_vs_retail",
-                "gap": round(gap, 3),
-                "direction": direction,
-                "significance": "high",
-            })
+            direction = (
+                "Insiders buying while retail selling"
+                if insider_bias > social_bias
+                else "Insiders selling while retail buying"
+            )
+            divergences.append(
+                {
+                    "type": "insider_vs_retail",
+                    "gap": round(gap, 3),
+                    "direction": direction,
+                    "significance": "high",
+                }
+            )
 
     sentiment_levels = {
         "news_bias": round(news_bias, 3) if news_bias is not None else None,
@@ -292,9 +368,9 @@ def compute_sentiment_divergence(news_sentiment: dict, social_sentiment: dict,
         "divergences": divergences,
         "sentiment_levels": sentiment_levels,
         "assessment": f"Sentiment divergence detected: {len(divergences)} source(s) misaligned. "
-                       f"Insider sentiment is the most reliable signal."
-            if any(d["type"].startswith("insider") for d in divergences)
-            else f"Sentiment divergence detected: {len(divergences)} source(s) misaligned.",
+        f"Insider sentiment is the most reliable signal."
+        if any(d["type"].startswith("insider") for d in divergences)
+        else f"Sentiment divergence detected: {len(divergences)} source(s) misaligned.",
     }
 
 
@@ -302,7 +378,10 @@ def compute_sentiment_divergence(news_sentiment: dict, social_sentiment: dict,
 # Overreaction detection
 # ---------------------------------------------------------------------------
 
-def compute_overreaction(price_changes: list[float], news_sentiment: dict | None = None) -> dict:
+
+def compute_overreaction(
+    price_changes: list[float], news_sentiment: dict | None = None
+) -> dict:
     """Detect potential overreaction patterns.
 
     Overreaction: large price moves not justified by fundamental news.
@@ -313,8 +392,10 @@ def compute_overreaction(price_changes: list[float], news_sentiment: dict | None
 
     # Volatility assessment
     mean_abs_change = sum(abs(c) for c in price_changes) / len(price_changes)
-    std_change = (sum((c - sum(price_changes) / len(price_changes)) ** 2
-                      for c in price_changes) / len(price_changes)) ** 0.5
+    std_change = (
+        sum((c - sum(price_changes) / len(price_changes)) ** 2 for c in price_changes)
+        / len(price_changes)
+    ) ** 0.5
 
     # Count extreme moves (>2 std)
     extreme_threshold = mean_abs_change + 2 * std_change
@@ -326,7 +407,7 @@ def compute_overreaction(price_changes: list[float], news_sentiment: dict | None
     if len(extreme_moves) >= 2:
         # Check if extreme moves are consecutive within a short window
         for i in range(len(price_changes) - 2):
-            window = price_changes[i:i + 5]
+            window = price_changes[i : i + 5]
             extreme_in_window = sum(1 for c in window if abs(c) > extreme_threshold)
             if extreme_in_window >= 2:
                 clustered = True
@@ -341,11 +422,11 @@ def compute_overreaction(price_changes: list[float], news_sentiment: dict | None
             "Consider fading extreme moves if fundamentals unchanged."
         )
     elif extreme_ratio > 0.05:
-        assessment = (
-            "Mild overreaction signals — elevated volatility, monitor for reversal patterns"
-        )
+        assessment = "Mild overreaction signals — elevated volatility, monitor for reversal patterns"
     else:
-        assessment = "No overreaction detected — price moves consistent with normal volatility"
+        assessment = (
+            "No overreaction detected — price moves consistent with normal volatility"
+        )
 
     # Mean reversion expectation
     # After extreme moves (>2 std), price tends to revert
@@ -376,42 +457,51 @@ def compute_overreaction(price_changes: list[float], news_sentiment: dict | None
 # Contrarian / crowding signals
 # ---------------------------------------------------------------------------
 
+
 def compute_contrarian_signals(analyst_data: dict, sentiment_data: dict) -> dict:
     """Identify contrarian signals and crowding indicators."""
     signals = []
 
     # Analyst consensus at extremes → contrarian signal
     herding = compute_analyst_herding(analyst_data) if analyst_data else {}
-    if herding.get("herding_score", 0) >= 8.5:
+    if (herding.get("herding_score") or 0) >= 8.5:
         if herding.get("dominant_rating") in ("Strong Buy", "Buy"):
-            signals.append({
-                "signal": "Extreme bullish consensus",
-                "interpretation": "When everyone is bullish, who's left to buy? Contrarian sell signal.",
-                "strength": "moderate",
-            })
+            signals.append(
+                {
+                    "signal": "Extreme bullish consensus",
+                    "interpretation": "When everyone is bullish, who's left to buy? Contrarian sell signal.",
+                    "strength": "moderate",
+                }
+            )
         elif herding.get("dominant_rating") in ("Strong Sell", "Sell"):
-            signals.append({
-                "signal": "Extreme bearish consensus",
-                "interpretation": "When everyone is bearish, who's left to sell? Contrarian buy signal.",
-                "strength": "moderate",
-            })
+            signals.append(
+                {
+                    "signal": "Extreme bearish consensus",
+                    "interpretation": "When everyone is bearish, who's left to sell? Contrarian buy signal.",
+                    "strength": "moderate",
+                }
+            )
 
     # Social media extreme sentiment
     if sentiment_data:
         social_bias = sentiment_data.get("social_bias")
         if social_bias is not None:
             if social_bias > 0.5:
-                signals.append({
-                    "signal": "Extreme retail bullishness",
-                    "interpretation": "Retail euphoria often precedes corrections. Caution warranted.",
-                    "strength": "high" if social_bias > 0.7 else "moderate",
-                })
+                signals.append(
+                    {
+                        "signal": "Extreme retail bullishness",
+                        "interpretation": "Retail euphoria often precedes corrections. Caution warranted.",
+                        "strength": "high" if social_bias > 0.7 else "moderate",
+                    }
+                )
             elif social_bias < -0.5:
-                signals.append({
-                    "signal": "Extreme retail bearishness",
-                    "interpretation": "Retail capitulation can mark bottoms. Look for stabilization.",
-                    "strength": "high" if social_bias < -0.7 else "moderate",
-                })
+                signals.append(
+                    {
+                        "signal": "Extreme retail bearishness",
+                        "interpretation": "Retail capitulation can mark bottoms. Look for stabilization.",
+                        "strength": "high" if social_bias < -0.7 else "moderate",
+                    }
+                )
 
     return {
         "contrarian_signals": signals,
@@ -430,16 +520,26 @@ def compute_contrarian_signals(analyst_data: dict, sentiment_data: dict) -> dict
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Behavioral finance analysis"
-    )
+    parser = argparse.ArgumentParser(description="Behavioral finance analysis")
     parser.add_argument("ticker", help="Ticker symbol")
-    parser.add_argument("--news-text", help="Path to text file with recent news articles (one per line)")
-    parser.add_argument("--analyst-json", help="Path to analyst data JSON (from fetch_sentiment.py)")
-    parser.add_argument("--social-json", help="Path to social sentiment JSON (from fetch_alternatives.py)")
-    parser.add_argument("--insider-json", help="Path to insider data JSON (from fetch_sentiment.py)")
-    parser.add_argument("--price-changes", help="Path to JSON array of daily % price changes")
+    parser.add_argument(
+        "--news-text", help="Path to text file with recent news articles (one per line)"
+    )
+    parser.add_argument(
+        "--analyst-json", help="Path to analyst data JSON (from fetch_sentiment.py)"
+    )
+    parser.add_argument(
+        "--social-json",
+        help="Path to social sentiment JSON (from fetch_alternatives.py)",
+    )
+    parser.add_argument(
+        "--insider-json", help="Path to insider data JSON (from fetch_sentiment.py)"
+    )
+    parser.add_argument(
+        "--price-changes", help="Path to JSON array of daily % price changes"
+    )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     args = parser.parse_args()
 
@@ -483,7 +583,9 @@ def main():
         try:
             with open(args.insider_json) as f:
                 raw = json.load(f)
-                insider_data = raw.get(ticker, {}).get("insider", {}) if ticker in raw else {}
+                insider_data = (
+                    raw.get(ticker, {}).get("insider", {}) if ticker in raw else {}
+                )
         except (FileNotFoundError, json.JSONDecodeError):
             pass
 
@@ -514,14 +616,18 @@ def main():
 
     # Behavioral summary
     warnings = []
-    if result["analyst_herding"].get("herding_score", 0) >= 8.0:
+    if (result["analyst_herding"].get("herding_score") or 0) >= 8.0:
         warnings.append("Analyst herding detected — consensus may be groupthink")
     if result["sentiment_divergence"].get("divergence_detected"):
         warnings.append("Sentiment divergence — conflicting signals across sources")
     if result["overreaction"].get("overreaction_detected"):
-        warnings.append("Overreaction detected — price moves exceed fundamental justification")
+        warnings.append(
+            "Overreaction detected — price moves exceed fundamental justification"
+        )
     if result["contrarian"].get("signal_count", 0) > 0:
-        warnings.append(f"{result['contrarian']['signal_count']} contrarian signal(s) active")
+        warnings.append(
+            f"{result['contrarian']['signal_count']} contrarian signal(s) active"
+        )
 
     result["behavioral_summary"] = {
         "warnings": warnings,

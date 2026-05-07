@@ -26,7 +26,7 @@ description: "Analyzes macroeconomic conditions, interest rate impact, inflation
 </reference-files>
 
 <data-acquisition>
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_macro.py --output /tmp/stock-analysis-macro.json` for FRED indicators.
+  Run `scripts/fetch_macro.py --output /tmp/stock-analysis-macro.json` for FRED indicators.
   Reuse existing file if already fetched in Step 0.
 
   For supplementary macro data, use search tools in order:

@@ -24,11 +24,9 @@ weighted formulas, applying override rules (component ≤3 caps at Hold,
 
 import argparse
 import json
-import math
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Any
 
 # ---------------------------------------------------------------------------
 # Scoring utilities
@@ -621,13 +619,15 @@ def compute_macro_tailwind(macro: dict, metrics: dict | None = None) -> dict:
     spread = key_levels.get("ten_two_spread")
     if inverted:
         score_yc = 2.5
-        reasons.append(f"Yield curve inverted ({spread:.2f}%) — recession signal active")
+        spread_str = f"{spread:.2f}%" if spread is not None else "N/A"
+        reasons.append(f"Yield curve inverted ({spread_str}) — recession signal active")
     elif spread is not None and spread < 0.5:
         score_yc = 4.0
         reasons.append(f"Yield curve flat ({spread:.2f}%) — caution")
     else:
         score_yc = 6.5
-        reasons.append(f"Yield curve normal ({spread:.2f}% if available) — no recession signal")
+        spread_str = f"{spread:.2f}%" if spread is not None else "data unavailable"
+        reasons.append(f"Yield curve normal ({spread_str}) — no recession signal")
     sub_scores["yield_curve"] = score_yc
 
     # --- PMI ---

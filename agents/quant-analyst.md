@@ -29,11 +29,11 @@ description: "Performs multi-method valuation (DCF, comps, SOTP), relative value
 </reference-files>
 
 <data-acquisition>
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_technicals.py [TICKER] --period 2y` for technical indicators.
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources news,social` for sentiment data.
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources analyst` for analyst consensus.
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json` for computed valuations.
+  Run `scripts/fetch_technicals.py [TICKER] --period 2y` for technical indicators.
+  Run `scripts/fetch_sentiment.py [TICKER] --sources news,social` for sentiment data.
+  Run `scripts/fetch_sentiment.py [TICKER] --sources analyst` for analyst consensus.
+  Run `scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
+  Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json` for computed valuations.
 
   For supplementary valuation/sentiment data, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[TICKER] analyst price target [year]", "[TICKER] short interest data"

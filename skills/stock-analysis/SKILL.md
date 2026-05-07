@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.4"
+version: "1.0.6"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -19,7 +19,7 @@ compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl 
 
 ## Overview
 
-This skill performs institutional-grade stock analysis through 11 stages, producing 1-3 reports (long/mid/short-term) per ticker. Analysis depth adjusts per report type — see `${CLAUDE_PLUGIN_ROOT}/references/report_templates.md` for output formats.
+This skill performs institutional-grade stock analysis through 11 stages, producing 1-3 reports (long/mid/short-term) per ticker. Analysis depth adjusts per report type — see `references/report_templates.md` for output formats.
 
 **v1.0.4:** Deterministic scoring (`compute_scores.py`), ensemble forecasting for DCF (`forecast.py`), Monte Carlo simulation, credit market analysis (`fetch_credit.py`), behavioral finance (`fetch_behavioral.py`), state persistence with SQLite (`persist.py`), backtesting (`backtest.py`), portfolio context (`portfolio_context.py`), real-time data (`fetch_realtime.py`), and industry deep-dive references.
 
@@ -27,7 +27,7 @@ This skill performs institutional-grade stock analysis through 11 stages, produc
 
 ## Search Tools
 
-This skill uses multiple web search tools for financial data acquisition. See `${CLAUDE_PLUGIN_ROOT}/agents/search-agent.md` for full search methodology.
+This skill uses multiple web search tools for financial data acquisition. See `agents/search-agent.md` for full search methodology.
 
 **Priority order:**
 1. **Firecrawl MCP** (`mcp__firecrawl__firecrawl_search`) — Primary search. Always run first. Supports `includeDomains`, search operators.
@@ -68,15 +68,15 @@ This skill uses multiple web search tools for financial data acquisition. See `$
    - "options" / "momentum" / "this week" / "setup" → Short-term (days-weeks)
    - "quick" / "overview" / "snapshot" → Quick Overview (reduced stages, Mid-term format)
    - Default (no horizon specified) → Mid-term, then ask: "Would you also like a long-term intrinsic value analysis?"
-3. **Initialize state**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py init [TICKER] --report-type [TYPE]` to create a checkpointed analysis session. Record the returned `analysis_id` — use it for all subsequent `persist.py save` calls.
+3. **Initialize state**: Run `scripts/persist.py init [TICKER] --report-type [TYPE]` to create a checkpointed analysis session. Record the returned `analysis_id` — use it for all subsequent `persist.py save` calls.
 4. Create output directory: `./reports/[TICKER]/`
-5. **Earnings calendar check**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources earnings` for upcoming earnings dates and past surprises. If FINNHUB_API_KEY is not set, fall back to `mcp__web-search-prime__web_search_prime` for "[TICKER] next earnings date [YEAR]". If earnings are within 14 days, warn the user: "Earnings report on [DATE] may invalidate this analysis. Proceed or wait?" If within 3 days, recommend waiting unless the user explicitly overrides.
-6. Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_financials.py [TICKER] --years 5 --output /tmp/stock-analysis-[TICKER]-raw-data.json` to retrieve financial data.
-7. Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output /tmp/stock-analysis-macro.json` to capture current macro regime context.
-8. **Time-series forecasting**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/forecast.py /tmp/stock-analysis-[TICKER]-raw-data.json --horizon 5 --method ensemble --output /tmp/stock-analysis-[TICKER]-forecast.json` to produce ARIMA/ETS ensemble forecasts for revenue, EPS, and FCF. This replaces the old single constant-growth assumption.
-9. **Credit market check**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_credit.py [TICKER] --output /tmp/stock-analysis-[TICKER]-credit.json` to retrieve credit spreads, debt maturity, and credit rating. Bond markets often price risk faster than equities.
+5. **Earnings calendar check**: Run `scripts/fetch_sentiment.py [TICKER] --sources earnings` for upcoming earnings dates and past surprises. If FINNHUB_API_KEY is not set, fall back to `mcp__web-search-prime__web_search_prime` for "[TICKER] next earnings date [YEAR]". If earnings are within 14 days, warn the user: "Earnings report on [DATE] may invalidate this analysis. Proceed or wait?" If within 3 days, recommend waiting unless the user explicitly overrides.
+6. Run `scripts/fetch_financials.py [TICKER] --years 5 --output /tmp/stock-analysis-[TICKER]-raw-data.json` to retrieve financial data.
+7. Run `scripts/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output /tmp/stock-analysis-macro.json` to capture current macro regime context.
+8. **Time-series forecasting**: Run `scripts/forecast.py /tmp/stock-analysis-[TICKER]-raw-data.json --horizon 5 --method ensemble --output /tmp/stock-analysis-[TICKER]-forecast.json` to produce ARIMA/ETS ensemble forecasts for revenue, EPS, and FCF. This replaces the old single constant-growth assumption.
+9. **Credit market check**: Run `scripts/fetch_credit.py [TICKER] --output /tmp/stock-analysis-[TICKER]-credit.json` to retrieve credit spreads, debt maturity, and credit rating. Bond markets often price risk faster than equities.
 10. **SEC Redline Analysis**: Use `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` to find the previous year's 10-K. Scrape via `mcp__firecrawl__firecrawl_scrape`. Identify "Risk Factor" deletions or new additions. Flag any hidden shifts in legal language or risk tolerance.
-11. Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --output /tmp/stock-analysis-[TICKER]-metrics.json` to compute ratios and valuation. If market cap is known, add `--market-cap [VALUE]`.
+11. Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --output /tmp/stock-analysis-[TICKER]-metrics.json` to compute ratios and valuation. If market cap is known, add `--market-cap [VALUE]`.
 12. Call `finance` tool for current price, market cap, 52-week range, shares outstanding.
 
 ### Stage 1: Company Fundamentals
@@ -89,7 +89,7 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 - [ ] 1.5 Forensic Accounting — Beneish M-Score, Altman Z-Score, revenue recognition, accruals check
 - [ ] 1.6 Segment-Level (if multi-segment) — Per-segment revenue, margin, ROIC, moat; BCG classification
 
-**Reference:** Load `${CLAUDE_PLUGIN_ROOT}/references/frameworks_value_growth.md` for Buffett/Munger/Fisher/Lynch frameworks. Load `${CLAUDE_PLUGIN_ROOT}/references/sector_metrics.md` for sector-specific KPIs.
+**Reference:** Load `references/frameworks_value_growth.md` for Buffett/Munger/Fisher/Lynch frameworks. Load `references/sector_metrics.md` for sector-specific KPIs.
 
 **Validation gate:** At least 3 years of revenue, operating income, FCF, total debt from Tier 1 source. Beneish M-Score and Altman Z-Score computed.
 
@@ -100,11 +100,11 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 **Checklist:**
 - [ ] 2.1 Leadership Assessment — CEO/CFO background, tenure, board composition, departures, succession
 - [ ] 2.2 Capital Allocation — ROIC vs WACC spread, incremental ROIC, M&A track record, buyback discipline
-- [ ] 2.3 Insider Ownership — CEO ownership multiple, total insider %, recent Form 4 activity, cluster detection. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources insider`** for structured insider transactions with automated cluster detection.
+- [ ] 2.3 Insider Ownership — CEO ownership multiple, total insider %, recent Form 4 activity, cluster detection. **Run `scripts/fetch_sentiment.py [TICKER] --sources insider`** for structured insider transactions with automated cluster detection.
 - [ ] 2.4 Compensation — Performance metrics (ROIC/FCF vs revenue-only), vesting, clawbacks, peer group
 - [ ] 2.5 Management Quality — Guidance accuracy, promise-to-delivery ratio, Glassdoor trend, employee retention
 
-**Reference:** Use frameworks from `${CLAUDE_PLUGIN_ROOT}/references/frameworks_value_growth.md` (Fisher's 15 points, Scuttlebutt method).
+**Reference:** Use frameworks from `references/frameworks_value_growth.md` (Fisher's 15 points, Scuttlebutt method).
 
 **Validation gate:** At least one Form 4 filing from last 90 days reviewed.
 
@@ -123,7 +123,7 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 - [ ] 3.6 Supply Chain — Supplier diversification, geographic concentration, critical components
 - [ ] 3.7 Ecosystem Mapping — Upstream/downstream dependency, single-point-of-failure, complementor health
 
-**Reference:** Use frameworks from `${CLAUDE_PLUGIN_ROOT}/references/frameworks_value_growth.md` (Porter, Morningstar moat).
+**Reference:** Use frameworks from `references/frameworks_value_growth.md` (Porter, Morningstar moat).
 
 **Validation gate:** At least 3 peer companies with GICS alignment justification.
 
@@ -139,9 +139,9 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 - [ ] 4.5 Currency — Revenue by currency, natural hedging, hedging effectiveness
 - [ ] 4.6 Sector Drivers — 3-5 macro variables most correlated with sector; historical sensitivity
 
-**Data acquisition:** Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_macro.py --output /tmp/stock-analysis-macro.json` to pull FRED indicators. If `/tmp/stock-analysis-macro.json` already exists from Step 0, reuse it.
+**Data acquisition:** Run `scripts/fetch_macro.py --output /tmp/stock-analysis-macro.json` to pull FRED indicators. If `/tmp/stock-analysis-macro.json` already exists from Step 0, reuse it.
 
-**Reference:** Load `${CLAUDE_PLUGIN_ROOT}/references/frameworks_macro_quant.md` for Dalio/Soros/Druckenmiller frameworks.
+**Reference:** Load `references/frameworks_macro_quant.md` for Dalio/Soros/Druckenmiller frameworks.
 
 **Validation gate:** PMI, Fed funds rate, 10-year yield, and CPI all within Max Freshness (30 days).
 
@@ -156,7 +156,7 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 - [ ] 5.4 Government Policy — Subsidies (IRA, CHIPS), tax direction, government-as-customer exposure
 - [ ] 5.5 ESG — Rating trajectory, material issues, climate risk, social license, controversies
 
-**Reference:** Use frameworks from `${CLAUDE_PLUGIN_ROOT}/references/frameworks_macro_quant.md`.
+**Reference:** Use frameworks from `references/frameworks_macro_quant.md`.
 
 **Validation gate:** Countries representing >80% of revenue assessed.
 
@@ -167,18 +167,18 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 ### Stage 6: Valuation
 
 **Checklist:**
-- [ ] 6.1 Multi-Method — **DCF using ensemble forecast growth rates** (from `/tmp/stock-analysis-[TICKER]-forecast.json`), WACC, terminal value, sensitivity table, reverse DCF. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --wacc [WACC] --growth [ENSEMBLE_CAGR] --market-cap [VALUE] --output /tmp/stock-analysis-[TICKER]-metrics.json`** with the ensemble forecast FCF CAGR instead of a fixed constant. Trading Comps (peer universe, EV/EBITDA, P/E, P/FCF, PEG), SOTP if multi-segment.
-- [ ] 6.1b **Monte Carlo Simulation**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --monte-carlo --mc-growth-mu [ENSEMBLE_CAGR] --mc-growth-sigma [RESIDUAL_STD] --wacc [WACC] --market-cap [VALUE] --shares [SHARES] --output /tmp/stock-analysis-[TICKER]-metrics.json`. Produces 10K-run distribution with VaR, CVaR, and percentile-based price targets. **Do this for Long-term and Mid-term reports.**
+- [ ] 6.1 Multi-Method — **DCF using ensemble forecast growth rates** (from `/tmp/stock-analysis-[TICKER]-forecast.json`), WACC, terminal value, sensitivity table, reverse DCF. **Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --wacc [WACC] --growth [ENSEMBLE_CAGR] --market-cap [VALUE] --output /tmp/stock-analysis-[TICKER]-metrics.json`** with the ensemble forecast FCF CAGR instead of a fixed constant. Trading Comps (peer universe, EV/EBITDA, P/E, P/FCF, PEG), SOTP if multi-segment.
+- [ ] 6.1b **Monte Carlo Simulation**: Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --monte-carlo --mc-growth-mu [ENSEMBLE_CAGR] --mc-growth-sigma [RESIDUAL_STD] --wacc [WACC] --market-cap [VALUE] --shares [SHARES] --output /tmp/stock-analysis-[TICKER]-metrics.json`. Produces 10K-run distribution with VaR, CVaR, and percentile-based price targets. **Do this for Long-term and Mid-term reports.**
 - [ ] 6.2 Relative Value — P/E vs history/peers, EV/EBITDA with growth justification, P/FCF vs risk-free rate, PEG
-- [ ] 6.3 Technical — Trend (MAs, higher highs/lows), momentum (RSI, MACD), volume (OBV), support/resistance. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_technicals.py [TICKER] --period 2y`** for deterministic indicator computation and composite trend/momentum scores.
-- [ ] 6.4 Sentiment — Put/call ratio, VIX term structure, short interest, options flow, dark pool prints. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources news,social`** for news sentiment buzz and social media metrics. **For Short-term reports, also run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_realtime.py [TICKER] --mode options`** for options chain data (put/call OI, max pain, ATM IV).
-- [ ] 6.5 Institutional Flow — 13F analysis, activist 13D, Form 4 clusters, ownership concentration. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources analyst`** for analyst consensus and price targets.
+- [ ] 6.3 Technical — Trend (MAs, higher highs/lows), momentum (RSI, MACD), volume (OBV), support/resistance. **Run `scripts/fetch_technicals.py [TICKER] --period 2y`** for deterministic indicator computation and composite trend/momentum scores.
+- [ ] 6.4 Sentiment — Put/call ratio, VIX term structure, short interest, options flow, dark pool prints. **Run `scripts/fetch_sentiment.py [TICKER] --sources news,social`** for news sentiment buzz and social media metrics. **For Short-term reports, also run `scripts/fetch_realtime.py [TICKER] --mode options`** for options chain data (put/call OI, max pain, ATM IV).
+- [ ] 6.5 Institutional Flow — 13F analysis, activist 13D, Form 4 clusters, ownership concentration. **Run `scripts/fetch_sentiment.py [TICKER] --sources analyst`** for analyst consensus and price targets.
 
-**Reference:** Load `${CLAUDE_PLUGIN_ROOT}/references/frameworks_macro_quant.md` for Greenblatt's Magic Formula. Load `${CLAUDE_PLUGIN_ROOT}/references/frameworks_risk_alt.md` for Burry's SEC deep-dive. For sector-specific valuation, load the relevant deep-dive reference: `${CLAUDE_PLUGIN_ROOT}/references/industry_saas.md` (Tech/SaaS), `${CLAUDE_PLUGIN_ROOT}/references/industry_biotech.md` (Pharma/Biotech), or `${CLAUDE_PLUGIN_ROOT}/references/industry_banks.md` (Financials).
+**Reference:** Load `references/frameworks_macro_quant.md` for Greenblatt's Magic Formula. Load `references/frameworks_risk_alt.md` for Burry's SEC deep-dive. For sector-specific valuation, load the relevant deep-dive reference: `references/industry_saas.md` (Tech/SaaS), `references/industry_biotech.md` (Pharma/Biotech), or `references/industry_banks.md` (Financials).
 
 **Validation gate:** At least 2 independent valuation methods applied. DCF sensitivity table produced. Monte Carlo run for Long-term/Mid-term.
 
-**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage6.md`. Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py save [ANALYSIS_ID] 6 /tmp/stock-analysis-[TICKER]-stage6.md`. Drop raw data. Retain: intrinsic value range (with Monte Carlo percentiles), relative value assessment, key technical levels.
+**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage6.md`. Run `scripts/persist.py save [ANALYSIS_ID] 6 /tmp/stock-analysis-[TICKER]-stage6.md`. Drop raw data. Retain: intrinsic value range (with Monte Carlo percentiles), relative value assessment, key technical levels.
 
 ### Stage 7: Market Regime & Positioning
 
@@ -198,20 +198,20 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 - Impact on [TICKER]: How current regime affects this stock specifically (beta-adjusted, sector sensitivity)
 
 **Data acquisition:**
-- Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
-- **Credit market data**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_credit.py [TICKER] --output /tmp/stock-analysis-[TICKER]-credit.json` for HY/IG OAS spreads, TED spread, credit rating, and debt maturity. Credit markets often lead equities by 2-4 weeks.
-- **Behavioral analysis**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_behavioral.py [TICKER] --analyst-json /tmp/stock-analysis-[TICKER]-sentiment.json --output /tmp/stock-analysis-[TICKER]-behavioral.json` for analyst herding detection, sentiment divergence, and contrarian signals.
+- Run `scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
+- **Credit market data**: Run `scripts/fetch_credit.py [TICKER] --output /tmp/stock-analysis-[TICKER]-credit.json` for HY/IG OAS spreads, TED spread, credit rating, and debt maturity. Credit markets often lead equities by 2-4 weeks.
+- **Behavioral analysis**: Run `scripts/fetch_behavioral.py [TICKER] --analyst-json /tmp/stock-analysis-[TICKER]-sentiment.json --output /tmp/stock-analysis-[TICKER]-behavioral.json` for analyst herding detection, sentiment divergence, and contrarian signals.
 - `mcp__firecrawl__firecrawl_search` — "VIX term structure credit spreads [month] [year]", "NYSE margin debt latest data"
 - `mcp__tavily-remote-mcp__tavily_search` with `time_range: "week"` — "market regime risk-on risk-off indicators [year]"
 - `mcp__tavily-remote-mcp__tavily_research` with `model: "mini"` — "Current market positioning: VIX, credit spreads, margin debt, retail speculation, fund flows as of [date]"
 - Tinyfish (post-auth): retail sentiment metrics, social media speculation intensity
 - `mcp__xcrawl-mcp__xcrawl_search` — "[TICKER] short interest days to cover cost to borrow"
 
-**Reference:** Load `${CLAUDE_PLUGIN_ROOT}/references/frameworks_macro_quant.md` for Dalio's risk regime framework and Soros's reflexivity model.
+**Reference:** Load `references/frameworks_macro_quant.md` for Dalio's risk regime framework and Soros's reflexivity model.
 
 **Validation gate:** VIX and credit spread data within 7 days freshness. At least 4 of 8 sub-items have current data.
 
-**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage7.md`. Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py save [ANALYSIS_ID] 7 /tmp/stock-analysis-[TICKER]-stage7.md`. Drop raw data. Retain: regime classification, speculation score (1-10), top 3 positioning signals, impact assessment on [TICKER].
+**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage7.md`. Run `scripts/persist.py save [ANALYSIS_ID] 7 /tmp/stock-analysis-[TICKER]-stage7.md`. Drop raw data. Retain: regime classification, speculation score (1-10), top 3 positioning signals, impact assessment on [TICKER].
 
 ### Stage 8: Risk Assessment
 
@@ -224,13 +224,13 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 - [ ] 8.5b **Credit Risk Integration**: Load credit data from `/tmp/stock-analysis-[TICKER]-credit.json`. Assess: credit regime (stress/wide/normal/tight), debt maturity wall risk, interest coverage adequacy, credit rating trajectory. Flag if credit signals diverge from equity signals.
 - [ ] 8.6 Forensic Red Flag Summary — Flag if 3+ of the 9 red flags present. Cross-reference with Beneish M-Score and Altman Z-Score from Stage 6 metrics.
 - [ ] 8.7 Operational Due Diligence — Cybersecurity, legal history, DR/BC, insurance, IP, compliance, 3rd-party risk
-- [ ] 8.8 Thesis Falsifiability — Pre-mortem, falsification conditions, dissenting view search, inversion checklist, kill switch. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py kill-switch [TICKER]`** to check if prior kill switch conditions are approaching trigger levels.
+- [ ] 8.8 Thesis Falsifiability — Pre-mortem, falsification conditions, dissenting view search, inversion checklist, kill switch. **Run `scripts/persist.py kill-switch [TICKER]`** to check if prior kill switch conditions are approaching trigger levels.
 
-**Reference:** Load `${CLAUDE_PLUGIN_ROOT}/references/frameworks_risk_alt.md` for Marks's risk framework and forensic red flag details. Load `${CLAUDE_PLUGIN_ROOT}/references/institutional_odd.md` for ODD checklists. Load credit findings from `/tmp/stock-analysis-[TICKER]-credit.json`.
+**Reference:** Load `references/frameworks_risk_alt.md` for Marks's risk framework and forensic red flag details. Load `references/institutional_odd.md` for ODD checklists. Load credit findings from `/tmp/stock-analysis-[TICKER]-credit.json`.
 
 **Validation gate:** Beneish M-Score, Altman Z-Score, and 5+ forensic checks completed. Credit risk assessment performed.
 
-**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage8.md`. Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py save [ANALYSIS_ID] 8 /tmp/stock-analysis-[TICKER]-stage8.md`. Drop raw data. Retain: risk score (1-10), top 3 risks, scenario price targets.
+**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage8.md`. Run `scripts/persist.py save [ANALYSIS_ID] 8 /tmp/stock-analysis-[TICKER]-stage8.md`. Drop raw data. Retain: risk score (1-10), top 3 risks, scenario price targets.
 
 ### Stage 9: Alternative Data
 
@@ -238,25 +238,25 @@ This skill uses multiple web search tools for financial data acquisition. See `$
 - [ ] 9.1 Digital Footprint — Web traffic trends (Google Trends + Similarweb), app rankings/downloads (Apple App Store public API), social media metrics (Reddit praw), hiring trends (LinkedIn public page), patents (USPTO public API)
 - [ ] 9.2 Transaction Data — Consumer demand proxy via Google Trends product search queries ("buy [TICKER]", "[TICKER] purchase"). Directional only.
 - [ ] 9.3 Satellite/Sensor — Foot traffic, industrial activity, shipping/logistics flow (research via web search)
-- [ ] 9.4 NLP Earnings Call — Tone analysis, Q&A vs prepared remarks differential, uncertainty, deception indicators. Save the latest earnings transcript to `/tmp/stock-analysis-[TICKER]-transcript.txt`, then **run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_candor.py /tmp/stock-analysis-[TICKER]-transcript.txt`**.
+- [ ] 9.4 NLP Earnings Call — Tone analysis, Q&A vs prepared remarks differential, uncertainty, deception indicators. Save the latest earnings transcript to `/tmp/stock-analysis-[TICKER]-transcript.txt`, then **run `scripts/calculate_candor.py /tmp/stock-analysis-[TICKER]-transcript.txt`**.
 - [ ] 9.5 Composite Score — Weighted alternative data score (web 20%, app 20%, social 15%, employee 15%, hiring 15%, innovation 15%)
 - [ ] 9.6 Primary Research — Expert network synthesis, channel checks (supplier/customer/competitor/former employee), convergence scoring
 
-**Reference:** Load `${CLAUDE_PLUGIN_ROOT}/references/frameworks_risk_alt.md` for ARK's disruption framework.
+**Reference:** Load `references/frameworks_risk_alt.md` for ARK's disruption framework.
 
-**Data acquisition:** Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_alternatives.py [TICKER] --sources web,similarweb,app,glassdoor,social,patents,hiring,transactions --output /tmp/stock-analysis-[TICKER]-alt-data.json`. All 8 sources are functional free/public APIs — no paywalled endpoints. Glassdoor and LinkedIn provide public page data. Google Trends proxies for web traffic and transaction signals.
+**Data acquisition:** Run `scripts/fetch_alternatives.py [TICKER] --sources web,similarweb,app,glassdoor,social,patents,hiring,transactions --output /tmp/stock-analysis-[TICKER]-alt-data.json`. All 8 sources are functional free/public APIs — no paywalled endpoints. Glassdoor and LinkedIn provide public page data. Google Trends proxies for web traffic and transaction signals.
 
 **Validation gate:** At least 3 of 6 alternative data dimensions have non-null readings.
 
-**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage9.md`. Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py save [ANALYSIS_ID] 9 /tmp/stock-analysis-[TICKER]-stage9.md`.
+**After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage9.md`. Run `scripts/persist.py save [ANALYSIS_ID] 9 /tmp/stock-analysis-[TICKER]-stage9.md`.
 
 ### Stage 10: Deterministic Scoring & Cross-Check
 
 **Run BEFORE report generation:**
 
-**10a — Deterministic Scoring:** Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_scores.py` to produce reproducible 1-10 component scores:
+**10a — Deterministic Scoring:** Run `scripts/compute_scores.py` to produce reproducible 1-10 component scores:
 ```
-${CLAUDE_PLUGIN_ROOT}/scripts/compute_scores.py \
+scripts/compute_scores.py \
   --metrics /tmp/stock-analysis-[TICKER]-metrics.json \
   --macro /tmp/stock-analysis-macro.json \
   --technicals /tmp/tech.json \
@@ -276,14 +276,14 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
 4. If Behavioral analysis shows herding score ≥8.0 with dominant "Strong Buy" consensus: apply contrarian overlay — reduce conviction by 0.5-1.0 points.
 5. Record all cross-check findings. If contradictions cannot be resolved, flag the report: "CONTRADICTION UNRESOLVED — [specific issue]."
 
-**10c — Save conviction:** Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py conviction [ANALYSIS_ID] [CONVICTION] [RATING] --component-scores /tmp/stock-analysis-[TICKER]-scores.json` to record the conviction in state history for future backtesting.
+**10c — Save conviction:** Run `scripts/persist.py conviction [ANALYSIS_ID] [CONVICTION] [RATING] --component-scores /tmp/stock-analysis-[TICKER]-scores.json` to record the conviction in state history for future backtesting.
 
 ### Stage 11: Report Generation
 
 **Workflow:**
 1. Read all stage summaries from `/tmp/stock-analysis-[TICKER]-stage[1-9].md`
 2. Load deterministic scores from `/tmp/stock-analysis-[TICKER]-scores.json`
-3. Load `${CLAUDE_PLUGIN_ROOT}/references/report_templates.md` for output structure
+3. Load `references/report_templates.md` for output structure
 4. Determine which report types to generate (from Step 0 triage)
 5. For each report type:
    - Use the deterministic conviction score and rating from `compute_scores.py` output (do NOT invent a new conviction number)
@@ -293,11 +293,11 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
    - Generate the report following the template structure exactly
    - Run the pre-delivery checklist (see below)
 6. Write each report to `./reports/[TICKER]/[TICKER]_[ReportType]_[YYYY-MM-DD].md`
-7. Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py complete [ANALYSIS_ID]` to mark the analysis as completed.
+7. Run `scripts/persist.py complete [ANALYSIS_ID]` to mark the analysis as completed.
 
 **Post-Delivery:**
-- Run `${CLAUDE_PLUGIN_ROOT}/scripts/backtest.py --ticker [TICKER]` to compare this report against any prior predictions for the same ticker.
-- If the user has specified a portfolio, run `${CLAUDE_PLUGIN_ROOT}/scripts/portfolio_context.py [TICKER] --portfolio '[PORTFOLIO_JSON]' --conviction [CONVICTION]` for position sizing and correlation guidance.
+- Run `scripts/backtest.py --ticker [TICKER]` to compare this report against any prior predictions for the same ticker.
+- If the user has specified a portfolio, run `scripts/portfolio_context.py [TICKER] --portfolio '[PORTFOLIO_JSON]' --conviction [CONVICTION]` for position sizing and correlation guidance.
 
 ## Pre-Delivery Checklist
 
@@ -317,7 +317,7 @@ Before writing each report, verify:
 
 After every stage, execute this sequence:
 1. `write_file` → `/tmp/stock-analysis-[TICKER]-stage[N].md` with: key metrics table, stage scores, 3-sentence narrative per sub-section
-2. Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py save [ANALYSIS_ID] [N] /tmp/stock-analysis-[TICKER]-stage[N].md` to checkpoint
+2. Run `scripts/persist.py save [ANALYSIS_ID] [N] /tmp/stock-analysis-[TICKER]-stage[N].md` to checkpoint
 3. Drop raw data from context (SEC filing text, full transcripts, raw financials, full search results)
 4. Load next stage's reference file
 5. If context usage exceeds ~80%, offload additional intermediate data before continuing
@@ -325,12 +325,12 @@ After every stage, execute this sequence:
 ## Validation Loops
 
 After Stage 11 report generation:
-1. Run `${CLAUDE_PLUGIN_ROOT}/scripts/backtest.py --ticker [TICKER]` to compare against prior predictions
+1. Run `scripts/backtest.py --ticker [TICKER]` to compare against prior predictions
 2. Select 5 random numeric claims from the report
 3. Trace each back to its source file
 4. If any claim is unverifiable → remove it, flag the gap
 5. If 2+ verified claims contain errors → restart the affected stage
-6. Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py complete [ANALYSIS_ID]` to finalize
+6. Run `scripts/persist.py complete [ANALYSIS_ID]` to finalize
 
 ## Stage Depth Allocation
 
