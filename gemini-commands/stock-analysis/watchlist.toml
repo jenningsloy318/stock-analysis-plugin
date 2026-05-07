@@ -1,0 +1,22 @@
+prompt = """
+<purpose>Review previously generated reports and provide a status update: current price vs targets, catalyst timeline progress, kill switch proximity, and whether the thesis remains intact.</purpose>
+
+<usage>/stock-analysis:watchlist [TICKER|all]</usage>
+
+<process>
+  <step n="1" name="Scan Reports">Read ./reports/ directory for all existing analysis reports</step>
+  <step n="2" name="Current Data">Fetch current price for each ticker</step>
+  <step n="3" name="Status Check">Compare current price to bull/base/bear targets</step>
+  <step n="4" name="Catalyst Review">Check if any catalysts have materialized</step>
+  <step n="5" name="Kill Switch Check">Verify kill switch conditions are NOT triggered</step>
+  <step n="6" name="Summary Table">Output watchlist table with status indicators</step>
+</process>
+
+<constraints>
+  <constraint>Only works if reports exist in ./reports/ from prior analyses</constraint>
+  <constraint>Flag reports older than 90 days as "STALE"</constraint>
+  <constraint>If kill switch condition approaching, highlight with warning</constraint>
+</constraints>
+
+User request: {{args}}
+"""

@@ -1,0 +1,35 @@
+{
+  "name": "stock-analysis",
+  "displayName": "Stock Analysis",
+  "version": "1.0.0",
+  "description": "Multi-stage institutional equity research producing long-term, mid-term, and short-term stock analysis reports synthesizing methodologies from Buffett, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, and ARK",
+  "shortDescription": "Orchestrate specialized analyst agents through research, valuation, risk assessment, and report generation stages",
+  "author": {
+    "name": "Jennings Liu",
+    "email": "jenningsloy318@gmail.com",
+    "url": "https://github.com/jenningsloy318"
+  },
+  "homepage": "https://github.com/jenningsloy318/stock-analysis-plugin",
+  "repository": "https://github.com/jenningsloy318/stock-analysis-plugin",
+  "license": "MIT",
+  "keywords": [
+    "stock-analysis",
+    "equity-research",
+    "valuation",
+    "investment",
+    "financial-analysis",
+    "macro-economics",
+    "technical-analysis",
+    "risk-assessment",
+    "agent-teams"
+  ],
+  "category": "finance",
+  "capabilities": [
+    "equity-research",
+    "valuation",
+    "risk-assessment",
+    "technical-analysis",
+    "report-generation"
+  ],
+  "skills": "./skills/"
+}

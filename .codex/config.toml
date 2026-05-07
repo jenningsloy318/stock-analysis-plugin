@@ -1,0 +1,34 @@
+# Stock Analysis Plugin - Codex Configuration
+# Institutional equity research with specialized analyst agents
+
+[agents.stock-analyst]
+description = "Central orchestrator for stock analysis workflow"
+config_file = "./agents/stock-analyst.toml"
+
+[agents.fundamental-analyst]
+description = "Analyzes company financial health, moat, and executive quality"
+config_file = "./agents/fundamental-analyst.toml"
+
+[agents.industry-analyst]
+description = "Analyzes product portfolio, industry structure, and competitive landscape"
+config_file = "./agents/industry-analyst.toml"
+
+[agents.macro-analyst]
+description = "Analyzes macroeconomic conditions and geopolitical risks"
+config_file = "./agents/macro-analyst.toml"
+
+[agents.quant-analyst]
+description = "Performs multi-method valuation, technical analysis, and flow tracking"
+config_file = "./agents/quant-analyst.toml"
+
+[agents.risk-analyst]
+description = "Comprehensive risk assessment, scenario analysis, and thesis falsifiability"
+config_file = "./agents/risk-analyst.toml"
+
+[agents.alt-data-analyst]
+description = "Analyzes alternative data: digital footprint, NLP earnings, channel checks"
+config_file = "./agents/alt-data-analyst.toml"
+
+[agents.report-writer]
+description = "Synthesizes stage summaries into institutional-grade research reports"
+config_file = "./agents/report-writer.toml"

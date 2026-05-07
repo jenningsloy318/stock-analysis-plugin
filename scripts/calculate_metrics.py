@@ -1,0 +1,573 @@
+#!/usr/bin/env python3
+"""Compute financial metrics and valuation from raw financial data.
+
+Usage:
+    calculate_metrics.py /tmp/stock-analysis-AAPL-raw-data.json [--output /tmp/metrics.json]
+    calculate_metrics.py raw-data.json --wacc 0.09 --growth 0.03 --market-cap 3000000000000
+
+Deterministic calculations only. No LLM involvement in math.
+Output includes methodology attribution for every calculation.
+"""
+import argparse
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+
+def safe_div(numerator: float, denominator: float) -> float | None:
+    if denominator == 0 or denominator is None or numerator is None:
+        return None
+    return numerator / denominator
+
+
+def extract_values(series: list[dict]) -> list[float]:
+    """Extract numeric values from a time-series list of {period, value} dicts."""
+    return [entry["value"] for entry in series if entry.get("value") is not None]
+
+
+def compute_cagr(values: list[float]) -> float | None:
+    """Compute CAGR from a list of annual values (most recent first)."""
+    if len(values) < 2:
+        return None
+    start = values[-1]
+    end = values[0]
+    years = len(values) - 1
+    if start <= 0 or end <= 0:
+        return None
+    return (end / start) ** (1 / years) - 1
+
+
+def compute_dupont(net_income: float, revenue: float, assets: float, equity: float) -> dict:
+    """DuPont 3-factor decomposition of ROE.
+
+    ROE = Net Profit Margin × Asset Turnover × Equity Multiplier
+    """
+    net_margin = safe_div(net_income, revenue)
+    asset_turnover = safe_div(revenue, assets)
+    equity_multiplier = safe_div(assets, equity)
+    roe = safe_div(net_income, equity)
+
+    return {
+        "methodology": "DuPont 3-Factor Decomposition: ROE = Margin × Turnover × Leverage",
+        "roe": round(roe, 4) if roe else None,
+        "net_profit_margin": round(net_margin, 4) if net_margin else None,
+        "asset_turnover": round(asset_turnover, 4) if asset_turnover else None,
+        "equity_multiplier": round(equity_multiplier, 4) if equity_multiplier else None,
+        "interpretation": {
+            "margin_driven": net_margin and net_margin > 0.15,
+            "turnover_driven": asset_turnover and asset_turnover > 1.0,
+            "leverage_driven": equity_multiplier and equity_multiplier > 3.0,
+        },
+    }
+
+
+def compute_beneish_mscore(
+    dsri: float | None,
+    gmi: float | None,
+    aqi: float | None,
+    sgi: float | None,
+    depi: float | None,
+    sgai: float | None,
+    tata: float | None,
+    lvgi: float | None,
+) -> dict:
+    """Compute Beneish M-Score from 8 financial variables.
+
+    M-Score = -4.84 + 0.920*DSRI + 0.528*GMI + 0.404*AQI + 0.892*SGI
+              + 0.115*DEPI - 0.172*SGAI + 4.679*TATA - 0.327*LVGI
+
+    M-Score > -1.78 suggests earnings manipulation probability.
+    """
+    components = [dsri, gmi, aqi, sgi, depi, sgai, tata, lvgi]
+    if any(c is None for c in components):
+        return {
+            "methodology": "Beneish M-Score (8-variable model). M > -1.78 = manipulation probability.",
+            "mscore": None,
+            "interpretation": "Insufficient data. Requires 2 consecutive years of financials.",
+            "variables": {
+                "DSRI": dsri, "GMI": gmi, "AQI": aqi, "SGI": sgi,
+                "DEPI": depi, "SGAI": sgai, "LVGI": lvgi, "TATA": tata,
+            },
+        }
+
+    mscore = (
+        -4.84
+        + 0.920 * dsri
+        + 0.528 * gmi
+        + 0.404 * aqi
+        + 0.892 * sgi
+        + 0.115 * depi
+        - 0.172 * sgai
+        + 4.679 * tata
+        - 0.327 * lvgi
+    )
+
+    if mscore > -1.78:
+        interp = "WARNING: M-Score > -1.78 indicates probable earnings manipulation."
+    else:
+        interp = "M-Score within normal range. No manipulation signal."
+
+    return {
+        "methodology": "Beneish M-Score (8-variable model). M > -1.78 = manipulation probability.",
+        "mscore": round(mscore, 4),
+        "threshold": -1.78,
+        "flag": mscore > -1.78,
+        "interpretation": interp,
+        "variables": {
+            "DSRI": round(dsri, 4), "GMI": round(gmi, 4), "AQI": round(aqi, 4),
+            "SGI": round(sgi, 4), "DEPI": round(depi, 4), "SGAI": round(sgai, 4),
+            "LVGI": round(lvgi, 4), "TATA": round(tata, 4),
+        },
+    }
+
+
+def compute_beneish_from_financials(years_data: dict) -> dict:
+    """Attempt to compute Beneish variables from multi-year financials."""
+    income = years_data.get("income_statement", {})
+    balance = years_data.get("balance_sheet", {})
+
+    rev = extract_values(income.get("revenue", []))
+    ni = extract_values(income.get("net_income", []))
+    assets = extract_values(balance.get("total_assets", []))
+
+    if len(rev) < 2 or len(assets) < 2:
+        return compute_beneish_mscore(None, None, None, None, None, None, None, None)
+
+    # SGI (Sales Growth Index) = Revenue[t] / Revenue[t-1]
+    sgi = safe_div(rev[0], rev[1])
+
+    # Remaining variables require AR, gross profit, depreciation, SGA, etc.
+    # which may not be in the EDGAR companyfacts data. Return partial.
+    return compute_beneish_mscore(
+        dsri=None, gmi=None, aqi=None, sgi=sgi,
+        depi=None, sgai=None, tata=None, lvgi=None,
+    )
+
+
+def compute_altman_zscore(
+    working_capital: float | None,
+    retained_earnings: float | None,
+    ebit: float | None,
+    market_cap: float | None,
+    total_liabilities: float | None,
+    revenue: float | None,
+    total_assets: float | None,
+) -> dict:
+    """Compute Altman Z-Score.
+
+    Z = 1.2*A + 1.4*B + 3.3*C + 0.6*D + 1.0*E
+    A = Working Capital / Total Assets
+    B = Retained Earnings / Total Assets
+    C = EBIT / Total Assets
+    D = Market Value of Equity / Total Liabilities
+    E = Sales / Total Assets
+
+    Z > 2.99: Safe. 1.81 < Z < 2.99: Grey. Z < 1.81: Distress.
+    """
+    if total_assets is None or total_assets == 0:
+        return {
+            "methodology": "Altman Z-Score (5-factor model). Z < 1.81 = distress risk.",
+            "zscore": None,
+            "interpretation": "Insufficient data (total_assets required).",
+        }
+
+    a = safe_div(working_capital, total_assets) or 0
+    b = safe_div(retained_earnings, total_assets) or 0
+    c = safe_div(ebit, total_assets) or 0
+    d = safe_div(market_cap, total_liabilities) if market_cap and total_liabilities else 0
+    e = safe_div(revenue, total_assets) or 0
+
+    zscore = 1.2 * a + 1.4 * b + 3.3 * c + 0.6 * d + 1.0 * e
+
+    if zscore > 2.99:
+        zone = "Safe"
+        interp = "Low bankruptcy probability."
+    elif zscore > 1.81:
+        zone = "Grey"
+        interp = "Uncertain — warrants closer monitoring."
+    else:
+        zone = "Distress"
+        interp = "WARNING: Elevated bankruptcy probability."
+
+    return {
+        "methodology": "Altman Z-Score (5-factor model). Z < 1.81 = distress risk.",
+        "zscore": round(zscore, 4),
+        "zone": zone,
+        "interpretation": interp,
+        "components": {"A": round(a, 4), "B": round(b, 4), "C": round(c, 4), "D": round(d, 4), "E": round(e, 4)},
+    }
+
+
+def compute_dcf(
+    fcf_current: float,
+    growth_rate: float,
+    wacc: float,
+    terminal_growth: float = 0.025,
+    years: int = 5,
+    shares_outstanding: float | None = None,
+) -> dict:
+    """Compute DCF valuation with sensitivity table."""
+    if fcf_current <= 0 or wacc <= 0:
+        return {"methodology": "DCF", "dcf_value": None, "error": "FCF and WACC must be positive."}
+
+    fcf_projections = []
+    fcf = fcf_current
+    for _ in range(years):
+        fcf = fcf * (1 + growth_rate)
+        fcf_projections.append(fcf)
+
+    if wacc <= terminal_growth:
+        return {"methodology": "DCF", "dcf_value": None, "error": "WACC must exceed terminal growth rate."}
+
+    terminal_value = fcf_projections[-1] * (1 + terminal_growth) / (wacc - terminal_growth)
+
+    pv_fcfs = sum(f / ((1 + wacc) ** y) for y, f in enumerate(fcf_projections, 1))
+    pv_terminal = terminal_value / ((1 + wacc) ** years)
+    enterprise_value = pv_fcfs + pv_terminal
+
+    # Sensitivity table
+    wacc_range = [w for w in [wacc - 0.02, wacc - 0.01, wacc, wacc + 0.01, wacc + 0.02] if w > 0]
+    tg_range = [terminal_growth - 0.01, terminal_growth, terminal_growth + 0.01]
+    sensitivity = {}
+    for w in wacc_range:
+        key = f"WACC_{w:.1%}"
+        sensitivity[key] = {}
+        for tg in tg_range:
+            tg_key = f"TG_{tg:.1%}"
+            if tg >= w:
+                sensitivity[key][tg_key] = None
+                continue
+            tv = fcf_projections[-1] * (1 + tg) / (w - tg)
+            pv_tv = tv / ((1 + w) ** years)
+            pv_f = sum(f_ / ((1 + w) ** y) for y, f_ in enumerate(fcf_projections, 1))
+            sensitivity[key][tg_key] = round(pv_f + pv_tv, 2)
+
+    result = {
+        "methodology": f"DCF ({years}-year projection, perpetuity growth terminal value)",
+        "inputs": {
+            "fcf_current": fcf_current,
+            "growth_rate": growth_rate,
+            "wacc": wacc,
+            "terminal_growth": terminal_growth,
+            "years": years,
+        },
+        "enterprise_value": round(enterprise_value, 2),
+        "pv_of_fcfs": round(pv_fcfs, 2),
+        "pv_of_terminal": round(pv_terminal, 2),
+        "terminal_pct_of_total": round(pv_terminal / enterprise_value * 100, 1),
+        "sensitivity_table": sensitivity,
+    }
+
+    if shares_outstanding and shares_outstanding > 0:
+        result["per_share_value"] = round(enterprise_value / shares_outstanding, 2)
+
+    return result
+
+
+def compute_reverse_dcf(
+    market_cap: float, fcf_current: float, wacc: float, terminal_growth: float = 0.025, years: int = 5
+) -> dict:
+    """Reverse DCF: what growth rate is implied by the current market price?"""
+    if fcf_current <= 0 or market_cap <= 0 or wacc <= terminal_growth:
+        return {"implied_growth": None, "error": "Invalid inputs for reverse DCF."}
+
+    # Binary search for implied growth rate
+    low, high = -0.20, 1.0
+    for _ in range(50):
+        mid = (low + high) / 2
+        fcf_projections = []
+        fcf = fcf_current
+        for _ in range(years):
+            fcf = fcf * (1 + mid)
+            fcf_projections.append(fcf)
+        tv = fcf_projections[-1] * (1 + terminal_growth) / (wacc - terminal_growth)
+        ev = sum(f / ((1 + wacc) ** y) for y, f in enumerate(fcf_projections, 1))
+        ev += tv / ((1 + wacc) ** years)
+        if ev < market_cap:
+            low = mid
+        else:
+            high = mid
+
+    implied = (low + high) / 2
+    return {
+        "methodology": "Reverse DCF — implied FCF growth rate to justify current market cap.",
+        "implied_growth_rate": round(implied, 4),
+        "implied_growth_pct": f"{implied:.1%}",
+        "interpretation": (
+            f"Market is pricing in {implied:.1%} annual FCF growth over {years} years. "
+            f"Compare to historical growth and analyst estimates to assess if this is realistic."
+        ),
+    }
+
+
+def compute_ratios(financials: dict, market_cap: float | None = None, shares_outstanding: float | None = None, profile: dict | None = None) -> dict:
+    """Compute standard financial ratios from structured financial data."""
+    income = financials.get("income_statement", {})
+    balance = financials.get("balance_sheet", {})
+    cashflow = financials.get("cash_flow", {})
+
+    rev_series = extract_values(income.get("revenue", []))
+    ni_series = extract_values(income.get("net_income", []))
+    oi_series = extract_values(income.get("operating_income", []))
+    assets_series = extract_values(balance.get("total_assets", []))
+    equity_series = extract_values(balance.get("stockholders_equity", []))
+    debt_series = extract_values(balance.get("total_debt", []))
+    cash_series = extract_values(balance.get("cash", []))
+    ocf_series = extract_values(cashflow.get("operating_cash_flow", []))
+    fcf_series = extract_values(cashflow.get("free_cash_flow", []))
+
+    # Most recent values
+    rev = rev_series[0] if rev_series else None
+    ni = ni_series[0] if ni_series else None
+    oi = oi_series[0] if oi_series else None
+    assets = assets_series[0] if assets_series else None
+    equity = equity_series[0] if equity_series else None
+    debt = debt_series[0] if debt_series else None
+    cash = cash_series[0] if cash_series else None
+    ocf = ocf_series[0] if ocf_series else None
+    fcf = fcf_series[0] if fcf_series else None
+
+    # P/E ratio: from profile if available, else compute from market_cap / NI
+    pe_ratio = None
+    if profile and profile.get("pe_ratio"):
+        pe_ratio = profile["pe_ratio"]
+    elif market_cap and ni and ni > 0:
+        pe_ratio = market_cap / ni
+
+    # EPS = NI / shares_outstanding
+    eps = safe_div(ni, shares_outstanding) if ni and shares_outstanding else None
+
+    # PEG = P/E / (EPS Growth Rate × 100)
+    peg_ratio = None
+    eps_growth = compute_cagr(ni_series) if ni_series else None
+    if profile and profile.get("peg_ratio"):
+        peg_ratio = profile["peg_ratio"]
+    elif pe_ratio and eps_growth and eps_growth > 0:
+        peg_ratio = pe_ratio / (eps_growth * 100)
+
+    # EV/EBITDA: EV = market_cap + net_debt, EBITDA ≈ operating_income + D&A
+    # D&A approximated from (OCF - NI) if OCF > NI
+    ev = None
+    ev_ebitda = None
+    if market_cap and debt is not None and cash is not None:
+        ev = market_cap + (debt - cash)
+    if ev and oi and oi > 0:
+        ev_ebitda = safe_div(ev, oi)
+
+    # P/B: Price / Book value per share
+    pb_ratio = None
+    if market_cap and equity and equity > 0:
+        pb_ratio = market_cap / equity
+
+    # P/S: Price / Sales
+    ps_ratio = None
+    if market_cap and rev and rev > 0:
+        ps_ratio = market_cap / rev
+
+    ratios = {
+        "gross_margin": None,
+        "operating_margin": round(safe_div(oi, rev), 4) if oi and rev else None,
+        "net_margin": round(safe_div(ni, rev), 4) if ni and rev else None,
+        "roa": round(safe_div(ni, assets), 4) if ni and assets else None,
+        "roe": round(safe_div(ni, equity), 4) if ni and equity else None,
+        "debt_to_equity": round(safe_div(debt, equity), 4) if debt and equity else None,
+        "net_debt": round(debt - cash, 2) if debt is not None and cash is not None else None,
+        "fcf_yield": round(safe_div(fcf, market_cap), 4) if fcf and market_cap else None,
+        "ocf_to_ni": round(safe_div(ocf, ni), 4) if ocf and ni else None,
+        "revenue_cagr_5yr": round(rc, 4) if (rc := compute_cagr(rev_series)) is not None else None,
+        "ni_cagr_5yr": round(nc, 4) if (nc := compute_cagr(ni_series)) is not None else None,
+        "fcf_cagr_5yr": round(fc, 4) if (fc := compute_cagr(fcf_series)) is not None else None,
+        # Valuation multiples
+        "pe_ratio": round(pe_ratio, 2) if pe_ratio else None,
+        "peg_ratio": round(peg_ratio, 4) if peg_ratio else None,
+        "eps": round(eps, 2) if eps else None,
+        "ev": round(ev, 2) if ev else None,
+        "ev_ebitda": round(ev_ebitda, 2) if ev_ebitda else None,
+        "pb_ratio": round(pb_ratio, 4) if pb_ratio else None,
+        "ps_ratio": round(ps_ratio, 4) if ps_ratio else None,
+        "eps_growth": round(eps_growth, 4) if eps_growth else None,
+        "methodology": {
+            "pe": "P/E = Market Cap / Net Income (or from profile if available)",
+            "peg": "PEG = P/E / (EPS Growth × 100). Lynch: <1 attractive, 1-2 fair, >2 expensive.",
+            "ev_ebitda": "EV/EBITDA ≈ (Market Cap + Net Debt) / Operating Income",
+            "pb": "P/B = Market Cap / Stockholders Equity",
+            "ps": "P/S = Market Cap / Revenue",
+        },
+    }
+
+    # DuPont
+    if ni and rev and assets and equity:
+        ratios["dupont"] = compute_dupont(ni, rev, assets, equity)
+
+    return ratios
+
+
+def compute_peer_comparison(ticker_data: dict, peer_data: dict) -> dict:
+    """Compare this ticker's key multiples against a peer set.
+
+    peer_data should be {ticker: {...ratios...}, ...} from compute_ratios output.
+    """
+    own = ticker_data.get("ratios", {})
+    peers = {t: p.get("ratios", {}) for t, p in peer_data.items()}
+
+    comparison = {}
+    for metric in ["pe_ratio", "peg_ratio", "ev_ebitda", "pb_ratio", "ps_ratio",
+                    "operating_margin", "net_margin", "roe", "fcf_yield",
+                    "revenue_cagr_5yr", "ni_cagr_5yr"]:
+        own_val = own.get(metric)
+        peer_vals = [p.get(metric) for p in peers.values() if p.get(metric) is not None]
+        if own_val is None or not peer_vals:
+            comparison[metric] = {
+                "value": own_val,
+                "peer_median": None,
+                "peer_mean": None,
+                "peer_count": len(peer_vals),
+                "percentile": None,
+            }
+            continue
+
+        peer_mean = sum(peer_vals) / len(peer_vals)
+        peer_sorted = sorted(peer_vals)
+        peer_median = peer_sorted[len(peer_sorted) // 2]
+        below = sum(1 for v in peer_vals if v <= own_val)
+        percentile = round(below / len(peer_vals) * 100, 1)
+
+        comparison[metric] = {
+            "value": own_val,
+            "peer_median": round(peer_median, 4),
+            "peer_mean": round(peer_mean, 4),
+            "peer_min": round(min(peer_vals), 4),
+            "peer_max": round(max(peer_vals), 4),
+            "peer_count": len(peer_vals),
+            "percentile": percentile,
+            "interpretation": (
+                f"Higher than {percentile}% of peers" if percentile > 50
+                else f"Lower than {100 - percentile}% of peers"
+            ),
+        }
+
+    return {
+        "methodology": "Peer comparison against tickers in peer data file",
+        "tickers_compared": [ticker_data.get("ticker", "")] + list(peers.keys()),
+        "comparison": comparison,
+        "note": "Percentile interpretation: if value=30 and percentile=80, the company is more expensive (or has higher margins) than 80% of peers. Direction depends on metric context.",
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Compute financial metrics from raw data")
+    parser.add_argument("input", help="Path to raw financial data JSON")
+    parser.add_argument("--wacc", type=float, default=0.10, help="WACC (default: 0.10)")
+    parser.add_argument("--growth", type=float, default=0.05, help="FCF growth rate (default: 0.05)")
+    parser.add_argument("--terminal-growth", type=float, default=0.025, help="Terminal growth rate (default: 0.025)")
+    parser.add_argument("--market-cap", type=float, help="Market cap for valuation multiples, reverse DCF, and FCF yield")
+    parser.add_argument("--shares", type=float, help="Shares outstanding for per-share DCF and EPS")
+    parser.add_argument("--peers", help="Path to peer financial data JSON (same format as input, for relative valuation comparison)")
+    parser.add_argument("--output", help="Output file path (default: stdout)")
+    args = parser.parse_args()
+
+    with open(args.input) as f:
+        raw_data = json.load(f)
+
+    ticker = list(raw_data.keys())[0] if raw_data else "UNKNOWN"
+    data = raw_data.get(ticker, {})
+    financials = data.get("financials", {})
+    profile = data.get("profile", {})
+
+    # Extract latest FCF
+    fcf_entries = financials.get("cash_flow", {}).get("free_cash_flow", [])
+    fcf_values = extract_values(fcf_entries) if isinstance(fcf_entries, list) else []
+    fcf = fcf_values[0] if fcf_values else 0
+
+    # Extract balance sheet values for Altman Z
+    assets_entries = financials.get("balance_sheet", {}).get("total_assets", [])
+    liab_entries = financials.get("balance_sheet", {}).get("total_liabilities", [])
+    equity_entries = financials.get("balance_sheet", {}).get("stockholders_equity", [])
+    rev_entries = financials.get("income_statement", {}).get("revenue", [])
+    oi_entries = financials.get("income_statement", {}).get("operating_income", [])
+
+    assets_vals = extract_values(assets_entries) if isinstance(assets_entries, list) else []
+    liab_vals = extract_values(liab_entries) if isinstance(liab_entries, list) else []
+    equity_vals = extract_values(equity_entries) if isinstance(equity_entries, list) else []
+    rev_vals = extract_values(rev_entries) if isinstance(rev_entries, list) else []
+    oi_vals = extract_values(oi_entries) if isinstance(oi_entries, list) else []
+
+    total_assets = assets_vals[0] if assets_vals else None
+    total_liabilities = liab_vals[0] if liab_vals else None
+    equity = equity_vals[0] if equity_vals else None
+    revenue = rev_vals[0] if rev_vals else None
+    ebit = oi_vals[0] if oi_vals else None
+
+    # Working capital approximation
+    working_capital = (total_assets - total_liabilities) if total_assets and total_liabilities else None
+
+    # Shares outstanding: from profile if not given
+    shares = args.shares
+    if shares is None and profile:
+        shares = profile.get("shares_outstanding")
+
+    metrics = {
+        "ticker": ticker,
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+        "input_data_source": data.get("source", "unknown"),
+        "input_data_retrieved": data.get("retrieved_at", "unknown"),
+        "ratios": compute_ratios(financials, args.market_cap, shares, profile),
+        "beneish_mscore": compute_beneish_from_financials(financials),
+        "altman_zscore": compute_altman_zscore(
+            working_capital=working_capital,
+            retained_earnings=None,
+            ebit=ebit,
+            market_cap=args.market_cap,
+            total_liabilities=total_liabilities,
+            revenue=revenue,
+            total_assets=total_assets,
+        ),
+        "dcf_valuation": compute_dcf(
+            fcf_current=fcf,
+            growth_rate=args.growth,
+            wacc=args.wacc,
+            terminal_growth=args.terminal_growth,
+            shares_outstanding=shares,
+        ) if fcf > 0 else {"methodology": "DCF", "dcf_value": None, "error": "FCF <= 0, cannot run DCF."},
+    }
+
+    if args.market_cap and fcf > 0:
+        metrics["reverse_dcf"] = compute_reverse_dcf(
+            market_cap=args.market_cap,
+            fcf_current=fcf,
+            wacc=args.wacc,
+            terminal_growth=args.terminal_growth,
+        )
+
+    # Peer comparison
+    if args.peers:
+        try:
+            with open(args.peers) as f:
+                peer_raw = json.load(f)
+            # Compute ratios for each peer using same parameters
+            peer_metrics = {}
+            for pticker, pdata in peer_raw.items():
+                pfinancials = pdata.get("financials", {})
+                pprofile = pdata.get("profile", {})
+                peerv = compute_ratios(pfinancials, None, None, pprofile)
+                peer_metrics[pticker] = {"ratios": peerv}
+            metrics["peer_comparison"] = compute_peer_comparison(
+                {"ticker": ticker, "ratios": metrics["ratios"]},
+                peer_metrics,
+            )
+        except Exception as e:
+            metrics["peer_comparison"] = {"error": str(e)}
+
+    output = json.dumps(metrics, indent=2)
+    if args.output:
+        os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
+        with open(args.output, "w") as f:
+            f.write(output)
+    else:
+        print(output)
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

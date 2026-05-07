@@ -1,0 +1,28 @@
+---
+name: analyze
+description: "Run full multi-stage equity research analysis on a stock ticker. Produces Long-term, Mid-term, or Short-term reports based on user intent."
+---
+
+<purpose>Invoke the stock-analyst orchestrator to perform full multi-stage equity research. Determines report type from user intent, spawns specialized analyst agents for each stage, and produces institutional-grade reports.</purpose>
+
+<usage>/stock-analysis:analyze [TICKER] [options]</usage>
+
+<options>
+  --type [long|mid|short|all]   Report type (default: mid)
+  --quick                        Quick overview mode (reduced stages)
+</options>
+
+<process>
+  <step n="1" name="Triage">Identify ticker, determine report type, check earnings calendar, create output directory</step>
+  <step n="2" name="Data Fetch">Run scripts: fetch_financials.py, fetch_macro.py, calculate_metrics.py</step>
+  <step n="3" name="Stage Execution">Spawn analyst agents per parallel execution rules for the report type</step>
+  <step n="4" name="Report Generation">Spawn report-writer to synthesize stage summaries into final report</step>
+  <step n="5" name="Quality Gate">Run pre-delivery checklist, validate fact integrity</step>
+</process>
+
+<constraints>
+  <constraint>If earnings within 14 days, warn user before proceeding</constraint>
+  <constraint>If earnings within 3 days, recommend waiting unless user overrides</constraint>
+  <constraint>All reports saved to ./reports/[TICKER]/[TICKER]_[Type]_[YYYY-MM-DD].md</constraint>
+  <constraint>Context eviction enforced after each stage completion</constraint>
+</constraints>
