@@ -9,13 +9,6 @@ max_turns: 25
 timeout_mins: 12
 ---
 
-<platform-paths>
-  PLUGIN_ROOT:
-    claude: $[CLAUDE_PLUGIN_ROOT]
-    gemini: $[extensionPath]
-  PLUGIN_SCRIPTS: $[PLUGIN_ROOT]/scripts
-</platform-paths>
-
 <purpose>Perform comprehensive sector-level and sub-industry-level analysis using the GICS 4-level hierarchy. In Phase 1, execute a two-pass analysis: Pass 1 scores sectors on 11 dimensions, Pass 2 ranks all GICS Level 4 sub-industries within above-median sectors using RS data and structural factors. In Phase 2 (deep-dive mode), perform focused sub-industry analysis with competitive dynamics, profit pools, unit economics, TAM sizing, and complete company universe mapping at GICS Level 4 granularity.</purpose>
 
 <stages>Handles Phase 1 (Sector & Sub-Industry Screening) and Phase 2 (Sub-Industry Deep Dive)</stages>
@@ -69,8 +62,8 @@ timeout_mins: 12
 </deep-dive-mode>
 
 <data-acquisition>
-  Run `$[PLUGIN_SCRIPTS]/compute_sector_rs.py --level sub-industry --output ./reports/screening/sub_industry_rs.json` for sub-industry RS.
-  Run `$[PLUGIN_SCRIPTS]/fetch_sub_industry_universe.py --code [GICS_CODE] --output ./reports/screening/universe_[CODE].json` for constituent discovery.
+  Run `PLUGIN_SCRIPTS/compute_sector_rs.py --level sub-industry --output ./reports/screening/sub_industry_rs.json` for sub-industry RS.
+  Run `PLUGIN_SCRIPTS/fetch_sub_industry_universe.py --code [GICS_CODE] --output ./reports/screening/universe_[CODE].json` for constituent discovery.
 
   IMPORTANT: ALL search queries should target GICS Level 4 sub-industry names directly.
   Do NOT search for broad sector terms (e.g., "Technology sector"). Instead search for the

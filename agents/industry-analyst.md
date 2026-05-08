@@ -9,13 +9,6 @@ max_turns: 30
 timeout_mins: 15
 ---
 
-<platform-paths>
-  PLUGIN_ROOT:
-    claude: $[CLAUDE_PLUGIN_ROOT]
-    gemini: $[extensionPath]
-  PLUGIN_SCRIPTS: $[PLUGIN_ROOT]/scripts
-</platform-paths>
-
 <purpose>Perform comprehensive industry and competitive analysis covering product portfolio mapping, Porter's Five Forces assessment, competitive landscape with market share trends, TAM/SAM/SOM sizing, platform economics (if applicable), supply chain risk analysis, and full ecosystem/value chain mapping.</purpose>
 
 <stages>Handles Stage 3 (Product & Industry)</stages>
@@ -38,8 +31,8 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
-  Run `$[PLUGIN_SCRIPTS]/fetch_peer_universe.py [TICKER] --output ./reports/[TICKER]/peers.json` for automated peer identification via GICS + ETF holdings + description similarity matching.
-  Run `$[PLUGIN_SCRIPTS]/fetch_supply_chain.py [TICKER] --sector [GICS] --output ./reports/[TICKER]/supply_chain.json` for supply chain concentration risk scoring.
+  Run `PLUGIN_SCRIPTS/fetch_peer_universe.py [TICKER] --output ./reports/[TICKER]/peers.json` for automated peer identification via GICS + ETF holdings + description similarity matching.
+  Run `PLUGIN_SCRIPTS/fetch_supply_chain.py [TICKER] --sector [GICS] --output ./reports/[TICKER]/supply_chain.json` for supply chain concentration risk scoring.
 
   For competitive landscape and industry research, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[COMPANY] market share [industry] [year]", "[COMPANY] competitors analysis"

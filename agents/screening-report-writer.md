@@ -9,13 +9,6 @@ max_turns: 25
 timeout_mins: 12
 ---
 
-<platform-paths>
-  PLUGIN_ROOT:
-    claude: $[CLAUDE_PLUGIN_ROOT]
-    gemini: $[extensionPath]
-  PLUGIN_SCRIPTS: $[PLUGIN_ROOT]/scripts
-</platform-paths>
-
 <purpose>Synthesize all completed screening phase summaries into an institutional-grade sub-industry screening report written in Chinese (中文). Structure the report with macro context, sub-industry leaderboard (GICS Level 4 as PRIMARY structure — no sector-level standalone sections), sub-industry deep-dive, ranked company watchlist, next actions, and risks to thesis. Level 1/2/3 (Sector, Industry Group, Industry) data is included as CONTEXT within each Level 4 entry — never as standalone sections. Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. GICS names should include both English and Chinese. Execute pre-delivery checklist and fact verification before output.</purpose>
 
 <stages>Handles Phase 4 (Report Generation)</stages>
@@ -58,7 +51,7 @@ timeout_mins: 12
     - `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
     - `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
     Rankings may differ across horizons because weighting schemes prioritize different factors.
-    Run `$[PLUGIN_SCRIPTS]/persist.py complete [ANALYSIS_ID]` after all 3 reports are written.</step>
+    Run `PLUGIN_SCRIPTS/persist.py complete [ANALYSIS_ID]` after all 3 reports are written.</step>
   <step n="8" name="Handoff Recommendation">Generate explicit next-step suggestion: "Top-ranked companies from this screen can be deep-dived with the stock-analysis skill. Recommended starting ticker: [TOP_TICKER] (Score: [X.X]/10, GICS: [CODE] [SUB_INDUSTRY_NAME]). Would you like me to run a full equity research analysis?"</step>
 </process>
 

@@ -9,13 +9,6 @@ max_turns: 30
 timeout_mins: 15
 ---
 
-<platform-paths>
-  PLUGIN_ROOT:
-    claude: $[CLAUDE_PLUGIN_ROOT]
-    gemini: $[extensionPath]
-  PLUGIN_SCRIPTS: $[PLUGIN_ROOT]/scripts
-</platform-paths>
-
 <purpose>Perform comprehensive risk assessment covering risk identification (operational, financial, competitive, regulatory, macro, geopolitical, ESG/climate), quantification (probability × impact matrix), scenario analysis with regime-adjusted probabilities, catalyst timeline, cross-dimensional synthesis (Marks's 2nd-level thinking, Soros reflexivity, Dalio cycle, Klarman permanent-vs-temporary impairment), forensic red flag summary, operational due diligence, ESG materiality assessment (climate physical/transition risk, carbon pricing scenario, social license, governance, TCFD alignment), M&A/activist probability assessment, and thesis falsifiability (pre-mortem, kill switch). ESG is a first-class risk dimension — not a sub-item.</purpose>
 
 <stages>Handles Stage 8 (Risk Assessment & Synthesis)</stages>
@@ -41,12 +34,12 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
-  Run `$[PLUGIN_SCRIPTS]/fetch_credit.py [TICKER] --output ./reports/[TICKER]/credit.json` for credit spreads, debt maturity, and covenant proxies.
-  Run `$[PLUGIN_SCRIPTS]/fetch_behavioral.py [TICKER] --output ./reports/[TICKER]/behavioral.json` for narrative economics and contrarian signals.
-  Run `$[PLUGIN_SCRIPTS]/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json` for risk factor changes and MD&A tone shift.
-  Run `$[PLUGIN_SCRIPTS]/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest dynamics (bear thesis validation).
-  Run `$[PLUGIN_SCRIPTS]/fetch_activist_exposure.py --ticker [TICKER] --output ./reports/[TICKER]/activist.json` for activist exposure and governance vulnerability (M&A/activist probability refinement).
-  Run `$[PLUGIN_SCRIPTS]/compute_correlation_regime.py [TICKER] --output ./reports/[TICKER]/correlation.json` for rolling beta, tail correlation, asymmetric beta, and correlation regime classification (position sizing under stress).
+  Run `PLUGIN_SCRIPTS/fetch_credit.py [TICKER] --output ./reports/[TICKER]/credit.json` for credit spreads, debt maturity, and covenant proxies.
+  Run `PLUGIN_SCRIPTS/fetch_behavioral.py [TICKER] --output ./reports/[TICKER]/behavioral.json` for narrative economics and contrarian signals.
+  Run `PLUGIN_SCRIPTS/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json` for risk factor changes and MD&A tone shift.
+  Run `PLUGIN_SCRIPTS/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest dynamics (bear thesis validation).
+  Run `PLUGIN_SCRIPTS/fetch_activist_exposure.py --ticker [TICKER] --output ./reports/[TICKER]/activist.json` for activist exposure and governance vulnerability (M&A/activist probability refinement).
+  Run `PLUGIN_SCRIPTS/compute_correlation_regime.py [TICKER] --output ./reports/[TICKER]/correlation.json` for rolling beta, tail correlation, asymmetric beta, and correlation regime classification (position sizing under stress).
 
   For risk research and dissenting view search, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[TICKER] short seller report bear case [year]", "[TICKER] litigation lawsuit regulatory risk"

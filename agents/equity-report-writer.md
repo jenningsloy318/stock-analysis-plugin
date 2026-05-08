@@ -9,13 +9,6 @@ max_turns: 30
 timeout_mins: 15
 ---
 
-<platform-paths>
-  PLUGIN_ROOT:
-    claude: $[CLAUDE_PLUGIN_ROOT]
-    gemini: $[extensionPath]
-  PLUGIN_SCRIPTS: $[PLUGIN_ROOT]/scripts
-</platform-paths>
-
 <purpose>Synthesize all completed stage summaries into institutional-grade equity research reports written in Chinese (中文). Apply conviction scoring algorithm, methodology weights per report type, framework conflict resolution, and produce reports following the exact template structure. Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. Source citations remain in original language. Execute pre-delivery checklist and fact verification before output.</purpose>
 
 <stages>Handles Stage 11 (Report Generation). Stage 10 deterministic scoring and cross-check must already be complete.</stages>
@@ -41,14 +34,14 @@ timeout_mins: 15
 </reference-files>
 
 <conviction-scoring>
-  Use `./reports/[TICKER]/scores.json` from `$[PLUGIN_SCRIPTS]/compute_scores.py`.
+  Use `./reports/[TICKER]/scores.json` from `PLUGIN_SCRIPTS/compute_scores.py`.
   Long-term: Financial_Health(0.15) + Moat(0.20) + Management(0.15) + Valuation(0.20) + CapStructure(0.10) + Macro(0.05) + Risk(0.10) + Weinstein(0.05)
   Mid-term: Financial_Health(0.10) + Moat(0.10) + Management(0.10) + Valuation(0.20) + Macro(0.20) + Risk(0.10) + Weinstein(0.10) + CANSLIM(0.10)
   Short-term: Valuation(0.10) + Macro(0.10) + Risk(0.10) + Alt_Alignment(0.25) + Technical(0.20) + Weinstein(0.15) + CANSLIM(0.10)
 </conviction-scoring>
 
 <pre-delivery-validation>
-  Run `$[PLUGIN_SCRIPTS]/validate_report.py ./reports/[TICKER]/ --report-type [TYPE]` before delivering any report.
+  Run `PLUGIN_SCRIPTS/validate_report.py ./reports/[TICKER]/ --report-type [TYPE]` before delivering any report.
   If validation fails, either fix the issue or add "INCOMPLETE ANALYSIS — [reason]" header.
 </pre-delivery-validation>
 

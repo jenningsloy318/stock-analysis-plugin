@@ -9,13 +9,6 @@ max_turns: 30
 timeout_mins: 15
 ---
 
-<platform-paths>
-  PLUGIN_ROOT:
-    claude: $[CLAUDE_PLUGIN_ROOT]
-    gemini: $[extensionPath]
-  PLUGIN_SCRIPTS: $[PLUGIN_ROOT]/scripts
-</platform-paths>
-
 <purpose>Perform comprehensive valuation, quantitative analysis, and market regime classification covering: multi-method valuation (DCF with sensitivity tables, trading comps, SOTP, DDM, private market comps, LBO affordability floor), relative value metrics, Weinstein stage classification, CANSLIM scoring, technical/momentum signals (trend, RSI, MACD, volume), sentiment data (put/call ratio, VIX, short interest, options flow), institutional/insider flow patterns, and market regime positioning (risk-off indicators, liquidity conditions, speculative positioning, short squeeze metrics, fund flows).</purpose>
 
 <stages>Handles Stage 6 (Valuation & Quantitative Signals) and Stage 7 (Market Regime & Positioning)</stages>
@@ -46,24 +39,24 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
-  Run `$[PLUGIN_SCRIPTS]/fetch_peer_universe.py [TICKER] --source all --max 10 --fetch-metrics --output ./reports/[TICKER]/peers.json` for automated peer identification via GICS + ETF holdings + description matching.
-  Run `$[PLUGIN_SCRIPTS]/fetch_technicals.py [TICKER] --period 2y` for technical indicators.
-  Run `$[PLUGIN_SCRIPTS]/fetch_sentiment.py [TICKER] --sources news,social` for sentiment data.
-  Run `$[PLUGIN_SCRIPTS]/fetch_sentiment.py [TICKER] --sources analyst` for analyst consensus.
-  Run `$[PLUGIN_SCRIPTS]/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
-  Run `$[PLUGIN_SCRIPTS]/calculate_metrics.py ./reports/[TICKER]/raw-data.json` for computed valuations.
-  Run `$[PLUGIN_SCRIPTS]/fetch_private_comps.py [TICKER] --output ./reports/[TICKER]/private_comps.json` for M&A/LBO analysis.
-  Run `$[PLUGIN_SCRIPTS]/compute_scores.py --metrics ./reports/[TICKER]/metrics.json --technicals ./reports/[TICKER]/tech.json --capital-structure ./reports/[TICKER]/capital_structure.json --liquidity ./reports/[TICKER]/liquidity.json --short-interest ./reports/[TICKER]/short_interest.json --activist ./reports/[TICKER]/activist.json --report-type [TYPE] --ticker [TICKER]` for component scores incl. Weinstein/CANSLIM, liquidity-adjusted position sizing, squeeze catalysts, and activist exposure.
-  Run `$[PLUGIN_SCRIPTS]/forecast.py ./reports/[TICKER]/raw-data.json --enhanced --returns-file ./reports/[TICKER]/returns.json` for GARCH volatility + fat-tail risk.
-  Run `$[PLUGIN_SCRIPTS]/calculate_options.py [TICKER] --mode full --output ./reports/[TICKER]/options.json` for IV surface, max pain, put/call ratios, unusual activity, and gamma exposure (GEX regime, flip strike, dealer hedging dynamics).
-  Run `$[PLUGIN_SCRIPTS]/compute_factors.py [TICKER] --output ./reports/[TICKER]/factors.json` for Fama-French 5-factor regression and factor attribution.
-  Run `$[PLUGIN_SCRIPTS]/fetch_cot.py [TICKER] --output ./reports/[TICKER]/cot.json` for CFTC Commitments of Traders institutional positioning.
-  Run `$[PLUGIN_SCRIPTS]/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json` for news sentiment NLP, narrative tracking, and coverage spike detection.
-  Run `$[PLUGIN_SCRIPTS]/compute_liquidity.py [TICKER] --output ./reports/[TICKER]/liquidity.json` for market microstructure and position sizing constraints.
-  Run `$[PLUGIN_SCRIPTS]/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest dynamics, squeeze potential, and positioning divergence.
-  Run `$[PLUGIN_SCRIPTS]/fetch_activist_exposure.py --ticker [TICKER] --output ./reports/[TICKER]/activist.json` for activist investor tracking, 13D exposure, and insider activity patterns.
-  Run `$[PLUGIN_SCRIPTS]/compute_seasonality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/seasonality.json` for quarterly revenue/EPS seasonal patterns and current-quarter assessment.
-  Run `$[PLUGIN_SCRIPTS]/compute_earnings_edge.py [TICKER] --output ./reports/[TICKER]/earnings_edge.json` for historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend, and next earnings date proximity.
+  Run `PLUGIN_SCRIPTS/fetch_peer_universe.py [TICKER] --source all --max 10 --fetch-metrics --output ./reports/[TICKER]/peers.json` for automated peer identification via GICS + ETF holdings + description matching.
+  Run `PLUGIN_SCRIPTS/fetch_technicals.py [TICKER] --period 2y` for technical indicators.
+  Run `PLUGIN_SCRIPTS/fetch_sentiment.py [TICKER] --sources news,social` for sentiment data.
+  Run `PLUGIN_SCRIPTS/fetch_sentiment.py [TICKER] --sources analyst` for analyst consensus.
+  Run `PLUGIN_SCRIPTS/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
+  Run `PLUGIN_SCRIPTS/calculate_metrics.py ./reports/[TICKER]/raw-data.json` for computed valuations.
+  Run `PLUGIN_SCRIPTS/fetch_private_comps.py [TICKER] --output ./reports/[TICKER]/private_comps.json` for M&A/LBO analysis.
+  Run `PLUGIN_SCRIPTS/compute_scores.py --metrics ./reports/[TICKER]/metrics.json --technicals ./reports/[TICKER]/tech.json --capital-structure ./reports/[TICKER]/capital_structure.json --liquidity ./reports/[TICKER]/liquidity.json --short-interest ./reports/[TICKER]/short_interest.json --activist ./reports/[TICKER]/activist.json --report-type [TYPE] --ticker [TICKER]` for component scores incl. Weinstein/CANSLIM, liquidity-adjusted position sizing, squeeze catalysts, and activist exposure.
+  Run `PLUGIN_SCRIPTS/forecast.py ./reports/[TICKER]/raw-data.json --enhanced --returns-file ./reports/[TICKER]/returns.json` for GARCH volatility + fat-tail risk.
+  Run `PLUGIN_SCRIPTS/calculate_options.py [TICKER] --mode full --output ./reports/[TICKER]/options.json` for IV surface, max pain, put/call ratios, unusual activity, and gamma exposure (GEX regime, flip strike, dealer hedging dynamics).
+  Run `PLUGIN_SCRIPTS/compute_factors.py [TICKER] --output ./reports/[TICKER]/factors.json` for Fama-French 5-factor regression and factor attribution.
+  Run `PLUGIN_SCRIPTS/fetch_cot.py [TICKER] --output ./reports/[TICKER]/cot.json` for CFTC Commitments of Traders institutional positioning.
+  Run `PLUGIN_SCRIPTS/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json` for news sentiment NLP, narrative tracking, and coverage spike detection.
+  Run `PLUGIN_SCRIPTS/compute_liquidity.py [TICKER] --output ./reports/[TICKER]/liquidity.json` for market microstructure and position sizing constraints.
+  Run `PLUGIN_SCRIPTS/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest dynamics, squeeze potential, and positioning divergence.
+  Run `PLUGIN_SCRIPTS/fetch_activist_exposure.py --ticker [TICKER] --output ./reports/[TICKER]/activist.json` for activist investor tracking, 13D exposure, and insider activity patterns.
+  Run `PLUGIN_SCRIPTS/compute_seasonality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/seasonality.json` for quarterly revenue/EPS seasonal patterns and current-quarter assessment.
+  Run `PLUGIN_SCRIPTS/compute_earnings_edge.py [TICKER] --output ./reports/[TICKER]/earnings_edge.json` for historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend, and next earnings date proximity.
 
   For supplementary valuation/sentiment data, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[TICKER] analyst price target [year]", "[TICKER] short interest data"

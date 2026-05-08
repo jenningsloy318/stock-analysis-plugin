@@ -468,6 +468,12 @@ The stock-analyst (team lead) spawns specialist teammates for ALL analysis work 
 **Claude Code**: Stock-analyst spawns via the `Agent` tool with `subagent_type: "stock-analysis:<agent-name>"`.
 **Gemini CLI**: Stock-analyst auto-delegates based on agent descriptions, or user forces via `@agent-name` syntax.
 
+**Path passing**: When spawning any sub-agent, include in the spawn prompt:
+- `PLUGIN_ROOT` = the resolved plugin root path (platform-specific, resolved by orchestrator)
+- `PLUGIN_SCRIPTS` = `PLUGIN_ROOT/scripts`
+
+Agents reference scripts as `PLUGIN_SCRIPTS/script_name.py`. The orchestrator resolves the platform path and passes it; agents never resolve paths themselves.
+
 ## Parallelism
 
 Stock-analyst (team lead) spawns sub-agents in parallel (max 3 concurrent). Since all 3 report types are always produced, ALL stages are executed. The parallel execution order uses the long-term sequence (most comprehensive) which subsumes mid-term and short-term data needs:

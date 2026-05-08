@@ -344,6 +344,12 @@ The industry-screening-orchestrator spawns specialist teammates for ALL screenin
 **Claude Code**: Orchestrator spawns via the `Agent` tool with `subagent_type: "industry-screening:<agent-name>"`.
 **Gemini CLI**: Orchestrator auto-delegates based on agent descriptions, or user forces via `@agent-name` syntax.
 
+**Path passing**: When spawning any sub-agent, include in the spawn prompt:
+- `PLUGIN_ROOT` = the resolved plugin root path (platform-specific, resolved by orchestrator)
+- `PLUGIN_SCRIPTS` = `PLUGIN_ROOT/scripts`
+
+Agents reference scripts as `PLUGIN_SCRIPTS/script_name.py`. The orchestrator resolves the platform path and passes it; agents never resolve paths themselves.
+
 ## Parallelism
 
 Industry-screening-orchestrator spawns sub-agents in parallel (max 3 concurrent):
