@@ -48,6 +48,8 @@ SOURCE_FILES: dict[str, tuple[set[str] | None, str]] = {
     "sentiment.json": ({"short", "mid"}, "Sentiment data (fetch_sentiment)"),
     "scores.json": (_ALL, "Conviction scores (compute_scores)"),
     "capital_structure.json": ({"long"}, "Capital structure (fetch_capital_structure)"),
+    "credit.json": ({"long"}, "Credit risk data (fetch_credit)"),
+    "forecast.json": ({"mid", "long"}, "Time-series forecast (forecast)"),
     # Optional
     "private_comps.json": (None, "Private comps / M&A (fetch_private_comps)"),
     "esg_carbon.json": (None, "ESG / carbon (fetch_esg_carbon)"),
@@ -58,6 +60,13 @@ SOURCE_FILES: dict[str, tuple[set[str] | None, str]] = {
     "correlation.json": (None, "Correlation regime (compute_correlation_regime)"),
     "earnings_edge.json": (None, "Earnings edge / PEAD (compute_earnings_edge)"),
     "seasonality.json": (None, "Seasonality patterns (compute_seasonality)"),
+    "factors.json": (None, "Fama-French factor attribution (compute_factors)"),
+    "news_nlp.json": (None, "News NLP sentiment (fetch_news_nlp)"),
+    "peers.json": (None, "Peer universe (fetch_peer_universe)"),
+    "short_interest.json": (None, "Short interest dynamics (fetch_short_interest)"),
+    "filing_diff.json": (None, "Filing redline (diff_filings)"),
+    "liquidity.json": (None, "Market microstructure (compute_liquidity)"),
+    "cot.json": (None, "CFTC positioning (fetch_cot)"),
 }
 
 REQUIRED_FILES = {
