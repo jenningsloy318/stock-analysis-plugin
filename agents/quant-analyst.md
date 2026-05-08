@@ -39,6 +39,7 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
+  Run `scripts/fetch_peer_universe.py [TICKER] --source all --max 10 --fetch-metrics --output ./reports/[TICKER]/peers.json` for automated peer identification via GICS + ETF holdings + description matching.
   Run `scripts/fetch_technicals.py [TICKER] --period 2y` for technical indicators.
   Run `scripts/fetch_sentiment.py [TICKER] --sources news,social` for sentiment data.
   Run `scripts/fetch_sentiment.py [TICKER] --sources analyst` for analyst consensus.

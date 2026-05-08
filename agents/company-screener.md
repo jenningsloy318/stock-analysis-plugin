@@ -43,6 +43,11 @@ timeout_mins: 15
 </process>
 
 <data-acquisition>
+  For batch company data, run scripts for each top candidate (after initial web search filtering):
+  - `scripts/fetch_financials.py [TICKER] --years 3 --output ./reports/screening/[TICKER]-financials.json` — Quick financial data pull
+  - `scripts/calculate_metrics.py ./reports/screening/[TICKER]-financials.json --output ./reports/screening/[TICKER]-metrics.json` — Ratios, Altman Z, Beneish
+  - `scripts/fetch_short_interest.py --ticker [TICKER] --output ./reports/screening/[TICKER]-si.json` — Short interest and squeeze flags
+
   For company-level data, use search and data tools:
   1. `finance` tool — current price, market cap, 52-week range, basic metrics for each ticker
   2. `mcp__firecrawl__firecrawl_search` — "[TICKER] market cap revenue growth ROIC financials [YEAR]"
