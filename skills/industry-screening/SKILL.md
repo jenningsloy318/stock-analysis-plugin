@@ -13,7 +13,7 @@ description: >
   industries to invest," "which sectors are growing," "top-down screening,"
   "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.33"
+version: "1.0.34"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---

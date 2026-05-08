@@ -16,6 +16,23 @@
 - GICS classification names should include both English and Chinese: e.g., "Semiconductors (半导体)"
 - Source citations remain in their original language
 
+## Multi-Horizon Output Rule (MUST follow)
+
+- Both skills (`stock-analysis` and `industry-screening`) ALWAYS produce **3 reports per run** covering all horizons:
+  - Long-term (growth + moat weighted)
+  - Mid-term (macro cycle + valuation weighted)
+  - Short-term (momentum + flows weighted)
+- Do NOT ask the user which horizon — always produce all three automatically
+- One shared data-collection pass feeds all 3 report types; reports diverge at scoring/synthesis
+- Output filenames: `[ID]_long_[DATE].md`, `[ID]_mid_[DATE].md`, `[ID]_short_[DATE].md`
+
+## GICS Level 4 Screening Rule (MUST follow)
+
+- Industry screening uses GICS Level 4 (Sub-Industry, 163 classifications) as the PRIMARY structural unit
+- Level 1/2/3 (Sector, Industry Group, Industry) appear as CONTEXT within Level 4 sections — never as standalone report sections
+- Report structure: flat ranked sub-industry leaderboard, no hierarchical sector grouping
+- Reference: `references/gics_taxonomy.md` for full GICS hierarchy with codes and ETF proxies
+
 ## Analysis Philosophy (MUST follow)
 
 - **Data integrity first**: Never invent financial figures. If data is unavailable, state "Data not available" — never guess.
