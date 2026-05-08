@@ -94,7 +94,7 @@
 | `fetch_sentiment.py` | Finnhub sentiment, insider, earnings, analyst, estimate revisions | 2,6 |
 | `fetch_alternatives.py` | Alt data (Google Trends, Similarweb, App Store, Glassdoor, LinkedIn, Reddit, USPTO) | 9 |
 | `fetch_credit.py` | Credit spreads, ratings, debt maturity (FRED + SEC EDGAR) | 8 |
-| `fetch_behavioral.py` | Narrative economics, analyst herding, overreaction, contrarian signals | 8 |
+| `fetch_behavioral.py` | Narrative economics, analyst herding, overreaction, anchoring bias, reflexivity | 8 |
 | `fetch_cot.py` | CFTC Commitments of Traders — institutional futures positioning | 7 |
 | `fetch_realtime.py` | Real-time quotes, options chain, pre/post market | 6 (short-term) |
 | `fetch_economic_surprises.py` | Economic surprise indices (CESI proxies, FRED nowcasts, actual vs consensus) | 4 |
@@ -102,11 +102,12 @@
 | `fetch_news_nlp.py` | News sentiment, narrative theme tracking, coverage spike detection | 6,9 |
 | `fetch_capital_structure.py` | Buyback ROI, SBC dilution, capital return yield, debt maturity, optimal leverage | 1,2 |
 | `fetch_private_comps.py` | M&A target probability, LBO floor, activist probability, precedent transactions | 6,8 |
+| `fetch_esg_carbon.py` | ESG materiality, carbon pricing scenarios, stranded assets, transition risk | 8 |
 | `calculate_metrics.py` | Ratios, DCF, RIM, DDM, Piotroski F-Score, Beneish, Altman Z, peer comparison, Monte Carlo | 6 |
 | `calculate_candor.py` | Management candor NLP (hedging, certainty, Q&A delta) | 9 |
 | `calculate_options.py` | Options signals: IV surface, max pain, put/call ratios, unusual activity | 6 |
-| `forecast.py` | ARIMA/ETS ensemble forecasting (replaces constant growth DCF) | 6 |
-| `compute_scores.py` | Deterministic 1-10 component scoring + conviction rating | 7 (cross-check) |
+| `forecast.py` | ARIMA/ETS ensemble + GARCH volatility + fat-tail Monte Carlo + regime detection | 6 |
+| `compute_scores.py` | Deterministic 1-11 component scoring (incl. capital structure, Weinstein, CANSLIM) + conviction | 7 (cross-check) |
 | `compute_sector_rs.py` | Sector relative strength rankings vs SPY across 1M/3M/6M/12M | Screening |
 | `compute_factors.py` | Fama-French 5-factor regression + factor attribution (Kenneth French data) | 7 |
 | `event_study.py` | Cumulative abnormal return (CAR) around corporate events | 10 (post-delivery) |

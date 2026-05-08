@@ -28,6 +28,9 @@ Use this matrix before running stock-analysis or industry-screening. The goal is
 | Capital structure & returns | yfinance shares/buyback data, SEC filings (10-K cash flow statement), proxy | Latest filing for buyback data; 90 days for share count | Required for capital allocation scoring and SBC dilution flag |
 | Private market / M&A | yfinance fundamentals, web search for precedent transactions, 13D filings | 90 days for fundamentals; 12 months for M&A comps | LBO floor is computed deterministically; precedent transactions need web search |
 | Technical structure (Weinstein) | yfinance weekly OHLCV (2yr), SPY benchmark | Same day for short-term; 7 days otherwise | Required for Stage 6 Weinstein classification and CANSLIM L-factor |
+| ESG & carbon risk | yfinance sustainability fields, sector benchmarks, GICS emission intensity tables | 90 days for ESG scores; 12 months for carbon intensity | Required for long-term risk assessment in carbon-intensive sectors (GICS 10, 15, 20, 55) |
+| International market adjustments | akshare (China), EDINET/TDnet (Japan), BSE/NSE (India), DART/KRX (Korea) | 90 days for structural metrics; 30 days for flows | Required when primary listing is non-US or >20% revenue from covered markets |
+| Volatility & tail risk | yfinance daily returns (2yr), GARCH model output, Student-t fitting | 7 days for short-term; 30 days otherwise | Required for enhanced risk metrics and position sizing |
 
 ## Freshness SLA
 

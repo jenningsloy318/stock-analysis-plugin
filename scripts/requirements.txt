@@ -6,3 +6,7 @@ pytrends>=4.9
 praw>=7.7
 statsmodels>=0.14
 pandas>=2.0
+# Optional: GARCH volatility modelling in forecast.py (--enhanced mode)
+# arch>=6.0
+# Optional: fat-tail distribution fitting and VaR in forecast.py (--enhanced mode)
+# scipy>=1.10

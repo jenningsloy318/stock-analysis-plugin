@@ -29,6 +29,7 @@ timeout_mins: 15
 
 <reference-files>
   - references/frameworks_macro_quant.md (Dalio/Soros/Druckenmiller frameworks)
+  - references/international_markets.md (China/Japan/India/Korea structural adjustments, CRP methodology)
 </reference-files>
 
 <data-acquisition>

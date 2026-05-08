@@ -42,6 +42,7 @@ timeout_mins: 15
   5. `mcp__web-search-prime__web_search_prime` — "[TICKER] short interest days to cover", "[TICKER] SEC investigation enforcement"
   6. `mcp__xcrawl-mcp__xcrawl_search` — "[COMPANY] data breach cybersecurity incident", "[COMPANY] ESG controversy"
   7. `mcp__firecrawl__firecrawl_scrape` — Scrape SEC EDGAR for comment letters, enforcement actions
+  8. Run `python3 scripts/fetch_esg_carbon.py [TICKER] --sector [GICS] --output ./reports/[TICKER]/esg_carbon.json` for ESG materiality and carbon pricing scenarios
 </data-acquisition>
 
 <validation-gates>

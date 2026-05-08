@@ -32,13 +32,19 @@ from datetime import datetime, timezone
 # Scoring utilities
 # ---------------------------------------------------------------------------
 
+
 def _clamp(score: float, lo: float = 1.0, hi: float = 10.0) -> float:
     return max(lo, min(hi, round(score, 1)))
 
 
-def _score_from_percentile(value: float | None, bullish_25: float, bullish_75: float,
-                            bearish_25: float, bearish_75: float,
-                            higher_is_better: bool = True) -> float | None:
+def _score_from_percentile(
+    value: float | None,
+    bullish_25: float,
+    bullish_75: float,
+    bearish_25: float,
+    bearish_75: float,
+    higher_is_better: bool = True,
+) -> float | None:
     """Map a value to 1-10 using percentile-style thresholds.
 
     bullish_25/75: thresholds where score transitions from 5→7.5→10
@@ -75,6 +81,7 @@ def _score_from_percentile(value: float | None, bullish_25: float, bullish_75: f
 # 1. Financial Health Score (1-10)
 # ---------------------------------------------------------------------------
 
+
 def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
     """Score financial health from computed metrics.
 
@@ -107,7 +114,9 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
         else:
             score_margin = _score_from_percentile(op_margin, 0.15, 0.25, 0.08, 0.03)
         if score_margin:
-            reasons.append(f"Operating margin: {op_margin:.1%} → sub-score {score_margin:.1f}")
+            reasons.append(
+                f"Operating margin: {op_margin:.1%} → sub-score {score_margin:.1f}"
+            )
     sub_scores["margin_quality"] = score_margin
 
     # --- ROE / ROIC ---
@@ -119,10 +128,14 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
         leverage_driven = dupont.get("interpretation", {}).get("leverage_driven", False)
         if leverage_driven:
             score_roe = _score_from_percentile(roe, 0.20, 0.35, 0.10, 0.05)
-            reasons.append(f"ROE: {roe:.1%} (leverage-driven → penalized) → sub-score {score_roe:.1f}")
+            reasons.append(
+                f"ROE: {roe:.1%} (leverage-driven → penalized) → sub-score {score_roe:.1f}"
+            )
         else:
             score_roe = _score_from_percentile(roe, 0.12, 0.20, 0.06, 0.02)
-            reasons.append(f"ROE: {roe:.1%} (operationally-driven) → sub-score {score_roe:.1f}")
+            reasons.append(
+                f"ROE: {roe:.1%} (operationally-driven) → sub-score {score_roe:.1f}"
+            )
     sub_scores["roe_roic"] = score_roe
 
     # --- Leverage ---
@@ -131,13 +144,19 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
     score_leverage = None
     if debt_to_equity is not None:
         # Lower is better
-        score_leverage = _score_from_percentile(debt_to_equity, 0.5, 1.5, 0.3, 0.8, higher_is_better=False)
+        score_leverage = _score_from_percentile(
+            debt_to_equity, 0.5, 1.5, 0.3, 0.8, higher_is_better=False
+        )
         if score_leverage:
-            reasons.append(f"Debt/Equity: {debt_to_equity:.2f} → sub-score {score_leverage:.1f}")
+            reasons.append(
+                f"Debt/Equity: {debt_to_equity:.2f} → sub-score {score_leverage:.1f}"
+            )
     elif net_debt is not None:
         # Approximate from net debt
         adj_leverage = 1.0 if net_debt > 0 else 0.3
-        score_leverage = _score_from_percentile(adj_leverage, 0.5, 1.5, 0.3, 0.8, higher_is_better=False)
+        score_leverage = _score_from_percentile(
+            adj_leverage, 0.5, 1.5, 0.3, 0.8, higher_is_better=False
+        )
     sub_scores["leverage"] = score_leverage
 
     # --- FCF Generation ---
@@ -186,20 +205,29 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
                 gscore -= 1.5
                 reasons.append(f"Revenue/FCF growth divergence: {divergence:.1%}")
         score_growth = _clamp(gscore)
-        reasons.append(f"Avg revenue/NI CAGR: {avg_growth:.1%} → sub-score {score_growth:.1f}")
+        reasons.append(
+            f"Avg revenue/NI CAGR: {avg_growth:.1%} → sub-score {score_growth:.1f}"
+        )
     sub_scores["growth_stability"] = score_growth
 
     # Composite
     valid = {k: v for k, v in sub_scores.items() if v is not None}
     if not valid:
-        return {"score": None, "assessment": "insufficient_data", "sub_scores": sub_scores, "reasons": reasons}
+        return {
+            "score": None,
+            "assessment": "insufficient_data",
+            "sub_scores": sub_scores,
+            "reasons": reasons,
+        }
 
     total = sum(valid[k] * weights[k] for k in valid)
     total /= sum(weights[k] for k in valid)
     final = _clamp(total)
 
     if final >= 7.5:
-        assessment = "Excellent — expanding margins, strong FCF, low leverage, consistent growth"
+        assessment = (
+            "Excellent — expanding margins, strong FCF, low leverage, consistent growth"
+        )
     elif final >= 6.0:
         assessment = "Good — healthy but not exceptional across all dimensions"
     elif final >= 4.5:
@@ -222,6 +250,7 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
 # ---------------------------------------------------------------------------
 # 2. Moat Quality Score (1-10)
 # ---------------------------------------------------------------------------
+
 
 def compute_moat_quality(metrics: dict, sector: int | None = None) -> dict:
     """Score competitive moat from quantitative proxies.
@@ -249,7 +278,9 @@ def compute_moat_quality(metrics: dict, sector: int | None = None) -> dict:
             score_pricing = 4.0
         else:
             score_pricing = 2.0
-        reasons.append(f"Operating margin {op_margin:.1%} → pricing power proxy {score_pricing:.1f}")
+        reasons.append(
+            f"Operating margin {op_margin:.1%} → pricing power proxy {score_pricing:.1f}"
+        )
     sub_scores["pricing_power"] = score_pricing
 
     # --- Returns on Capital (moat durability proxy) ---
@@ -287,7 +318,9 @@ def compute_moat_quality(metrics: dict, sector: int | None = None) -> dict:
             score_growth = 3.5
         else:
             score_growth = 2.0
-        reasons.append(f"5yr revenue CAGR {rev_cagr:.1%} → growth proxy {score_growth:.1f}")
+        reasons.append(
+            f"5yr revenue CAGR {rev_cagr:.1%} → growth proxy {score_growth:.1f}"
+        )
     sub_scores["growth_consistency"] = score_growth
 
     # --- Sector premium (tech/healthcare get structural moat bonus) ---
@@ -298,15 +331,26 @@ def compute_moat_quality(metrics: dict, sector: int | None = None) -> dict:
 
     valid = {k: v for k, v in sub_scores.items() if v is not None}
     if not valid:
-        return {"score": None, "assessment": "insufficient_data", "sub_scores": sub_scores, "reasons": reasons}
+        return {
+            "score": None,
+            "assessment": "insufficient_data",
+            "sub_scores": sub_scores,
+            "reasons": reasons,
+        }
 
-    weights = {"pricing_power": 0.35, "returns_on_capital": 0.35, "growth_consistency": 0.30}
+    weights = {
+        "pricing_power": 0.35,
+        "returns_on_capital": 0.35,
+        "growth_consistency": 0.30,
+    }
     total = sum(valid[k] * weights[k] for k in valid) / sum(weights[k] for k in valid)
     total += sector_bonus
     final = _clamp(total)
 
     if final >= 7.5:
-        assessment = "Wide moat — sustained high returns, pricing power, consistent growth"
+        assessment = (
+            "Wide moat — sustained high returns, pricing power, consistent growth"
+        )
     elif final >= 6.0:
         assessment = "Narrow moat — competitive advantages present but not dominant"
     elif final >= 4.0:
@@ -329,6 +373,7 @@ def compute_moat_quality(metrics: dict, sector: int | None = None) -> dict:
 # ---------------------------------------------------------------------------
 # 3. Management Quality Score (1-10)
 # ---------------------------------------------------------------------------
+
 
 def compute_management_quality(metrics: dict, sentiment: dict | None = None) -> dict:
     """Score management quality from quantitative proxies.
@@ -365,9 +410,13 @@ def compute_management_quality(metrics: dict, sentiment: dict | None = None) -> 
         sells = summary.get("sells_count", 0)
         clusters = insider.get("cluster_detection") or []
 
-        if buys > sells * 2 and any(c.get("type") == "cluster_buying" for c in clusters):
+        if buys > sells * 2 and any(
+            c.get("type") == "cluster_buying" for c in clusters
+        ):
             score_insider = 9.0
-            reasons.append(f"Strong insider buying: {buys} buys vs {sells} sells with cluster")
+            reasons.append(
+                f"Strong insider buying: {buys} buys vs {sells} sells with cluster"
+            )
         elif buys > sells:
             score_insider = 7.0
             reasons.append(f"Net insider buying: {buys} buys vs {sells} sells")
@@ -400,7 +449,11 @@ def compute_management_quality(metrics: dict, sentiment: dict | None = None) -> 
         else:
             # Check for misses
             surprises = earnings.get("past_surprises", [])
-            misses = sum(1 for s in surprises if s.get("surprise") is not None and s["surprise"] < 0)
+            misses = sum(
+                1
+                for s in surprises
+                if s.get("surprise") is not None and s["surprise"] < 0
+            )
             if misses >= 2:
                 score_guidance = 3.0
                 reasons.append(f"{misses} earnings misses in recent quarters")
@@ -411,10 +464,19 @@ def compute_management_quality(metrics: dict, sentiment: dict | None = None) -> 
     # No direct buyback data in current scripts; leave as neutral
     sub_scores["shareholder_returns"] = score_shareholder
 
-    weights = {"capital_allocation": 0.40, "insider_activity": 0.35, "guidance_accuracy": 0.25}
+    weights = {
+        "capital_allocation": 0.40,
+        "insider_activity": 0.35,
+        "guidance_accuracy": 0.25,
+    }
     valid = {k: v for k, v in sub_scores.items() if k != "shareholder_returns"}
     if not valid:
-        return {"score": None, "assessment": "insufficient_data", "sub_scores": sub_scores, "reasons": reasons}
+        return {
+            "score": None,
+            "assessment": "insufficient_data",
+            "sub_scores": sub_scores,
+            "reasons": reasons,
+        }
 
     total = sum(valid[k] * weights[k] for k in valid) / sum(weights[k] for k in valid)
     final = _clamp(total)
@@ -444,6 +506,7 @@ def compute_management_quality(metrics: dict, sentiment: dict | None = None) -> 
 # 4. Valuation Attractiveness Score (1-10)
 # ---------------------------------------------------------------------------
 
+
 def compute_valuation(metrics: dict) -> dict:
     """Score valuation attractiveness from DCF, comps, and reverse DCF."""
     reasons: list[str] = []
@@ -460,7 +523,9 @@ def compute_valuation(metrics: dict) -> dict:
         eps = ratios.get("eps")
         if eps:
             current_price = pe * eps
-            mos = (dcf_value - current_price) / current_price if current_price > 0 else 0
+            mos = (
+                (dcf_value - current_price) / current_price if current_price > 0 else 0
+            )
             if mos > 0.30:
                 score_dcf = 9.5
             elif mos > 0.15:
@@ -475,7 +540,9 @@ def compute_valuation(metrics: dict) -> dict:
                 score_dcf = 2.0
             else:
                 score_dcf = 1.0
-            reasons.append(f"DCF margin of safety: {mos:.1%} → sub-score {score_dcf:.1f}")
+            reasons.append(
+                f"DCF margin of safety: {mos:.1%} → sub-score {score_dcf:.1f}"
+            )
     sub_scores["dcf_mos"] = score_dcf
 
     # --- P/E vs history / sector ---
@@ -549,19 +616,34 @@ def compute_valuation(metrics: dict) -> dict:
             score_reverse = 3.0
         else:
             score_reverse = 1.5  # Market pricing unrealistic growth
-        reasons.append(f"Reverse DCF implied growth {implied_growth:.1%} vs historical {rev_cagr:.1%} → sub-score {score_reverse:.1f}")
+        reasons.append(
+            f"Reverse DCF implied growth {implied_growth:.1%} vs historical {rev_cagr:.1%} → sub-score {score_reverse:.1f}"
+        )
     sub_scores["reverse_dcf"] = score_reverse
 
-    weights = {"dcf_mos": 0.30, "pe_level": 0.15, "peg_ratio": 0.20, "fcf_yield": 0.20, "reverse_dcf": 0.15}
+    weights = {
+        "dcf_mos": 0.30,
+        "pe_level": 0.15,
+        "peg_ratio": 0.20,
+        "fcf_yield": 0.20,
+        "reverse_dcf": 0.15,
+    }
     valid = {k: v for k, v in sub_scores.items() if v is not None}
     if not valid:
-        return {"score": None, "assessment": "insufficient_data", "sub_scores": sub_scores, "reasons": reasons}
+        return {
+            "score": None,
+            "assessment": "insufficient_data",
+            "sub_scores": sub_scores,
+            "reasons": reasons,
+        }
 
     total = sum(valid[k] * weights[k] for k in valid) / sum(weights[k] for k in valid)
     final = _clamp(total)
 
     if final >= 7.5:
-        assessment = "Significantly undervalued — large margin of safety, attractive multiples"
+        assessment = (
+            "Significantly undervalued — large margin of safety, attractive multiples"
+        )
     elif final >= 6.0:
         assessment = "Moderately undervalued — reasonable price for quality"
     elif final >= 4.5:
@@ -569,7 +651,9 @@ def compute_valuation(metrics: dict) -> dict:
     elif final >= 3.0:
         assessment = "Moderately overvalued — premium pricing, limited upside"
     else:
-        assessment = "Significantly overvalued — extreme multiples, unrealistic growth priced in"
+        assessment = (
+            "Significantly overvalued — extreme multiples, unrealistic growth priced in"
+        )
 
     return {
         "score": final,
@@ -583,6 +667,7 @@ def compute_valuation(metrics: dict) -> dict:
 # ---------------------------------------------------------------------------
 # 5. Macro Tailwind Score (1-10)
 # ---------------------------------------------------------------------------
+
 
 def compute_macro_tailwind(macro: dict, metrics: dict | None = None) -> dict:
     """Score macro environment favorability.
@@ -598,16 +683,24 @@ def compute_macro_tailwind(macro: dict, metrics: dict | None = None) -> dict:
     regime = summary.get("macro_regime", "unknown")
     if regime == "goldilocks":
         score_regime = 8.5
-        reasons.append("Goldilocks regime (rising growth + stable inflation) — optimal for equities")
+        reasons.append(
+            "Goldilocks regime (rising growth + stable inflation) — optimal for equities"
+        )
     elif regime == "reflation":
         score_regime = 6.5
-        reasons.append("Reflation regime (rising growth + rising inflation) — favorable but watch rates")
+        reasons.append(
+            "Reflation regime (rising growth + rising inflation) — favorable but watch rates"
+        )
     elif regime == "deflation":
         score_regime = 4.0
-        reasons.append("Deflationary regime (falling growth + low inflation) — challenging for equities")
+        reasons.append(
+            "Deflationary regime (falling growth + low inflation) — challenging for equities"
+        )
     elif regime == "stagflation":
         score_regime = 2.0
-        reasons.append("Stagflation regime (falling growth + rising inflation) — worst for equities")
+        reasons.append(
+            "Stagflation regime (falling growth + rising inflation) — worst for equities"
+        )
     else:
         score_regime = 5.0
         reasons.append("Unknown/ambiguous macro regime")
@@ -681,16 +774,29 @@ def compute_macro_tailwind(macro: dict, metrics: dict | None = None) -> dict:
         score_fed = 5.0
     sub_scores["fed_direction"] = score_fed
 
-    weights = {"dalio_regime": 0.30, "yield_curve": 0.20, "pmi": 0.15, "recession_risk": 0.20, "fed_direction": 0.15}
+    weights = {
+        "dalio_regime": 0.30,
+        "yield_curve": 0.20,
+        "pmi": 0.15,
+        "recession_risk": 0.20,
+        "fed_direction": 0.15,
+    }
     valid = {k: v for k, v in sub_scores.items() if v is not None}
     if not valid:
-        return {"score": None, "assessment": "insufficient_data", "sub_scores": sub_scores, "reasons": reasons}
+        return {
+            "score": None,
+            "assessment": "insufficient_data",
+            "sub_scores": sub_scores,
+            "reasons": reasons,
+        }
 
     total = sum(valid[k] * weights[k] for k in valid) / sum(weights[k] for k in valid)
     final = _clamp(total)
 
     if final >= 7.0:
-        assessment = "Strong macro tailwinds — expansionary, accommodative, low recession risk"
+        assessment = (
+            "Strong macro tailwinds — expansionary, accommodative, low recession risk"
+        )
     elif final >= 5.5:
         assessment = "Mild tailwinds — generally favorable with some caution areas"
     elif final >= 4.0:
@@ -713,6 +819,7 @@ def compute_macro_tailwind(macro: dict, metrics: dict | None = None) -> dict:
 # 6. Risk Profile Score (1-10)
 # ---------------------------------------------------------------------------
 
+
 def compute_risk_profile(metrics: dict) -> dict:
     """Score risk profile. Higher = lower risk (safer)."""
     reasons: list[str] = []
@@ -733,7 +840,9 @@ def compute_risk_profile(metrics: dict) -> dict:
             reasons.append(f"Altman Z: {zscore:.2f} (Grey zone — monitor)")
         else:
             score_altman = 2.0
-            reasons.append(f"Altman Z: {zscore:.2f} (Distress zone — elevated bankruptcy risk)")
+            reasons.append(
+                f"Altman Z: {zscore:.2f} (Distress zone — elevated bankruptcy risk)"
+            )
     sub_scores["altman_z"] = score_altman
 
     # --- Beneish M-Score ---
@@ -795,22 +904,37 @@ def compute_risk_profile(metrics: dict) -> dict:
             score_earnings_stability = 2.0
     sub_scores["earnings_stability"] = score_earnings_stability
 
-    weights = {"altman_z": 0.25, "beneish_m": 0.25, "leverage": 0.20, "cash_flow_quality": 0.20, "earnings_stability": 0.10}
+    weights = {
+        "altman_z": 0.25,
+        "beneish_m": 0.25,
+        "leverage": 0.20,
+        "cash_flow_quality": 0.20,
+        "earnings_stability": 0.10,
+    }
     valid = {k: v for k, v in sub_scores.items() if v is not None}
     if not valid:
-        return {"score": None, "assessment": "insufficient_data", "sub_scores": sub_scores, "reasons": reasons}
+        return {
+            "score": None,
+            "assessment": "insufficient_data",
+            "sub_scores": sub_scores,
+            "reasons": reasons,
+        }
 
     total = sum(valid[k] * weights[k] for k in valid) / sum(weights[k] for k in valid)
     final = _clamp(total)
 
     if final >= 7.5:
-        assessment = "Low risk — strong balance sheet, clean forensic signals, quality earnings"
+        assessment = (
+            "Low risk — strong balance sheet, clean forensic signals, quality earnings"
+        )
     elif final >= 6.0:
         assessment = "Moderate risk — manageable but some areas warrant monitoring"
     elif final >= 4.0:
         assessment = "Elevated risk — multiple concerns, hedge or reduce position"
     else:
-        assessment = "High risk — active red flags, potential for permanent capital loss"
+        assessment = (
+            "High risk — active red flags, potential for permanent capital loss"
+        )
 
     # Red flag detection
     red_flags = []
@@ -839,6 +963,7 @@ def compute_risk_profile(metrics: dict) -> dict:
 # 7. Alternative Alignment Score (1-10)
 # ---------------------------------------------------------------------------
 
+
 def compute_alternative_alignment(alternatives: dict) -> dict:
     """Score alternative data alignment with reported fundamentals.
 
@@ -853,7 +978,11 @@ def compute_alternative_alignment(alternatives: dict) -> dict:
     # --- Web Traffic ---
     web = alt_data.get("web", {})
     total_sources += 1
-    if web and web.get("source") != "unavailable_paywall" and web.get("search_interest_trend"):
+    if (
+        web
+        and web.get("source") != "unavailable_paywall"
+        and web.get("search_interest_trend")
+    ):
         trend = web.get("search_interest_trend")
         if trend == "rising":
             sub_scores["web_traffic"] = 8.0
@@ -937,8 +1066,14 @@ def compute_alternative_alignment(alternatives: dict) -> dict:
     else:
         null_count += 1
 
-    sub_score_weights = {"web_traffic": 0.20, "social_sentiment": 0.20, "innovation": 0.20,
-                         "employee_sentiment": 0.20, "hiring": 0.10, "transactions": 0.10}
+    sub_score_weights = {
+        "web_traffic": 0.20,
+        "social_sentiment": 0.20,
+        "innovation": 0.20,
+        "employee_sentiment": 0.20,
+        "hiring": 0.10,
+        "transactions": 0.10,
+    }
     valid = {k: v for k, v in sub_scores.items()}
     if not valid:
         return {
@@ -975,6 +1110,7 @@ def compute_alternative_alignment(alternatives: dict) -> dict:
 # ---------------------------------------------------------------------------
 # 8. Technical Setup Score (1-10)
 # ---------------------------------------------------------------------------
+
 
 def compute_technical_setup(technicals: dict) -> dict:
     """Score technical setup quality from computed indicators."""
@@ -1038,8 +1174,412 @@ def compute_technical_setup(technicals: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# 9. Capital Structure Score (1-10)
+# ---------------------------------------------------------------------------
+
+
+def compute_capital_structure(capital_data: dict) -> dict:
+    """Score capital structure and shareholder returns quality.
+
+    Higher = better capital allocation (buybacks at discount, low dilution,
+    optimal leverage, strong total capital return).
+    """
+    if not capital_data:
+        return {"score": None, "assessment": "insufficient_data"}
+
+    reasons: list[str] = []
+    sub_scores: dict[str, float | None] = {}
+
+    # --- Buyback Effectiveness ---
+    buyback = capital_data.get("buyback_analysis", {})
+    buyback_roi = buyback.get("buyback_roi_annualized")
+    score_buyback = None
+    if buyback_roi is not None:
+        if buyback_roi > 0.15:
+            score_buyback = 9.0
+        elif buyback_roi > 0.08:
+            score_buyback = 7.5
+        elif buyback_roi > 0.0:
+            score_buyback = 5.5
+        elif buyback_roi > -0.10:
+            score_buyback = 3.5
+        else:
+            score_buyback = 1.5
+        reasons.append(
+            f"Buyback ROI: {buyback_roi:.1%} → sub-score {score_buyback:.1f}"
+        )
+    sub_scores["buyback_effectiveness"] = score_buyback
+
+    # --- SBC Dilution ---
+    sbc = capital_data.get("sbc_dilution", {})
+    sbc_pct = sbc.get("sbc_to_revenue")
+    score_sbc = None
+    if sbc_pct is not None:
+        if sbc_pct < 0.02:
+            score_sbc = 9.0
+        elif sbc_pct < 0.05:
+            score_sbc = 7.0
+        elif sbc_pct < 0.10:
+            score_sbc = 5.0
+        elif sbc_pct < 0.15:
+            score_sbc = 3.0
+        else:
+            score_sbc = 1.5
+        reasons.append(f"SBC/Revenue: {sbc_pct:.1%} → sub-score {score_sbc:.1f}")
+    sub_scores["sbc_dilution"] = score_sbc
+
+    # --- Total Capital Return ---
+    cap_return = capital_data.get("capital_return", {})
+    total_yield = cap_return.get("total_capital_return_yield")
+    score_return = None
+    if total_yield is not None:
+        if total_yield > 0.06:
+            score_return = 9.0
+        elif total_yield > 0.04:
+            score_return = 7.5
+        elif total_yield > 0.02:
+            score_return = 6.0
+        elif total_yield > 0.0:
+            score_return = 4.5
+        else:
+            score_return = 2.5
+        reasons.append(
+            f"Total capital return yield: {total_yield:.1%} → sub-score {score_return:.1f}"
+        )
+    sub_scores["total_return"] = score_return
+
+    # --- Leverage Optimality (distance from optimal WACC point) ---
+    structure = capital_data.get("capital_structure", {})
+    wacc_current = structure.get("wacc_current")
+    wacc_sensitivity = structure.get("wacc_sensitivity", [])
+    score_leverage_opt = None
+    if wacc_current is not None and wacc_sensitivity:
+        min_wacc = min(
+            (s.get("wacc", 1.0) for s in wacc_sensitivity), default=wacc_current
+        )
+        gap = wacc_current - min_wacc
+        if gap < 0.005:
+            score_leverage_opt = 9.0
+        elif gap < 0.01:
+            score_leverage_opt = 7.0
+        elif gap < 0.02:
+            score_leverage_opt = 5.0
+        else:
+            score_leverage_opt = 3.0
+        reasons.append(
+            f"WACC gap from optimal: {gap:.2%} → sub-score {score_leverage_opt:.1f}"
+        )
+    sub_scores["leverage_optimality"] = score_leverage_opt
+
+    weights = {
+        "buyback_effectiveness": 0.30,
+        "sbc_dilution": 0.25,
+        "total_return": 0.25,
+        "leverage_optimality": 0.20,
+    }
+    valid = {k: v for k, v in sub_scores.items() if v is not None}
+    if not valid:
+        return {
+            "score": None,
+            "assessment": "insufficient_data",
+            "sub_scores": sub_scores,
+            "reasons": reasons,
+        }
+
+    total = sum(valid[k] * weights[k] for k in valid) / sum(weights[k] for k in valid)
+    final = _clamp(total)
+
+    if final >= 7.5:
+        assessment = "Excellent capital allocation — buybacks at discount, low dilution, strong returns"
+    elif final >= 6.0:
+        assessment = "Good — generally shareholder-friendly capital decisions"
+    elif final >= 4.0:
+        assessment = (
+            "Adequate — mixed capital allocation, some dilution or misallocation"
+        )
+    else:
+        assessment = (
+            "Poor — value-destructive buybacks, excessive SBC, or suboptimal leverage"
+        )
+
+    return {
+        "score": final,
+        "assessment": assessment,
+        "sub_scores": sub_scores,
+        "reasons": reasons,
+        "methodology": "CapStructure = Buyback(30%) + SBC(25%) + TotalReturn(25%) + LeverageOpt(20%)",
+    }
+
+
+# ---------------------------------------------------------------------------
+# 10. Weinstein Stage Alignment Score (1-10)
+# ---------------------------------------------------------------------------
+
+
+def compute_weinstein_alignment(technicals: dict) -> dict:
+    """Score Weinstein stage alignment for timing purposes.
+
+    Stage 2 (advancing) = highest score for longs.
+    Stage 4 (declining) = lowest score for longs.
+    """
+    if not technicals:
+        return {"score": None, "assessment": "insufficient_data"}
+
+    ticker_data = None
+    for key, val in technicals.items():
+        if isinstance(val, dict) and "weinstein" in val:
+            ticker_data = val
+            break
+
+    if not ticker_data or "weinstein" not in ticker_data:
+        return {"score": None, "assessment": "No Weinstein data available"}
+
+    weinstein = ticker_data["weinstein"]
+    stage = weinstein.get("stage")
+    stage_name = weinstein.get("stage_name", "")
+    slope = weinstein.get("30wma_slope", 0)
+
+    reasons: list[str] = []
+    score = 5.0
+
+    if stage == 2:
+        score = 9.0 if slope > 0.002 else 7.5
+        reasons.append(f"Weinstein Stage 2 (Advancing) — 30WMA slope: {slope:.4f}")
+    elif stage == 1:
+        score = 5.5
+        reasons.append("Weinstein Stage 1 (Basing) — accumulation phase")
+    elif stage == 3:
+        score = 3.5
+        reasons.append("Weinstein Stage 3 (Topping) — distribution phase")
+    elif stage == 4:
+        score = 1.5
+        reasons.append("Weinstein Stage 4 (Declining) — avoid or short")
+
+    # Relative strength bonus/penalty
+    rs = ticker_data.get("relative_strength", {})
+    composite_rs = rs.get("composite_rs")
+    if composite_rs is not None:
+        if composite_rs > 1.1:
+            score = min(10.0, score + 1.0)
+            reasons.append(
+                f"RS composite {composite_rs:.2f} > 1.1 — outperforming market"
+            )
+        elif composite_rs < 0.9:
+            score = max(1.0, score - 1.0)
+            reasons.append(
+                f"RS composite {composite_rs:.2f} < 0.9 — underperforming market"
+            )
+
+    final = _clamp(score)
+
+    if final >= 7.0:
+        assessment = f"Stage {stage} ({stage_name}) — favorable for long positions"
+    elif final >= 5.0:
+        assessment = f"Stage {stage} ({stage_name}) — neutral, wait for confirmation"
+    else:
+        assessment = f"Stage {stage} ({stage_name}) — unfavorable for new longs"
+
+    return {
+        "score": final,
+        "assessment": assessment,
+        "stage": stage,
+        "stage_name": stage_name,
+        "reasons": reasons,
+        "methodology": "Weinstein Stage scoring: S2=9, S1=5.5, S3=3.5, S4=1.5 ± RS adjustment",
+    }
+
+
+# ---------------------------------------------------------------------------
+# 11. CANSLIM Score (1-10)
+# ---------------------------------------------------------------------------
+
+
+def compute_canslim(
+    metrics: dict, technicals: dict, sentiment: dict | None = None
+) -> dict:
+    """Score O'Neil CANSLIM criteria (7 factors → 1-10).
+
+    C = Current quarterly EPS growth
+    A = Annual EPS growth
+    N = New (highs, products, management)
+    S = Supply/Demand (volume + float)
+    L = Leader/Laggard (relative strength)
+    I = Institutional sponsorship
+    M = Market direction
+    """
+    ratios = metrics.get("ratios", {})
+    reasons: list[str] = []
+    factors: dict[str, float | None] = {}
+
+    # C — Current quarterly EPS growth (>25% is passing)
+    eps_growth_q = ratios.get("eps_growth_qoq")
+    if eps_growth_q is not None:
+        if eps_growth_q > 0.40:
+            factors["C"] = 10.0
+        elif eps_growth_q > 0.25:
+            factors["C"] = 8.0
+        elif eps_growth_q > 0.15:
+            factors["C"] = 6.0
+        elif eps_growth_q > 0.0:
+            factors["C"] = 4.0
+        else:
+            factors["C"] = 2.0
+        reasons.append(f"C: Quarterly EPS growth {eps_growth_q:.0%}")
+    else:
+        factors["C"] = None
+
+    # A — Annual EPS growth (>25% for 3yr)
+    ni_cagr = ratios.get("ni_cagr_5yr") or ratios.get("ni_cagr_3yr")
+    if ni_cagr is not None:
+        if ni_cagr > 0.25:
+            factors["A"] = 9.0
+        elif ni_cagr > 0.15:
+            factors["A"] = 7.0
+        elif ni_cagr > 0.08:
+            factors["A"] = 5.0
+        elif ni_cagr > 0.0:
+            factors["A"] = 3.5
+        else:
+            factors["A"] = 1.5
+        reasons.append(f"A: Annual EPS CAGR {ni_cagr:.0%}")
+    else:
+        factors["A"] = None
+
+    # N — New highs (price near 52wk high)
+    ticker_data = None
+    for key, val in (technicals or {}).items():
+        if isinstance(val, dict) and (
+            "price_52w_position" in val or "trend_strength" in val
+        ):
+            ticker_data = val
+            break
+
+    if ticker_data:
+        pos_52w = ticker_data.get("price_52w_position")
+        if pos_52w is not None:
+            if pos_52w > 0.90:
+                factors["N"] = 9.0
+                reasons.append(
+                    f"N: Price at {pos_52w:.0%} of 52-week range — new high territory"
+                )
+            elif pos_52w > 0.75:
+                factors["N"] = 7.0
+            elif pos_52w > 0.50:
+                factors["N"] = 5.0
+            else:
+                factors["N"] = 3.0
+                reasons.append(
+                    f"N: Price at {pos_52w:.0%} of 52-week range — not near highs"
+                )
+        else:
+            factors["N"] = None
+    else:
+        factors["N"] = None
+
+    # S — Supply/demand (volume trend)
+    if ticker_data:
+        volume_data = ticker_data.get("volume", {})
+        vol_ratio = volume_data.get("volume_vs_avg")
+        if vol_ratio is not None:
+            if vol_ratio > 1.5:
+                factors["S"] = 8.5
+            elif vol_ratio > 1.0:
+                factors["S"] = 6.5
+            elif vol_ratio > 0.7:
+                factors["S"] = 4.5
+            else:
+                factors["S"] = 3.0
+        else:
+            factors["S"] = None
+    else:
+        factors["S"] = None
+
+    # L — Leader (relative strength)
+    if ticker_data:
+        rs = ticker_data.get("relative_strength", {})
+        composite = rs.get("composite_rs")
+        if composite is not None:
+            if composite > 1.20:
+                factors["L"] = 9.5
+            elif composite > 1.05:
+                factors["L"] = 7.5
+            elif composite > 0.95:
+                factors["L"] = 5.0
+            elif composite > 0.80:
+                factors["L"] = 3.0
+            else:
+                factors["L"] = 1.5
+            reasons.append(f"L: RS composite {composite:.2f}")
+        else:
+            factors["L"] = None
+    else:
+        factors["L"] = None
+
+    # I — Institutional sponsorship (from sentiment/insider)
+    if sentiment:
+        analyst = sentiment.get("analyst", {})
+        total_analysts = 0
+        rec_trends = analyst.get("recommendation_trends", [])
+        if rec_trends:
+            latest = rec_trends[0]
+            total_analysts = sum(
+                latest.get(k, 0)
+                for k in ["strongBuy", "buy", "hold", "sell", "strongSell"]
+            )
+        if total_analysts > 20:
+            factors["I"] = 8.0
+        elif total_analysts > 10:
+            factors["I"] = 6.5
+        elif total_analysts > 5:
+            factors["I"] = 5.0
+        else:
+            factors["I"] = 3.5
+        reasons.append(f"I: {total_analysts} analysts covering")
+    else:
+        factors["I"] = None
+
+    # M — Market direction (simplified: use market RS if available)
+    factors["M"] = 5.0  # Neutral default; agent overrides based on macro
+
+    valid = {k: v for k, v in factors.items() if v is not None}
+    if len(valid) < 3:
+        return {
+            "score": None,
+            "assessment": "insufficient_data",
+            "factors": factors,
+            "reasons": reasons,
+        }
+
+    avg = sum(valid.values()) / len(valid)
+    final = _clamp(avg)
+
+    pass_count = sum(1 for v in valid.values() if v >= 6.0)
+    fail_count = sum(1 for v in valid.values() if v < 4.0)
+
+    if final >= 7.5:
+        assessment = f"Strong CANSLIM — {pass_count}/{len(valid)} factors passing"
+    elif final >= 6.0:
+        assessment = f"Moderate CANSLIM — {pass_count}/{len(valid)} factors passing"
+    elif final >= 4.5:
+        assessment = f"Weak CANSLIM — only {pass_count}/{len(valid)} factors passing, {fail_count} failing"
+    else:
+        assessment = f"CANSLIM fail — {fail_count}/{len(valid)} factors failing"
+
+    return {
+        "score": final,
+        "assessment": assessment,
+        "factors": factors,
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+        "reasons": reasons,
+        "methodology": "CANSLIM = avg(C,A,N,S,L,I,M) where each factor scored 1-10",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Final conviction computation
 # ---------------------------------------------------------------------------
+
 
 def compute_conviction(scores: dict, report_type: str) -> dict:
     """Compute final conviction rating from component scores.
@@ -1048,33 +1588,40 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
     """
     weights = {
         "long": {
-            "financial_health": 0.20,
-            "moat_quality": 0.25,
-            "management_quality": 0.20,
+            "financial_health": 0.15,
+            "moat_quality": 0.20,
+            "management_quality": 0.15,
             "valuation_attractiveness": 0.20,
+            "capital_structure": 0.10,
             "macro_tailwind": 0.05,
             "risk_profile": 0.10,
+            "weinstein_alignment": 0.05,
         },
         "mid": {
-            "financial_health": 0.15,
+            "financial_health": 0.10,
             "moat_quality": 0.10,
             "management_quality": 0.10,
-            "valuation_attractiveness": 0.25,
-            "macro_tailwind": 0.25,
-            "risk_profile": 0.15,
+            "valuation_attractiveness": 0.20,
+            "macro_tailwind": 0.20,
+            "risk_profile": 0.10,
+            "weinstein_alignment": 0.10,
+            "canslim": 0.10,
         },
         "short": {
-            "valuation_attractiveness": 0.15,
+            "valuation_attractiveness": 0.10,
             "macro_tailwind": 0.10,
             "risk_profile": 0.10,
-            "alternative_alignment": 0.35,
-            "technical_setup": 0.30,
+            "alternative_alignment": 0.25,
+            "technical_setup": 0.20,
+            "weinstein_alignment": 0.15,
+            "canslim": 0.10,
         },
         "quick": {
-            "financial_health": 0.25,
+            "financial_health": 0.20,
             "valuation_attractiveness": 0.30,
-            "risk_profile": 0.25,
-            "technical_setup": 0.20,
+            "risk_profile": 0.20,
+            "technical_setup": 0.15,
+            "weinstein_alignment": 0.15,
         },
     }
 
@@ -1088,17 +1635,22 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
             "moat_quality": "moat_quality",
             "management_quality": "management_quality",
             "valuation_attractiveness": "valuation_attractiveness",
+            "capital_structure": "capital_structure",
             "macro_tailwind": "macro_tailwind",
             "risk_profile": "risk_profile",
             "alternative_alignment": "alternative_alignment",
             "technical_setup": "technical_setup",
+            "weinstein_alignment": "weinstein_alignment",
+            "canslim": "canslim",
         }
         score_obj = scores.get(key_map[comp], {})
         component_scores[comp] = score_obj.get("score")
 
     # Count missing
     missing = [k for k, v in component_scores.items() if v is None]
-    low_components = [k for k, v in component_scores.items() if v is not None and v <= 3.0]
+    low_components = [
+        k for k, v in component_scores.items() if v is not None and v <= 3.0
+    ]
 
     # Compute weighted average with available components
     available = {k: v for k, v in component_scores.items() if v is not None}
@@ -1120,7 +1672,9 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
     # Rule: any component ≤3 caps at Hold
     if low_components:
         conviction = min(conviction, 5.9)
-        overrides.append(f"Component(s) ≤3 ({', '.join(low_components)}) → capped at Hold (5.9)")
+        overrides.append(
+            f"Component(s) ≤3 ({', '.join(low_components)}) → capped at Hold (5.9)"
+        )
 
     # Rule: 3+ missing components → Low confidence
     if len(missing) >= 3:
@@ -1152,11 +1706,15 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
     # Lollapalooza bonus
     lollapalooza = False
     # Check for 3+ high-score components (>7.5)
-    high_components = [k for k, v in component_scores.items() if v is not None and v >= 7.5]
+    high_components = [
+        k for k, v in component_scores.items() if v is not None and v >= 7.5
+    ]
     if len(high_components) >= 3:
         lollapalooza = True
         conviction = min(10.0, conviction + 1.5)
-        overrides.append(f"Lollapalooza Effect detected ({len(high_components)} strong components) → +1.5 bonus")
+        overrides.append(
+            f"Lollapalooza Effect detected ({len(high_components)} strong components) → +1.5 bonus"
+        )
 
     return {
         "conviction": round(conviction, 1),
@@ -1175,6 +1733,7 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compute deterministic component scores and conviction rating"
@@ -1182,13 +1741,26 @@ def main():
     parser.add_argument("--metrics", help="Path to calculate_metrics.py output JSON")
     parser.add_argument("--macro", help="Path to fetch_macro.py output JSON")
     parser.add_argument("--technicals", help="Path to fetch_technicals.py output JSON")
-    parser.add_argument("--alternatives", help="Path to fetch_alternatives.py output JSON")
+    parser.add_argument(
+        "--alternatives", help="Path to fetch_alternatives.py output JSON"
+    )
     parser.add_argument("--sentiment", help="Path to fetch_sentiment.py output JSON")
-    parser.add_argument("--report-type", choices=["long", "mid", "short", "quick"], default="mid",
-                        help="Report type for conviction weighting")
-    parser.add_argument("--gics-sector", type=int, help="GICS sector code (e.g., 45 for Tech)")
+    parser.add_argument(
+        "--report-type",
+        choices=["long", "mid", "short", "quick"],
+        default="mid",
+        help="Report type for conviction weighting",
+    )
+    parser.add_argument(
+        "--gics-sector", type=int, help="GICS sector code (e.g., 45 for Tech)"
+    )
+    parser.add_argument(
+        "--capital-structure", help="Path to fetch_capital_structure.py output JSON"
+    )
     parser.add_argument("--output", help="Output file path (default: stdout)")
-    parser.add_argument("--ticker", default="UNKNOWN", help="Ticker symbol for output labeling")
+    parser.add_argument(
+        "--ticker", default="UNKNOWN", help="Ticker symbol for output labeling"
+    )
     args = parser.parse_args()
 
     # Load inputs
@@ -1197,6 +1769,7 @@ def main():
     technicals = {}
     alternatives = {}
     sentiment = {}
+    capital_data = {}
 
     if args.metrics:
         with open(args.metrics) as f:
@@ -1213,11 +1786,13 @@ def main():
     if args.sentiment:
         with open(args.sentiment) as f:
             raw_sent = json.load(f)
-            # Extract per-ticker data
             if args.ticker in raw_sent:
                 sentiment = raw_sent[args.ticker]
             elif raw_sent:
                 sentiment = list(raw_sent.values())[0]
+    if args.capital_structure:
+        with open(args.capital_structure) as f:
+            capital_data = json.load(f)
 
     scores = {
         "ticker": args.ticker,
@@ -1234,6 +1809,9 @@ def main():
     scores["risk_profile"] = compute_risk_profile(metrics)
     scores["alternative_alignment"] = compute_alternative_alignment(alternatives)
     scores["technical_setup"] = compute_technical_setup(technicals)
+    scores["capital_structure"] = compute_capital_structure(capital_data)
+    scores["weinstein_alignment"] = compute_weinstein_alignment(technicals)
+    scores["canslim"] = compute_canslim(metrics, technicals, sentiment)
 
     # Conviction
     scores["conviction"] = compute_conviction(scores, args.report_type)

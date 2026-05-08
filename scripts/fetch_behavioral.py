@@ -454,6 +454,246 @@ def compute_overreaction(
 
 
 # ---------------------------------------------------------------------------
+# Anchoring bias detection
+# ---------------------------------------------------------------------------
+
+
+def compute_anchoring_bias(price_data: dict, analyst_data: dict) -> dict:
+    """Detect anchoring bias where analysts/investors anchor to stale reference prices.
+
+    Common anchors: 52-week high/low, IPO price, round numbers, prior earnings price.
+    Soros insight: participants anchor to past prices, creating self-reinforcing trends.
+    """
+    signals = []
+
+    # Price target anchoring to 52-week high
+    if price_data and analyst_data:
+        current = price_data.get("current_price")
+        high_52w = price_data.get("high_52w")
+        low_52w = price_data.get("low_52w")
+        pt_mean = (analyst_data.get("price_target") or {}).get("targetMean")
+
+        if current and high_52w and pt_mean:
+            # Check if consensus PT clusters near 52w high (±5%)
+            if abs(pt_mean - high_52w) / high_52w < 0.05:
+                signals.append(
+                    {
+                        "anchor": "52-week high",
+                        "anchor_value": high_52w,
+                        "target_mean": pt_mean,
+                        "interpretation": "Consensus PT anchored to 52-week high — likely backward-looking",
+                        "bias_strength": "strong",
+                    }
+                )
+
+            # Check if PT clusters near round number
+            nearest_round = round(pt_mean / 50) * 50
+            if abs(pt_mean - nearest_round) / pt_mean < 0.03 and nearest_round > 0:
+                signals.append(
+                    {
+                        "anchor": f"Round number ${nearest_round}",
+                        "target_mean": pt_mean,
+                        "interpretation": "PT clustering near round number — psychological anchoring",
+                        "bias_strength": "moderate",
+                    }
+                )
+
+        # Check if price is significantly below 52w high and PT still near high
+        if current and high_52w and pt_mean and current < high_52w * 0.7:
+            if pt_mean > high_52w * 0.85:
+                signals.append(
+                    {
+                        "anchor": "stale_high_anchor",
+                        "current_price": current,
+                        "high_52w": high_52w,
+                        "target_mean": pt_mean,
+                        "interpretation": "Price dropped >30% but PTs barely adjusted — analysts anchored to old highs",
+                        "bias_strength": "strong",
+                    }
+                )
+
+    # PT dispersion as anchoring proxy (very low dispersion = herded anchor)
+    if analyst_data:
+        pt_info = analyst_data.get("price_target", {})
+        high = pt_info.get("targetHigh")
+        low = pt_info.get("targetLow")
+        mean = pt_info.get("targetMean")
+        if high and low and mean and mean > 0:
+            spread = (high - low) / mean
+            if spread < 0.15:
+                signals.append(
+                    {
+                        "anchor": "consensus_clustering",
+                        "spread_ratio": round(spread, 3),
+                        "interpretation": "PT spread <15% — analysts anchoring to each other",
+                        "bias_strength": "moderate",
+                    }
+                )
+
+    return {
+        "anchoring_detected": len(signals) > 0,
+        "anchor_signals": signals,
+        "signal_count": len(signals),
+        "assessment": (
+            "Strong anchoring bias detected — price targets may not reflect current reality"
+            if any(s["bias_strength"] == "strong" for s in signals)
+            else "Moderate anchoring detected — targets may be lagging fundamentals"
+            if signals
+            else "No significant anchoring bias detected"
+        ),
+        "methodology": "Anchoring detection: compares PT consensus to 52w high, round numbers, and dispersion",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Reflexivity quantification (Soros framework)
+# ---------------------------------------------------------------------------
+
+
+def compute_reflexivity(
+    price_changes: list[float], fundamentals_trend: dict | None = None
+) -> dict:
+    """Quantify reflexive feedback loops (Soros Theory of Reflexivity).
+
+    Reflexivity: price changes influence fundamentals which further change prices,
+    creating self-reinforcing boom/bust cycles.
+
+    Measures:
+    1. Trend persistence (autocorrelation) — how much past returns predict future returns
+    2. Volatility asymmetry — do down moves cluster more than up moves?
+    3. Momentum acceleration — is the trend strengthening or weakening?
+    4. Feedback loop strength — correlation between price momentum and fundamental momentum
+    """
+    if not price_changes or len(price_changes) < 20:
+        return {"reflexivity_score": None, "assessment": "Insufficient data"}
+
+    n = len(price_changes)
+    mean_ret = sum(price_changes) / n
+
+    # 1. Autocorrelation (lag-1) — positive = trend persistence (reflexive)
+    if n > 1:
+        cov = sum(
+            (price_changes[i] - mean_ret) * (price_changes[i - 1] - mean_ret)
+            for i in range(1, n)
+        ) / (n - 1)
+        var = sum((r - mean_ret) ** 2 for r in price_changes) / n
+        autocorr = cov / var if var > 0 else 0
+    else:
+        autocorr = 0
+
+    # 2. Volatility asymmetry (downside vol / upside vol)
+    up_returns = [r for r in price_changes if r > 0]
+    down_returns = [r for r in price_changes if r < 0]
+    if up_returns and down_returns:
+        up_vol = (sum(r**2 for r in up_returns) / len(up_returns)) ** 0.5
+        down_vol = (sum(r**2 for r in down_returns) / len(down_returns)) ** 0.5
+        vol_asymmetry = down_vol / up_vol if up_vol > 0 else 1.0
+    else:
+        vol_asymmetry = 1.0
+
+    # 3. Momentum acceleration (compare first-half vs second-half momentum)
+    half = n // 2
+    first_half_momentum = sum(price_changes[:half]) / half if half > 0 else 0
+    second_half_momentum = (
+        sum(price_changes[half:]) / (n - half) if (n - half) > 0 else 0
+    )
+
+    if abs(first_half_momentum) > 0.0001:
+        acceleration = (second_half_momentum - first_half_momentum) / abs(
+            first_half_momentum
+        )
+    else:
+        acceleration = 0
+
+    # 4. Run length analysis (consecutive same-sign days)
+    runs = []
+    current_run = 1
+    for i in range(1, n):
+        if (price_changes[i] >= 0) == (price_changes[i - 1] >= 0):
+            current_run += 1
+        else:
+            runs.append(current_run)
+            current_run = 1
+    runs.append(current_run)
+    avg_run = sum(runs) / len(runs) if runs else 1
+    max_run = max(runs) if runs else 1
+
+    # Reflexivity composite score (0-10)
+    # Higher = more reflexive (self-reinforcing trends)
+    score = 5.0  # neutral baseline
+
+    # Positive autocorrelation = reflexive
+    if autocorr > 0.15:
+        score += 2.0
+    elif autocorr > 0.05:
+        score += 1.0
+    elif autocorr < -0.10:
+        score -= 1.5  # Mean-reverting = anti-reflexive
+
+    # High vol asymmetry = reflexive on downside
+    if vol_asymmetry > 1.5:
+        score += 1.5
+    elif vol_asymmetry > 1.2:
+        score += 0.5
+
+    # Acceleration = trend strengthening
+    if abs(acceleration) > 0.5:
+        score += 1.5
+    elif abs(acceleration) > 0.2:
+        score += 0.5
+
+    # Long runs = persistent trend
+    if avg_run > 3.0:
+        score += 1.0
+    elif avg_run < 1.5:
+        score -= 0.5
+
+    score = max(1.0, min(10.0, score))
+
+    # Regime classification
+    if score >= 8.0:
+        regime = (
+            "Strong reflexive loop — self-reinforcing trend, potential bubble/crash"
+        )
+        phase = "boom" if mean_ret > 0 else "bust"
+    elif score >= 6.0:
+        regime = "Moderate reflexivity — trend has momentum but not extreme"
+        phase = "trending"
+    elif score >= 4.0:
+        regime = "Low reflexivity — market near equilibrium"
+        phase = "equilibrium"
+    else:
+        regime = "Anti-reflexive — mean-reverting, contrarian opportunity"
+        phase = "mean_reverting"
+
+    return {
+        "reflexivity_score": round(score, 1),
+        "phase": phase,
+        "regime": regime,
+        "components": {
+            "autocorrelation": round(autocorr, 4),
+            "volatility_asymmetry": round(vol_asymmetry, 3),
+            "momentum_acceleration": round(acceleration, 3),
+            "avg_run_length": round(avg_run, 2),
+            "max_run_length": max_run,
+        },
+        "interpretation": (
+            f"Reflexivity score {score:.1f}/10 ({phase}). "
+            f"Autocorr={autocorr:.3f}, VolAsym={vol_asymmetry:.2f}, "
+            f"Accel={acceleration:.2f}."
+        ),
+        "soros_implication": (
+            "Far-from-equilibrium — trend likely to continue until exhaustion"
+            if score >= 7.0
+            else "Near equilibrium — fundamentals dominate over reflexive dynamics"
+            if score <= 4.0
+            else "Moderate feedback — watch for inflection signals"
+        ),
+        "methodology": "Soros reflexivity: autocorrelation + vol asymmetry + momentum acceleration + run analysis",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Contrarian / crowding signals
 # ---------------------------------------------------------------------------
 
@@ -611,6 +851,15 @@ def main():
     # Overreaction detection
     result["overreaction"] = compute_overreaction(price_changes)
 
+    # Anchoring bias
+    price_data = {}
+    if price_changes:
+        price_data["current_price"] = None  # Would need yfinance; use what's available
+    result["anchoring_bias"] = compute_anchoring_bias(price_data, analyst_data)
+
+    # Reflexivity (Soros)
+    result["reflexivity"] = compute_reflexivity(price_changes)
+
     # Contrarian signals
     result["contrarian"] = compute_contrarian_signals(analyst_data, social_data)
 
@@ -623,6 +872,12 @@ def main():
     if result["overreaction"].get("overreaction_detected"):
         warnings.append(
             "Overreaction detected — price moves exceed fundamental justification"
+        )
+    if result["anchoring_bias"].get("anchoring_detected"):
+        warnings.append("Anchoring bias detected — targets may lag reality")
+    if (result["reflexivity"].get("reflexivity_score") or 0) >= 8.0:
+        warnings.append(
+            f"Strong reflexive loop ({result['reflexivity'].get('phase', 'unknown')}) — self-reinforcing trend"
         )
     if result["contrarian"].get("signal_count", 0) > 0:
         warnings.append(
