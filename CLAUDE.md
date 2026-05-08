@@ -28,6 +28,22 @@
 - One shared data-collection pass feeds all 3 report types; reports diverge at scoring/synthesis
 - Output filenames: `[ID]_long_[DATE].md`, `[ID]_mid_[DATE].md`, `[ID]_short_[DATE].md`
 
+## Stock Price Filter Rule (MUST follow)
+
+- Focus on **growth-stage companies** (成长型公司), NOT mature blue-chips with high stock prices
+- **US stocks**: Only select/recommend companies with current stock price **under $100**
+- **China A-shares (A股)**: Only select/recommend companies with current stock price **under ¥100**
+- This applies to: industry screening watchlists, stock-analysis recommendations, comparison candidates
+- If analyzing a specific ticker requested by the user, proceed regardless of price (user override)
+- For screening/watchlist: filter OUT companies above the price threshold before ranking
+
+## Current Stock Price Display Rule (MUST follow)
+
+- Whenever a company/stock appears in ANY report table, list, or comparison, include **current stock price** (当前股价) as a column
+- This applies to: watchlists, company rankings, peer comparisons, screening results, recommendation tables
+- Format: "$XX.XX" for US stocks, "¥XX.XX" for A-shares
+- Price must be fetched at analysis time — never use stale/cached prices older than 1 trading day
+
 ## GICS Level 4 Screening Rule (MUST follow)
 
 - Industry screening uses GICS Level 4 (Sub-Industry, 163 classifications) as the PRIMARY structural unit

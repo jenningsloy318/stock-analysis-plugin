@@ -78,6 +78,8 @@ timeout_mins: 15
 </output>
 
 <constraints>
+  <constraint>Focus on growth-stage companies (成长型公司). Filter OUT companies with stock price above $100 (US) or ¥100 (A-shares) from the ranked watchlist.</constraint>
+  <constraint>Every company table/ranking MUST include a "当前股价" (current price) column. Format: "$XX.XX" or "¥XX.XX".</constraint>
   <constraint>Do not invent financial data — use "Data not available" when a metric cannot be found</constraint>
   <constraint>Market cap filter is a minimum, not a target — do not exclude large caps</constraint>
   <constraint>Moat scores require specific evidence from the Morningstar framework categories</constraint>

@@ -65,6 +65,8 @@ ENFORCEMENT: The orchestrator MUST NOT run scripts directly. ALL work delegated 
 
 <constraints>
   <constraint>ALL reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. GICS names include both English and Chinese. Source citations remain in original language.</constraint>
+  <constraint>Focus on growth-stage companies (成长型公司). Filter OUT companies with stock price above $100 (US) or ¥100 (A-shares) from watchlists and rankings.</constraint>
+  <constraint>Every table/list mentioning a company MUST include a "当前股价" (current price) column. Format: "$XX.XX" or "¥XX.XX".</constraint>
   <constraint>NEVER perform Phase 1-4 screening/analysis directly — always spawn specialist agents</constraint>
   <constraint>DEFAULT: Always screen at GICS Level 4 (Sub-Industry) granularity</constraint>
   <constraint>Designed as a precursor — after screening, offer to deep-dive top picks with /stock-analysis:analyze</constraint>

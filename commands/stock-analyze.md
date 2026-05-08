@@ -61,6 +61,8 @@ ENFORCEMENT: The orchestrator MUST NOT run scripts or perform analysis directly.
 
 <constraints>
   <constraint>ALL reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. Source citations remain in original language.</constraint>
+  <constraint>Focus on growth-stage companies (成长型公司). When recommending peers/comparables, prefer stocks priced under $100 (US) or ¥100 (A-shares). Analyze user-requested tickers regardless of price.</constraint>
+  <constraint>Every table/list mentioning a company MUST include a "当前股价" (current price) column.</constraint>
   <constraint>NEVER perform Stages 1-9 analysis directly — always spawn specialist agents</constraint>
   <constraint>If earnings within 14 days, warn user before proceeding</constraint>
   <constraint>If earnings within 3 days, recommend waiting unless user overrides</constraint>

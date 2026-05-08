@@ -32,6 +32,8 @@ Max 3 agents concurrent. Orchestrator merges scores into comparison table.
 
 <constraints>
   <constraint>ALL output MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English.</constraint>
+  <constraint>Every comparison table MUST include a "当前股价" (current price) column for each stock.</constraint>
+  <constraint>Prefer growth-stage companies (成长型公司) with price under $100 (US) or ¥100 (A-shares) when suggesting comparables.</constraint>
   <constraint>NEVER run scripts or perform deep analysis directly — delegate scoring to sub-agents</constraint>
   <constraint>Maximum 5 stocks per comparison</constraint>
   <constraint>All stocks should share GICS sector alignment (warn if mixed sectors)</constraint>

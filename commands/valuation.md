@@ -29,6 +29,7 @@ STEP 2 — Spawn @quant-analyst for valuation analysis.
 
 <constraints>
   <constraint>ALL output MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English.</constraint>
+  <constraint>Include current stock price (当前股价) prominently in valuation summary header.</constraint>
   <constraint>NEVER run scripts or perform valuation analysis directly — delegate to sub-agents</constraint>
   <constraint>DCF sensitivity table mandatory (WACC vs terminal growth matrix)</constraint>
   <constraint>Results should be combined with full analysis for investment decisions</constraint>

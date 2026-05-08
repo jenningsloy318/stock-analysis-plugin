@@ -13,7 +13,7 @@ description: >
   industries to invest," "which sectors are growing," "top-down screening,"
   "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.43"
+version: "1.0.44"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -43,6 +43,10 @@ compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime,
 This skill performs institutional-grade top-down screening through 4 phases, producing a ranked sector map and a company watchlist suitable as input to the `stock-analysis` skill for deep dives.
 
 **Report language:** ALL screening reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. GICS classification names should include both English and Chinese: e.g., "Semiconductors (半导体)". Source citations remain in original language.
+
+**Price filter:** Focus on growth-stage companies (成长型公司). US stocks: price < $100. China A-shares: price < ¥100. Filter OUT companies above threshold before ranking in watchlists.
+
+**Stock price display:** Every company in any table/list/watchlist MUST include current stock price (当前股价) as a column. Format: "$XX.XX" or "¥XX.XX". Price must be fetched at analysis time.
 
 **Critical constraint:** The context window is a shared resource. Follow the eviction protocol strictly. Raw data from completed phases is dropped; only phase summaries persist.
 

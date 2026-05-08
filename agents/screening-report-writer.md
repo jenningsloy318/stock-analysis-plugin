@@ -112,6 +112,8 @@ For broad screens covering multiple sub-industries, write 3 reports per selected
 
 <constraints>
   <constraint>ALL report content MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. GICS names include both English and Chinese. Source citations remain in original language. This is NON-NEGOTIABLE — never produce English reports.</constraint>
+  <constraint>Every company table/watchlist MUST include a "当前股价" (current price) column. Format: "$XX.XX" or "¥XX.XX".</constraint>
+  <constraint>Only include companies with stock price under $100 (US) or ¥100 (A-shares) in watchlists — focus on growth-stage companies (成长型公司).</constraint>
   <constraint>Do not re-analyze — this agent synthesizes existing phase summaries, never fetches new data</constraint>
   <constraint>Every sub-industry in the leaderboard must include its 8-digit GICS code</constraint>
   <constraint>Every company in the watchlist must have a specific score and 2-sentence thesis</constraint>

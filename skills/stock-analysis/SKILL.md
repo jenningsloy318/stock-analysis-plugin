@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.43"
+version: "1.0.44"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -26,6 +26,10 @@ compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl 
 This skill performs institutional-grade stock analysis through 11 stages, producing 3 reports (long/mid/short-term) per ticker. Analysis depth adjusts per report type — see `references/equity_report_templates.md` for output formats.
 
 **Report language:** ALL reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. Source citations remain in original language.
+
+**Price filter:** Focus on growth-stage companies (成长型公司). US stocks: price < $100. China A-shares: price < ¥100. If user explicitly requests a specific ticker, analyze regardless of price.
+
+**Stock price display:** Whenever a company appears in any table/list/comparison in the report, include current stock price (当前股价) as a column. Format: "$XX.XX" or "¥XX.XX".
 
 **Critical constraint:** The context window is a shared resource. Follow the eviction protocol strictly. Raw data from completed stages is dropped; only stage summaries persist.
 

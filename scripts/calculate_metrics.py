@@ -1390,10 +1390,16 @@ def main():
     }
 
     # Add EVA
+    debt_entries = financials.get("balance_sheet", {}).get("total_debt", [])
+    cash_entries = financials.get("balance_sheet", {}).get("cash", [])
+    debt_vals = extract_values(debt_entries) if isinstance(debt_entries, list) else []
+    cash_vals = extract_values(cash_entries) if isinstance(cash_entries, list) else []
+    debt = debt_vals[0] if debt_vals else None
+    cash = cash_vals[0] if cash_vals else None
     roic_val = metrics["ratios"].get("roic")
     invested_capital = (
         (equity + debt - cash)
-        if equity and debt is not None and cash is not None
+        if equity is not None and debt is not None and cash is not None
         else None
     )
     metrics["economic_value_added"] = compute_eva(roic_val, args.wacc, invested_capital)

@@ -40,6 +40,7 @@ Orchestrator reads existing reports, delegates current data fetch, then compiles
 
 <constraints>
   <constraint>ALL output MUST be written in Chinese (中文). Technical terms (ticker symbols, metric names) may remain in English.</constraint>
+  <constraint>Watchlist table MUST include a "当前股价" (current price) column for every stock.</constraint>
   <constraint>Only works if reports exist in ./reports/ from prior analyses</constraint>
   <constraint>Flag reports older than 90 days as "STALE"</constraint>
   <constraint>If kill switch condition approaching, highlight with warning</constraint>

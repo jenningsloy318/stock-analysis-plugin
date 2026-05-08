@@ -33,6 +33,7 @@ All 3 analysis agents run in parallel → scoring → @equity-report-writer for 
 
 <constraints>
   <constraint>ALL reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English.</constraint>
+  <constraint>Every table/list mentioning a company MUST include a "当前股价" (current price) column.</constraint>
   <constraint>NEVER run scripts or perform analysis directly — always spawn specialist agents</constraint>
   <constraint>Always produce 3 reports (long/mid/short) even in quick mode</constraint>
   <constraint>Estimated time: 2-5 minutes</constraint>
