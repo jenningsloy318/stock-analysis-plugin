@@ -46,6 +46,33 @@ This skill performs institutional-grade top-down screening through 4 phases, pro
 
 **Critical constraint:** The context window is a shared resource. Follow the eviction protocol strictly. Raw data from completed phases is dropped; only phase summaries persist.
 
+## Agent Team Activation (MANDATORY)
+
+<agent-team-protocol>
+This skill ALWAYS operates as an agent team. You are the team lead (industry-screening-orchestrator).
+
+ENFORCEMENT RULE: After completing Phase 0 (Setup & data fetch), you MUST spawn sub-agents
+for ALL subsequent phases. You MUST NOT perform Phase 1-4 screening/analysis directly in your own context.
+
+**Claude Code** — Use the `Agent` tool to spawn each sub-agent:
+```
+Agent({
+  subagent_type: "industry-screening:<agent-name>",
+  prompt: "PLUGIN_ROOT=... PLUGIN_SCRIPTS=... Screen [SCOPE]. Macro data at ./reports/screening/macro.json..."
+})
+```
+
+**Gemini CLI** — Delegate to agents using `@agent-name` syntax:
+```
+@sector-screener Screen all sectors. PLUGIN_ROOT=... PLUGIN_SCRIPTS=...
+```
+
+VIOLATION: If you find yourself writing sector analysis, sub-industry deep-dives, or company
+scoring directly (e.g., performing Porter's Five Forces, calculating company metrics, writing
+competitive landscape), STOP immediately and spawn the appropriate agent instead. The orchestrator's
+job is: setup → spawn screeners → collect phase summaries → spawn report writer.
+</agent-team-protocol>
+
 ## Integration with stock-analysis
 
 This skill is designed as a precursor pipeline. After a screening report is produced, the user can feed any watchlist ticker directly into the `stock-analysis` skill. The screening report provides:

@@ -1,19 +1,31 @@
 ---
 name: watchlist
-description: "Check status of previously analyzed stocks. Shows price changes vs targets, catalyst updates, and kill switch status."
+description: "Check status of previously analyzed stocks using agent team. Spawns search-agent for current data, compares against prior targets."
 ---
 
-<purpose>Review previously generated reports in ./reports/ and provide a status update: current price vs targets, catalyst timeline progress, kill switch proximity, and whether the original thesis remains intact or needs revision.</purpose>
+<purpose>Review previously generated reports using agent team. Spawns search-agent for current price/news data, compares against prior targets, checks catalyst timelines, and verifies kill switch conditions.</purpose>
+
+<agent-team>
+MANDATORY: This command operates as an agent team. You are the orchestrator.
+
+Delegate current data gathering to sub-agent:
+  Claude Code: Agent({ subagent_type: "stock-analysis:search-agent", prompt: "..." })
+  Gemini CLI: @search-agent <task>
+
+| Agent | Task |
+|-------|------|
+| @search-agent | Fetch current prices, news, catalyst updates for each watchlist ticker |
+
+Orchestrator reads existing reports, delegates data fetch, then compiles status.
+</agent-team>
 
 <usage>/stock-analysis:watchlist [TICKER|all]</usage>
 
 <process>
-  <step n="1" name="Scan Reports">Read ./reports/ directory for all existing analysis reports</step>
-  <step n="2" name="Current Data">Fetch current price for each ticker via finance tool</step>
-  <step n="3" name="Status Check">Compare current price to bull/base/bear targets from original report</step>
-  <step n="4" name="Catalyst Review">Check if any catalysts from the report have materialized</step>
-  <step n="5" name="Kill Switch Check">Verify kill switch conditions are NOT triggered</step>
-  <step n="6" name="Summary Table">Output watchlist table with status indicators</step>
+  <step n="1" name="Scan Reports (orchestrator direct)">Read ./reports/ directory for all existing analysis reports</step>
+  <step n="2" name="Spawn Agent">Spawn @search-agent for current price, news, and catalyst data</step>
+  <step n="3" name="Status Check (orchestrator direct)">Compare current data to bull/base/bear targets, check kill switches</step>
+  <step n="4" name="Summary (orchestrator direct)">Output watchlist table with status indicators</step>
 </process>
 
 <constraints>

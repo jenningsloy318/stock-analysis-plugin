@@ -1,41 +1,46 @@
 prompt = """
-<purpose>Invoke the industry-screening-orchestrator to perform top-down sector-to-company screening. Identifies the most attractive sectors, drills into sub-industries, screens all public companies in the selected industry, and produces a ranked watchlist of the most promising stocks.</purpose>
+<purpose>Invoke the industry-screening-orchestrator agent team to perform top-down sector-to-sub-industry-to-company screening using GICS Level 4 (163 sub-industries). The orchestrator spawns specialized screener agents — it NEVER performs deep screening directly.</purpose>
 
-<usage>/industry-screening:screen [SECTOR|all|theme] [--horizon long|mid|short] [--min-cap VALUE] [--top N]</usage>
+<usage>/industry-screening:screen [SECTOR|all|theme] [options]</usage>
 
 <agent-team>
-This command uses the following sub-agents defined in the agents/ directory. Delegate screening phases to them — NEVER perform deep screening directly:
+MANDATORY: This command operates as an agent team. You are the orchestrator (industry-screening team lead).
+
+After Phase 0 (Setup & data fetch), you MUST delegate ALL screening phases to sub-agents.
+Do NOT perform sector analysis, sub-industry deep-dives, or company scoring directly.
+
+Delegate using @agent-name syntax:
 
 | Agent | Phases | Delegate When |
 |-------|--------|---------------|
 | @sector-screener | 1, 2 | Sector ranking, sub-industry deep-dive analysis |
 | @company-screener | 3 | Company filtering, scoring, and ranking within an industry |
+| @screening-report-writer | 4 | Synthesizes phase summaries into 3 final screening reports |
 | @search-agent | All | Financial web search when screener agents need data |
 
 Parallel execution rules (max 3 concurrent):
 - Phase 1: Up to 3 @sector-screener agents in parallel (sector batches)
-- Phase 2: Up to 2 @sector-screener agents in parallel (deep-dive on top sectors)
+- Phase 2: Up to 2 @sector-screener agents in parallel (deep-dive on top sub-industries)
 - Phase 3: 1-2 @company-screener agents (normal or split by market cap tier)
-- Phase 4: Orchestrator synthesizes directly
+- Phase 4: 1 @screening-report-writer agent
 </agent-team>
 
 <process>
-  <step n="1" name="Setup">Determine screening scope (all sectors / specific sector / theme), investment horizon, fetch macro context via fetch_macro.py, create output directory ./reports/screening/</step>
-  <step n="2" name="Sector Screening">Delegate to @sector-screener agents to analyze and rank sectors by composite score (growth, profitability, valuation, macro fit, innovation, regulation, capital flows)</step>
-  <step n="3" name="Industry Deep Dive">For top 2-3 sectors, delegate to @sector-screener agents in deep-dive mode. Drill into sub-industries: competitive dynamics, growth catalysts, TAM, key players, industry life cycle. Select the single best industry.</step>
-  <step n="4" name="Company Screening">Delegate to @company-screener agents for the selected industry. Apply quantitative filters (market cap, growth, FCF, ROIC, leverage), score on multi-factor composite, produce ranked watchlist of top 10-20 companies.</step>
-  <step n="5" name="Report Generation">Synthesize all phase summaries into screening report: macro context, sector ranking, industry deep-dive, company watchlist, next actions, risks to thesis.</step>
-  <step n="6" name="Handoff">Offer to deep-dive top watchlist picks with @stock-analyst. The screening report's macro context and industry thesis feed directly into stock-analysis Stages 4 and 3.</step>
+  <step n="1" name="Setup (you do this)">Determine screening scope, fetch macro context (fetch_macro.py), compute sector RS AND sub-industry RS (compute_sector_rs.py --level sub-industry --flat), create output directory, initialize persist.py</step>
+  <step n="2" name="Spawn Screeners">Delegate to @sector-screener agents for two-pass analysis: score sectors, rank Level 4 sub-industries. Produce unified sub-industry leaderboard.</step>
+  <step n="3" name="Spawn Deep Dive">Delegate to @sector-screener in deep-dive mode for top 2-3 sub-industries. Validate thesis and map company universe.</step>
+  <step n="4" name="Spawn Company Screener">Delegate to @company-screener for selected sub-industry. Apply filters, produce ranked watchlist.</step>
+  <step n="5" name="Spawn Report Writer">Delegate to @screening-report-writer to synthesize all phase summaries into 3 final reports (long/mid/short).</step>
 </process>
 
 <constraints>
-  <constraint>NEVER perform deep screening directly — always delegate to specialist sub-agents</constraint>
-  <constraint>Use weighted composite scoring with methodology stated in report</constraint>
-  <constraint>At least 10 companies must pass filters for a valid watchlist (flag if fewer)</constraint>
-  <constraint>Macro data within 30 days freshness; sector data within 90 days</constraint>
-  <constraint>All reports saved to ./reports/screening/[SECTOR]_[INDUSTRY]_[YYYY-MM-DD].md</constraint>
+  <constraint>NEVER perform Phase 1-4 screening/analysis directly — ALWAYS delegate to sub-agents</constraint>
+  <constraint>Always produce 3 reports (long/mid/short) — never ask user which horizon</constraint>
+  <constraint>DEFAULT: GICS Level 4 (Sub-Industry) granularity</constraint>
+  <constraint>All reports saved to ./reports/screening/[SUB_INDUSTRY_CODE]_[long|mid|short]_[YYYY-MM-DD].md</constraint>
+  <constraint>At least 10 companies must pass filters for a valid watchlist</constraint>
   <constraint>Context eviction enforced after each phase completion</constraint>
-  <constraint>Offer stock-analysis deep-dive on top watchlist picks after report delivery</constraint>
+  <constraint>After report delivery, offer to deep-dive top picks with /stock-analysis:analyze</constraint>
 </constraints>
 
 User request: {{args}}

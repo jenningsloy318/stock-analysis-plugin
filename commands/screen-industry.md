@@ -3,7 +3,28 @@ name: screen-industry
 description: "Run top-down industry screening using GICS Level 4 (Sub-Industry) as the default classification unit. Identifies the most attractive sub-industries across all sectors, performs deep-dive analysis, and produces a ranked watchlist of the most promising stocks. Designed as a precursor to /stock-analysis:analyze for deep dives on top picks."
 ---
 
-<purpose>Invoke the industry-screening-orchestrator to perform top-down sector-to-sub-industry-to-company screening using GICS Level 4 (163 sub-industries) as the default atomic screening unit. Ranks both sectors and sub-industries, deep-dives into the strongest sub-industry niches, screens all public companies in the selected sub-industry, and produces a ranked watchlist.</purpose>
+<purpose>Invoke the industry-screening-orchestrator agent team to perform top-down sector-to-sub-industry-to-company screening using GICS Level 4 (163 sub-industries) as the default atomic screening unit. The orchestrator spawns specialized screener agents — it NEVER performs deep screening directly.</purpose>
+
+<agent-team>
+MANDATORY: This command operates as an agent team. You are the orchestrator (industry-screening team lead).
+
+After Phase 0 (Setup), spawn sub-agents for ALL screening phases using:
+  Claude Code: Agent({ subagent_type: "industry-screening:<agent-name>", prompt: "..." })
+  Gemini CLI: @<agent-name> <task description>
+
+| Agent | Phases | Spawn When |
+|-------|--------|------------|
+| @sector-screener | 1, 2 | Sector ranking, sub-industry deep-dive analysis |
+| @company-screener | 3 | Company filtering, scoring, and ranking within an industry |
+| @screening-report-writer | 4 | Synthesizes phase summaries into 3 final screening reports |
+| @search-agent | All | Financial web search when screener agents need data |
+
+Parallel execution (max 3 concurrent):
+- Phase 1: Up to 3 @sector-screener agents (sector batches)
+- Phase 2: Up to 2 @sector-screener agents (deep-dive on top sub-industries)
+- Phase 3: 1-2 @company-screener agents (normal or split by market cap tier)
+- Phase 4: 1 @screening-report-writer agent
+</agent-team>
 
 <usage>/industry-screening:screen [SECTOR|all|theme] [options]</usage>
 
@@ -24,14 +45,15 @@ description: "Run top-down industry screening using GICS Level 4 (Sub-Industry) 
 </defaults>
 
 <process>
-  <step n="1" name="Setup">Determine scope (all sectors / specific sector / theme / specific sub-industry), investment horizon, fetch macro context, compute sector RS AND sub-industry RS, create output directory</step>
-  <step n="2" name="Sector & Sub-Industry Screening">Spawn sector-screener agents to perform two-pass analysis: score sectors, then rank all Level 4 sub-industries within top sectors. Produce unified sub-industry leaderboard.</step>
-  <step n="3" name="Sub-Industry Deep Dive">Deep-dive on top sub-industries (by GICS Level 4 code) to validate thesis and map complete company universe</step>
-  <step n="4" name="Company Screening">Screen all public companies in the selected sub-industry, apply quantitative filters, produce ranked watchlist</step>
-  <step n="5" name="Report">Synthesize findings into 3 screening reports (long/mid/short) with sub-industry leaderboard, deep-dive thesis, company watchlist, and parent-level context</step>
+  <step n="1" name="Setup (orchestrator direct)">Determine scope, fetch macro context, compute sector RS AND sub-industry RS (--flat), create output directory, initialize persist.py</step>
+  <step n="2" name="Spawn Screeners">Spawn @sector-screener agents for two-pass analysis: score sectors, rank Level 4 sub-industries. Produce unified sub-industry leaderboard.</step>
+  <step n="3" name="Spawn Deep Dive">Spawn @sector-screener in deep-dive mode for top 2-3 sub-industries. Validate thesis and map complete company universe.</step>
+  <step n="4" name="Spawn Company Screener">Spawn @company-screener for selected sub-industry. Apply quantitative filters, produce ranked watchlist.</step>
+  <step n="5" name="Spawn Report Writer">Spawn @screening-report-writer to synthesize all phase summaries into 3 final reports (long/mid/short).</step>
 </process>
 
 <constraints>
+  <constraint>NEVER perform Phase 1-4 screening/analysis directly — always spawn specialist agents</constraint>
   <constraint>DEFAULT: Always screen at GICS Level 4 (Sub-Industry) granularity</constraint>
   <constraint>Designed as a precursor — after screening, offer to deep-dive top picks with /stock-analysis:analyze</constraint>
   <constraint>All reports saved to ./reports/screening/[SUB_INDUSTRY_CODE]_[long|mid|short]_[YYYY-MM-DD].md (3 files per run)</constraint>

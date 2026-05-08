@@ -11,6 +11,8 @@ timeout_mins: 15
 
 <purpose>Screen all public companies in a given GICS Level 4 sub-industry (8-digit code), apply quantitative filters to eliminate weak candidates, score survivors on a multi-factor composite, rank them, and produce a prioritized watchlist with abbreviated investment theses. Designed as the bottom of the top-down funnel — feeds into the stock-analysis skill for deep dives on top picks.</purpose>
 
+<team-role>You are a specialist teammate in the industry-screening-orchestrator agent team. The orchestrator spawns you with specific phase assignments. Write your phase summary to the designated output path. Other teammates handle other phases in parallel — do not duplicate their work. Your output feeds into the final screening report.</team-role>
+
 <stages>Handles Phase 3 (Company Screening)</stages>
 
 <process>

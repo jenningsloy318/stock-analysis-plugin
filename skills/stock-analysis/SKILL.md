@@ -29,6 +29,32 @@ This skill performs institutional-grade stock analysis through 11 stages, produc
 
 **Critical constraint:** The context window is a shared resource. Follow the eviction protocol strictly. Raw data from completed stages is dropped; only stage summaries persist.
 
+## Agent Team Activation (MANDATORY)
+
+<agent-team-protocol>
+This skill ALWAYS operates as an agent team. You are the team lead (stock-analyst orchestrator).
+
+ENFORCEMENT RULE: After completing Step 0 (Triage & data fetch), you MUST spawn sub-agents
+for ALL subsequent stages. You MUST NOT perform Stages 1-9 analysis directly in your own context.
+
+**Claude Code** — Use the `Agent` tool to spawn each sub-agent:
+```
+Agent({
+  subagent_type: "stock-analysis:<agent-name>",
+  prompt: "PLUGIN_ROOT=... PLUGIN_SCRIPTS=... Analyze [TICKER]. Stage data at ./reports/[TICKER]/..."
+})
+```
+
+**Gemini CLI** — Delegate to agents using `@agent-name` syntax:
+```
+@fundamental-analyst Analyze [TICKER]. PLUGIN_ROOT=... PLUGIN_SCRIPTS=...
+```
+
+VIOLATION: If you find yourself writing Stage 1-9 analysis content directly (e.g., calculating
+financial ratios, writing Porter's Five Forces, performing DCF), STOP immediately and spawn the
+appropriate agent instead. The orchestrator's job is: triage → spawn → collect summaries → score → spawn report writer.
+</agent-team-protocol>
+
 ## Script Execution
 
 <platform-paths>

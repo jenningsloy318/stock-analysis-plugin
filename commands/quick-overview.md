@@ -1,23 +1,39 @@
 ---
 name: quick-overview
-description: "Generate a quick stock overview with reduced stages. Runs Stages 1+6+7+8 in parallel and produces a Mid-term format report."
+description: "Generate a quick stock overview using agent team in quick mode. Spawns fundamental-analyst, quant-analyst, risk-analyst in parallel. Produces 3 condensed reports (long/mid/short)."
 ---
 
-<purpose>Perform a rapid stock analysis using only the most critical stages (Fundamentals, Valuation, Risk) in parallel. Produces a condensed Mid-term format report suitable for initial screening or time-constrained decisions.</purpose>
+<purpose>Perform a rapid stock analysis using the agent team in quick mode. Spawns specialist agents in parallel for condensed coverage. Produces 3 reports (long/mid/short) even in quick mode.</purpose>
+
+<agent-team>
+MANDATORY: This command operates as an agent team. You are the orchestrator.
+
+After Triage & data fetch, spawn sub-agents in parallel:
+  Claude Code: Agent({ subagent_type: "stock-analysis:<agent-name>", prompt: "..." })
+  Gemini CLI: @<agent-name> <task>
+
+| Agent | Task |
+|-------|------|
+| @fundamental-analyst | Light fundamental analysis (key ratios, moat signal) |
+| @quant-analyst | Valuation + technicals (DCF, comps, trend) |
+| @risk-analyst | Key risks, Altman Z, red flags |
+
+All 3 agents run in parallel → scoring → @equity-report-writer for 3 condensed reports.
+</agent-team>
 
 <usage>/stock-analysis:quick-overview [TICKER]</usage>
 
 <process>
-  <step n="1" name="Triage">Identify ticker, check current price and market data</step>
-  <step n="2" name="Parallel Stages">Spawn fundamental-analyst (Stage 1 light), quant-analyst (Stages 6-7), risk-analyst (Stage 8 light) in parallel</step>
-  <step n="3" name="Scoring">Run compute_scores.py before report generation</step>
-  <step n="4" name="Report">Generate condensed Mid-term format report from stage summaries</step>
+  <step n="1" name="Triage (orchestrator direct)">Identify ticker, run fetch_financials.py, fetch_macro.py, calculate_metrics.py</step>
+  <step n="2" name="Spawn Agents">Spawn @fundamental-analyst (light), @quant-analyst (Stages 6-7), @risk-analyst (light) in parallel</step>
+  <step n="3" name="Scoring (orchestrator direct)">Run compute_scores.py</step>
+  <step n="4" name="Spawn Report Writer">Spawn @equity-report-writer to produce 3 condensed reports</step>
 </process>
 
 <constraints>
-  <constraint>Estimated time: 1-3 minutes</constraint>
+  <constraint>NEVER perform analysis directly — always spawn specialist agents</constraint>
+  <constraint>Always produce 3 reports (long/mid/short) even in quick mode</constraint>
+  <constraint>Estimated time: 2-5 minutes</constraint>
   <constraint>Skip Stages 2, 3, 4, 5, 9 entirely</constraint>
-  <constraint>Stage 1: summary only (1.1 Financial Health)</constraint>
-  <constraint>Stage 8: Light mode (8.2 quantification + 8.4 catalysts only)</constraint>
-  <constraint>Report confidence automatically flagged as "Limited — quick overview mode"</constraint>
+  <constraint>Report confidence flagged as "Limited — quick overview mode"</constraint>
 </constraints>
