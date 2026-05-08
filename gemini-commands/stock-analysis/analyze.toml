@@ -1,14 +1,36 @@
 prompt = """
-<purpose>Invoke the stock-analyst orchestrator to perform full multi-stage equity research. Determines report type from user intent, spawns specialized analyst agents for each stage, and produces institutional-grade reports.</purpose>
+<purpose>Invoke the stock-analyst orchestrator to perform full multi-stage equity research. Determines report type from user intent, delegates to specialized sub-agents for each stage, and produces institutional-grade reports.</purpose>
 
 <usage>/stock-analysis:analyze [TICKER] [--type long|mid|short|all] [--quick]</usage>
 
+<agent-team>
+This command uses the following sub-agents defined in the agents/ directory. Delegate analysis stages to them — NEVER perform deep analysis directly:
+
+| Agent | Stages | Delegate When |
+|-------|--------|---------------|
+| @fundamental-analyst | 1-2 | Company financials, moat, executive/insider analysis |
+| @industry-analyst | 3 | Competitive landscape, Porter's Five Forces, TAM/SAM |
+| @macro-analyst | 4-5 | Economic cycle, monetary policy, geopolitics |
+| @quant-analyst | 6-7 | Valuation (DCF, comps), technicals, market regime |
+| @risk-analyst | 8 | Risk quantification, scenarios, forensic red flags |
+| @alt-data-analyst | 9 | Web traffic, app data, NLP earnings, social sentiment |
+| @search-agent | All | Financial web search when specialist agents need data |
+| @report-writer | 10 | Synthesize stage summaries into final reports |
+
+Parallel execution rules (max 3 concurrent):
+- Long-term: [1+2+3] → [4+5] → [6+7] → [8] → [9] → Scoring → [10]
+- Mid-term: [4+5+6] → [1+7] → [2+8] → [9] → Scoring → [10]
+- Short-term: [6+7+9] → Scoring → [10]
+- Quick: [1+6+7+8] → Scoring → [10]
+</agent-team>
+
 <process>
-  <step n="1" name="Triage">Identify ticker, determine report type, check earnings calendar, create output directory</step>
-  <step n="2" name="Data Fetch">Run scripts: fetch_financials.py, fetch_macro.py, calculate_metrics.py</step>
-  <step n="3" name="Stage Execution">Spawn analyst agents per parallel execution rules for the report type</step>
-  <step n="4" name="Report Generation">Spawn report-writer to synthesize stage summaries into final report</step>
-  <step n="5" name="Quality Gate">Run pre-delivery checklist, validate fact integrity</step>
+  <step n="1" name="Triage">Identify ticker, determine report type, check earnings calendar, create output directory, run initial scripts (fetch_financials.py, fetch_macro.py, calculate_metrics.py, forecast.py)</step>
+  <step n="2" name="Stage Execution">Delegate to specialist sub-agents per parallel execution rules for the report type. Each agent writes its stage summary to /tmp/stock-analysis-[TICKER]-stage[N].md</step>
+  <step n="3" name="Deterministic Scoring">Run compute_scores.py against all script outputs for reproducible 1-10 component scores</step>
+  <step n="4" name="Cross-Check">Validate internal contradictions (overvaluation vs wide moat, red flags vs financial health)</step>
+  <step n="5" name="Report Generation">Delegate to @report-writer to synthesize stage summaries into final report</step>
+  <step n="6" name="Quality Gate">Run pre-delivery checklist, validate fact integrity, run backtest.py</step>
 </process>
 
 <constraints>
@@ -16,6 +38,8 @@ prompt = """
   <constraint>If earnings within 3 days, recommend waiting unless user overrides</constraint>
   <constraint>All reports saved to ./reports/[TICKER]/[TICKER]_[Type]_[YYYY-MM-DD].md</constraint>
   <constraint>Context eviction enforced after each stage completion</constraint>
+  <constraint>NEVER perform deep analysis directly — always delegate to specialist sub-agents</constraint>
+  <constraint>Run compute_scores.py BEFORE report generation for deterministic scoring</constraint>
 </constraints>
 
 User request: {{args}}

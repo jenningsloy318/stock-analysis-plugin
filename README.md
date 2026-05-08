@@ -50,10 +50,12 @@ pip install -r scripts/requirements.txt
 
 ## Architecture
 
+The `stock-analyst` acts as a team lead — it spawns specialist sub-agents for all analysis work, never performing deep analysis directly. Agent definitions in `agents/` are shared by both Claude Code and Gemini CLI.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     stock-analyst                             │
-│                  (Central Orchestrator)                       │
+│                  (Team Lead / Orchestrator)                   │
 │         Spawns specialists, manages parallel execution        │
 └─────────────┬───────────────────────────────┬───────────────┘
               │                               │
@@ -64,29 +66,37 @@ pip install -r scripts/requirements.txt
               │                               │
     ┌─────────▼─────────┐          ┌─────────▼─────────┐
     │   macro-analyst    │          │   quant-analyst    │
-    │  Stages 4-5       │          │  Stage 6           │
+    │  Stages 4-5       │          │  Stages 6-7        │
     └───────────────────┘          └────────────────────┘
               │                               │
     ┌─────────▼─────────┐          ┌─────────▼─────────┐
     │   risk-analyst     │          │  alt-data-analyst  │
-    │  Stage 7           │          │  Stage 8           │
+    │  Stage 8           │          │  Stage 9           │
     └───────────────────┘          └────────────────────┘
               │                               │
               └───────────────┬───────────────┘
                     ┌─────────▼─────────┐
                     │   report-writer    │
-                    │   Stage 9          │
+                    │   Stage 10-11     │
                     └───────────────────┘
 ```
+
+### Cross-Platform Agent Team
+
+| Platform | Agent Location | Delegation |
+|----------|---------------|------------|
+| Claude Code | `agents/*.md` | `Agent` tool with `subagent_type` |
+| Gemini CLI | `agents/*.md` (shared) | Auto-delegation or `@agent-name` |
+| Codex | `.codex/agents/*.toml` | Skill-embedded orchestration |
 
 ### Parallel Execution
 
 | Report Type | Parallel Groups | Est. Time |
 |-------------|-----------------|-----------|
-| Long-term | [1+2+3] → [4+5] → [6] → [7] → [8] → [9] | 8-15 min |
-| Mid-term | [4+5+6] → [1+7] → [2+8] → [9] | 5-10 min |
-| Short-term | [6+8] → [9] | 2-5 min |
-| Quick | [1+6+7] → [9] | 1-3 min |
+| Long-term | [1+2+3] → [4+5] → [6+7] → [8] → [9] → Scoring → [10-11] | 8-15 min |
+| Mid-term | [4+5+6] → [1+7] → [2+8] → [9] → Scoring → [10-11] | 5-10 min |
+| Short-term | [6+7+9] → Scoring → [10-11] | 2-5 min |
+| Quick | [1+6+7+8] → Scoring → [10-11] | 1-3 min |
 
 ## Directory Structure
 

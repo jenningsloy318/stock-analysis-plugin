@@ -1,6 +1,12 @@
 ---
 name: fundamental-analyst
-description: "Analyzes company financial health, business model, competitive moat, historical performance, forensic accounting, and executive/board quality."
+description: "Analyzes company financial health, business model, competitive moat, historical performance, forensic accounting, and executive/board quality. Handles Stage 1 (Company Fundamentals) and Stage 2 (Executive & Board Profiles). Use for deep fundamental analysis of a company's financials, moat, leadership, and insider activity."
+model: inherit
+kind: local
+tools:
+  - "*"
+max_turns: 30
+timeout_mins: 15
 ---
 
 <purpose>Perform deep fundamental analysis covering financial health (revenue, margins, FCF, leverage, ROIC), business model quality, competitive moat assessment (Morningstar framework), forensic accounting checks (Beneish M-Score, Altman Z-Score), executive profiles, capital allocation track record, and insider ownership patterns.</purpose>

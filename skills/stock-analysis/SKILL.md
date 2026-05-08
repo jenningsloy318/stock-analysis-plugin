@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.6"
+version: "1.0.7"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -19,9 +19,11 @@ compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl 
 
 ## Overview
 
-This skill performs institutional-grade stock analysis through 11 stages, producing 1-3 reports (long/mid/short-term) per ticker. Analysis depth adjusts per report type — see `references/report_templates.md` for output formats.
+<purpose>Stock-analyst (team lead) agent team workflow. The stock-analyst orchestrates specialized analyst teammates — it NEVER performs deep analysis directly, only spawns, coordinates, and verifies. Analyst agents execute fundamentals, industry, macro, valuation, risk, alternative data, and report stages in parallel where possible.</purpose>
 
-**v1.0.4:** Deterministic scoring (`compute_scores.py`), ensemble forecasting for DCF (`forecast.py`), Monte Carlo simulation, credit market analysis (`fetch_credit.py`), behavioral finance (`fetch_behavioral.py`), state persistence with SQLite (`persist.py`), backtesting (`backtest.py`), portfolio context (`portfolio_context.py`), real-time data (`fetch_realtime.py`), and industry deep-dive references.
+<triggers>Triggers on: "analyze [TICKER]", "stock analysis", "equity research", "should I buy [TICKER]", "deep dive on [COMPANY]", "investment thesis", "valuation of [TICKER]", "due diligence on [COMPANY]". Do NOT trigger on: general market commentary, portfolio questions without specific tickers, non-financial queries.</triggers>
+
+This skill performs institutional-grade stock analysis through 11 stages, producing 1-3 reports (long/mid/short-term) per ticker. Analysis depth adjusts per report type — see `references/report_templates.md` for output formats.
 
 **Critical constraint:** The context window is a shared resource. Follow the eviction protocol strictly. Raw data from completed stages is dropped; only stage summaries persist.
 
@@ -59,7 +61,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 ## Workflow
 
-### Step 0: Triage
+### Step 0: Triage (orchestrator executes directly)
 
 1. Identify the ticker symbol from the user's request. If ambiguous (e.g., "Apple"), resolve via `mcp__xcrawl-mcp__xcrawl_search`: "Apple Inc stock ticker symbol."
 2. Determine report type(s) using the decision tree:
@@ -79,7 +81,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 11. Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --output /tmp/stock-analysis-[TICKER]-metrics.json` to compute ratios and valuation. If market cap is known, add `--market-cap [VALUE]`.
 12. Call `finance` tool for current price, market cap, 52-week range, shares outstanding.
 
-### Stage 1: Company Fundamentals
+### Stage 1: Company Fundamentals → Spawn fundamental-analyst
 
 **Checklist:**
 - [ ] 1.1 Financial Health — Revenue trends, margins, FCF, leverage, working capital, ROIC/ROE/ROA
@@ -95,7 +97,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 **After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage1.md`. Drop raw financial data from context. Retain: key metrics (table), moat assessment (3 sentences), forensic flags (list).
 
-### Stage 2: Executive & Board Profiles
+### Stage 2: Executive & Board Profiles → Spawn fundamental-analyst
 
 **Checklist:**
 - [ ] 2.1 Leadership Assessment — CEO/CFO background, tenure, board composition, departures, succession
@@ -112,7 +114,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 **Skip rule:** Skip this stage for Short-term reports unless insider cluster activity is detected.
 
-### Stage 3: Product & Industry
+### Stage 3: Product & Industry → Spawn industry-analyst
 
 **Checklist:**
 - [ ] 3.1 Product Analysis — Portfolio mapping, life cycle, innovation pipeline, NPS, pricing power
@@ -129,7 +131,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 **After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage3.md`. Drop raw data. Retain: moat score (1-10), competitive position (3 sentences), TAM estimate.
 
-### Stage 4: Macro Economics
+### Stage 4: Macro Economics → Spawn macro-analyst
 
 **Checklist:**
 - [ ] 4.1 Economic Cycle — Short-term debt cycle position (Dalio), PMI, housing starts, yield curve
@@ -147,7 +149,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 **After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage4.md`. Drop raw data. Retain: macro regime classification, 3 key tailwinds/headwinds.
 
-### Stage 5: Politics & Geopolitics
+### Stage 5: Politics & Geopolitics → Spawn macro-analyst
 
 **Checklist:**
 - [ ] 5.1 Regulatory — Current framework, upcoming changes, risk probability × impact, antitrust concerns
@@ -164,7 +166,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 **Skip rule:** Skip this stage for Short-term reports unless a geopolitical catalyst is flagged.
 
-### Stage 6: Valuation
+### Stage 6: Valuation → Spawn quant-analyst
 
 **Checklist:**
 - [ ] 6.1 Multi-Method — **DCF using ensemble forecast growth rates** (from `/tmp/stock-analysis-[TICKER]-forecast.json`), WACC, terminal value, sensitivity table, reverse DCF. **Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --wacc [WACC] --growth [ENSEMBLE_CAGR] --market-cap [VALUE] --output /tmp/stock-analysis-[TICKER]-metrics.json`** with the ensemble forecast FCF CAGR instead of a fixed constant. Trading Comps (peer universe, EV/EBITDA, P/E, P/FCF, PEG), SOTP if multi-segment.
@@ -180,7 +182,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 **After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage6.md`. Run `scripts/persist.py save [ANALYSIS_ID] 6 /tmp/stock-analysis-[TICKER]-stage6.md`. Drop raw data. Retain: intrinsic value range (with Monte Carlo percentiles), relative value assessment, key technical levels.
 
-### Stage 7: Market Regime & Positioning
+### Stage 7: Market Regime & Positioning → Spawn quant-analyst
 
 **Checklist:**
 - [ ] 7.1 Risk-Off Indicators — VIX level + term structure (contango/backwardation), credit spreads (IG/HY OAS, TED spread), gold/USD/Treasury safe-haven flows, Fear & Greed Index
@@ -213,7 +215,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 **After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage7.md`. Run `scripts/persist.py save [ANALYSIS_ID] 7 /tmp/stock-analysis-[TICKER]-stage7.md`. Drop raw data. Retain: regime classification, speculation score (1-10), top 3 positioning signals, impact assessment on [TICKER].
 
-### Stage 8: Risk Assessment
+### Stage 8: Risk Assessment → Spawn risk-analyst
 
 **Checklist:**
 - [ ] 8.1 Risk Identification — Categorize: operational, financial, competitive, regulatory, macro, geopolitical, ESG
@@ -232,7 +234,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 **After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage8.md`. Run `scripts/persist.py save [ANALYSIS_ID] 8 /tmp/stock-analysis-[TICKER]-stage8.md`. Drop raw data. Retain: risk score (1-10), top 3 risks, scenario price targets.
 
-### Stage 9: Alternative Data
+### Stage 9: Alternative Data → Spawn alt-data-analyst
 
 **Checklist:**
 - [ ] 9.1 Digital Footprint — Web traffic trends (Google Trends + Similarweb), app rankings/downloads (Apple App Store public API), social media metrics (Reddit praw), hiring trends (LinkedIn public page), patents (USPTO public API)
@@ -250,7 +252,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 **After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage9.md`. Run `scripts/persist.py save [ANALYSIS_ID] 9 /tmp/stock-analysis-[TICKER]-stage9.md`.
 
-### Stage 10: Deterministic Scoring & Cross-Check
+### Stage 10: Deterministic Scoring & Cross-Check (orchestrator executes directly)
 
 **Run BEFORE report generation:**
 
@@ -278,7 +280,7 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
 
 **10c — Save conviction:** Run `scripts/persist.py conviction [ANALYSIS_ID] [CONVICTION] [RATING] --component-scores /tmp/stock-analysis-[TICKER]-scores.json` to record the conviction in state history for future backtesting.
 
-### Stage 11: Report Generation
+### Stage 11: Report Generation → Spawn report-writer
 
 **Workflow:**
 1. Read all stage summaries from `/tmp/stock-analysis-[TICKER]-stage[1-9].md`
@@ -348,13 +350,31 @@ After Stage 11 report generation:
 | 10: Scoring + Cross-Check | Full | Full | Full |
 | 11: Reports | Full | Full | Full |
 
+## Agent Team
+
+The stock-analyst (team lead) spawns specialist teammates for ALL analysis work — it NEVER performs deep analysis directly. Sub-agents are defined in `agents/`:
+
+| Agent | Stages | Spawn When |
+|-------|--------|------------|
+| `fundamental-analyst` | 1-2 | Company financials, moat, executive/insider analysis |
+| `industry-analyst` | 3 | Competitive landscape, Porter's Five Forces, TAM/SAM |
+| `macro-analyst` | 4-5 | Economic cycle, monetary policy, geopolitics |
+| `quant-analyst` | 6-7 | Valuation (DCF, comps), technicals, market regime |
+| `risk-analyst` | 8 | Risk quantification, scenarios, forensic red flags |
+| `alt-data-analyst` | 9 | Web traffic, app data, NLP earnings, social sentiment |
+| `search-agent` | All | Financial web search when specialist agents need data |
+| `report-writer` | 10 | Synthesize stage summaries into final reports |
+
+**Claude Code**: Stock-analyst spawns via the `Agent` tool with `subagent_type: "stock-analysis:<agent-name>"`.
+**Gemini CLI**: Stock-analyst auto-delegates based on agent descriptions, or user forces via `@agent-name` syntax.
+
 ## Parallelism
 
-Use `agent_spawn` to parallelize independent stages:
-- Long-term: Stages 1-3 can run in parallel; Stage 7 can pair with Stage 4; Stages 6+8 can pair; Scoring + Cross-Check before Report Generation
-- Mid-term: Stages 4-6 can run in parallel; Stages 1+7 can pair; Stages 2+8 can pair; Scoring + Cross-Check before Stage 9+11
-- Short-term: Stages 6+7+9 can run in parallel; Scoring before Report
-- Quick Overview: Stages 1+6+7+8 can parallelize; Scoring before Report
+Stock-analyst (team lead) spawns sub-agents in parallel per report type (max 3 concurrent):
+- Long-term: [fundamental-analyst + industry-analyst] → [macro-analyst] → [quant-analyst] → [risk-analyst] → [alt-data-analyst] → Scoring → [report-writer]
+- Mid-term: [macro-analyst + quant-analyst] → [fundamental-analyst + risk-analyst] → [alt-data-analyst] → Scoring → [report-writer]
+- Short-term: [quant-analyst + alt-data-analyst] → Scoring → [report-writer]
+- Quick Overview: [fundamental-analyst + quant-analyst + risk-analyst] → Scoring → [report-writer]
 
 Post-stage-9: always run deterministic scoring (Stage 10) and cross-check before report generation (Stage 11).
 

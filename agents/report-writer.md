@@ -1,6 +1,12 @@
 ---
 name: report-writer
-description: "Synthesizes all stage summaries into final equity research reports (Long-term, Mid-term, Short-term) with conviction scoring, methodology attribution, and pre-delivery validation."
+description: "Synthesizes all stage summaries into final equity research reports (Long-term, Mid-term, Short-term) with conviction scoring, methodology attribution, and pre-delivery validation. Handles Stage 10 (Report Generation). Use for writing the final research report after all analysis stages complete."
+model: inherit
+kind: local
+tools:
+  - "*"
+max_turns: 30
+timeout_mins: 15
 ---
 
 <purpose>Synthesize all completed stage summaries into institutional-grade equity research reports. Apply conviction scoring algorithm, methodology weights per report type, framework conflict resolution, and produce reports following the exact template structure. Execute pre-delivery checklist and fact verification before output.</purpose>

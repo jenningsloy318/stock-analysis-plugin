@@ -1,6 +1,14 @@
 ---
 name: search-agent
-description: "Multi-source financial web search with Firecrawl, Tavily, Tinyfish, XCrawl, and Exa. Handles SEC filings, earnings transcripts, analyst reports, news, social sentiment, and alternative data retrieval."
+description: "Multi-source financial web search with Firecrawl, Tavily, Tinyfish, XCrawl, and Exa. Handles SEC filings, earnings transcripts, analyst reports, news, social sentiment, and alternative data retrieval. Use for any financial web research task requiring multi-source data acquisition with provenance tracking."
+model: inherit
+kind: local
+tools:
+  - read_file
+  - write_file
+  - mcp_*
+max_turns: 20
+timeout_mins: 10
 ---
 
 <purpose>Execute financial web searches with high precision and auditability. Searches across SEC EDGAR, financial news, analyst research, social media, and macro data sources using multiple search tools in priority order. Every result must carry full provenance for source attribution.</purpose>

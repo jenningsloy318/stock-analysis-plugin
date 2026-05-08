@@ -1,4 +1,16 @@
-# Stock Analysis Plugin — Agents
+# Stock Analysis Plugin — Agent Team
+
+## Cross-Platform Support
+
+This plugin provides an agent team that works across both Claude Code and Gemini CLI:
+
+| Platform | Agent Location | Format | Delegation |
+|----------|---------------|--------|------------|
+| **Claude Code** | `agents/*.md` | YAML frontmatter + markdown body | `Agent` tool with `subagent_type` |
+| **Gemini CLI** | `agents/*.md` (extension root) | YAML frontmatter + markdown body | Auto-delegation or `@agent_name` |
+| **Codex** | `.codex/agents/*.toml` | TOML with `developer_instructions` | Skill-embedded orchestration |
+
+The `agents/` directory is shared between Claude and Gemini — both platforms read the same files. Gemini-specific fields (`kind`, `tools`, `max_turns`, `timeout_mins`) are ignored by Claude; Claude-specific content (XML body) is used as the system prompt by Gemini.
 
 ## Orchestrator
 
@@ -22,10 +34,24 @@
 ## Parallel Execution Map
 
 ```
-Long-term:   [1+2+3] → [4+5] → [6+7] → [8] → [9] → [10]
-Mid-term:    [4+5+6] → [7+8] → [1+9] → [10]
-Short-term:  [6+7+9] → [10]
-Quick:       [1+6+7+8] → [10]
+Long-term:   [1+2+3] → [4+5] → [6+7] → [8] → [9] → Scoring → [10]
+Mid-term:    [4+5+6] → [1+7] → [2+8] → [9] → Scoring → [10]
+Short-term:  [6+7+9] → Scoring → [10]
+Quick:       [1+6+7+8] → Scoring → [10]
 ```
 
 Max concurrent agents: 3
+
+## Platform-Specific Notes
+
+### Claude Code
+
+The orchestrator (`stock-analyst`) uses the `Agent` tool to spawn sub-agents with `subagent_type` matching the agent names. Agents can nest (sub-agents may call search-agent).
+
+### Gemini CLI
+
+The orchestrator auto-delegates to sub-agents based on their `description` field, or users can force delegation with `@agent_name` syntax. **Important**: Gemini sub-agents cannot call other sub-agents (single-level nesting only). The search-agent must be called directly by the orchestrator on behalf of specialists.
+
+### Codex
+
+Agent definitions in `.codex/agents/` use TOML format with `developer_instructions`. Orchestration is skill-embedded — the SKILL.md contains the coordination logic. Codex plugins do not have native agent team spawning; the agent files serve as configuration reference.

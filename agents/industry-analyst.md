@@ -1,6 +1,12 @@
 ---
 name: industry-analyst
-description: "Analyzes product portfolio, industry structure (Porter's Five Forces), competitive landscape, market sizing, platform economics, supply chain, and ecosystem mapping."
+description: "Analyzes product portfolio, industry structure (Porter's Five Forces), competitive landscape, market sizing, platform economics, supply chain, and ecosystem mapping. Handles Stage 3 (Product & Industry). Use for competitive landscape research, TAM/SAM/SOM, and industry dynamics."
+model: inherit
+kind: local
+tools:
+  - "*"
+max_turns: 30
+timeout_mins: 15
 ---
 
 <purpose>Perform comprehensive industry and competitive analysis covering product portfolio mapping, Porter's Five Forces assessment, competitive landscape with market share trends, TAM/SAM/SOM sizing, platform economics (if applicable), supply chain risk analysis, and full ecosystem/value chain mapping.</purpose>
