@@ -127,6 +127,7 @@
   - **Claude Code / Codex CLI**: `${CLAUDE_PLUGIN_ROOT}`
   - **Gemini CLI**: `${extensionPath}`
 - `PLUGIN_SCRIPTS` = `${PLUGIN_ROOT}/scripts` (all script references use this).
+- **ALL Python scripts MUST be run via `uv run python`** — never bare `python` or `python3`. When agents reference `${PLUGIN_SCRIPTS}/script.py`, execute as: `uv run python ${PLUGIN_SCRIPTS}/script.py [args]`. This ensures the correct virtual environment and dependencies are used.
 - Persistent state (venvs, caches) goes in `${PLUGIN_DATA}`:
   - **Claude/Codex**: `${CLAUDE_PLUGIN_DATA}`
   - **Gemini**: `${extensionPath}/.data/`

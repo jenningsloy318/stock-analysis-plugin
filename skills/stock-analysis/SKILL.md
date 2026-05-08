@@ -117,7 +117,7 @@ Run via `uv run` to ensure correct dependencies:
 uv run python ${PLUGIN_SCRIPTS}/fetch_financials.py AAPL --years 5 --output ./reports/AAPL/raw-data.json
 ```
 
-If `uv` is not available, fall back to activating the `.venv` in `${PLUGIN_DATA}`, or using `python` directly with `${PLUGIN_SCRIPTS}/requirements.txt` installed.
+**MANDATORY**: ALL Python scripts MUST be executed with `uv run python` — never bare `python` or `python3`. This applies to every `${PLUGIN_SCRIPTS}/xxx.py` invocation throughout the workflow.
 
 **Path variables:**
 - `${PLUGIN_ROOT}` — Plugin installation directory (scripts, references, agents). Treat as read-only.

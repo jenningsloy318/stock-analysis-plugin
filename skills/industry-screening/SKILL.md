@@ -163,6 +163,8 @@ Before Phase 1, load `references/data_source_matrix.md` and write `./reports/scr
 Scripts are bundled with the plugin. Set `PLUGIN_ROOT` based on platform, then derive:
 - `PLUGIN_SCRIPTS` = `${PLUGIN_ROOT}/scripts`
 
+**MANDATORY**: ALL Python scripts MUST be executed with `uv run python` — never bare `python` or `python3`. Example: `uv run python ${PLUGIN_SCRIPTS}/fetch_macro.py --output ./reports/screening/macro.json`
+
 ## Workflow
 
 ### Phase 0: Setup & Scope (orchestrator executes directly)
@@ -423,7 +425,7 @@ The industry-screening-orchestrator spawns specialist teammates for ALL screenin
 - `PLUGIN_ROOT` = the resolved plugin root path (platform-specific, resolved by orchestrator)
 - `PLUGIN_SCRIPTS` = `PLUGIN_ROOT/scripts`
 
-Agents reference scripts as `PLUGIN_SCRIPTS/script_name.py`. The orchestrator resolves the platform path and passes it; agents never resolve paths themselves.
+Agents reference scripts as `PLUGIN_SCRIPTS/script_name.py`. The orchestrator resolves the platform path and passes it; agents never resolve paths themselves. All scripts run via `uv run python`.
 
 ## Parallelism
 
