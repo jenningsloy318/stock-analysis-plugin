@@ -26,17 +26,45 @@ gemini extensions install https://github.com/jenningsloy318/stock-analysis-plugi
 ## Prerequisites
 
 - Python 3.10+
-- Required API keys (free tier sufficient):
-  - `FRED_API_KEY` — macro indicators ([get key](https://fred.stlouisfed.org/docs/api/api_key.html))
-  - `FINNHUB_API_KEY` — sentiment/insider/earnings ([get key](https://finnhub.io/))
-- Optional API keys:
-  - `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` — social sentiment
-  - `FMP_API_KEY` — financial data fallback
-  - `ALPHAVANTAGE_API_KEY` — technical indicators fallback
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
+
+### Setup
 
 ```bash
+# Install dependencies with uv (creates .venv automatically)
+uv sync
+
+# Run scripts via uv
+uv run python scripts/fetch_financials.py AAPL --years 5
+```
+
+Or with pip:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
 pip install -r scripts/requirements.txt
 ```
+
+### API Keys
+
+Set as environment variables. The scripts read them at runtime.
+
+| Key | Required | Purpose | Get Key |
+|-----|----------|---------|---------|
+| `FRED_API_KEY` | Yes | Macro indicators (GDP, CPI, rates) | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) |
+| `FINNHUB_API_KEY` | Yes | Sentiment, insider, earnings, analyst | [finnhub.io](https://finnhub.io/) |
+| `REDDIT_CLIENT_ID` | No | Social sentiment (Reddit) | [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) |
+| `REDDIT_CLIENT_SECRET` | No | Social sentiment (Reddit) | Same as above |
+| `FMP_API_KEY` | No | Financial data fallback | [financialmodelingprep.com](https://financialmodelingprep.com/) |
+| `POLYGON_API_KEY` | No | Real-time data fallback | [polygon.io](https://polygon.io/) |
+
+```bash
+export FRED_API_KEY="your-key"
+export FINNHUB_API_KEY="your-key"
+```
+
+**Gemini CLI**: API keys are configured during extension install via `gemini extensions config stock-analysis`. Keys are stored securely in the system keychain.
 
 ## Commands
 

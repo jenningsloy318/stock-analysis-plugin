@@ -27,6 +27,15 @@ This skill performs institutional-grade stock analysis through 11 stages, produc
 
 **Critical constraint:** The context window is a shared resource. Follow the eviction protocol strictly. Raw data from completed stages is dropped; only stage summaries persist.
 
+## Script Execution
+
+All Python scripts must run via `uv run` to ensure correct dependencies:
+```
+uv run python scripts/fetch_financials.py AAPL --years 5 --output /tmp/stock-analysis-AAPL-raw-data.json
+```
+
+If `uv` is not available, fall back to activating the `.venv` manually or using `python` directly with `scripts/requirements.txt` installed.
+
 ## Search Tools
 
 This skill uses multiple web search tools for financial data acquisition. See `agents/search-agent.md` for full search methodology.

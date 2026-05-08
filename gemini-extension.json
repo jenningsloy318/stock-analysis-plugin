@@ -2,5 +2,31 @@
   "name": "stock-analysis",
   "version": "1.0.7",
   "description": "Multi-stage institutional equity research producing long-term, mid-term, and short-term stock analysis reports synthesizing methodologies from Buffett, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, and ARK",
-  "contextFileName": "GEMINI.md"
+  "contextFileName": "GEMINI.md",
+  "settings": [
+    {
+      "name": "FRED API Key",
+      "description": "API key for Federal Reserve Economic Data (FRED). Required for macro indicators. Get one at https://fred.stlouisfed.org/docs/api/api_key.html",
+      "envVar": "FRED_API_KEY",
+      "sensitive": true
+    },
+    {
+      "name": "Finnhub API Key",
+      "description": "API key for Finnhub. Required for sentiment, insider transactions, and earnings data. Get one at https://finnhub.io/",
+      "envVar": "FINNHUB_API_KEY",
+      "sensitive": true
+    },
+    {
+      "name": "Reddit Client ID",
+      "description": "Reddit app client ID for social sentiment analysis. Optional. Create at https://www.reddit.com/prefs/apps",
+      "envVar": "REDDIT_CLIENT_ID",
+      "sensitive": false
+    },
+    {
+      "name": "Reddit Client Secret",
+      "description": "Reddit app client secret for social sentiment analysis. Optional.",
+      "envVar": "REDDIT_CLIENT_SECRET",
+      "sensitive": true
+    }
+  ]
 }
