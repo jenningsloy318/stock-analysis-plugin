@@ -102,6 +102,7 @@ timeout_mins: 12
 For broad screens covering multiple sub-industries, write 3 reports per selected sub-industry.</output>
 
 <constraints>
+  <constraint>ALL report content MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. GICS names include both English and Chinese. Source citations remain in original language. This is NON-NEGOTIABLE — never produce English reports.</constraint>
   <constraint>Do not re-analyze — this agent synthesizes existing phase summaries, never fetches new data</constraint>
   <constraint>Every sub-industry in the leaderboard must include its 8-digit GICS code</constraint>
   <constraint>Every company in the watchlist must have a specific score and 2-sentence thesis</constraint>

@@ -63,6 +63,7 @@ timeout_mins: 15
 - `./reports/[TICKER]/[TICKER]_short_[YYYY-MM-DD].md`</output>
 
 <constraints>
+  <constraint>ALL report content MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. Source citations remain in original language. This is NON-NEGOTIABLE — never produce English reports.</constraint>
   <constraint>If any single component scores ≤3, rating cannot exceed "Hold" regardless of composite</constraint>
   <constraint>If 3+ components excluded due to missing data, confidence automatically "Low"</constraint>
   <constraint>If source coverage caps confidence lower than the model output, use the lower confidence and state why</constraint>
