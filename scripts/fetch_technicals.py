@@ -17,7 +17,7 @@ Indicators computed:
   - Trend: SMA (20/50/200), EMA (12/26/50/200), MACD, ADX
   - Momentum: RSI (14), Stochastic (14,3,3), Rate of Change
   - Volatility: Bollinger Bands (20,2), ATR (14)
-  - Volume: OBV, Volume SMA, Volume Ratio
+  - Volume: OBV, Volume SMA, Volume Ratio, Volume Profile (POC, Value Area)
   - Support/Resistance: pivot points, rolling highs/lows
   - Composite: trend strength score, setup quality score
   - Weinstein Stage: 30-week MA-based structure classification (1-4)
@@ -623,6 +623,76 @@ def compute_relative_strength(
     }
 
 
+def volume_profile(
+    closes: list[float],
+    highs: list[float],
+    lows: list[float],
+    volumes: list[float],
+    bins: int = 30,
+) -> dict:
+    """Compute volume profile: POC (Point of Control), Value Area High/Low.
+
+    Distributes volume across price bins using typical price. Identifies the
+    price level with the most traded volume (POC) and the range containing
+    70% of total volume (Value Area).
+    """
+    n = len(closes)
+    if n < 20 or not volumes:
+        return {}
+
+    typicals = [(h + l + c) / 3 for h, l, c in zip(highs, lows, closes)]
+    price_min = min(lows)
+    price_max = max(highs)
+    if price_max <= price_min:
+        return {}
+
+    bin_size = (price_max - price_min) / bins
+    vol_bins = [0.0] * bins
+    bin_prices = [price_min + (i + 0.5) * bin_size for i in range(bins)]
+
+    for tp, vol in zip(typicals, volumes):
+        idx = min(int((tp - price_min) / bin_size), bins - 1)
+        vol_bins[idx] += vol
+
+    poc_idx = vol_bins.index(max(vol_bins))
+    poc_price = bin_prices[poc_idx]
+
+    total_vol = sum(vol_bins)
+    if total_vol == 0:
+        return {}
+
+    # Value Area: expand outward from POC until 70% of volume captured
+    va_vol = vol_bins[poc_idx]
+    lo_idx = poc_idx
+    hi_idx = poc_idx
+    while va_vol / total_vol < 0.70 and (lo_idx > 0 or hi_idx < bins - 1):
+        expand_lo = vol_bins[lo_idx - 1] if lo_idx > 0 else 0
+        expand_hi = vol_bins[hi_idx + 1] if hi_idx < bins - 1 else 0
+        if expand_lo >= expand_hi and lo_idx > 0:
+            lo_idx -= 1
+            va_vol += vol_bins[lo_idx]
+        elif hi_idx < bins - 1:
+            hi_idx += 1
+            va_vol += vol_bins[hi_idx]
+        else:
+            lo_idx -= 1
+            va_vol += vol_bins[lo_idx]
+
+    return {
+        "poc": round(poc_price, 2),
+        "value_area_high": round(bin_prices[hi_idx] + bin_size / 2, 2),
+        "value_area_low": round(bin_prices[lo_idx] - bin_size / 2, 2),
+        "current_vs_poc": round((closes[-1] - poc_price) / poc_price * 100, 2),
+        "interpretation": (
+            "Above Value Area — extended, watch for mean reversion to POC"
+            if closes[-1] > bin_prices[hi_idx] + bin_size / 2
+            else "Below Value Area — oversold vs volume, watch for snap-back to POC"
+            if closes[-1] < bin_prices[lo_idx] - bin_size / 2
+            else "Within Value Area — fair value zone, balanced positioning"
+        ),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -750,6 +820,9 @@ def compute_all(
         raw = (trend_score["score"] + mom_score["score"]) / 2
         setup_quality = round(raw, 1)
 
+    # Volume profile (POC, Value Area)
+    vol_profile = volume_profile(closes, highs, lows, volumes)
+
     return {
         "latest": latest,
         "support_resistance": sr_levels,
@@ -764,6 +837,7 @@ def compute_all(
             "volume_ratio": vol_ratio,
             "obv_direction": latest.get("obv_trend"),
         },
+        "volume_profile": vol_profile,
         "setup_quality": setup_quality,
     }
 

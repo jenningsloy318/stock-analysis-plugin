@@ -277,6 +277,7 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 - **Weinstein Stage**: [1/2/3/4] — [30-week MA direction, volume confirmation]
 - **Trend**: [primary trend direction, moving averages, higher highs/lows]
 - **Key Levels**: Support $X, Resistance $X
+- **Volume Profile**: POC $X | Value Area $X–$X | Price [above/within/below] VA — [interpretation]
 - **Momentum**: RSI [X], MACD [bullish/bearish cross]
 - **Volume**: [accumulation / distribution, OBV trend]
 - **CANSLIM M-factor**: [Market direction confirmed uptrend? Follow-through day?]
