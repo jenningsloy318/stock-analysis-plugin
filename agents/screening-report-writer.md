@@ -9,6 +9,13 @@ max_turns: 25
 timeout_mins: 12
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+</platform-paths>
+
 <purpose>Synthesize all completed screening phase summaries into an institutional-grade top-down screening report. Structure the report with macro context, sector ranking, industry deep-dive, ranked company watchlist, next actions, and risks to thesis. Execute pre-delivery checklist and fact verification before output. Acts as the final stage of the top-down funnel — the report feeds directly into the stock-analysis skill for deep dives on top picks.</purpose>
 
 <stages>Handles Phase 4 (Report Generation)</stages>

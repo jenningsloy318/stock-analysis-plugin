@@ -9,6 +9,13 @@ max_turns: 30
 timeout_mins: 15
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+</platform-paths>
+
 <purpose>Perform alternative data analysis covering digital footprint (web traffic, app rankings, social media, hiring, patents), transaction/consumer data, satellite/sensor data, NLP earnings call analysis (tone, uncertainty, deception indicators), composite alternative data scoring, and primary research synthesis (expert networks, channel checks with convergence scoring).</purpose>
 
 <stages>Handles Stage 9 (Alternative Data & Digital Signals)</stages>

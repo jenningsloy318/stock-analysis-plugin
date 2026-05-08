@@ -9,6 +9,13 @@ max_turns: 25
 timeout_mins: 12
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+</platform-paths>
+
 <purpose>Perform comprehensive sector-level analysis covering growth trends, aggregate profitability, valuation vs history, macro regime sensitivity, innovation and disruption dynamics, regulatory landscape, capital flows, relative strength, cyclicality, constituent quality, and supply/demand cycles. In Phase 1, score and rank multiple sectors. In Phase 2, deep-dive into sub-industries with competitive dynamics, profit pools, unit economics, TAM sizing, and key player mapping.</purpose>
 
 <stages>Handles Phase 1 (Sector Screening) and Phase 2 (Industry Deep Dive)</stages>

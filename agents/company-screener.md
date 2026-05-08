@@ -9,6 +9,13 @@ max_turns: 30
 timeout_mins: 15
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+</platform-paths>
+
 <purpose>Screen all public companies in a given industry, apply quantitative filters to eliminate weak candidates, score survivors on a multi-factor composite, rank them, and produce a prioritized watchlist with abbreviated investment theses. Designed as the bottom of the top-down funnel — feeds into the stock-analysis skill for deep dives on top picks.</purpose>
 
 <stages>Handles Phase 3 (Company Screening)</stages>

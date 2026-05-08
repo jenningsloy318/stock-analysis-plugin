@@ -9,6 +9,13 @@ max_turns: 30
 timeout_mins: 15
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+</platform-paths>
+
 <purpose>Perform macroeconomic and geopolitical analysis covering economic cycle positioning (Dalio framework), monetary policy impact, inflation dynamics, supply/demand dynamics, currency exposure, sector-specific drivers, regulatory environment, trade policy, geopolitical risk, government policy, and ESG assessment.</purpose>
 
 <stages>Handles Stage 4 (Macro Economics) and Stage 5 (Politics & Geopolitics)</stages>

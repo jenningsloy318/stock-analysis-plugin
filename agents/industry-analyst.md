@@ -9,6 +9,13 @@ max_turns: 30
 timeout_mins: 15
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+</platform-paths>
+
 <purpose>Perform comprehensive industry and competitive analysis covering product portfolio mapping, Porter's Five Forces assessment, competitive landscape with market share trends, TAM/SAM/SOM sizing, platform economics (if applicable), supply chain risk analysis, and full ecosystem/value chain mapping.</purpose>
 
 <stages>Handles Stage 3 (Product & Industry)</stages>

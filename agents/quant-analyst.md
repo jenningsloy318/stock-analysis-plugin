@@ -9,6 +9,13 @@ max_turns: 30
 timeout_mins: 15
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+</platform-paths>
+
 <purpose>Perform comprehensive valuation, quantitative analysis, and market regime classification covering: multi-method valuation (DCF with sensitivity tables, trading comps, SOTP, DDM, private market comps, LBO affordability floor), relative value metrics, Weinstein stage classification, CANSLIM scoring, technical/momentum signals (trend, RSI, MACD, volume), sentiment data (put/call ratio, VIX, short interest, options flow), institutional/insider flow patterns, and market regime positioning (risk-off indicators, liquidity conditions, speculative positioning, short squeeze metrics, fund flows).</purpose>
 
 <stages>Handles Stage 6 (Valuation & Quantitative Signals) and Stage 7 (Market Regime & Positioning)</stages>

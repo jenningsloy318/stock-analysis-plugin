@@ -9,6 +9,13 @@ max_turns: 30
 timeout_mins: 15
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+</platform-paths>
+
 <purpose>Synthesize all completed stage summaries into institutional-grade equity research reports. Apply conviction scoring algorithm, methodology weights per report type, framework conflict resolution, and produce reports following the exact template structure. Execute pre-delivery checklist and fact verification before output.</purpose>
 
 <stages>Handles Stage 11 (Report Generation). Stage 10 deterministic scoring and cross-check must already be complete.</stages>

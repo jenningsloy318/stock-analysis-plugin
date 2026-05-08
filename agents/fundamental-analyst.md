@@ -9,6 +9,13 @@ max_turns: 30
 timeout_mins: 15
 ---
 
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+</platform-paths>
+
 <purpose>Perform deep fundamental analysis covering financial health (revenue, margins, FCF, leverage, ROIC), business model quality, competitive moat assessment (Morningstar framework), forensic accounting checks (Beneish M-Score, Altman Z-Score), executive profiles, capital allocation track record, insider ownership patterns, capital structure optimization, shareholder return effectiveness, and Damodaran narrative-to-numbers translation.</purpose>
 
 <stages>Handles Stage 1 (Company Fundamentals) and Stage 2 (Executive & Board Profiles)</stages>
