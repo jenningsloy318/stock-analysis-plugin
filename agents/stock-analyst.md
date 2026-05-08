@@ -1,6 +1,6 @@
 ---
 name: stock-analyst
-description: "Central orchestrator for stock analysis workflow. Spawns specialized analyst agents (fundamental-analyst, industry-analyst, macro-analyst, quant-analyst, risk-analyst, alt-data-analyst, report-writer, search-agent), coordinates parallel execution, and synthesizes final reports. Never performs deep analysis directly. Use this agent for: 'analyze AAPL', 'stock analysis', 'equity research', 'should I buy NVDA', 'deep dive on MSFT', 'investment thesis', 'valuation of TSLA'."
+description: "Central orchestrator for stock analysis workflow. Spawns specialized analyst agents (fundamental-analyst, industry-analyst, macro-analyst, quant-analyst, risk-analyst, alt-data-analyst, equity-report-writer, search-agent), coordinates parallel execution, and synthesizes final reports. Never performs deep analysis directly. Use this agent for: 'analyze AAPL', 'stock analysis', 'equity research', 'should I buy NVDA', 'deep dive on MSFT', 'investment thesis', 'valuation of TSLA'."
 model: inherit
 kind: local
 tools:
@@ -23,7 +23,7 @@ timeout_mins: 30
   <step n="6" name="Spawn Alt Data">Spawn alt-data-analyst for Stage 9 (Alternative Data).</step>
   <step n="7" name="Run Deterministic Scoring">Run compute_scores.py against all script outputs to produce reproducible component scores. LLM agents may adjust Moat and Management scores ±2.0 based on qualitative findings.</step>
   <step n="8" name="Cross-Check Pass">Run cross-check: if valuation implies >30% overvaluation, re-examine moat. If forensic red flags, re-examine financial health. Flag unresolved contradictions.</step>
-  <step n="9" name="Spawn Report Writer">Spawn report-writer for Stage 10 (Report Generation) after all prior stages complete.</step>
+  <step n="9" name="Spawn Report Writer">Spawn equity-report-writer for Stage 10 (Report Generation) after all prior stages complete.</step>
   <step n="10" name="Quality Gate">Run pre-delivery checklist, validate fact integrity, run backtest.py to compare against prior predictions, deliver reports to user.</step>
 </process>
 

@@ -19,7 +19,7 @@
 ## Agent Orchestration (MUST follow)
 
 - The main `stock-analysis` skill acts as the coordinator — it spawns specialized agents for parallel stage execution.
-- Agents: `fundamental-analyst`, `industry-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `report-writer`.
+- Agents: `fundamental-analyst`, `industry-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `equity-report-writer`.
 - The coordinator NEVER performs deep analysis directly — it delegates to specialist agents and synthesizes results.
 - Parallel execution rules:
   - Long-term: Stages 1-3 can run in parallel

@@ -1,5 +1,5 @@
 ---
-name: report-writer
+name: equity-report-writer
 description: "Synthesizes all stage summaries into final equity research reports (Long-term, Mid-term, Short-term) with conviction scoring, methodology attribution, and pre-delivery validation. Handles Stage 10 (Report Generation). Use for writing the final research report after all analysis stages complete."
 model: inherit
 kind: local
@@ -15,7 +15,7 @@ timeout_mins: 15
 
 <process>
   <step n="1" name="Load Stage Summaries">Read all `/tmp/stock-analysis-[TICKER]-stage[1-9].md` files</step>
-  <step n="2" name="Load Templates">Load references/report_templates.md for output structure</step>
+  <step n="2" name="Load Templates">Load references/equity_report_templates.md for output structure</step>
   <step n="3" name="Conviction Scoring">Apply component scores and report-type weights to derive conviction rating (1-10)</step>
   <step n="4" name="Framework Integration">Apply methodology weights, resolve framework conflicts (Rules 1-4)</step>
   <step n="5" name="Report Drafting">Generate report following template structure exactly per report type</step>
@@ -25,7 +25,7 @@ timeout_mins: 15
 </process>
 
 <reference-files>
-  - references/report_templates.md (Long/Mid/Short-term report format templates)
+  - references/equity_report_templates.md (Long/Mid/Short-term report format templates)
 </reference-files>
 
 <conviction-scoring>

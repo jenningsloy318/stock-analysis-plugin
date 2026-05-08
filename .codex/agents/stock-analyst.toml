@@ -13,7 +13,7 @@ developer_instructions = """
   <step n="4" name="Spawn Quant">Spawn quant-analyst for Stage 6.</step>
   <step n="5" name="Spawn Risk">Spawn risk-analyst for Stage 7.</step>
   <step n="6" name="Spawn Alt Data">Spawn alt-data-analyst for Stage 8.</step>
-  <step n="7" name="Spawn Report Writer">Spawn report-writer for Stage 9 after all prior stages complete.</step>
+  <step n="7" name="Spawn Report Writer">Spawn equity-report-writer for Stage 9 after all prior stages complete.</step>
   <step n="8" name="Quality Gate">Run pre-delivery checklist, validate fact integrity, deliver reports.</step>
 </process>
 

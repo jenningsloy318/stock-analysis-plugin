@@ -15,7 +15,7 @@ This command uses the following sub-agents defined in the agents/ directory. Del
 | @risk-analyst | 8 | Risk quantification, scenarios, forensic red flags |
 | @alt-data-analyst | 9 | Web traffic, app data, NLP earnings, social sentiment |
 | @search-agent | All | Financial web search when specialist agents need data |
-| @report-writer | 10 | Synthesize stage summaries into final reports |
+| @equity-report-writer | 10 | Synthesize stage summaries into final reports |
 
 Parallel execution rules (max 3 concurrent):
 - Long-term: [1+2+3] → [4+5] → [6+7] → [8] → [9] → Scoring → [10]
@@ -29,7 +29,7 @@ Parallel execution rules (max 3 concurrent):
   <step n="2" name="Stage Execution">Delegate to specialist sub-agents per parallel execution rules for the report type. Each agent writes its stage summary to /tmp/stock-analysis-[TICKER]-stage[N].md</step>
   <step n="3" name="Deterministic Scoring">Run compute_scores.py against all script outputs for reproducible 1-10 component scores</step>
   <step n="4" name="Cross-Check">Validate internal contradictions (overvaluation vs wide moat, red flags vs financial health)</step>
-  <step n="5" name="Report Generation">Delegate to @report-writer to synthesize stage summaries into final report</step>
+  <step n="5" name="Report Generation">Delegate to @equity-report-writer to synthesize stage summaries into final report</step>
   <step n="6" name="Quality Gate">Run pre-delivery checklist, validate fact integrity, run backtest.py</step>
 </process>
 

@@ -23,7 +23,7 @@ compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl 
 
 <triggers>Triggers on: "analyze [TICKER]", "stock analysis", "equity research", "should I buy [TICKER]", "deep dive on [COMPANY]", "investment thesis", "valuation of [TICKER]", "due diligence on [COMPANY]". Do NOT trigger on: general market commentary, portfolio questions without specific tickers, non-financial queries.</triggers>
 
-This skill performs institutional-grade stock analysis through 11 stages, producing 1-3 reports (long/mid/short-term) per ticker. Analysis depth adjusts per report type — see `references/report_templates.md` for output formats.
+This skill performs institutional-grade stock analysis through 11 stages, producing 1-3 reports (long/mid/short-term) per ticker. Analysis depth adjusts per report type — see `references/equity_report_templates.md` for output formats.
 
 **Critical constraint:** The context window is a shared resource. Follow the eviction protocol strictly. Raw data from completed stages is dropped; only stage summaries persist.
 
@@ -289,17 +289,17 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
 
 **10c — Save conviction:** Run `scripts/persist.py conviction [ANALYSIS_ID] [CONVICTION] [RATING] --component-scores /tmp/stock-analysis-[TICKER]-scores.json` to record the conviction in state history for future backtesting.
 
-### Stage 11: Report Generation → Spawn report-writer
+### Stage 11: Report Generation → Spawn equity-report-writer
 
 **Workflow:**
 1. Read all stage summaries from `/tmp/stock-analysis-[TICKER]-stage[1-9].md`
 2. Load deterministic scores from `/tmp/stock-analysis-[TICKER]-scores.json`
-3. Load `references/report_templates.md` for output structure
+3. Load `references/equity_report_templates.md` for output structure
 4. Determine which report types to generate (from Step 0 triage)
 5. For each report type:
    - Use the deterministic conviction score and rating from `compute_scores.py` output (do NOT invent a new conviction number)
    - Apply methodology weights per report type
-   - Apply framework conflict resolution if needed (Rules 1-4 in report_templates.md)
+   - Apply framework conflict resolution if needed (Rules 1-4 in equity_report_templates.md)
    - Incorporate cross-check findings from Step 10b
    - Generate the report following the template structure exactly
    - Run the pre-delivery checklist (see below)
@@ -372,7 +372,7 @@ The stock-analyst (team lead) spawns specialist teammates for ALL analysis work 
 | `risk-analyst` | 8 | Risk quantification, scenarios, forensic red flags |
 | `alt-data-analyst` | 9 | Web traffic, app data, NLP earnings, social sentiment |
 | `search-agent` | All | Financial web search when specialist agents need data |
-| `report-writer` | 10 | Synthesize stage summaries into final reports |
+| `equity-report-writer` | 10 | Synthesize stage summaries into final reports |
 
 **Claude Code**: Stock-analyst spawns via the `Agent` tool with `subagent_type: "stock-analysis:<agent-name>"`.
 **Gemini CLI**: Stock-analyst auto-delegates based on agent descriptions, or user forces via `@agent-name` syntax.
@@ -380,10 +380,10 @@ The stock-analyst (team lead) spawns specialist teammates for ALL analysis work 
 ## Parallelism
 
 Stock-analyst (team lead) spawns sub-agents in parallel per report type (max 3 concurrent):
-- Long-term: [fundamental-analyst + industry-analyst] → [macro-analyst] → [quant-analyst] → [risk-analyst] → [alt-data-analyst] → Scoring → [report-writer]
-- Mid-term: [macro-analyst + quant-analyst] → [fundamental-analyst + risk-analyst] → [alt-data-analyst] → Scoring → [report-writer]
-- Short-term: [quant-analyst + alt-data-analyst] → Scoring → [report-writer]
-- Quick Overview: [fundamental-analyst + quant-analyst + risk-analyst] → Scoring → [report-writer]
+- Long-term: [fundamental-analyst + industry-analyst] → [macro-analyst] → [quant-analyst] → [risk-analyst] → [alt-data-analyst] → Scoring → [equity-report-writer]
+- Mid-term: [macro-analyst + quant-analyst] → [fundamental-analyst + risk-analyst] → [alt-data-analyst] → Scoring → [equity-report-writer]
+- Short-term: [quant-analyst + alt-data-analyst] → Scoring → [equity-report-writer]
+- Quick Overview: [fundamental-analyst + quant-analyst + risk-analyst] → Scoring → [equity-report-writer]
 
 Post-stage-9: always run deterministic scoring (Stage 10) and cross-check before report generation (Stage 11).
 

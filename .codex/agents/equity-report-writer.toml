@@ -1,4 +1,4 @@
-name = "report-writer"
+name = "equity-report-writer"
 description = "Synthesizes all stage summaries into institutional-grade equity research reports with conviction scoring and methodology attribution"
 developer_instructions = """
 <purpose>Synthesize all completed stage summaries into institutional-grade equity research reports. Apply conviction scoring algorithm, methodology weights per report type, framework conflict resolution, and produce reports following the exact template structure.</purpose>

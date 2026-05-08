@@ -16,7 +16,7 @@ description: "Run full multi-stage equity research analysis on a stock ticker. P
   <step n="1" name="Triage">Identify ticker, determine report type, check earnings calendar, create output directory</step>
   <step n="2" name="Data Fetch">Run scripts: fetch_financials.py, fetch_macro.py, calculate_metrics.py</step>
   <step n="3" name="Stage Execution">Spawn analyst agents per parallel execution rules for the report type</step>
-  <step n="4" name="Report Generation">Spawn report-writer to synthesize stage summaries into final report</step>
+  <step n="4" name="Report Generation">Spawn equity-report-writer to synthesize stage summaries into final report</step>
   <step n="5" name="Quality Gate">Run pre-delivery checklist, validate fact integrity</step>
 </process>
 

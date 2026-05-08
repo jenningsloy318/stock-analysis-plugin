@@ -104,7 +104,7 @@ The `stock-analyst` acts as a team lead — it spawns specialist sub-agents for 
               │                               │
               └───────────────┬───────────────┘
                     ┌─────────▼─────────┐
-                    │   report-writer    │
+                    │   equity-report-writer    │
                     │   Stage 10-11     │
                     └───────────────────┘
 ```

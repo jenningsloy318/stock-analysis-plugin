@@ -29,9 +29,9 @@ config_file = "./agents/risk-analyst.toml"
 description = "Analyzes alternative data: digital footprint, NLP earnings, channel checks"
 config_file = "./agents/alt-data-analyst.toml"
 
-[agents.report-writer]
+[agents.equity-report-writer]
 description = "Synthesizes stage summaries into institutional-grade research reports"
-config_file = "./agents/report-writer.toml"
+config_file = "./agents/equity-report-writer.toml"
 
 [agents.search-agent]
 description = "Multi-source financial web search with Firecrawl, XCrawl, Tavily, and Exa"
