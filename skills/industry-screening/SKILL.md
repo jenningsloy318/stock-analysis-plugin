@@ -1,27 +1,34 @@
 ---
 name: industry-screening
 description: >
-  Top-down sector-to-company screening funnel. Identifies the most profitable
-  and fastest-growing industry sectors, drills into the best sub-industries,
-  and screens all public companies to produce a ranked watchlist of the most
-  promising stocks. Designed as a precursor to the stock-analysis skill for
-  deep-dive research. Use when the user asks to screen sectors, find the best
-  industries to invest in, run a top-down stock screen, discover promising
-  companies in a sector, or perform sector rotation analysis. Triggers on
-  phrases like "screen sectors," "best industries to invest," "which sectors
-  are growing," "top-down screening," "find stocks in [SECTOR]," "industry
-  screening," or "sector rotation."
+  Top-down sector-to-sub-industry screening funnel using GICS Level 4
+  (Sub-Industry, 163 classifications) as the default atomic screening unit.
+  Identifies the most profitable and fastest-growing sub-industry niches,
+  performs deep-dive analysis at granular level, and screens all public
+  companies to produce a ranked watchlist. Designed as a precursor to the
+  stock-analysis skill for deep-dive research. Use when the user asks to
+  screen sectors, find the best industries to invest in, run a top-down
+  stock screen, discover promising companies in a sector, or perform sector
+  rotation analysis. Triggers on phrases like "screen sectors," "best
+  industries to invest," "which sectors are growing," "top-down screening,"
+  "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.26"
+version: "1.0.28"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
 
-# Industry Screening — Top-Down Sector-to-Company Funnel
+# Industry Screening — Top-Down Sub-Industry Funnel (GICS Level 4)
 
 ## Overview
 
-<purpose>Industry-screening-orchestrator (team lead) agent team workflow. The orchestrator spawns specialized screener teammates for sector analysis and company ranking — it NEVER performs deep screening directly, only spawns, coordinates, and synthesizes. Screener agents analyze sectors, sub-industries, and individual companies in a top-down funnel: Macro → Sector → Industry → Company.</purpose>
+<purpose>Industry-screening-orchestrator (team lead) agent team workflow. Uses GICS Level 4 (Sub-Industry, 163 classifications) as the DEFAULT atomic screening unit. The orchestrator spawns specialized screener teammates for sector and sub-industry analysis — it NEVER performs deep screening directly, only spawns, coordinates, and synthesizes. Screener agents analyze sectors AND their sub-industries in a top-down funnel: Macro → Sector → Sub-Industry → Company.</purpose>
+
+<default-granularity>
+  GICS Level 4 (Sub-Industry) is ALWAYS the default screening unit.
+  The funnel: 11 Sectors → filter → rank 163 Sub-Industries → deep-dive top 2-3 → company screen.
+  Reference: `references/gics_taxonomy.md` for the complete 4-level hierarchy.
+</default-granularity>
 
 <triggers>Triggers on: "screen sectors," "best industries to invest," "which sectors are growing," "top-down screening," "find stocks in [SECTOR]," "industry screening," "sector rotation," "most promising sectors," "sector analysis," "what industries have the most growth potential," "screen [SECTOR] for best stocks," "which companies in [INDUSTRY] are worth investing in." Do NOT trigger on: single-stock analysis requests (use stock-analysis skill), general market commentary without screening intent, portfolio allocation questions without ticker discovery intent.</triggers>
 
@@ -95,25 +102,32 @@ Scripts are bundled with the plugin. Set `PLUGIN_ROOT` based on platform, then d
 3. **Fetch macro context**: Run `${PLUGIN_SCRIPTS}/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output ./reports/screening/macro.json`. This establishes the macro regime backdrop for sector sensitivity analysis.
 3b. **Fetch economic surprises**: Run `${PLUGIN_SCRIPTS}/fetch_economic_surprises.py --output ./reports/screening/economic_surprises.json` for actual-vs-consensus data. Persistent positive surprises favor cyclicals; negative surprises favor defensives.
 3c. **Compute sector relative strength**: Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for deterministic sector price momentum rankings vs SPY across 1M/3M/6M/12M. This provides the quantitative backbone for the Relative Strength dimension in Phase 1.
+3d. **Compute sub-industry relative strength**: Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --level sub-industry --output ./reports/screening/sub_industry_rs.json` for GICS Level 4 sub-industry RS rankings. This enables granular identification of the strongest sub-industry trends within each sector.
 
 4. **Create output directory**: `./reports/screening/`
 
 5. **Initialize state**: Run `${PLUGIN_SCRIPTS}/persist.py init SCREEN-[TIMESTAMP] --report-type screen` to create a checkpointed screening session. Record the returned `analysis_id`.
 
-6. **Source coverage plan**: Load `references/data_source_matrix.md`. Write `./reports/screening/source-plan.md` with classification sources, required source tiers, freshness windows, and confidence cap rules.
+6. **Source coverage plan**: Load `references/data_source_matrix.md` and `references/gics_taxonomy.md`. Write `./reports/screening/source-plan.md` with classification sources (GICS Level 4 sub-industries), required source tiers, freshness windows, and confidence cap rules.
 
-### Phase 1: Sector Screening (parallel per sector)
+### Phase 1: Sector & Sub-Industry Screening (parallel per sector)
 
-**Objective:** Score and rank all major sectors by composite attractiveness.
+**Objective:** Score and rank all 11 GICS sectors (Level 1) AND their Level 4 sub-industries to identify the most attractive sub-industry niches — not just broad sectors.
 
-**Spawn strategy:** Spawn up to 3 `sector-screener` agents in parallel. Each agent handles a batch of sectors:
-- Batch A: Technology, Communication Services, Consumer Discretionary
-- Batch B: Financials, Healthcare, Industrials
-- Batch C: Energy, Materials, Consumer Staples, Utilities, Real Estate
+**GICS Granularity:** This phase uses `references/gics_taxonomy.md` as the authoritative classification. The screening funnel works top-down:
+- Level 1 (Sector, 11): Broad filtering to eliminate weak sectors
+- Level 4 (Sub-Industry, 163): Granular ranking within top sectors to identify the strongest niche
 
-Or, if user specified a single sector, spawn 1 `sector-screener` for that sector and proceed to Phase 2.
+**Spawn strategy:** Spawn up to 3 `sector-screener` agents in parallel. Each agent handles a batch of sectors AND their sub-industries:
+- Batch A: Technology (11 sub-industries), Communication Services (10 sub-industries), Consumer Discretionary (19 sub-industries)
+- Batch B: Financials (15 sub-industries), Healthcare (10 sub-industries), Industrials (19 sub-industries)
+- Batch C: Energy (7 sub-industries), Materials (16 sub-industries), Consumer Staples (12 sub-industries), Utilities (6 sub-industries), Real Estate (14 sub-industries)
 
-**Each sector-screener analyzes per sector:**
+Or, if user specified a single sector, spawn 1 `sector-screener` for that sector's sub-industries and proceed to Phase 2.
+
+**Each sector-screener performs a two-pass analysis:**
+
+**Pass 1 — Sector-Level Scoring (quick filter):**
 - [ ] **Growth** — Revenue and earnings CAGR (sector aggregate, past 3-5 years), forward growth estimates, secular vs cyclical drivers
 - [ ] **Profitability** — Aggregate margins (gross, operating, net), ROIC, ROE, FCF conversion
 - [ ] **Valuation** — Sector P/E, EV/EBITDA vs 5-year history (percentile), PEG ratio
@@ -126,11 +140,26 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
 - [ ] **Constituent Quality & Dispersion** — Percentage of sector market cap with positive FCF, ROIC > WACC, net cash/low leverage, and estimate revision momentum. A sector led by a few mega-caps must be marked as concentration-driven.
 - [ ] **Supply/Demand & Capacity Cycle** — Inventory, backlog, utilization, pricing, capacity expansion, and input cost regime where sector-relevant.
 
-**Output per sector batch:** Each sector-screener writes `./reports/screening/sector-[BATCH].md` with per-sector scores.
+**Pass 2 — Sub-Industry Ranking (within top sectors from Pass 1):**
 
-**Validation gate:** At least 3 data points per sector dimension. Growth and valuation data within 90 days freshness. Relative strength, flows, and cyclicality must be scored or explicitly marked "Data not available."
+For each sector scoring above median in Pass 1, rank all its GICS Level 4 sub-industries using:
+- [ ] **Sub-Industry RS** — Use pre-computed data from `./reports/screening/sub_industry_rs.json`. Rank sub-industries by composite RS within the sector.
+- [ ] **Sub-Industry Growth** — Which sub-industries have the fastest revenue/earnings growth among their constituents?
+- [ ] **Structural Attractiveness** — Is the sub-industry in Growth/Emerging phase? Does it have secular tailwinds?
+- [ ] **Concentration Risk** — Is the sub-industry dominated by 1-2 mega-caps (making it an idiosyncratic bet rather than a thematic one)?
+- [ ] **Investable Depth** — How many publicly traded companies exist in the sub-industry? (Minimum 5 for a valid screen)
 
-**After all batches complete:** Orchestrator reads all batch summaries and ranks sectors using weighted composite:
+**Output per sector batch:** Each sector-screener writes `./reports/screening/sector-[BATCH].md` with:
+- Per-sector scores (Pass 1)
+- Per-sub-industry rankings within above-median sectors (Pass 2)
+- Top 5 sub-industries across the batch with brief thesis
+
+**Validation gate:** At least 3 data points per sector dimension. Growth and valuation data within 90 days freshness. Relative strength, flows, and cyclicality must be scored or explicitly marked "Data not available." Sub-industry RS data must be loaded from Phase 0 output.
+
+**After all batches complete:** Orchestrator reads all batch summaries and:
+1. Ranks sectors using weighted composite (same as before)
+2. Collects all sub-industry rankings across batches
+3. Produces a **unified sub-industry leaderboard** (top 10-15 sub-industries across all sectors)
 
 | Dimension | Long-term Weight | Mid-term Weight | Short-term Weight |
 |-----------|-----------------|-----------------|-------------------|
@@ -148,21 +177,27 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
 
 For long-term and mid-term reports, use constituent quality as a tiebreaker. For sector screens where supply/demand is central (energy, semis, industrials, commodities), reallocate up to 5% from Innovation or Capital Flows to Supply/Demand Cycle and disclose the adjustment.
 
-**Deliverable:** Sector ranking table with scores. Top 2-3 sectors identified for Phase 2 deep dive.
+**Deliverable:** 
+- Sector ranking table with scores (11 sectors)
+- **Sub-industry leaderboard** (top 10-15 sub-industries with RS, growth, and structural scores)
+- Top 2-3 sub-industries identified for Phase 2 deep dive
 
-**Eviction:** After ranking is produced, drop raw sector batch files. Retain: ranking table, top-3 sector summaries (3 sentences each).
+**Eviction:** After ranking is produced, drop raw sector batch files. Retain: sector ranking table, sub-industry leaderboard, top-3 sub-industry summaries (3 sentences each).
 
-### Phase 2: Industry Deep Dive (within top sectors)
+### Phase 2: Sub-Industry Deep Dive (GICS Level 4 focused)
 
-**Objective:** For each top sector from Phase 1, drill into sub-industries to find the single most attractive industry for stock selection.
+**Objective:** For each top sub-industry from Phase 1's leaderboard, perform a focused deep dive to validate the thesis and map the competitive landscape for company selection.
 
-**Spawn strategy:** Spawn 1 `sector-screener` per top sector (max 2 in parallel), each in "deep-dive" mode.
+**Key difference from previous approach:** Phase 2 now operates at GICS Level 4 (sub-industry) granularity from the start, rather than drilling from sector → sub-industry. The sub-industry leaderboard from Phase 1 already identifies the target niches.
 
-**Each deep-dive analyzes:**
-- [ ] **Sub-industry mapping** — List all GICS sub-industries within the sector, with brief descriptions
-- [ ] **Sub-industry ranking** — Rank sub-industries by growth, profitability, and structural attractiveness
-- [ ] **Competitive dynamics** — Porter's Five Forces for the top sub-industry (light version: 2-3 forces)
-- [ ] **Growth catalysts** — Secular trends, demand drivers, technology shifts, demographic tailwinds
+**Spawn strategy:** Spawn 1 `sector-screener` per top sub-industry (max 2 in parallel), each in "deep-dive" mode. Pass the specific GICS sub-industry code and name.
+
+**Each deep-dive analyzes (at sub-industry level):**
+- [ ] **Sub-industry definition** — Exact GICS Level 4 code, name, what's included/excluded, boundary cases
+- [ ] **Complete company universe** — All publicly traded companies classified in this sub-industry (using GICS code, ETF holdings, and exchange data). Reference `references/gics_taxonomy.md` for representative tickers.
+- [ ] **Sub-industry ranking vs peers** — How does this sub-industry compare to adjacent sub-industries in the same Industry Group (Level 3)?
+- [ ] **Competitive dynamics** — Porter's Five Forces for the sub-industry (light version: 2-3 forces)
+- [ ] **Growth catalysts** — Secular trends, demand drivers, technology shifts, demographic tailwinds specific to this sub-industry
 - [ ] **Barriers to entry** — Capital requirements, regulation, IP, network effects, scale economies
 - [ ] **Market sizing** — TAM estimate (top-down), growth rate, penetration rate
 - [ ] **Key players** — Top 5-10 companies by market cap, market share distribution, concentration
@@ -171,15 +206,15 @@ For long-term and mid-term reports, use constituent quality as a tiebreaker. For
 - [ ] **Profit Pool Map** — Where gross profit, pricing power, and bargaining leverage accumulate across the value chain
 - [ ] **Adoption Curve & Unit Economics** — Penetration, payback period, utilization, churn/retention, or equivalent industry KPI; use sector-specific add-ons from `references/data_source_matrix.md`
 
-**Output:** Each deep-dive writes `./reports/screening/deepdive-[SECTOR].md`.
+**Output:** Each deep-dive writes `./reports/screening/deepdive-[SUB_INDUSTRY_CODE]-[NAME].md`.
 
 **Validation gate:** At least 5 companies identified in the sub-industry. TAM estimate produced with stated source and bottom-up sanity check. Profit pool and sector-specific KPIs included or marked "Data not available."
 
-**Orchestrator synthesizes:** After all deep-dives complete, the orchestrator selects the single best industry (or top 2 if user wants broader coverage). Justification must reference specific scores from Phase 1 and deep-dive findings.
+**Orchestrator synthesizes:** After all deep-dives complete, the orchestrator selects the single best sub-industry (or top 2 if user wants broader coverage). Justification must reference specific scores from Phase 1 sub-industry leaderboard and deep-dive findings.
 
-**Eviction:** Drop raw deep-dive files. Retain: selected industry name, industry thesis (5 sentences), list of all public companies in the industry.
+**Eviction:** Drop raw deep-dive files. Retain: selected sub-industry name + GICS code, sub-industry thesis (5 sentences), list of all public companies in the sub-industry.
 
-### Phase 3: Company Screening (within selected industry)
+### Phase 3: Company Screening (within selected sub-industry)
 
 **Objective:** Screen all public companies in the selected industry and produce a ranked watchlist.
 

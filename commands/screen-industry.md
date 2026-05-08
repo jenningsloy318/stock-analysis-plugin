@@ -1,32 +1,41 @@
 ---
 name: screen-industry
-description: "Run top-down industry screening to identify the most profitable and fastest-growing sectors, drill into the best sub-industries, and produce a ranked watchlist of the most promising stocks. Designed as a precursor to /stock-analysis:analyze for deep dives on top picks."
+description: "Run top-down industry screening using GICS Level 4 (Sub-Industry) as the default classification unit. Identifies the most attractive sub-industries across all sectors, performs deep-dive analysis, and produces a ranked watchlist of the most promising stocks. Designed as a precursor to /stock-analysis:analyze for deep dives on top picks."
 ---
 
-<purpose>Invoke the industry-screening-orchestrator to perform top-down sector-to-company screening. Identifies the most attractive sectors, drills into sub-industries, screens all public companies in the selected industry, and produces a ranked watchlist.</purpose>
+<purpose>Invoke the industry-screening-orchestrator to perform top-down sector-to-sub-industry-to-company screening using GICS Level 4 (163 sub-industries) as the default atomic screening unit. Ranks both sectors and sub-industries, deep-dives into the strongest sub-industry niches, screens all public companies in the selected sub-industry, and produces a ranked watchlist.</purpose>
 
 <usage>/industry-screening:screen [SECTOR|all|theme] [options]</usage>
 
 <options>
   --horizon [long|mid|short]   Investment horizon (affects weighting; default: mid)
-  --sector [SECTOR]             Focus on a specific GICS sector (skip broad ranking)
-  --theme [THEME]               Screen sectors relevant to a theme (e.g., "AI", "clean energy")
+  --sector [SECTOR]             Focus on a specific GICS sector's sub-industries (skip broad ranking)
+  --sub-industry [NAME|CODE]    Focus on a specific GICS Level 4 sub-industry directly
+  --theme [THEME]               Screen sub-industries relevant to a theme (e.g., "AI", "clean energy")
   --min-cap [VALUE]             Minimum market cap filter in millions (default: 500)
   --top [N]                     Number of companies in watchlist (default: 15)
 </options>
 
+<defaults>
+  - Screening granularity: GICS Level 4 (Sub-Industry) — always
+  - Phase 1 produces both sector ranking AND sub-industry leaderboard
+  - Phase 2 targets specific sub-industries by 8-digit GICS code
+</defaults>
+
 <process>
-  <step n="1" name="Setup">Determine scope (all sectors / specific sector / theme), investment horizon, fetch macro context, create output directory</step>
-  <step n="2" name="Sector Screening">Spawn sector-screener agents to analyze and rank sectors by composite score</step>
-  <step n="3" name="Industry Deep Dive">Deep-dive on top sectors to select the single best industry for stock selection</step>
-  <step n="4" name="Company Screening">Screen all public companies in the selected industry, apply quantitative filters, produce ranked watchlist</step>
-  <step n="5" name="Report">Synthesize findings into screening report with sector ranking, industry thesis, and company watchlist</step>
+  <step n="1" name="Setup">Determine scope (all sectors / specific sector / theme / specific sub-industry), investment horizon, fetch macro context, compute sector RS AND sub-industry RS, create output directory</step>
+  <step n="2" name="Sector & Sub-Industry Screening">Spawn sector-screener agents to perform two-pass analysis: score sectors, then rank all Level 4 sub-industries within top sectors. Produce unified sub-industry leaderboard.</step>
+  <step n="3" name="Sub-Industry Deep Dive">Deep-dive on top sub-industries (by GICS Level 4 code) to validate thesis and map complete company universe</step>
+  <step n="4" name="Company Screening">Screen all public companies in the selected sub-industry, apply quantitative filters, produce ranked watchlist</step>
+  <step n="5" name="Report">Synthesize findings into screening report with sector ranking, sub-industry leaderboard, deep-dive thesis, and company watchlist</step>
 </process>
 
 <constraints>
+  <constraint>DEFAULT: Always screen at GICS Level 4 (Sub-Industry) granularity</constraint>
   <constraint>Designed as a precursor — after screening, offer to deep-dive top picks with /stock-analysis:analyze</constraint>
-  <constraint>All reports saved to ./reports/screening/[SECTOR]_[INDUSTRY]_[YYYY-MM-DD].md</constraint>
+  <constraint>All reports saved to ./reports/screening/[SECTOR]_[SUB_INDUSTRY]_[YYYY-MM-DD].md</constraint>
   <constraint>At least 10 companies must pass filters for a valid watchlist</constraint>
   <constraint>Macro data within 30 days freshness; sector data within 90 days</constraint>
   <constraint>Context eviction enforced after each phase completion</constraint>
+  <constraint>Reference `references/gics_taxonomy.md` for all GICS classifications</constraint>
 </constraints>

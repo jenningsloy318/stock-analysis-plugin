@@ -1,40 +1,43 @@
 #!/usr/bin/env python3
-"""Compute sector relative strength rankings against S&P 500.
+"""Compute sector and sub-industry relative strength rankings against S&P 500.
 
 Usage:
     compute_sector_rs.py                          # all 11 sectors vs SPY
     compute_sector_rs.py --sectors XLK,XLF,XLE    # specific sector ETFs
+    compute_sector_rs.py --level sub-industry     # GICS Level 4 sub-industry ETFs
+    compute_sector_rs.py --level sub-industry --sector Technology
     compute_sector_rs.py --benchmark SPY --period 1y
     compute_sector_rs.py --output ./reports/screening/sector-rs.json
 
-Uses sector ETF price data (yfinance) to compute:
+Uses sector/sub-industry ETF price data (yfinance) to compute:
   - Relative strength (RS) ratio: sector ETF / benchmark
   - RS momentum across 1M, 3M, 6M, 12M timeframes
-  - RS ranking (percentile vs all sectors)
+  - RS ranking (percentile vs all sectors or sub-industries)
   - RS direction (improving/deteriorating)
   - Composite RS score for sector rotation
 
+Supports GICS Level 1 (sector) and Level 4 (sub-industry) granularity.
 This feeds the 20% RS weight in short-term industry screening and the
 10% RS weight in mid-term screening.
 """
 
 import argparse
 import json
-import math
 import os
 import sys
-from datetime import datetime, timezone, timedelta
-from typing import Any
+from datetime import datetime, timezone
 
 try:
     import yfinance as yf
     import numpy as np
 except ImportError:
-    sys.stderr.write("Error: yfinance and numpy required. Run: pip install yfinance numpy\n")
+    sys.stderr.write(
+        "Error: yfinance and numpy required. Run: pip install yfinance numpy\n"
+    )
     sys.exit(1)
 
 
-# GICS sector → ETF mapping
+# GICS sector → ETF mapping (Level 1)
 SECTOR_ETFS = {
     "Technology": "XLK",
     "Financials": "XLF",
@@ -47,6 +50,196 @@ SECTOR_ETFS = {
     "Utilities": "XLU",
     "Real Estate": "XLRE",
     "Materials": "XLB",
+}
+
+# GICS Level 4 Sub-Industry → ETF proxy mapping
+# Where no pure ETF exists, uses a basket ticker or thematic ETF
+SUB_INDUSTRY_ETFS: dict[str, dict[str, str | list[str]]] = {
+    # --- Technology (45) ---
+    "Technology": {
+        "Semiconductors": "SMH",
+        "Semiconductor Equipment": "SMH",
+        "Application Software": "IGV",
+        "Systems Software": "IGV",
+        "IT Consulting & Services": "IGV",
+        "Data Processing & Outsourced Services": "IPAY",
+        "Communications Equipment": "XLK",
+        "Technology Hardware & Peripherals": "XLK",
+        "Electronic Equipment & Instruments": "XLK",
+        "Electronic Components": "XLK",
+        "Electronic Manufacturing Services": "XLK",
+    },
+    # --- Financials (40) ---
+    "Financials": {
+        "Diversified Banks": "XLF",
+        "Regional Banks": "KRE",
+        "Transaction & Payment Processing": "IPAY",
+        "Consumer Finance": "XLF",
+        "Asset Management & Custody Banks": "XLF",
+        "Investment Banking & Brokerage": "XLF",
+        "Financial Exchanges & Data": "XLF",
+        "Insurance Brokers": "KIE",
+        "Life & Health Insurance": "KIE",
+        "Property & Casualty Insurance": "KIE",
+        "Multi-line Insurance": "KIE",
+        "Reinsurance": "KIE",
+        "Mortgage REITs": "REM",
+        "Diversified Financial Services": "XLF",
+        "Specialized Finance": "XLF",
+    },
+    # --- Healthcare (35) ---
+    "Healthcare": {
+        "Biotechnology": "XBI",
+        "Pharmaceuticals": "XLV",
+        "Life Sciences Tools & Services": "XLV",
+        "Health Care Equipment": "IHI",
+        "Health Care Supplies": "IHI",
+        "Managed Health Care": "IHF",
+        "Health Care Distributors": "IHF",
+        "Health Care Services": "IHF",
+        "Health Care Facilities": "IHF",
+        "Health Care Technology": "IHF",
+    },
+    # --- Consumer Discretionary (25) ---
+    "Consumer Discretionary": {
+        "Automobile Manufacturers": "CARZ",
+        "Automotive Parts & Equipment": "XLY",
+        "Homebuilding": "ITB",
+        "Home Furnishings": "XHB",
+        "Household Appliances": "XHB",
+        "Leisure Products": "XLY",
+        "Apparel, Accessories & Luxury Goods": "XRT",
+        "Footwear": "XRT",
+        "Casinos & Gaming": "BJK",
+        "Hotels, Resorts & Cruise Lines": "PEJ",
+        "Restaurants": "PEJ",
+        "Leisure Facilities": "PEJ",
+        "Education Services": "XLY",
+        "Broadline Retail": "XRT",
+        "Apparel Retail": "XRT",
+        "Home Improvement Retail": "XHB",
+        "Specialty Retail": "XRT",
+        "Automotive Retail": "XRT",
+        "Computer & Electronics Retail": "XRT",
+    },
+    # --- Communication Services (50) ---
+    "Communication Services": {
+        "Integrated Telecommunication Services": "XLC",
+        "Wireless Telecommunication Services": "XLC",
+        "Alternative Carriers": "XLC",
+        "Advertising": "XLC",
+        "Broadcasting": "XLC",
+        "Cable & Satellite": "XLC",
+        "Publishing": "XLC",
+        "Movies & Entertainment": "XLC",
+        "Interactive Home Entertainment": "HERO",
+        "Interactive Media & Services": "XLC",
+    },
+    # --- Industrials (20) ---
+    "Industrials": {
+        "Aerospace & Defense": "ITA",
+        "Building Products": "XLI",
+        "Construction & Engineering": "XLI",
+        "Electrical Components & Equipment": "XLI",
+        "Heavy Electrical Equipment": "XLI",
+        "Industrial Conglomerates": "XLI",
+        "Construction Machinery & Heavy Equipment": "XLI",
+        "Agricultural & Farm Machinery": "MOO",
+        "Industrial Machinery & Components": "XLI",
+        "Trading Companies & Distributors": "XLI",
+        "Environmental & Facilities Services": "XLI",
+        "Human Resource & Employment Services": "XLI",
+        "Research & Consulting Services": "XLI",
+        "Air Freight & Logistics": "IYT",
+        "Passenger Airlines": "JETS",
+        "Marine Transportation": "IYT",
+        "Rail Transportation": "IYT",
+        "Cargo Ground Transportation": "IYT",
+        "Transportation Infrastructure": "IYT",
+    },
+    # --- Energy (10) ---
+    "Energy": {
+        "Oil & Gas Drilling": "XLE",
+        "Oil & Gas Equipment & Services": "OIH",
+        "Integrated Oil & Gas": "XLE",
+        "Oil & Gas Exploration & Production": "XOP",
+        "Oil & Gas Refining & Marketing": "CRAK",
+        "Oil & Gas Storage & Transportation": "AMLP",
+        "Coal & Consumable Fuels": "XLE",
+    },
+    # --- Consumer Staples (30) ---
+    "Consumer Staples": {
+        "Drug Retail": "XLP",
+        "Food Distributors": "XLP",
+        "Food Retail": "XLP",
+        "Consumer Staples Merchandise Retail": "XLP",
+        "Brewers": "XLP",
+        "Distillers & Vintners": "XLP",
+        "Soft Drinks & Non-alcoholic Beverages": "PBJ",
+        "Agricultural Products & Services": "MOO",
+        "Packaged Foods & Meats": "PBJ",
+        "Tobacco": "XLP",
+        "Household Products": "XLP",
+        "Personal Care Products": "XLP",
+    },
+    # --- Utilities (55) ---
+    "Utilities": {
+        "Electric Utilities": "XLU",
+        "Gas Utilities": "XLU",
+        "Multi-Utilities": "XLU",
+        "Water Utilities": "PHO",
+        "Independent Power Producers": "XLU",
+        "Renewable Electricity": "ICLN",
+    },
+    # --- Real Estate (60) ---
+    "Real Estate": {
+        "Diversified REITs": "VNQ",
+        "Industrial REITs": "VNQ",
+        "Hotel & Resort REITs": "VNQ",
+        "Office REITs": "VNQ",
+        "Health Care REITs": "VNQ",
+        "Multi-Family Residential REITs": "VNQ",
+        "Single-Family Residential REITs": "VNQ",
+        "Retail REITs": "VNQ",
+        "Data Center REITs": "VNQ",
+        "Self-Storage REITs": "VNQ",
+        "Telecom Tower REITs": "VNQ",
+        "Timber REITs": "VNQ",
+        "Other Specialized REITs": "VNQ",
+        "Real Estate Services": "XLRE",
+    },
+    # --- Materials (15) ---
+    "Materials": {
+        "Commodity Chemicals": "XLB",
+        "Diversified Chemicals": "XLB",
+        "Fertilizers & Agricultural Chemicals": "MOO",
+        "Industrial Gases": "XLB",
+        "Specialty Chemicals": "XLB",
+        "Construction Materials": "XHB",
+        "Metal & Glass Containers": "XLB",
+        "Paper & Plastic Packaging": "XLB",
+        "Aluminum": "XLB",
+        "Diversified Metals & Mining": "XME",
+        "Copper": "COPX",
+        "Gold": "GDX",
+        "Precious Metals & Minerals": "GDX",
+        "Silver": "SIL",
+        "Steel": "SLX",
+        "Forest Products": "XLB",
+    },
+}
+
+# Flattened sub-industry → representative stock baskets for RS when no ETF exists
+SUB_INDUSTRY_BASKETS: dict[str, list[str]] = {
+    "Semiconductor Equipment": ["AMAT", "LRCX", "KLAC", "ASML"],
+    "Data Center REITs": ["EQIX", "DLR"],
+    "Industrial REITs": ["PLD", "REXR", "STAG"],
+    "Telecom Tower REITs": ["AMT", "CCI", "SBAC"],
+    "Self-Storage REITs": ["PSA", "EXR", "CUBE"],
+    "Restaurants": ["MCD", "SBUX", "CMG", "YUM"],
+    "Homebuilding": ["LEN", "DHI", "NVR", "PHM"],
+    "Automobile Manufacturers": ["TSLA", "GM", "F"],
+    "Renewable Electricity": ["ENPH", "FSLR", "RUN"],
 }
 
 
@@ -88,7 +281,10 @@ def compute_rs(ticker: str, benchmark: str = "SPY", period: str = "2y") -> dict:
             s_now, b_now = sector_close[-1], bench_close[-1]
             if trading_days >= len(sector_close):
                 return None
-            s_past, b_past = sector_close[-1 - trading_days], bench_close[-1 - trading_days]
+            s_past, b_past = (
+                sector_close[-1 - trading_days],
+                bench_close[-1 - trading_days],
+            )
             if b_past == 0 or b_now == 0:
                 return None
 
@@ -229,39 +425,112 @@ def rank_sectors(rs_results: dict[str, dict]) -> dict:
         "top_quartile": [r["sector"] for r in top_quartile],
         "bottom_quartile": [r["sector"] for r in bottom_quartile],
         "methodology": "Composite RS = Σ(period RS × weight) + momentum bonus. "
-                       "Weights: 1M=15%, 3M=30%, 6M=30%, 12M=25%. "
-                       "RS change = % change in (sector ETF / SPY) over period.",
+        "Weights: 1M=15%, 3M=30%, 6M=30%, 12M=25%. "
+        "RS change = % change in (sector ETF / SPY) over period.",
         "usage": "Feed top_quartile sectors to sector-screener for Phase 1 ranking. "
-                 "RS is the single most predictive signal for sector rotation.",
+        "RS is the single most predictive signal for sector rotation.",
     }
+
+
+def rank_sub_industries(rs_results: dict[str, dict], parent_sector: str) -> dict:
+    """Rank sub-industries within a sector by RS composite score."""
+    base = rank_sectors(rs_results)
+    base["parent_sector"] = parent_sector
+    base["level"] = "sub-industry"
+    base["methodology"] = (
+        "Sub-industry RS computed using ETF proxies or thematic ETFs. "
+        "Same composite formula as sector RS. "
+        "Weights: 1M=15%, 3M=30%, 6M=30%, 12M=25%. "
+        "When multiple sub-industries share an ETF proxy, their RS scores "
+        "will be identical — use fundamental screening to differentiate."
+    )
+    base["usage"] = (
+        "Feed top-ranked sub-industries to sector-screener (deep-dive mode) "
+        "for Phase 2 analysis. Identifies which part of a sector is leading."
+    )
+    # Rename 'sector' key to 'sub_industry' in ranking entries
+    for entry in base.get("ranking", []):
+        entry["sub_industry"] = entry.pop("sector", entry.get("sub_industry"))
+    base["top_quartile_sub_industries"] = base.pop("top_quartile", [])
+    base["bottom_quartile_sub_industries"] = base.pop("bottom_quartile", [])
+    return base
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Compute sector relative strength rankings"
+        description="Compute sector/sub-industry relative strength rankings"
     )
-    parser.add_argument("--sectors", help="Comma-separated sector ETF tickers (default: all 11 GICS)")
-    parser.add_argument("--benchmark", default="SPY", help="Benchmark ticker (default: SPY)")
-    parser.add_argument("--period", default="2y", help="Lookback period for RS calculation")
+    parser.add_argument(
+        "--sectors", help="Comma-separated sector ETF tickers (default: all 11 GICS)"
+    )
+    parser.add_argument(
+        "--level",
+        choices=["sector", "sub-industry"],
+        default="sector",
+        help="GICS granularity: 'sector' (Level 1, 11 sectors) or 'sub-industry' (Level 4)",
+    )
+    parser.add_argument(
+        "--sector",
+        help="Parent sector name for sub-industry mode (e.g., 'Technology', 'Healthcare'). "
+        "If omitted in sub-industry mode, screens all sectors' sub-industries.",
+    )
+    parser.add_argument(
+        "--benchmark", default="SPY", help="Benchmark ticker (default: SPY)"
+    )
+    parser.add_argument(
+        "--period", default="2y", help="Lookback period for RS calculation"
+    )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     args = parser.parse_args()
 
-    if args.sectors:
-        etfs = {s.strip(): s.strip() for s in args.sectors.split(",")}
+    if args.level == "sub-industry":
+        # Sub-industry mode: use GICS Level 4 ETF proxies
+        if args.sector:
+            # Single sector's sub-industries
+            sectors_to_scan = [args.sector]
+        else:
+            # All sectors' sub-industries
+            sectors_to_scan = list(SUB_INDUSTRY_ETFS.keys())
+
+        output = {"level": "sub-industry", "sectors": {}}
+
+        for sector_name in sectors_to_scan:
+            sub_map = SUB_INDUSTRY_ETFS.get(sector_name, {})
+            if not sub_map:
+                output["sectors"][sector_name] = {
+                    "error": f"No sub-industry mapping for '{sector_name}'"
+                }
+                continue
+
+            # Deduplicate: multiple sub-industries may share an ETF
+            results = {}
+            for sub_ind, etf in sub_map.items():
+                if isinstance(etf, list):
+                    etf = etf[0]
+                data = compute_rs(etf, args.benchmark, args.period)
+                results[sub_ind] = data
+
+            ranking = rank_sub_industries(results, sector_name)
+            output["sectors"][sector_name] = ranking
+
     else:
-        etfs = SECTOR_ETFS
+        # Sector mode (original behavior)
+        if args.sectors:
+            etfs = {s.strip(): s.strip() for s in args.sectors.split(",")}
+        else:
+            etfs = SECTOR_ETFS
 
-    results = {}
-    for sector, ticker in etfs.items():
-        data = compute_rs(ticker, args.benchmark, args.period)
-        results[sector] = data
+        results = {}
+        for sector, ticker in etfs.items():
+            data = compute_rs(ticker, args.benchmark, args.period)
+            results[sector] = data
 
-    ranking = rank_sectors(results)
-
-    output = {
-        "individual_results": results,
-        "ranking": ranking,
-    }
+        ranking = rank_sectors(results)
+        output = {
+            "level": "sector",
+            "individual_results": results,
+            "ranking": ranking,
+        }
 
     result_json = json.dumps(output, indent=2)
     if args.output:
