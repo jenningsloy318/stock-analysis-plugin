@@ -116,6 +116,8 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
             score_margin = _score_from_percentile(op_margin, 0.30, 0.50, 0.20, 0.10)
         elif sector == 20:  # Industrials — lower margins, higher asset turns
             score_margin = _score_from_percentile(op_margin, 0.12, 0.20, 0.06, 0.03)
+        elif sector == 15:  # Materials/Mining — commodity-driven, cyclical margins
+            score_margin = _score_from_percentile(op_margin, 0.15, 0.30, 0.08, 0.03)
         elif sector == 30:  # Consumer Staples
             score_margin = _score_from_percentile(op_margin, 0.15, 0.25, 0.08, 0.03)
         else:
@@ -181,6 +183,10 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
         elif sector == 40:  # Financials — also higher leverage structural
             score_leverage = _score_from_percentile(
                 debt_to_equity, 2.0, 5.0, 1.0, 2.0, higher_is_better=False
+            )
+        elif sector == 15:  # Materials/Mining — capex-heavy, moderate leverage ok
+            score_leverage = _score_from_percentile(
+                debt_to_equity, 0.7, 2.0, 0.4, 1.0, higher_is_better=False
             )
         else:
             score_leverage = _score_from_percentile(

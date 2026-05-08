@@ -37,6 +37,9 @@ Use this matrix before running stock-analysis or industry-screening. The goal is
 | Short interest & squeeze | yfinance short interest, float shares, institutional holdings, catalyst calendar | 7 days for short-term; 14 days otherwise | Required for short-term positioning analysis and squeeze risk scoring |
 | Activist & governance catalysts | yfinance institutional holders, insider transactions, 13D/proxy filings | 30 days for institutional; 90 days for proxy | Required for governance catalyst identification and proxy fight probability |
 | Tail risk & drawdowns | yfinance daily returns (2yr), portfolio positions, correlation matrix | 7 days for short-term; 30 days otherwise | Required for portfolio-level risk assessment and position sizing |
+| Correlation regime | yfinance daily returns (2yr) vs benchmark, rolling beta, tail correlation | 7 days for short-term; 30 days otherwise | Required for stress-adjusted position sizing and diversification assessment |
+| Earnings edge / PEAD | yfinance earnings history, quarterly price data around earnings dates | Latest quarter | Required for earnings catalyst assessment and pre/post-earnings drift analysis |
+| Options microstructure | yfinance options chains (multi-expiry), IV surface, GEX, term structure | Same day for short-term; 7 days otherwise | Required for dealer positioning, vol regime, and options flow signals |
 
 ## Freshness SLA
 

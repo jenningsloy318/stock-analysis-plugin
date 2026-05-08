@@ -60,6 +60,19 @@ Select the sector based on GICS classification. If the company spans multiple se
 | **Backlog Coverage** | Backlog / Annual Revenue | >1.0x (strong visibility) | <0.5x (limited visibility) |
 | **ROIC** | NOPAT / Invested Capital | >15% and >WACC | <WACC |
 
+### Industrials — Transportation Sub-Sector (GICS 2030)
+
+| Metric | Definition | Bullish | Bearish |
+|--------|-----------|---------|---------|
+| **Operating Ratio** | OpEx / Revenue (lower = better) | <60% (railroads), <85% (LTL) | >65% (rail), >92% (LTL) |
+| **Load Factor** | Passengers or capacity utilized / Available | >85% (airlines) | <78% (airlines) |
+| **RASM** | Revenue per Available Seat Mile (airlines) | Rising YoY | Declining YoY |
+| **TCE Rate** | Time Charter Equivalent (shipping) | >1.5x breakeven | Near/below breakeven |
+| **Cass Freight Index** | Leading freight demand indicator | Rising 3-month trend | Declining 3+ months |
+| **Revenue per Carload** | Railroad pricing power indicator | Rising above inflation | Below inflation |
+| **Fleet Utilization** | % of fleet generating revenue | >95% | <90% |
+| **Net Debt/EBITDAR** | Lease-adjusted leverage (airlines) | <2.5x | >4.0x |
+
 ## Energy (GICS 10)
 
 | Metric | Definition | Context |

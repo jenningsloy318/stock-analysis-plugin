@@ -217,7 +217,7 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 - [ ] 6.13 Seasonality Analysis — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_seasonality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/seasonality.json`** for quarterly revenue/EPS seasonal strength indices, YoY growth decomposition, and current-quarter assessment vs seasonal expectation.
 - [ ] 6.14 Earnings Edge — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_earnings_edge.py [TICKER] --output ./reports/[TICKER]/earnings_edge.json`** for historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend, and next earnings proximity. If beat rate >75% with positive pre-earnings drift, this is a catalyst setup. If next earnings within 14 days, flag in short-term report.
 
-**Reference:** Load `references/frameworks_macro_quant.md` for Greenblatt's Magic Formula. Load `references/frameworks_risk_alt.md` for Burry's SEC deep-dive. For sector-specific valuation, load the relevant deep-dive reference: `references/industry_saas.md` (Tech/SaaS), `references/industry_biotech.md` (Pharma/Biotech), `references/industry_banks.md` (Financials), `references/industry_reits.md` (REITs/Real Estate — use FFO/AFFO/NAV, NOT P/E or DCF), `references/industry_industrials.md` (Industrials/Manufacturing — cycle-adjusted, backlog-driven), `references/industry_semis.md` (Semiconductors), `references/industry_energy.md` (Energy), `references/industry_insurance.md` (Insurance), `references/industry_healthcare.md` (Healthcare), `references/industry_consumer.md` (Consumer), `references/industry_utilities.md` (Utilities).
+**Reference:** Load `references/frameworks_macro_quant.md` for Greenblatt's Magic Formula. Load `references/frameworks_risk_alt.md` for Burry's SEC deep-dive. For sector-specific valuation, load the relevant deep-dive reference: `references/industry_saas.md` (Tech/SaaS), `references/industry_biotech.md` (Pharma/Biotech), `references/industry_banks.md` (Financials), `references/industry_reits.md` (REITs/Real Estate — use FFO/AFFO/NAV, NOT P/E or DCF), `references/industry_industrials.md` (Industrials/Manufacturing — cycle-adjusted, backlog-driven), `references/industry_semis.md` (Semiconductors), `references/industry_energy.md` (Energy), `references/industry_insurance.md` (Insurance), `references/industry_healthcare.md` (Healthcare), `references/industry_consumer.md` (Consumer), `references/industry_utilities.md` (Utilities), `references/industry_materials.md` (Mining/Chemicals — NAV/reserve-based, commodity cycle), `references/industry_transportation.md` (Airlines/Railroads/Shipping/Trucking — asset-intensive, cycle-driven).
 
 **Validation gate:** At least 2 independent valuation methods applied and one must be fit-for-business-model. DCF sensitivity table produced when DCF is applicable. Monte Carlo run for Long-term/Mid-term. Variant-view bridge included.
 
@@ -402,9 +402,9 @@ After Stage 11 report generation:
 | 3: Product/Industry | Deep (3.1-3.7) | Standard (3.1-3.4) | Light (3.1 only) |
 | 4: Macro | Standard (4.1-4.3) | Deep (4.1-4.6) | Standard (4.1-4.2) |
 | 5: Geopolitics | Standard (5.1-5.4) | Deep (5.1-5.5) | Light (5.1 only) |
-| 6: Valuation | Deep (6.1-6.5) | Deep (6.1-6.5) | Standard (6.3-6.5) |
+| 6: Valuation | Deep (6.1-6.14) | Deep (6.1-6.14) | Deep (6.3-6.5, 6.4b, 6.10-6.14) |
 | 7: Market Regime | Light (7.1-7.3) | Deep (7.1-7.8) | Deep (7.4-7.8) |
-| 8: Risk | Deep (8.1-8.8) | Standard (8.1-8.6) | Light (8.2, 8.4, 8.5b) |
+| 8: Risk | Deep (8.1-8.10) | Standard (8.1-8.6, 8.10) | Light (8.2, 8.4, 8.5b, 8.10) |
 | 9: Alternative Data | Light (9.1, 9.4) | Standard (9.1, 9.4-9.5) | Deep (9.1-9.6) |
 | 10: Scoring + Cross-Check | Full | Full | Full |
 | 11: Reports | Full | Full | Full |
