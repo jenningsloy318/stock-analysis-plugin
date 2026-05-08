@@ -409,6 +409,28 @@ After Stage 11 report generation:
 | 10: Scoring + Cross-Check | Full | Full | Full |
 | 11: Reports | Full | Full | Full |
 
+## Script Failure & Graceful Degradation
+
+When a script fails or returns partial data:
+
+| Failure Type | Action | Impact |
+|-------------|--------|--------|
+| Script exits non-zero (import error, network) | Retry once. If still failing, mark dimension as "Data not available" | Reduces confidence one level |
+| Script returns `{"error": "..."}` | Log the error, proceed without that dimension | Non-blocking unless it's a Tier 1 data source |
+| Partial data (some fields null) | Use available fields, mark nulls in stage summary | Mild confidence reduction |
+| API key missing (FRED, Finnhub) | Script uses fallback paths (yfinance, web search) | Acceptable — document in Data Quality appendix |
+| yfinance rate limit / timeout | Wait 30s, retry once. If still failing, use web search tools as fallback | Schedule retry in background if possible |
+
+**Hard failures (block report delivery):**
+- `fetch_financials.py` returns no revenue or no income data → Cannot proceed (Tier 1 data missing)
+- `compute_scores.py` fails → Cannot produce conviction score → No report delivery
+- `validate_report.py` fails all blocking gates → Report carries "INCOMPLETE ANALYSIS" header
+
+**Soft failures (reduce confidence but proceed):**
+- Any optional script (esg_carbon, behavioral, supply_chain, etc.) → Note absence in appendix
+- Web search returns no results for a query → Try alternate search tool → Mark as "unconfirmed"
+- Alt data signals unavailable → Alt Alignment score defaults to 5.0 (neutral)
+
 ## Agent Team
 
 The stock-analyst (team lead) spawns specialist teammates for ALL analysis work — it NEVER performs deep analysis directly. Sub-agents are defined in `agents/`:
