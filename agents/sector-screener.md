@@ -78,6 +78,21 @@ timeout_mins: 12
   "Managed Health Care industry"). This ensures the research data is granular enough for
   Level 4 reporting.
 
+  HORIZON-AWARE SEARCH QUERIES:
+  Since all 3 horizons are produced from one data pass, research must cover both
+  structural/secular data (long-term) and recent momentum/catalyst data (short-term).
+  
+  For each sub-industry, run searches in TWO time-frames:
+  1. **Structural/Long-term queries** (secular trends, 3-5 year outlook):
+     - "[SUB_INDUSTRY] secular growth drivers 2025-2030 TAM CAGR"
+     - "[SUB_INDUSTRY] industry structure barriers moat competitive advantage"
+     - "[SUB_INDUSTRY] technology disruption long-term trend innovation cycle"
+  2. **Cyclical/Short-term queries** (recent momentum, near-term catalysts):
+     - "[SUB_INDUSTRY] earnings momentum Q2 2026 estimate revisions"
+     - "[SUB_INDUSTRY] ETF flows institutional positioning last 3 months"
+     - "[SUB_INDUSTRY] catalyst upcoming regulation policy 2026"
+     - "[SUB_INDUSTRY] supply chain inventory cycle utilization current"
+
   For sub-industry research, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[SUB_INDUSTRY_NAME] industry performance 2025 2026 outlook growth forecast CAGR"
   2. `mcp__tavily-remote-mcp__tavily_research` with `model: "pro"` — "Comprehensive analysis of [SUB_INDUSTRY_NAME] industry: growth trends, profitability, competitive dynamics, TAM, key players, and 2026 outlook"

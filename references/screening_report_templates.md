@@ -68,7 +68,7 @@ These dimensions are applied at sector level (Pass 1) for quick filtering, then 
 
 For cycle-sensitive sectors, the analyst may reallocate up to 5% from Innovation or Capital Flows to Supply/Demand Cycle. Any reallocation must be stated in the Methodology Appendix.
 
-### Sector Score Interpretation
+### Sub-Industry Score Interpretation
 | Score | Rating | Action |
 |-------|--------|--------|
 | 8.0-10.0 | Top Tier | Strong candidate for Phase 2 deep-dive |

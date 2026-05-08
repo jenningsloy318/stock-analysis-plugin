@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.32"
+version: "1.0.33"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -470,11 +470,10 @@ The stock-analyst (team lead) spawns specialist teammates for ALL analysis work 
 
 ## Parallelism
 
-Stock-analyst (team lead) spawns sub-agents in parallel per report type (max 3 concurrent):
-- Long-term: [fundamental-analyst + industry-analyst] → [macro-analyst] → [quant-analyst] → [risk-analyst] → [alt-data-analyst] → Scoring → [equity-report-writer]
-- Mid-term: [macro-analyst + quant-analyst] → [fundamental-analyst + risk-analyst] → [alt-data-analyst] → Scoring → [equity-report-writer]
-- Short-term: [quant-analyst + alt-data-analyst] → [risk-analyst] → Scoring → [equity-report-writer]
-- Quick Overview: [fundamental-analyst + quant-analyst + risk-analyst] → Scoring → [equity-report-writer]
+Stock-analyst (team lead) spawns sub-agents in parallel (max 3 concurrent). Since all 3 report types are always produced, ALL stages are executed. The parallel execution order uses the long-term sequence (most comprehensive) which subsumes mid-term and short-term data needs:
+
+- Full run: [fundamental-analyst + industry-analyst] → [macro-analyst + quant-analyst] → [risk-analyst + alt-data-analyst] → Scoring → [equity-report-writer (produces 3 reports)]
+- Quick Overview: [fundamental-analyst + quant-analyst + risk-analyst] → Scoring → [equity-report-writer (produces 3 reports)]
 
 Post-stage-9: always run deterministic scoring (Stage 10) and cross-check before report generation (Stage 11).
 

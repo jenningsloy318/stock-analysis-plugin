@@ -13,7 +13,7 @@ description: >
   industries to invest," "which sectors are growing," "top-down screening,"
   "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.32"
+version: "1.0.33"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -56,6 +56,8 @@ This skill is designed as a precursor pipeline. After a screening report is prod
 ## Search Tools
 
 This skill reuses the same search tool stack as `stock-analysis`. See `agents/search-agent.md` for full search methodology.
+
+**Horizon-aware research:** Since all 3 horizons are produced per run, data collection must cover both structural/secular factors (long-term) and cyclical/momentum factors (short-term). See `agents/sector-screener.md` `<data-acquisition>` section for horizon-specific query templates.
 
 **Priority order:**
 1. **Firecrawl MCP** (`mcp__firecrawl__firecrawl_search`) — Primary search. Always run first.
