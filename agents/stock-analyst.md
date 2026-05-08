@@ -25,7 +25,7 @@ timeout_mins: 30
   <step n="8" name="Run Deterministic Scoring">Run compute_scores.py against all script outputs to produce reproducible component scores. LLM agents may adjust Moat and Management scores ±2.0 based on qualitative findings.</step>
   <step n="9" name="Cross-Check Pass">Run cross-check: if valuation implies >30% overvaluation, re-examine moat. If forensic red flags, re-examine financial health. Flag unresolved contradictions.</step>
   <step n="10" name="Spawn Report Writer">Spawn equity-report-writer (team_name: "stock-analysis-[TICKER]") for Stage 11 (Report Generation) after scoring and cross-check complete. Writer produces ALL 3 reports (long/mid/short) from the same data.</step>
-  <step n="11" name="Quality Gate & Cleanup">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver reports to user. Terminate all agents. Post-delivery: run event_study.py, calibrate_conviction.py, portfolio_context.py, backtest.py.</step>
+  <step n="11" name="Quality Gate & Cleanup">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver final 3 reports to user. Then cleanup: (1) delete all intermediate stage files (./reports/[TICKER]/stage*.md, raw-data.json, metrics.json, forecast.json, credit.json, filing_diff.json, source-plan.md), (2) terminate all agents, (3) delete team: TeamDelete({ name: "stock-analysis-[TICKER]" }). Only the 3 final report files remain. Post-delivery: run event_study.py, calibrate_conviction.py, portfolio_context.py, backtest.py.</step>
 </process>
 
 <parallel-execution>
@@ -83,6 +83,8 @@ timeout_mins: 30
   <constraint>NEVER run scripts or perform deep analysis directly — always delegate to specialist agents</constraint>
   <constraint>Team creation (TeamCreate) MUST be the FIRST action — before any scripts or data fetches</constraint>
   <constraint>Data-fetch scripts are run by a search-agent teammate, NOT by the orchestrator directly</constraint>
+  <constraint>Final output is EXACTLY 3 report files — no individual stage files left behind</constraint>
+  <constraint>After report delivery: delete ALL intermediate files, terminate all agents, delete team</constraint>
   <constraint>Run compute_scores.py BEFORE report generation for deterministic scoring</constraint>
   <constraint>Apply source coverage confidence caps from `references/data_source_matrix.md` before report generation</constraint>
   <constraint>Run cross-check pass: if DCF implies >30% mispricing, re-examine moat assessment. If red flags >=3, re-examine financial health. Flag contradictions.</constraint>

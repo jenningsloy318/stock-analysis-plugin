@@ -60,10 +60,11 @@ ENFORCEMENT: The orchestrator MUST NOT run scripts directly. ALL work delegated 
   <step n="2" name="Spawn Screeners">Spawn @sector-screener agents for two-pass analysis: score sectors, rank Level 4 sub-industries. Produce unified sub-industry leaderboard.</step>
   <step n="3" name="Spawn Deep Dive">Spawn @sector-screener in deep-dive mode for top 2-3 sub-industries. Validate thesis and map complete company universe.</step>
   <step n="4" name="Spawn Company Screener">Spawn @company-screener for selected sub-industry. Apply quantitative filters, produce ranked watchlist.</step>
-  <step n="5" name="Spawn Report Writer & Cleanup">Spawn @screening-report-writer to synthesize all phase summaries into 3 final reports (long/mid/short). Terminate all agents.</step>
+  <step n="5" name="Spawn Report Writer & Cleanup">Spawn @screening-report-writer to synthesize all phase summaries into 3 final reports (long/mid/short). Then cleanup: delete ALL intermediate files (phase*.md, sector_rs.json, sub_industry_rs.json, etc.) — only 3 final reports remain. Terminate all agents. Delete team.</step>
 </process>
 
 <constraints>
+  <constraint>ALL reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. GICS names include both English and Chinese. Source citations remain in original language.</constraint>
   <constraint>NEVER perform Phase 1-4 screening/analysis directly — always spawn specialist agents</constraint>
   <constraint>DEFAULT: Always screen at GICS Level 4 (Sub-Industry) granularity</constraint>
   <constraint>Designed as a precursor — after screening, offer to deep-dive top picks with /stock-analysis:analyze</constraint>

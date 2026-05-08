@@ -29,6 +29,7 @@ Orchestrator reads existing reports, delegates data fetch, then compiles status.
 </process>
 
 <constraints>
+  <constraint>ALL output MUST be written in Chinese (中文). Technical terms (ticker symbols, metric names) may remain in English.</constraint>
   <constraint>Only works if reports exist in ./reports/ from prior analyses</constraint>
   <constraint>Flag any report older than 90 days as "STALE — re-analysis recommended"</constraint>
   <constraint>If kill switch condition is approaching, highlight with warning</constraint>

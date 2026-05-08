@@ -1,30 +1,35 @@
 prompt = """
-<purpose>Perform a rapid stock analysis using the agent team in quick mode. Spawns fundamental-analyst, quant-analyst, and risk-analyst in parallel for condensed coverage. Produces 3 condensed reports (long/mid/short).</purpose>
+<purpose>Perform a rapid stock analysis using the agent team in quick mode. Spawns search-agent for data fetch, then fundamental-analyst, quant-analyst, and risk-analyst in parallel for condensed coverage. Produces 3 condensed reports (long/mid/short) in Chinese.</purpose>
 
 <usage>/stock-analysis:quick-overview [TICKER]</usage>
 
 <agent-team>
-MANDATORY: This command operates as an agent team in quick mode.
+MANDATORY: This command operates as an agent team. You MUST NOT run scripts directly.
 
-After Triage, delegate to sub-agents using @agent-name syntax:
+STEP 0 — Identify ticker. Do NOT run any scripts yourself.
+STEP 1 — Spawn @search-agent for data fetch (fetch_financials.py, fetch_macro.py, calculate_metrics.py).
+STEP 2 — Spawn analysis agents in parallel:
 
 | Agent | Task |
 |-------|------|
+| @search-agent | Data fetch: financials, macro, metrics |
 | @fundamental-analyst | Light fundamental analysis (key ratios, moat signal) |
 | @quant-analyst | Valuation + technicals (DCF, comps, trend) |
 | @risk-analyst | Key risks, Altman Z, red flags |
 
-All 3 agents run in parallel, then scoring + report generation.
+All 3 analysis agents run in parallel, then scoring + report generation.
 </agent-team>
 
 <process>
-  <step n="1" name="Triage (you do this)">Identify ticker, run fetch_financials.py, fetch_macro.py, calculate_metrics.py</step>
+  <step n="0" name="Team Setup">Identify ticker. This is the only step you do directly.</step>
+  <step n="1" name="Data Fetch">Spawn @search-agent for triage scripts. Wait for completion.</step>
   <step n="2" name="Spawn Agents">Delegate to @fundamental-analyst, @quant-analyst, @risk-analyst in parallel</step>
-  <step n="3" name="Scoring (you do this)">Run compute_scores.py, then spawn @equity-report-writer for 3 condensed reports</step>
+  <step n="3" name="Scoring & Report">Run compute_scores.py (via @search-agent), then spawn @equity-report-writer for 3 condensed reports</step>
 </process>
 
 <constraints>
-  <constraint>NEVER perform analysis directly — always delegate to sub-agents</constraint>
+  <constraint>ALL reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English.</constraint>
+  <constraint>NEVER run scripts or perform analysis directly — always delegate to sub-agents</constraint>
   <constraint>Always produce 3 reports (long/mid/short) even in quick mode</constraint>
   <constraint>Estimated time: 2-5 minutes</constraint>
   <constraint>Report confidence flagged as "Limited — quick overview mode"</constraint>

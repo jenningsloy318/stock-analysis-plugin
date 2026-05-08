@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.41"
+version: "1.0.42"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -83,6 +83,14 @@ the appropriate agent instead.
 
 TERMINATION: Terminate each sub-agent immediately after it completes its work. Do not
 leave idle agents running.
+
+CLEANUP (after final reports delivered):
+1. Delete ALL intermediate files: ./reports/[TICKER]/stage*.md, raw-data.json, metrics.json,
+   forecast.json, credit.json, filing_diff.json, earnings_quality.json, source-plan.md,
+   and any other working files. Only the 3 final reports remain:
+   [TICKER]_long_[DATE].md, [TICKER]_mid_[DATE].md, [TICKER]_short_[DATE].md
+2. Terminate ALL remaining agents.
+3. Delete the team: TeamDelete({ name: "stock-analysis-[TICKER]" })
 </agent-team-protocol>
 
 ## Script Execution

@@ -56,10 +56,11 @@ ENFORCEMENT: The orchestrator MUST NOT run scripts or perform analysis directly.
   <step n="2" name="Spawn Analysts">Spawn analyst sub-agents per parallel execution rules — each writes its stage summary to ./reports/[TICKER]/stage[N].md</step>
   <step n="3" name="Scoring (orchestrator)">Run compute_scores.py for deterministic component scores, then cross_check.py for contradiction detection</step>
   <step n="4" name="Spawn Report Writer">Spawn @equity-report-writer to synthesize stage summaries into 3 final reports (long/mid/short)</step>
-  <step n="5" name="Quality Gate & Cleanup (orchestrator)">Run validate_report.py, verify fact integrity for each report. Terminate all agents.</step>
+  <step n="5" name="Quality Gate & Cleanup (orchestrator)">Run validate_report.py, verify fact integrity for each report. Then cleanup: delete ALL intermediate files (stage*.md, raw-data.json, metrics.json, forecast.json, etc.) — only 3 final reports remain. Terminate all agents. Delete team.</step>
 </process>
 
 <constraints>
+  <constraint>ALL reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. Source citations remain in original language.</constraint>
   <constraint>NEVER perform Stages 1-9 analysis directly — always spawn specialist agents</constraint>
   <constraint>If earnings within 14 days, warn user before proceeding</constraint>
   <constraint>If earnings within 3 days, recommend waiting unless user overrides</constraint>

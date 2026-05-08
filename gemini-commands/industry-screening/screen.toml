@@ -36,10 +36,11 @@ ENFORCEMENT: You MUST NOT run python scripts or perform any analysis directly. A
   <step n="2" name="Spawn Screeners">Delegate to @sector-screener agents for two-pass analysis: score sectors, rank Level 4 sub-industries. Produce unified sub-industry leaderboard.</step>
   <step n="3" name="Spawn Deep Dive">Delegate to @sector-screener in deep-dive mode for top 2-3 sub-industries. Validate thesis and map company universe.</step>
   <step n="4" name="Spawn Company Screener">Delegate to @company-screener for selected sub-industry. Apply filters, produce ranked watchlist.</step>
-  <step n="5" name="Spawn Report Writer & Cleanup">Delegate to @screening-report-writer to synthesize all phase summaries into 3 final reports (long/mid/short). Terminate all agents.</step>
+  <step n="5" name="Spawn Report Writer & Cleanup">Delegate to @screening-report-writer to synthesize all phase summaries into 3 final reports (long/mid/short). Then cleanup: delete ALL intermediate files (phase*.md, sector_rs.json, sub_industry_rs.json, etc.) — only 3 final reports remain. Terminate all agents.</step>
 </process>
 
 <constraints>
+  <constraint>ALL reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. GICS names include both English and Chinese. Source citations remain in original language.</constraint>
   <constraint>NEVER run scripts or perform Phase 1-4 screening/analysis directly — ALWAYS delegate to sub-agents</constraint>
   <constraint>Always produce 3 reports (long/mid/short) — never ask user which horizon</constraint>
   <constraint>DEFAULT: GICS Level 4 (Sub-Industry) granularity</constraint>

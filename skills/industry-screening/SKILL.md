@@ -13,7 +13,7 @@ description: >
   industries to invest," "which sectors are growing," "top-down screening,"
   "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.41"
+version: "1.0.42"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -100,6 +100,14 @@ appropriate agent instead.
 
 TERMINATION: Terminate each sub-agent immediately after it completes its phase work. Do not
 leave idle agents running.
+
+CLEANUP (after final reports delivered):
+1. Delete ALL intermediate files: ./reports/screening/phase*.md, sector_rs.json,
+   sub_industry_rs.json, economic_surprises.json, macro.json, source-plan.md,
+   and any other working files. Only the 3 final reports remain:
+   [SUB_INDUSTRY_CODE]_long_[DATE].md, [SUB_INDUSTRY_CODE]_mid_[DATE].md, [SUB_INDUSTRY_CODE]_short_[DATE].md
+2. Terminate ALL remaining agents.
+3. Delete the team: TeamDelete({ name: "industry-screening-[TIMESTAMP]" })
 </agent-team-protocol>
 
 ## Integration with stock-analysis

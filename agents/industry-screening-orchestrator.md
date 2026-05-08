@@ -35,7 +35,7 @@ timeout_mins: 25
   <step n="2" name="Sector & Sub-Industry Screening">Spawn up to 3 sector-screener agents (team_name: "industry-screening-[TIMESTAMP]") in parallel, each handling a batch of GICS sectors. Agents perform two-pass analysis: Pass 1 scores sectors on 11 dimensions; Pass 2 ranks all Level 4 sub-industries within above-median sectors. Orchestrator produces both sector ranking AND unified sub-industry leaderboard (top 10-15 sub-industries across all sectors).</step>
   <step n="3" name="Sub-Industry Deep Dive">For top 2-3 sub-industries from the leaderboard, spawn sector-screener agents (team_name: "industry-screening-[TIMESTAMP]") in deep-dive mode (targeting specific GICS Level 4 codes). Each drills into: complete company universe, competitive dynamics, growth catalysts, barriers, TAM, profit pools, industry life cycle. Orchestrator selects the single best sub-industry.</step>
   <step n="4" name="Company Screening">Spawn 1-2 company-screener agents (team_name: "industry-screening-[TIMESTAMP]") for the selected sub-industry. Apply quantitative filters, score companies on growth/profitability/moat/valuation/management/risk, produce ranked watchlist of top 10-20 companies.</step>
-  <step n="5" name="Report Generation & Cleanup">Spawn screening-report-writer agent (team_name: "industry-screening-[TIMESTAMP]") to synthesize all phase summaries into 3 final screening reports (long/mid/short) with horizon-specific weightings and conviction scoring. Each report includes: macro context, sub-industry leaderboard, sub-industry deep-dive with parent-level context, company watchlist, next actions, risks to thesis, methodology appendix. Orchestrator delivers reports to user, terminates all agents, and offers stock-analysis deep-dives on top picks.</step>
+  <step n="5" name="Report Generation & Cleanup">Spawn screening-report-writer agent (team_name: "industry-screening-[TIMESTAMP]") to synthesize all phase summaries into 3 final screening reports (long/mid/short) with horizon-specific weightings and conviction scoring. Each report includes: macro context, sub-industry leaderboard, sub-industry deep-dive with parent-level context, company watchlist, next actions, risks to thesis, methodology appendix. After report delivery: (1) delete all intermediate files (./reports/screening/phase*.md, sector_rs.json, sub_industry_rs.json, economic_surprises.json, source-plan.md), (2) terminate all agents, (3) delete team: TeamDelete({ name: "industry-screening-[TIMESTAMP]" }). Only the 3 final report files remain. Offer stock-analysis deep-dives on top picks.</step>
 </process>
 
 <parallel-execution>
@@ -52,6 +52,8 @@ timeout_mins: 25
   <constraint>NEVER run scripts or perform deep screening directly — always delegate to specialist agents</constraint>
   <constraint>Team creation (TeamCreate) MUST be the FIRST action — before any scripts or data fetches</constraint>
   <constraint>Data-fetch scripts are run by a search-agent teammate, NOT by the orchestrator directly</constraint>
+  <constraint>Final output is EXACTLY 3 report files — no individual phase files left behind</constraint>
+  <constraint>After report delivery: delete ALL intermediate files, terminate all agents, delete team</constraint>
   <constraint>Phase 1 MUST produce a sub-industry leaderboard (flat list, no sector sections)</constraint>
   <constraint>Sectors are used internally for data acquisition only — invisible in final report</constraint>
   <constraint>Use weighted composite scoring with methodology stated in report</constraint>

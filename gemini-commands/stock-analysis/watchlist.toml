@@ -1,12 +1,13 @@
 prompt = """
-<purpose>Review previously generated reports and provide status update. Spawns search-agent for current price data and catalyst checks.</purpose>
+<purpose>Review previously generated reports and provide status update. Spawns search-agent for current price data and catalyst checks. Output in Chinese.</purpose>
 
 <usage>/stock-analysis:watchlist [TICKER|all]</usage>
 
 <agent-team>
 MANDATORY: This command operates as an agent team.
 
-Delegate data gathering to sub-agent:
+STEP 0 — Read ./reports/ directory for existing reports. This is the only step you do directly.
+STEP 1 — Spawn @search-agent for current data.
 
 | Agent | Task |
 |-------|------|
@@ -16,13 +17,14 @@ Orchestrator reads existing reports, delegates current data fetch, then compiles
 </agent-team>
 
 <process>
-  <step n="1" name="Scan Reports (you do this)">Read ./reports/ directory for all existing analysis reports</step>
-  <step n="2" name="Spawn Agent">Delegate to @search-agent for current price, news, and catalyst data for each ticker</step>
-  <step n="3" name="Status Check (you do this)">Compare current data to bull/base/bear targets, check kill switches</step>
-  <step n="4" name="Summary (you do this)">Output watchlist table with status indicators</step>
+  <step n="0" name="Scan Reports">Read ./reports/ directory for all existing analysis reports. This is the only step you do directly.</step>
+  <step n="1" name="Spawn Agent">Delegate to @search-agent for current price, news, and catalyst data for each ticker</step>
+  <step n="2" name="Status Check">Compare current data to bull/base/bear targets, check kill switches</step>
+  <step n="3" name="Summary">Output watchlist table (in Chinese) with status indicators</step>
 </process>
 
 <constraints>
+  <constraint>ALL output MUST be written in Chinese (中文). Technical terms (ticker symbols, metric names) may remain in English.</constraint>
   <constraint>Only works if reports exist in ./reports/ from prior analyses</constraint>
   <constraint>Flag reports older than 90 days as "STALE"</constraint>
   <constraint>If kill switch condition approaching, highlight with warning</constraint>
