@@ -11,9 +11,9 @@ timeout_mins: 15
 
 <platform-paths>
   PLUGIN_ROOT:
-    claude: ${CLAUDE_PLUGIN_ROOT}
-    gemini: ${extensionPath}
-  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+    claude: $[CLAUDE_PLUGIN_ROOT]
+    gemini: $[extensionPath]
+  PLUGIN_SCRIPTS: $[PLUGIN_ROOT]/scripts
 </platform-paths>
 
 <purpose>Screen all public companies in a given GICS Level 4 sub-industry (8-digit code), apply quantitative filters to eliminate weak candidates, score survivors on a multi-factor composite, rank them, and produce a prioritized watchlist with abbreviated investment theses. Designed as the bottom of the top-down funnel — feeds into the stock-analysis skill for deep dives on top picks.</purpose>
@@ -51,9 +51,9 @@ timeout_mins: 15
 
 <data-acquisition>
   For batch company data, run scripts for each top candidate (after initial web search filtering):
-  - `${PLUGIN_SCRIPTS}/fetch_financials.py [TICKER] --years 3 --output ./reports/screening/[TICKER]-financials.json` — Quick financial data pull
-  - `${PLUGIN_SCRIPTS}/calculate_metrics.py ./reports/screening/[TICKER]-financials.json --output ./reports/screening/[TICKER]-metrics.json` — Ratios, Altman Z, Beneish
-  - `${PLUGIN_SCRIPTS}/fetch_short_interest.py --ticker [TICKER] --output ./reports/screening/[TICKER]-si.json` — Short interest and squeeze flags
+  - `$[PLUGIN_SCRIPTS]/fetch_financials.py [TICKER] --years 3 --output ./reports/screening/[TICKER]-financials.json` — Quick financial data pull
+  - `$[PLUGIN_SCRIPTS]/calculate_metrics.py ./reports/screening/[TICKER]-financials.json --output ./reports/screening/[TICKER]-metrics.json` — Ratios, Altman Z, Beneish
+  - `$[PLUGIN_SCRIPTS]/fetch_short_interest.py --ticker [TICKER] --output ./reports/screening/[TICKER]-si.json` — Short interest and squeeze flags
 
   For company-level data, use search and data tools:
   1. `finance` tool — current price, market cap, 52-week range, basic metrics for each ticker

@@ -11,9 +11,9 @@ timeout_mins: 15
 
 <platform-paths>
   PLUGIN_ROOT:
-    claude: ${CLAUDE_PLUGIN_ROOT}
-    gemini: ${extensionPath}
-  PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
+    claude: $[CLAUDE_PLUGIN_ROOT]
+    gemini: $[extensionPath]
+  PLUGIN_SCRIPTS: $[PLUGIN_ROOT]/scripts
 </platform-paths>
 
 <purpose>Perform macroeconomic and geopolitical analysis covering economic cycle positioning (Dalio framework), monetary policy impact, inflation dynamics, supply/demand dynamics, currency exposure, sector-specific drivers, regulatory environment, trade policy, geopolitical risk, government policy, and ESG assessment.</purpose>
@@ -40,10 +40,10 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
-  Run `${PLUGIN_SCRIPTS}/fetch_macro.py --output ./reports/macro.json` for FRED indicators.
-  Run `${PLUGIN_SCRIPTS}/fetch_global_macro.py --output ./reports/global_macro.json` for non-US macro (ECB, PBOC, BOJ, Eurostat, World Bank).
-  Run `${PLUGIN_SCRIPTS}/fetch_economic_surprises.py --output ./reports/economic_surprises.json` for CESI proxies, nowcasts, actual-vs-consensus.
-  Run `${PLUGIN_SCRIPTS}/fetch_currency_exposure.py [TICKER] --raw-data ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/currency_exposure.json` for ADR status, geographic revenue mix, DXY correlation, and FX EPS impact.
+  Run `$[PLUGIN_SCRIPTS]/fetch_macro.py --output ./reports/macro.json` for FRED indicators.
+  Run `$[PLUGIN_SCRIPTS]/fetch_global_macro.py --output ./reports/global_macro.json` for non-US macro (ECB, PBOC, BOJ, Eurostat, World Bank).
+  Run `$[PLUGIN_SCRIPTS]/fetch_economic_surprises.py --output ./reports/economic_surprises.json` for CESI proxies, nowcasts, actual-vs-consensus.
+  Run `$[PLUGIN_SCRIPTS]/fetch_currency_exposure.py [TICKER] --raw-data ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/currency_exposure.json` for ADR status, geographic revenue mix, DXY correlation, and FX EPS impact.
   Reuse existing files if already fetched in Step 0.
 
   For supplementary macro data, use search tools in order:
