@@ -162,3 +162,21 @@ Select the sector based on GICS classification. If the company spans multiple se
 | 50 | Communication Services | Advertising/attention-dependent, platform/metrics-driven, regulatory (net neutrality) |
 | 55 | Utilities | Rate-regulated, yield-driven, capital-intensive, inflation-sensitive |
 | 60 | Real Estate | Interest-rate-sensitive, occupancy-driven, NAV-based valuation |
+
+## Extended Industry Verticals (Deep-Dive References)
+
+For these sectors, load the dedicated industry reference file for specialized KPIs:
+
+| Sub-Sector | Reference File | Key Differentiators |
+|------------|---------------|---------------------|
+| Semiconductors | `references/industry_semis.md` | Node exposure, utilization cycle, WFE capex, inventory days |
+| SaaS / Software | `references/industry_saas.md` | ARR, NDR, Rule of 40, CAC payback, cloud gross margin |
+| Biotech / Pharma | `references/industry_biotech.md` | Pipeline rNPV, phase probabilities, patent cliff, cash runway |
+| Banks | `references/industry_banks.md` | CET1, NIM, efficiency ratio, NCOs, deposit beta |
+| Insurance | `references/industry_insurance.md` | Combined ratio, reserve development, catastrophe load |
+| Energy | `references/industry_energy.md` | Reserve replacement, F&D costs, breakeven, production growth |
+| Communication Services | `references/industry_commservices.md` | DAU/MAU, ARPU, churn, content spend, spectrum |
+| Fintech / Payments | `references/industry_fintech.md` | TPV, take rate, cross-sell, funding cost, regulatory licenses |
+| Data Centers / Cloud | `references/industry_datacenters.md` | MW capacity, PUE, utilization, WALE, $/MW, AI density |
+| Aerospace & Defense | `references/industry_aerospace.md` | Backlog/revenue, book-to-bill, aftermarket %, program lifecycle |
+| Gaming / iGaming | `references/industry_gaming.md` | GGR, hold %, ARPDAU, regulatory status, promotional intensity |

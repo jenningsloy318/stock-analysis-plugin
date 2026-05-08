@@ -43,6 +43,8 @@ timeout_mins: 30
   <script name="fetch_alternatives.py" purpose="Alternative data (web traffic, app stores, patents, Reddit)" />
   <script name="fetch_credit.py" purpose="Credit market data (spreads, ratings, debt maturity)" />
   <script name="fetch_behavioral.py" purpose="Behavioral finance (narrative, herding, overreaction)" />
+  <script name="fetch_capital_structure.py" purpose="Buyback ROI, SBC dilution, capital return yield, debt maturity" />
+  <script name="fetch_private_comps.py" purpose="M&amp;A target probability, LBO floor, activist probability, precedent transactions" />
   <script name="calculate_metrics.py" purpose="Ratios, DCF, Beneish, Altman Z, peer comparison" />
   <script name="calculate_candor.py" purpose="Management candor NLP analysis" />
   <script name="forecast.py" purpose="ARIMA/ETS time-series forecasting (replaces constant growth)" />

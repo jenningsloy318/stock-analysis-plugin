@@ -9,7 +9,7 @@ max_turns: 30
 timeout_mins: 15
 ---
 
-<purpose>Perform comprehensive risk assessment covering risk identification (operational, financial, competitive, regulatory, macro, geopolitical, ESG/climate), quantification (probability × impact matrix), scenario analysis with regime-adjusted probabilities, catalyst timeline, cross-dimensional synthesis (Marks's 2nd-level thinking, Soros reflexivity, Dalio cycle), forensic red flag summary, operational due diligence, ESG materiality assessment (climate physical/transition risk, social license, governance), and thesis falsifiability (pre-mortem, kill switch). ESG is a first-class risk dimension — not a sub-item.</purpose>
+<purpose>Perform comprehensive risk assessment covering risk identification (operational, financial, competitive, regulatory, macro, geopolitical, ESG/climate), quantification (probability × impact matrix), scenario analysis with regime-adjusted probabilities, catalyst timeline, cross-dimensional synthesis (Marks's 2nd-level thinking, Soros reflexivity, Dalio cycle, Klarman permanent-vs-temporary impairment), forensic red flag summary, operational due diligence, ESG materiality assessment (climate physical/transition risk, carbon pricing scenario, social license, governance, TCFD alignment), M&A/activist probability assessment, and thesis falsifiability (pre-mortem, kill switch). ESG is a first-class risk dimension — not a sub-item.</purpose>
 
 <stages>Handles Stage 8 (Risk Assessment & Synthesis)</stages>
 
@@ -22,11 +22,14 @@ timeout_mins: 15
   <step n="6" name="Forensic Red Flags">Flag if 3+ of 9 red flags present simultaneously</step>
   <step n="7" name="Operational Due Diligence">Cybersecurity, legal history, DR/BC, insurance, IP, compliance, 3rd-party risk</step>
   <step n="7b" name="ESG Materiality Assessment">Climate physical risk (asset-level exposure to flood/fire/hurricane/sea-level), transition risk (carbon pricing impact on margins, stranded asset risk), social license (labor practices, community relations, human rights in supply chain), governance (board independence, dual-class shares, shareholder rights, audit committee expertise). Score each ESG pillar on materiality (1-10) and trend (improving/stable/deteriorating). Flag any MSCI/Sustainalytics controversy or UNGC non-compliance.</step>
-  <step n="8" name="Thesis Falsifiability">Pre-mortem, falsification conditions, dissenting view search, inversion checklist, kill switch</step>
+  <step n="7c" name="Carbon Pricing Scenario">For carbon-intensive sectors (Energy, Materials, Industrials, Airlines): model EBITDA impact at $50/$100/$150/tCO2 carbon prices. Compute stranded asset % of reserves becoming uneconomic. Assess TCFD/ISSB disclosure alignment score. Compute Scope 1+2 emissions intensity trajectory vs Paris-aligned pathway.</step>
+  <step n="7d" name="M&amp;A &amp; Activist Probability">Run fetch_private_comps.py if not already executed. Review acquisition target score (10 characteristics: below-peer valuation, strategic assets, buyable size, clean balance sheet, stable FCF, consolidating industry, no poison pill, low insider ownership, activist 13D presence, conglomerate discount). Review activist probability score. If either >60/100, flag as material catalyst or risk.</step>
+  <step n="8" name="Thesis Falsifiability">Pre-mortem, falsification conditions, dissenting view search, inversion checklist, kill switch. Apply Klarman's permanent-vs-temporary impairment framework: distinguish price decline from temporary factors (market panic, earnings miss) vs permanent value destruction (competitive displacement, regulatory kill). Every "Buy" must have a hard catalyst with timeline (Klarman requirement).</step>
 </process>
 
 <reference-files>
   - references/frameworks_risk_alt.md (Marks's risk framework, forensic red flags)
+  - references/frameworks_narrative_structure.md (Klarman Margin of Safety, M&A probability, activist investor scoring)
   - references/institutional_odd.md (Operational Due Diligence checklists)
 </reference-files>
 
@@ -45,6 +48,10 @@ timeout_mins: 15
   - Beneish M-Score, Altman Z-Score, and 5+ forensic checks completed
   - At least 3 scenario assumptions explicitly stated with derived price targets
   - Kill switch defined with specific, observable trigger conditions
+  - ESG materiality assessment completed with carbon pricing scenario (for carbon-intensive sectors)
+  - M&A/activist probability scored (flag if >60/100)
+  - Every "Buy" recommendation has at least one hard catalyst with specific timeline
+  - Permanent vs temporary impairment distinction stated for all identified risks
 </validation-gates>
 
 <output>Write stage summary to `./reports/[TICKER]/stage8.md`</output>

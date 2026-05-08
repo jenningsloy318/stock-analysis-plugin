@@ -20,6 +20,8 @@ Indicators computed:
   - Volume: OBV, Volume SMA, Volume Ratio
   - Support/Resistance: pivot points, rolling highs/lows
   - Composite: trend strength score, setup quality score
+  - Weinstein Stage: 30-week MA-based structure classification (1-4)
+  - CANSLIM Technicals: RS rank, supply/demand, market direction factors
 
 Output: JSON to stdout or --output file.
 """
@@ -29,7 +31,6 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Any
 
 try:
     import yfinance as yf
@@ -47,6 +48,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Indicator computation functions
 # ---------------------------------------------------------------------------
+
 
 def sma(values: list[float], window: int) -> list[float | None]:
     """Simple Moving Average."""
@@ -151,11 +153,18 @@ def bb(typicals: list[float], window: int = 20, num_std: float = 2.0) -> dict:
             bandwidth[i] = (upper[i] - lower[i]) / middle[i]
             pct_b[i] = (typicals[i] - lower[i]) / (upper[i] - lower[i])
 
-    return {"middle": middle, "upper": upper, "lower": lower,
-            "bandwidth": bandwidth, "pct_b": pct_b}
+    return {
+        "middle": middle,
+        "upper": upper,
+        "lower": lower,
+        "bandwidth": bandwidth,
+        "pct_b": pct_b,
+    }
 
 
-def atr(highs: list[float], lows: list[float], closes: list[float], window: int = 14) -> list[float | None]:
+def atr(
+    highs: list[float], lows: list[float], closes: list[float], window: int = 14
+) -> list[float | None]:
     """Average True Range."""
     if len(closes) < 2:
         return [None] * len(closes)
@@ -170,7 +179,7 @@ def atr(highs: list[float], lows: list[float], closes: list[float], window: int 
     # Wilder's smoothed ATR
     atr_vals = [None] * window
     if len(true_ranges) > window:
-        atr_vals.append(sum(true_ranges[1:window + 1]) / window)
+        atr_vals.append(sum(true_ranges[1 : window + 1]) / window)
         for i in range(window + 1, len(true_ranges)):
             atr_vals.append((atr_vals[i - 1] * (window - 1) + true_ranges[i]) / window)
 
@@ -193,8 +202,13 @@ def obv(closes: list[float], volumes: list[float]) -> list[float | None]:
     return obv_vals
 
 
-def stochastic(highs: list[float], lows: list[float], closes: list[float],
-               k_window: int = 14, d_window: int = 3) -> dict:
+def stochastic(
+    highs: list[float],
+    lows: list[float],
+    closes: list[float],
+    k_window: int = 14,
+    d_window: int = 3,
+) -> dict:
     """Stochastic Oscillator (%K, %D)."""
     k_vals = [None] * len(closes)
     for i in range(k_window - 1, len(closes)):
@@ -211,7 +225,9 @@ def stochastic(highs: list[float], lows: list[float], closes: list[float],
     return {"k_line": k_vals, "d_line": d_vals}
 
 
-def find_support_resistance(highs: list[float], lows: list[float], closes: list[float]) -> dict:
+def find_support_resistance(
+    highs: list[float], lows: list[float], closes: list[float]
+) -> dict:
     """Find support and resistance levels using pivot points and recent highs/lows."""
     if len(closes) < 20:
         return {}
@@ -248,7 +264,9 @@ def find_support_resistance(highs: list[float], lows: list[float], closes: list[
     }
 
 
-def adx(highs: list[float], lows: list[float], closes: list[float], window: int = 14) -> list[float | None]:
+def adx(
+    highs: list[float], lows: list[float], closes: list[float], window: int = 14
+) -> list[float | None]:
     """Average Directional Index (ADX)."""
     if len(closes) < window + 1:
         return [None] * len(closes)
@@ -270,23 +288,35 @@ def adx(highs: list[float], lows: list[float], closes: list[float], window: int 
 
     # Wilder's smoothing
     atr_vals = [None] * window
-    atr_vals.append(sum(tr[1:window + 1]) / window)
+    atr_vals.append(sum(tr[1 : window + 1]) / window)
     for i in range(window + 1, len(tr)):
         atr_vals.append((atr_vals[i - 1] * (window - 1) + tr[i]) / window)
 
     smoothed_plus_dm = [None] * window
     smoothed_minus_dm = [None] * window
-    smoothed_plus_dm.append(sum(plus_dm[1:window + 1]) / window)
-    smoothed_minus_dm.append(sum(minus_dm[1:window + 1]) / window)
+    smoothed_plus_dm.append(sum(plus_dm[1 : window + 1]) / window)
+    smoothed_minus_dm.append(sum(minus_dm[1 : window + 1]) / window)
     for i in range(window + 1, len(tr)):
-        smoothed_plus_dm.append((smoothed_plus_dm[i - 1] * (window - 1) + plus_dm[i]) / window)
-        smoothed_minus_dm.append((smoothed_minus_dm[i - 1] * (window - 1) + minus_dm[i]) / window)
+        smoothed_plus_dm.append(
+            (smoothed_plus_dm[i - 1] * (window - 1) + plus_dm[i]) / window
+        )
+        smoothed_minus_dm.append(
+            (smoothed_minus_dm[i - 1] * (window - 1) + minus_dm[i]) / window
+        )
 
     adx_vals = [None] * (window * 2)
     for i in range(window, len(closes)):
         if atr_vals[i] and atr_vals[i] != 0:
-            pdi = (smoothed_plus_dm[i] / atr_vals[i]) * 100 if smoothed_plus_dm[i] is not None else 0
-            mdi = (smoothed_minus_dm[i] / atr_vals[i]) * 100 if smoothed_minus_dm[i] is not None else 0
+            pdi = (
+                (smoothed_plus_dm[i] / atr_vals[i]) * 100
+                if smoothed_plus_dm[i] is not None
+                else 0
+            )
+            mdi = (
+                (smoothed_minus_dm[i] / atr_vals[i]) * 100
+                if smoothed_minus_dm[i] is not None
+                else 0
+            )
             if pdi + mdi > 0:
                 dx = abs(pdi - mdi) / (pdi + mdi) * 100
             else:
@@ -302,7 +332,7 @@ def adx(highs: list[float], lows: list[float], closes: list[float], window: int 
         for i in range(valid_start + window - 1, len(closes)):
             if i >= valid_start and adx_vals[i] is not None:
                 start_idx = i - window + 1
-                window_dx = [v for v in adx_vals[start_idx:i + 1] if v is not None]
+                window_dx = [v for v in adx_vals[start_idx : i + 1] if v is not None]
                 if window_dx:
                     adx_smoothed[i] = sum(window_dx) / len(window_dx)
 
@@ -313,8 +343,13 @@ def adx(highs: list[float], lows: list[float], closes: list[float], window: int 
 # Composite scores
 # ---------------------------------------------------------------------------
 
-def trend_strength_score(closes: list[float], sma_20: list[float | None],
-                          sma_50: list[float | None], sma_200: list[float | None]) -> dict:
+
+def trend_strength_score(
+    closes: list[float],
+    sma_20: list[float | None],
+    sma_50: list[float | None],
+    sma_200: list[float | None],
+) -> dict:
     """Score trend strength 0-10.
 
     Higher = stronger bullish trend alignment.
@@ -346,7 +381,11 @@ def trend_strength_score(closes: list[float], sma_20: list[float | None],
     # Slope of 20 SMA
     recent_sma20 = [v for v in sma_20[-10:] if v is not None]
     if len(recent_sma20) >= 2:
-        slope = (recent_sma20[-1] - recent_sma20[0]) / recent_sma20[0] if recent_sma20[0] != 0 else 0
+        slope = (
+            (recent_sma20[-1] - recent_sma20[0]) / recent_sma20[0]
+            if recent_sma20[0] != 0
+            else 0
+        )
         if slope > 0.01:
             score += 0.5
         elif slope < -0.01:
@@ -367,8 +406,12 @@ def trend_strength_score(closes: list[float], sma_20: list[float | None],
     return {"score": round(score, 1), "assessment": assessment, "reasons": reasons}
 
 
-def momentum_score(rsi_val: float | None, macd_hist: float | None, sto_k: float | None,
-                   roc_val: float | None) -> dict:
+def momentum_score(
+    rsi_val: float | None,
+    macd_hist: float | None,
+    sto_k: float | None,
+    roc_val: float | None,
+) -> dict:
     """Score momentum 0-10."""
     if rsi_val is None and macd_hist is None:
         return {"score": None, "assessment": "insufficient_data"}
@@ -424,11 +467,174 @@ def momentum_score(rsi_val: float | None, macd_hist: float | None, sto_k: float 
 
 
 # ---------------------------------------------------------------------------
+# Weinstein Stage Classification
+# ---------------------------------------------------------------------------
+
+
+def weinstein_stage(weekly_closes: list[float], weekly_volumes: list[float]) -> dict:
+    """Classify price structure into Weinstein's 4 stages using 30-week MA.
+
+    Stage 1: Basing (30WMA flat, price oscillating around it)
+    Stage 2: Advancing (30WMA rising, price above)
+    Stage 3: Topping (30WMA flattening after rise, price oscillating)
+    Stage 4: Declining (30WMA falling, price below)
+    """
+    if len(weekly_closes) < 35:
+        return {"stage": None, "evidence": "Insufficient weekly data (need 35+ weeks)"}
+
+    wma_30 = sma(weekly_closes, 30)
+
+    current_price = weekly_closes[-1]
+    current_wma = wma_30[-1]
+    prev_wma_4w = wma_30[-5] if len(wma_30) > 5 else None
+    prev_wma_8w = wma_30[-9] if len(wma_30) > 9 else None
+
+    if current_wma is None or prev_wma_4w is None:
+        return {"stage": None, "evidence": "30-week MA not yet computed"}
+
+    # MA slope (annualized rate of change)
+    wma_slope_4w = (current_wma - prev_wma_4w) / prev_wma_4w if prev_wma_4w else 0
+    wma_slope_8w = (current_wma - prev_wma_8w) / prev_wma_8w if prev_wma_8w else 0
+
+    price_vs_wma = (current_price - current_wma) / current_wma
+
+    # Volume pattern: compare recent 4-week avg to prior 4-week avg
+    if len(weekly_volumes) >= 8:
+        recent_vol = sum(weekly_volumes[-4:]) / 4
+        prior_vol = sum(weekly_volumes[-8:-4]) / 4
+        vol_expansion = recent_vol / prior_vol if prior_vol > 0 else 1.0
+    else:
+        vol_expansion = 1.0
+
+    # 52-week high/low relative position
+    if len(weekly_closes) >= 52:
+        high_52w = max(weekly_closes[-52:])
+        low_52w = min(weekly_closes[-52:])
+        range_52w = high_52w - low_52w
+        position_in_range = (
+            (current_price - low_52w) / range_52w if range_52w > 0 else 0.5
+        )
+    else:
+        position_in_range = 0.5
+
+    # Stage classification logic
+    evidence = []
+
+    if wma_slope_4w > 0.02 and price_vs_wma > 0.02:
+        stage = 2
+        evidence.append(f"30WMA rising ({wma_slope_4w:.1%}/4wk)")
+        evidence.append(f"Price {price_vs_wma:.1%} above 30WMA")
+        if vol_expansion > 1.2:
+            evidence.append("Volume expanding on advance (bullish)")
+    elif wma_slope_4w < -0.02 and price_vs_wma < -0.02:
+        stage = 4
+        evidence.append(f"30WMA falling ({wma_slope_4w:.1%}/4wk)")
+        evidence.append(f"Price {price_vs_wma:.1%} below 30WMA")
+    elif abs(wma_slope_4w) <= 0.02 and position_in_range > 0.6:
+        stage = 3
+        evidence.append(f"30WMA flattening after advance ({wma_slope_4w:.1%}/4wk)")
+        evidence.append(
+            f"Price near top of range ({position_in_range:.0%} of 52wk range)"
+        )
+    elif abs(wma_slope_4w) <= 0.02 and position_in_range < 0.4:
+        stage = 1
+        evidence.append(f"30WMA flat ({wma_slope_4w:.1%}/4wk)")
+        evidence.append(
+            f"Price near bottom of range ({position_in_range:.0%} of 52wk range)"
+        )
+    elif wma_slope_4w > 0:
+        stage = 2
+        evidence.append(f"30WMA mildly rising ({wma_slope_4w:.1%}/4wk)")
+    else:
+        stage = 4 if price_vs_wma < -0.03 else 1
+        evidence.append(
+            f"Ambiguous — price {price_vs_wma:.1%} vs 30WMA, slope {wma_slope_4w:.1%}"
+        )
+
+    stage_names = {
+        1: "Basing/Accumulation",
+        2: "Advancing",
+        3: "Topping/Distribution",
+        4: "Declining",
+    }
+
+    return {
+        "methodology": "Weinstein 4-Stage Classification using 30-week MA direction, price position, and volume",
+        "stage": stage,
+        "stage_name": stage_names[stage],
+        "action": {
+            1: "WATCH — do not buy yet",
+            2: "BUY zone",
+            3: "SELL — take profits",
+            4: "AVOID — never buy",
+        }[stage],
+        "thirty_week_ma": round(current_wma, 2),
+        "price_vs_30wma_pct": round(price_vs_wma * 100, 1),
+        "wma_slope_4wk": round(wma_slope_4w * 100, 2),
+        "volume_expansion": round(vol_expansion, 2),
+        "position_in_52wk_range": round(position_in_range * 100, 1),
+        "evidence": evidence,
+    }
+
+
+def compute_relative_strength(
+    ticker_closes: list[float],
+    market_closes: list[float],
+    periods: list[int] | None = None,
+) -> dict:
+    """Compute relative strength vs market (SPY) over multiple periods."""
+    if periods is None:
+        periods = [63, 126, 252]  # ~3mo, 6mo, 12mo in trading days
+
+    rs_scores = {}
+    for period in periods:
+        if len(ticker_closes) > period and len(market_closes) > period:
+            ticker_return = (ticker_closes[-1] / ticker_closes[-period - 1]) - 1
+            market_return = (market_closes[-1] / market_closes[-period - 1]) - 1
+            rs = ticker_return - market_return
+            rs_scores[f"{period}d"] = round(rs * 100, 1)
+        else:
+            rs_scores[f"{period}d"] = None
+
+    # Composite RS (weighted: 40% 6mo, 40% 12mo, 20% 3mo)
+    rs_3m = rs_scores.get("63d")
+    rs_6m = rs_scores.get("126d")
+    rs_12m = rs_scores.get("252d")
+
+    composite = None
+    if all(v is not None for v in [rs_3m, rs_6m, rs_12m]):
+        composite = round(rs_3m * 0.2 + rs_6m * 0.4 + rs_12m * 0.4, 1)
+
+    return {
+        "methodology": "Relative strength vs SPY (stock return minus market return)",
+        "periods": rs_scores,
+        "composite_rs": composite,
+        "rs_rank_estimate": "Top 20% (Leader)"
+        if composite and composite > 15
+        else "Top 40%"
+        if composite and composite > 5
+        else "Middle"
+        if composite and composite > -5
+        else "Bottom 40%"
+        if composite and composite > -15
+        else "Bottom 20% (Laggard)"
+        if composite is not None
+        else None,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
-def compute_all(closes: list[float], highs: list[float], lows: list[float],
-                opens: list[float], volumes: list[float]) -> dict:
+
+def compute_all(
+    closes: list[float],
+    highs: list[float],
+    lows: list[float],
+    opens: list[float],
+    volumes: list[float],
+) -> dict:
     """Compute all technical indicators and composite scores."""
 
     typicals = [(h + l + c) / 3 for h, l, c in zip(highs, lows, closes)]
@@ -466,26 +672,58 @@ def compute_all(closes: list[float], highs: list[float], lows: list[float],
         "close": round(closes[-1], 2) if closes else None,
         "sma_20": round(sma_20[-1], 2) if sma_20 and sma_20[-1] is not None else None,
         "sma_50": round(sma_50[-1], 2) if sma_50 and sma_50[-1] is not None else None,
-        "sma_200": round(sma_200[-1], 2) if sma_200 and sma_200[-1] is not None else None,
+        "sma_200": round(sma_200[-1], 2)
+        if sma_200 and sma_200[-1] is not None
+        else None,
         "ema_12": round(ema_12[-1], 2) if ema_12 and ema_12[-1] is not None else None,
         "ema_26": round(ema_26[-1], 2) if ema_26 and ema_26[-1] is not None else None,
-        "rsi_14": round(rsi_vals[-1], 1) if rsi_vals and rsi_vals[-1] is not None else None,
-        "macd_line": round(macd_data["macd_line"][-1], 4) if macd_data["macd_line"][-1] is not None else None,
-        "macd_signal": round(macd_data["signal_line"][-1], 4) if macd_data["signal_line"][-1] is not None else None,
-        "macd_histogram": round(macd_data["histogram"][-1], 4) if macd_data["histogram"][-1] is not None else None,
-        "bb_upper": round(bb_data["upper"][-1], 2) if bb_data["upper"][-1] is not None else None,
-        "bb_middle": round(bb_data["middle"][-1], 2) if bb_data["middle"][-1] is not None else None,
-        "bb_lower": round(bb_data["lower"][-1], 2) if bb_data["lower"][-1] is not None else None,
-        "bb_pct_b": round(bb_data["pct_b"][-1], 3) if bb_data["pct_b"][-1] is not None else None,
-        "atr_14": round(atr_vals[-1], 2) if atr_vals and atr_vals[-1] is not None else None,
-        "stoch_k": round(sto_data["k_line"][-1], 1) if sto_data["k_line"][-1] is not None else None,
-        "stoch_d": round(sto_data["d_line"][-1], 1) if sto_data["d_line"][-1] is not None else None,
-        "adx": round(adx_vals[-1], 1) if adx_vals and adx_vals[-1] is not None else None,
+        "rsi_14": round(rsi_vals[-1], 1)
+        if rsi_vals and rsi_vals[-1] is not None
+        else None,
+        "macd_line": round(macd_data["macd_line"][-1], 4)
+        if macd_data["macd_line"][-1] is not None
+        else None,
+        "macd_signal": round(macd_data["signal_line"][-1], 4)
+        if macd_data["signal_line"][-1] is not None
+        else None,
+        "macd_histogram": round(macd_data["histogram"][-1], 4)
+        if macd_data["histogram"][-1] is not None
+        else None,
+        "bb_upper": round(bb_data["upper"][-1], 2)
+        if bb_data["upper"][-1] is not None
+        else None,
+        "bb_middle": round(bb_data["middle"][-1], 2)
+        if bb_data["middle"][-1] is not None
+        else None,
+        "bb_lower": round(bb_data["lower"][-1], 2)
+        if bb_data["lower"][-1] is not None
+        else None,
+        "bb_pct_b": round(bb_data["pct_b"][-1], 3)
+        if bb_data["pct_b"][-1] is not None
+        else None,
+        "atr_14": round(atr_vals[-1], 2)
+        if atr_vals and atr_vals[-1] is not None
+        else None,
+        "stoch_k": round(sto_data["k_line"][-1], 1)
+        if sto_data["k_line"][-1] is not None
+        else None,
+        "stoch_d": round(sto_data["d_line"][-1], 1)
+        if sto_data["d_line"][-1] is not None
+        else None,
+        "adx": round(adx_vals[-1], 1)
+        if adx_vals and adx_vals[-1] is not None
+        else None,
         "roc_20d": round(roc[-1], 2) if roc[-1] is not None else None,
         "volume_latest": volumes[-1] if volumes else None,
-        "volume_sma_20": round(vol_sma_20[-1], 0) if vol_sma_20 and vol_sma_20[-1] is not None else None,
+        "volume_sma_20": round(vol_sma_20[-1], 0)
+        if vol_sma_20 and vol_sma_20[-1] is not None
+        else None,
         "volume_ratio": round(vol_ratio, 2) if vol_ratio is not None else None,
-        "obv_trend": "rising" if obv_vals and len(obv_vals) > 5 and obv_vals[-1] > obv_vals[-5] else "falling" if obv_vals and len(obv_vals) > 5 else None,
+        "obv_trend": "rising"
+        if obv_vals and len(obv_vals) > 5 and obv_vals[-1] > obv_vals[-5]
+        else "falling"
+        if obv_vals and len(obv_vals) > 5
+        else None,
     }
 
     # Composite scores
@@ -520,7 +758,9 @@ def compute_all(closes: list[float], highs: list[float], lows: list[float],
         "volume": {
             "assessment": vol_assessment,
             "latest_volume": volumes[-1] if volumes else None,
-            "avg_volume_20d": round(vol_sma_20[-1], 0) if vol_sma_20 and vol_sma_20[-1] is not None else None,
+            "avg_volume_20d": round(vol_sma_20[-1], 0)
+            if vol_sma_20 and vol_sma_20[-1] is not None
+            else None,
             "volume_ratio": vol_ratio,
             "obv_direction": latest.get("obv_trend"),
         },
@@ -548,14 +788,18 @@ def fetch_alpha_vantage(ticker: str, api_key: str) -> dict | None:
 
     for name, func in functions.items():
         try:
-            resp = requests.get("https://www.alphavantage.co/query", params={
-                "function": func,
-                "symbol": ticker,
-                "interval": "daily",
-                "time_period": 14 if name == "RSI" else 20,
-                "series_type": "close",
-                "apikey": api_key,
-            }, timeout=15)
+            resp = requests.get(
+                "https://www.alphavantage.co/query",
+                params={
+                    "function": func,
+                    "symbol": ticker,
+                    "interval": "daily",
+                    "time_period": 14 if name == "RSI" else 20,
+                    "series_type": "close",
+                    "apikey": api_key,
+                },
+                timeout=15,
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 if "Technical Analysis: " + name in data:
@@ -571,7 +815,9 @@ def main():
         description="Compute technical indicators for stock tickers"
     )
     parser.add_argument("tickers", nargs="+", help="Ticker symbols (e.g., AAPL MSFT)")
-    parser.add_argument("--period", default="1y", help="Price history period (default: 1y)")
+    parser.add_argument(
+        "--period", default="1y", help="Price history period (default: 1y)"
+    )
     parser.add_argument("--interval", default="1d", help="Price interval (default: 1d)")
     parser.add_argument("--output", help="Output file path (default: stdout)")
     parser.add_argument(
@@ -600,7 +846,9 @@ def main():
             dates = hist.index.tolist()
 
             tech_data = compute_all(closes, highs, lows, opens, volumes)
-            tech_data["latest"]["date"] = str(dates[-1].date()) if len(dates) > 0 else None
+            tech_data["latest"]["date"] = (
+                str(dates[-1].date()) if len(dates) > 0 else None
+            )
             tech_data["ticker"] = ticker
             tech_data["source"] = "yfinance_local"
             tech_data["retrieved_at"] = datetime.now(timezone.utc).isoformat()
@@ -614,6 +862,39 @@ def main():
                 av = fetch_alpha_vantage(ticker, api_key)
                 if av:
                     tech_data["alpha_vantage_fallback"] = av
+
+            # Weinstein Stage (requires weekly data — fetch separately)
+            try:
+                weekly_hist = stock.history(period="2y", interval="1wk")
+                if not weekly_hist.empty and len(weekly_hist) >= 35:
+                    weekly_closes = weekly_hist["Close"].tolist()
+                    weekly_volumes = weekly_hist["Volume"].tolist()
+                    tech_data["weinstein_stage"] = weinstein_stage(
+                        weekly_closes, weekly_volumes
+                    )
+                else:
+                    tech_data["weinstein_stage"] = {
+                        "stage": None,
+                        "evidence": "Insufficient weekly data",
+                    }
+            except Exception as e:
+                tech_data["weinstein_stage"] = {"stage": None, "error": str(e)}
+
+            # Relative Strength vs SPY
+            try:
+                spy_hist = yf.Ticker("SPY").history(period="2y", interval="1d")
+                if not spy_hist.empty:
+                    spy_closes = spy_hist["Close"].tolist()
+                    tech_data["relative_strength"] = compute_relative_strength(
+                        closes, spy_closes
+                    )
+                else:
+                    tech_data["relative_strength"] = {
+                        "composite_rs": None,
+                        "error": "SPY data unavailable",
+                    }
+            except Exception as e:
+                tech_data["relative_strength"] = {"composite_rs": None, "error": str(e)}
 
             results[ticker] = tech_data
 

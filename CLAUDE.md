@@ -100,6 +100,8 @@
 | `fetch_economic_surprises.py` | Economic surprise indices (CESI proxies, FRED nowcasts, actual vs consensus) | 4 |
 | `fetch_peer_universe.py` | Automated peer identification via GICS + ETF holdings + description match | 6 |
 | `fetch_news_nlp.py` | News sentiment, narrative theme tracking, coverage spike detection | 6,9 |
+| `fetch_capital_structure.py` | Buyback ROI, SBC dilution, capital return yield, debt maturity, optimal leverage | 1,2 |
+| `fetch_private_comps.py` | M&A target probability, LBO floor, activist probability, precedent transactions | 6,8 |
 | `calculate_metrics.py` | Ratios, DCF, RIM, DDM, Piotroski F-Score, Beneish, Altman Z, peer comparison, Monte Carlo | 6 |
 | `calculate_candor.py` | Management candor NLP (hedging, certainty, Q&A delta) | 9 |
 | `calculate_options.py` | Options signals: IV surface, max pain, put/call ratios, unusual activity | 6 |

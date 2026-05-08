@@ -9,7 +9,7 @@ max_turns: 30
 timeout_mins: 15
 ---
 
-<purpose>Perform comprehensive valuation, quantitative analysis, and market regime classification covering: multi-method valuation (DCF with sensitivity tables, trading comps, SOTP, DDM), relative value metrics, technical/momentum signals (trend, RSI, MACD, volume), sentiment data (put/call ratio, VIX, short interest, options flow), institutional/insider flow patterns, and market regime positioning (risk-off indicators, liquidity conditions, speculative positioning, short squeeze metrics, fund flows).</purpose>
+<purpose>Perform comprehensive valuation, quantitative analysis, and market regime classification covering: multi-method valuation (DCF with sensitivity tables, trading comps, SOTP, DDM, private market comps, LBO affordability floor), relative value metrics, Weinstein stage classification, CANSLIM scoring, technical/momentum signals (trend, RSI, MACD, volume), sentiment data (put/call ratio, VIX, short interest, options flow), institutional/insider flow patterns, and market regime positioning (risk-off indicators, liquidity conditions, speculative positioning, short squeeze metrics, fund flows).</purpose>
 
 <stages>Handles Stage 6 (Valuation & Quantitative Signals) and Stage 7 (Market Regime & Positioning)</stages>
 
@@ -17,8 +17,11 @@ timeout_mins: 15
   <step n="1" name="DCF Valuation">5-10yr FCF projections, WACC, terminal value, sensitivity table, reverse DCF</step>
   <step n="2" name="Trading Comps">Peer universe, EV/EBITDA, P/E, P/FCF, PEG multiples</step>
   <step n="3" name="SOTP">Independent segment valuation, conglomerate discount (if multi-segment)</step>
+  <step n="3b" name="Private Market Comps">Run fetch_private_comps.py. LBO affordability floor (max PE buyout price at 20% IRR), precedent transaction premiums in sector, strategic vs financial buyer price range. If LBO floor > current price, this is a valuation support signal.</step>
   <step n="4" name="Relative Value">P/E vs history/peers, EV/EBITDA with growth justification, P/FCF vs risk-free rate</step>
   <step n="5" name="Technical Analysis">Trend (MAs, higher highs/lows), momentum (RSI, MACD), volume (OBV), support/resistance</step>
+  <step n="5b" name="Weinstein Stage Classification">Classify price structure: Stage 1 (Basing), Stage 2 (Advancing), Stage 3 (Topping), Stage 4 (Declining). Use 30-week MA direction, volume patterns, relative strength. Only buy in Stage 2; never buy in Stage 4.</step>
+  <step n="5c" name="CANSLIM Score">Score on 7 dimensions: C (current EPS growth >25%), A (annual growth 5yr), N (new catalyst/high), S (supply/demand float analysis), L (leader RS rank top 20%), I (institutional sponsorship trend), M (market direction). Composite pass/fail.</step>
   <step n="6" name="Sentiment">Put/call ratio, VIX term structure, short interest, options flow, dark pool prints</step>
   <step n="7" name="Institutional Flow">13F analysis, activist 13D, Form 4 clusters, ownership concentration</step>
   <step n="8" name="Risk-Off Indicators">VIX level + term structure, credit spreads (IG/HY/TED), gold/USD/Treasury flows, Fear & Greed Index</step>
@@ -32,6 +35,7 @@ timeout_mins: 15
 <reference-files>
   - references/frameworks_macro_quant.md (Greenblatt's Magic Formula, Druckenmiller's sizing)
   - references/frameworks_risk_alt.md (Burry's SEC deep-dive)
+  - references/frameworks_narrative_structure.md (Weinstein Stage Analysis, CANSLIM, Private Market Comps, LBO modeling)
 </reference-files>
 
 <data-acquisition>
@@ -40,6 +44,7 @@ timeout_mins: 15
   Run `scripts/fetch_sentiment.py [TICKER] --sources analyst` for analyst consensus.
   Run `scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
   Run `scripts/calculate_metrics.py ./reports/[TICKER]/raw-data.json` for computed valuations.
+  Run `scripts/fetch_private_comps.py [TICKER] --output ./reports/[TICKER]/private_comps.json` for M&A/LBO analysis.
 
   For supplementary valuation/sentiment data, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[TICKER] analyst price target [year]", "[TICKER] short interest data"
@@ -67,6 +72,9 @@ timeout_mins: 15
   - At least 2 independent valuation methods applied
   - DCF sensitivity table produced (WACC vs terminal growth)
   - Reverse DCF implied growth rate computed
+  - Private market comp / LBO floor computed (if market cap < $100B)
+  - Weinstein stage classified with supporting evidence (30-week MA direction, volume, RS)
+  - CANSLIM composite scored (7 dimensions)
   - Market regime classification derived with at least 4 of 8 sub-items having current data
   - VIX and credit spread data within 7 days freshness
 </validation-gates>

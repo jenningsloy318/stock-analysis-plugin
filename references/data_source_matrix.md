@@ -25,6 +25,9 @@ Use this matrix before running stock-analysis or industry-screening. The goal is
 | Industry structure | GICS/NAICS mapping, BEA industry data, reputable industry report | 90 days for market data; 12 months for structural reports | Require both top-down and bottom-up TAM sanity checks |
 | Company screening universe | GICS/ETF holdings/exchange lists plus web verification | 90 days | Missing companies must be reported as universe risk |
 | Alternative data | At least 3 independent directional signals | 30 days for social/search/app; 12 months for patents | Mark as directional and non-representative |
+| Capital structure & returns | yfinance shares/buyback data, SEC filings (10-K cash flow statement), proxy | Latest filing for buyback data; 90 days for share count | Required for capital allocation scoring and SBC dilution flag |
+| Private market / M&A | yfinance fundamentals, web search for precedent transactions, 13D filings | 90 days for fundamentals; 12 months for M&A comps | LBO floor is computed deterministically; precedent transactions need web search |
+| Technical structure (Weinstein) | yfinance weekly OHLCV (2yr), SPY benchmark | Same day for short-term; 7 days otherwise | Required for Stage 6 Weinstein classification and CANSLIM L-factor |
 
 ## Freshness SLA
 

@@ -9,7 +9,7 @@ max_turns: 30
 timeout_mins: 15
 ---
 
-<purpose>Perform deep fundamental analysis covering financial health (revenue, margins, FCF, leverage, ROIC), business model quality, competitive moat assessment (Morningstar framework), forensic accounting checks (Beneish M-Score, Altman Z-Score), executive profiles, capital allocation track record, and insider ownership patterns.</purpose>
+<purpose>Perform deep fundamental analysis covering financial health (revenue, margins, FCF, leverage, ROIC), business model quality, competitive moat assessment (Morningstar framework), forensic accounting checks (Beneish M-Score, Altman Z-Score), executive profiles, capital allocation track record, insider ownership patterns, capital structure optimization, shareholder return effectiveness, and Damodaran narrative-to-numbers translation.</purpose>
 
 <stages>Handles Stage 1 (Company Fundamentals) and Stage 2 (Executive & Board Profiles)</stages>
 
@@ -23,14 +23,19 @@ timeout_mins: 15
   <step n="7" name="Leadership Assessment">CEO/CFO background, board composition, departures, succession planning</step>
   <step n="8" name="Capital Allocation">ROIC vs WACC spread, M&A track record, buyback discipline</step>
   <step n="9" name="Insider Activity">Form 4 analysis, cluster detection, 10b5-1 modifications</step>
+  <step n="10" name="Capital Structure &amp; Shareholder Returns">Run fetch_capital_structure.py. Analyze: buyback ROI (value created/destroyed per dollar), SBC dilution rate (flag if SBC >5% revenue), total capital return yield (dividends + net buybacks / market cap), debt maturity wall risk, optimal leverage assessment vs sector peers</step>
+  <step n="11" name="Narrative Translation">Apply Damodaran's Narrative+Numbers: articulate the company's 3-sentence future narrative, map each sentence to a financial variable (growth rate, margin, reinvestment, risk), assess narrative plausibility, compare management's stated narrative to actual capital allocation. Flag narrative-action inconsistencies.</step>
 </process>
 
 <reference-files>
   - references/frameworks_value_growth.md (Buffett/Munger/Fisher/Lynch frameworks)
+  - references/frameworks_narrative_structure.md (Damodaran Narrative+Numbers, Klarman Margin of Safety, Capital Structure frameworks)
   - references/sector_metrics.md (sector-specific KPIs)
 </reference-files>
 
 <data-acquisition>
+  Run `scripts/fetch_capital_structure.py [TICKER] --output ./reports/[TICKER]/capital_structure.json` for shareholder return analysis.
+
   For SEC filings and fundamental data, use search tools:
   1. `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` — "[TICKER] 10-K 10-Q DEF 14A [year]"
   2. `mcp__firecrawl__firecrawl_scrape` — Scrape SEC EDGAR filing pages for financial statements
@@ -39,12 +44,19 @@ timeout_mins: 15
   5. `mcp__xcrawl-mcp__xcrawl_search` — "[TICKER] insider transactions Form 4 [year]"
   6. `mcp__web-search-prime__web_search_prime` — "[TICKER] management capital allocation track record"
   7. `mcp__exa__web_search_exa` — "executive analysis [CEO_NAME] [COMPANY] leadership track record"
+
+  For capital structure and governance data:
+  8. `mcp__firecrawl__firecrawl_search` — "[TICKER] ISS Glass Lewis proxy advisory recommendation [year]"
+  9. `mcp__tavily-remote-mcp__tavily_search` — "[TICKER] executive compensation proxy DEF 14A [year]"
+  10. `mcp__xcrawl-mcp__xcrawl_search` — "[TICKER] share buyback authorization secondary offering [year]"
 </data-acquisition>
 
 <validation-gates>
   - At least 3 years of revenue, operating income, FCF, total debt from Tier 1 source
   - Beneish M-Score and Altman Z-Score computed
   - At least one Form 4 filing from last 90 days reviewed
+  - Capital structure analysis completed (buyback ROI, SBC dilution, total return yield)
+  - Narrative-to-numbers mapping articulated (3 sentences → model variables)
 </validation-gates>
 
 <output>Write stage summaries to `./reports/[TICKER]/stage1.md` and `./reports/[TICKER]/stage2.md`</output>

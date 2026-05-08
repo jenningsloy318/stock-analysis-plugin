@@ -124,18 +124,25 @@ When frameworks produce contradictory conclusions:
 [Embed Mermaid charts (e.g., Revenue vs FCF trend) here if provided by the metrics data]
 [Include Economic Value Added (EVA) calculation and ROIC vs WACC spread to assess moat expansion/destruction]
 [Multiple methods: DCF (base case), Trading Comps, SOTP if applicable. Sensitivity table: WACC vs terminal growth. Reverse DCF implied growth. Margin of safety calculation.]
+[Private market comp / LBO floor (if market cap < $100B): maximum PE buyout price at 20% IRR. Precedent transaction premiums in sector.]
 
-## 4. Long-term Growth Runway
-[TAM/SAM/SOM analysis. Secular trends. Industry life cycle position. Multi-year compounding potential.]
+## 4. Capital Structure & Shareholder Returns
+[Buyback ROI: avg buyback price vs current price (value created/destroyed per dollar). SBC dilution rate (net share count trajectory). Total capital return yield: (Dividends + Net Buybacks) / Market Cap. Debt maturity assessment. Optimal leverage vs sector peers.]
 
-## 5. Key Long-term Risks
-[Top 3-5 risks to permanent capital loss. Mitigants for each.]
+## 5. Narrative & Growth Runway
+[Damodaran Narrative+Numbers: 3-sentence company future narrative. Each sentence → model variable mapping (growth, margin, reinvestment, risk). Narrative plausibility score. TAM/SAM/SOM. Secular trends. Industry life cycle. Multi-year compounding potential.]
 
-## 6. Recommendation
+## 6. Key Long-term Risks
+[Top 3-5 risks to permanent capital loss (Klarman: permanent vs temporary impairment distinction). Mitigants for each. ESG/carbon pricing risk for carbon-intensive sectors. M&A/activist probability flag (if score >60/100).]
+
+## 7. Recommendation
 - **Rating**: [Buy/Hold/Avoid]
-- **Target Price**: $X (X% upside)
+- **Target Price**: $X (X% upside) | Confidence interval: 60% probability $X-$Y
 - **Margin of Safety**: X%
+- **LBO Floor**: $X (PE takeout support, if applicable)
+- **Hard Catalyst**: [specific, time-bound event — Klarman requirement]
 - **Entry Criteria**: [price level or condition]
+- **Weinstein Stage**: [1/2/3/4] — Only buy in Stage 2
 - **Position Size**: X% of portfolio (Druckenmiller & Quarter-Kelly adjusted)
 - **Monitoring Triggers**: [what to watch]
 
@@ -148,7 +155,7 @@ When frameworks produce contradictory conclusions:
 
 ### Mid-term Report (1-12 months)
 
-**Methodology Weights**: Lynch (30%), Druckenmiller (25%), Greenblatt (20%), Marks (25%)
+**Methodology Weights**: Lynch (25%), Druckenmiller (20%), Greenblatt (15%), Marks (20%), Weinstein/CANSLIM (20%)
 
 ```
 # [COMPANY NAME] ([TICKER]) — Mid-term Investment Analysis
@@ -184,15 +191,22 @@ When frameworks produce contradictory conclusions:
 - Variant View: [where and why we differ]
 
 ## 4. Relative Valuation
-[P/E (trailing/forward/NTM) vs 5yr avg and peers. EV/EBITDA vs peers with growth justification. P/FCF yield vs risk-free rate. PEG ratio.]
+[P/E (trailing/forward/NTM) vs 5yr avg and peers. EV/EBITDA vs peers with growth justification. P/FCF yield vs risk-free rate. PEG ratio. Private market comp: LBO floor price (if market cap < $100B). Precedent transaction premium range.]
 
-## 5. Macro Tailwinds/Headwinds
+## 5. Technical Structure & Timing
+**Weinstein Stage**: [1/2/3/4] — [Evidence: 30-week MA direction, volume pattern, RS rank]
+**CANSLIM Score**: [X/7 pass] — C:[P/F] A:[P/F] N:[P/F] S:[P/F] L:[P/F] I:[P/F] M:[P/F]
+[Stage 2 breakout confirmed? Volume confirmation? Relative strength rank position.]
+
+## 6. Macro Tailwinds/Headwinds
 [Tailwinds: 1-3 factors. Headwinds: 1-3 factors. Net assessment.]
 
-## 6. Position Sizing & Recommendation
+## 7. Position Sizing & Recommendation
 - **Rating**: [Buy / Hold / Sell]
-- **Target Price**: $X (X% upside, 12-month)
+- **Target Price**: $X (X% upside, 12-month) | Confidence interval: 60% probability $X-$Y
+- **Hard Catalyst**: [specific, time-bound — Klarman requirement for Buy ratings]
 - **Position Size**: X% of portfolio (Druckenmiller: conviction-adjusted)
+- **Weinstein Stage Gate**: [Stage 2 confirmed? If Stage 3/4, do not initiate long]
 - **Entry**: [price or condition]
 - **Stop Loss**: $X (-X%)
 - **Monitoring Triggers**: [1-3 specific conditions]
@@ -226,10 +240,12 @@ When frameworks produce contradictory conclusions:
 ---
 
 ## 1. Technical Analysis
+- **Weinstein Stage**: [1/2/3/4] — [30-week MA direction, volume confirmation]
 - **Trend**: [primary trend direction, moving averages, higher highs/lows]
 - **Key Levels**: Support $X, Resistance $X
 - **Momentum**: RSI [X], MACD [bullish/bearish cross]
 - **Volume**: [accumulation / distribution, OBV trend]
+- **CANSLIM M-factor**: [Market direction confirmed uptrend? Follow-through day?]
 
 ## 2. Flow & Sentiment Signals
 - Put/Call ratio: [value] — [contrarian interpretation]
