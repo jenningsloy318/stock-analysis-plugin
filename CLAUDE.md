@@ -127,6 +127,8 @@
 | `fetch_activist_exposure.py` | Activist 13D tracking, proxy fight probability, insider cluster detection | 6, 7 |
 | `calibrate_conviction.py` | Bayesian conviction calibration, historical accuracy, Brier score | 10 (post-delivery) |
 | `compute_seasonality.py` | Quarterly seasonality indices, YoY decomposition, seasonal expectation assessment | 6 |
+| `compute_correlation_regime.py` | Rolling beta, tail correlation, asymmetric beta, correlation regime, stress-adjusted sizing | 8 |
+| `compute_earnings_edge.py` | Historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend | 6 |
 
 ## Report Quality Gates (MUST follow)
 

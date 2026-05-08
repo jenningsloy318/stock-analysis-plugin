@@ -54,6 +54,10 @@ SOURCE_FILES: dict[str, tuple[set[str] | None, str]] = {
     "behavioral.json": (None, "Behavioral signals (fetch_behavioral)"),
     "supply_chain.json": (None, "Supply chain (fetch_supply_chain)"),
     "earnings_quality.json": (None, "Earnings quality (calculate_earnings_quality)"),
+    "options.json": (None, "Options signals (calculate_options)"),
+    "correlation.json": (None, "Correlation regime (compute_correlation_regime)"),
+    "earnings_edge.json": (None, "Earnings edge / PEAD (compute_earnings_edge)"),
+    "seasonality.json": (None, "Seasonality patterns (compute_seasonality)"),
 }
 
 REQUIRED_FILES = {

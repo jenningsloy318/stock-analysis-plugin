@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.23"
+version: "1.0.24"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -114,7 +114,7 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 - [ ] 1.2 Business Model — Revenue model type, quality (recurring %), unit economics, customer concentration
 - [ ] 1.3 Competitive Moat — Morningstar framework: cost advantages, network effects, intangibles, switching costs, efficient scale; moat trajectory
 - [ ] 1.4 Historical Performance — 5-year CAGR (revenue, EPS, FCF), guidance accuracy, recession performance
-- [ ] 1.5 Forensic Accounting — Beneish M-Score, Altman Z-Score, Piotroski F-Score, revenue recognition, accruals check
+- [ ] 1.5 Forensic Accounting — Beneish M-Score, Altman Z-Score, Piotroski F-Score, revenue recognition, accruals check. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_earnings_quality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/earnings_quality.json`** for composite earnings quality score (accruals, cash conversion, revenue quality, expense signals, persistence, tax rate).
 - [ ] 1.6 Segment-Level (if multi-segment) — Per-segment revenue, margin, ROIC, moat; BCG classification
 - [ ] 1.7 Sector KPI Coverage — Apply sector-specific operating metrics from `references/data_source_matrix.md` and `references/sector_metrics.md` (e.g., ARR/NRR for SaaS, CET1/NIM for banks, FFO/AFFO for REITs, reserves/decline rates for energy)
 
@@ -205,7 +205,7 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 - [ ] 6.2 Relative Value — P/E vs history/peers, EV/EBITDA with growth justification, P/FCF vs risk-free rate, PEG. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_peer_universe.py [TICKER] --source all --max 10 --fetch-metrics --output ./reports/[TICKER]/peers.json`** to algorithmically identify peers via GICS + ETF holdings + description matching for an unbiased comparison group.
 - [ ] 6.3 Technical — Trend (MAs, higher highs/lows), momentum (RSI, MACD), volume (OBV), support/resistance. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_technicals.py [TICKER] --period 2y`** for deterministic indicator computation and composite trend/momentum scores.
 - [ ] 6.4 Sentiment — Put/call ratio, VIX term structure, short interest, options flow, dark pool prints. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources news,social`** for news sentiment buzz and social media metrics. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json`** for NLP-based news sentiment, narrative theme tracking, and coverage spike detection. **For Short-term reports, also run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_realtime.py [TICKER] --mode options`** for options chain data (put/call OI, max pain, ATM IV).
-- [ ] 6.4b Options-Implied Signals — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_options.py [TICKER] --output ./reports/[TICKER]/options.json`** for IV surface analysis, max pain computation, put/call ratios, skew interpretation, and unusual activity detection. Options markets price tail risk — divergence from equity price signals early.
+- [ ] 6.4b Options-Implied Signals — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_options.py [TICKER] --mode full --output ./reports/[TICKER]/options.json`** for IV surface analysis, max pain computation, put/call ratios, skew interpretation, unusual activity detection, and gamma exposure (GEX regime, dealer hedging dynamics, flip strike). Options markets price tail risk — divergence from equity price signals early.
 - [ ] 6.5 Institutional Flow — 13F analysis, activist 13D, Form 4 clusters, ownership concentration. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources analyst`** for analyst consensus and price targets.
 - [ ] 6.6 Estimate Revisions — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_sentiment.py [TICKER] --sources revisions`** for earnings revision velocity (3-month direction and magnitude). Positive revision momentum is among the strongest short-term alpha signals. Flag if 3+ consecutive months of upward/downward revisions.
 - [ ] 6.7 Valuation Method Fit — Select methods by business type: DCF for cash-generative operating companies, RIM for banks/insurers, DDM for mature dividend payers, NAV for asset-heavy/REIT/resource businesses, SOTP for multi-segment companies, probability-weighted pipeline valuation for biotech, and revenue/FCF multiples only as supporting evidence for unprofitable high-growth firms.
@@ -215,6 +215,7 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 - [ ] 6.11 Short Interest & Squeeze — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json`** for short % float, days to cover, squeeze score (1-10), positioning divergence, and catalyst proximity. Critical for short-term reports.
 - [ ] 6.12 Activist & Governance Catalysts — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_activist_exposure.py --ticker [TICKER] --output ./reports/[TICKER]/activist.json`** for activist investor presence, 13D exposure, proxy fight probability, insider cluster detection, and governance vulnerability scoring.
 - [ ] 6.13 Seasonality Analysis — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_seasonality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/seasonality.json`** for quarterly revenue/EPS seasonal strength indices, YoY growth decomposition, and current-quarter assessment vs seasonal expectation.
+- [ ] 6.14 Earnings Edge — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_earnings_edge.py [TICKER] --output ./reports/[TICKER]/earnings_edge.json`** for historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend, and next earnings proximity. If beat rate >75% with positive pre-earnings drift, this is a catalyst setup. If next earnings within 14 days, flag in short-term report.
 
 **Reference:** Load `references/frameworks_macro_quant.md` for Greenblatt's Magic Formula. Load `references/frameworks_risk_alt.md` for Burry's SEC deep-dive. For sector-specific valuation, load the relevant deep-dive reference: `references/industry_saas.md` (Tech/SaaS), `references/industry_biotech.md` (Pharma/Biotech), `references/industry_banks.md` (Financials), `references/industry_reits.md` (REITs/Real Estate — use FFO/AFFO/NAV, NOT P/E or DCF), `references/industry_industrials.md` (Industrials/Manufacturing — cycle-adjusted, backlog-driven), `references/industry_semis.md` (Semiconductors), `references/industry_energy.md` (Energy), `references/industry_insurance.md` (Insurance), `references/industry_healthcare.md` (Healthcare), `references/industry_consumer.md` (Consumer), `references/industry_utilities.md` (Utilities).
 
@@ -270,6 +271,7 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 - [ ] 8.7 Operational Due Diligence — Cybersecurity, legal history, DR/BC, insurance, IP, compliance, 3rd-party risk
 - [ ] 8.8 Thesis Falsifiability — Pre-mortem, falsification conditions, dissenting view search, inversion checklist, kill switch. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py kill-switch [TICKER]`** to check if prior kill switch conditions are approaching trigger levels.
 - [ ] 8.9 Risk Signal Ladder — Define leading, coincident, and lagging indicators for the top 3 risks. Each kill switch must include observable source, threshold, and review cadence.
+- [ ] 8.10 Correlation Regime — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_correlation_regime.py [TICKER] --output ./reports/[TICKER]/correlation.json`** for rolling beta, tail correlation (does diversification hold during stress?), asymmetric beta (upside vs downside capture), and correlation regime classification. If tail correlation spikes >0.25 above normal, flag position sizing adjustment needed.
 
 **Reference:** Load `references/frameworks_risk_alt.md` for Marks's risk framework and forensic red flag details. Load `references/institutional_odd.md` for ODD checklists. Load credit findings from `./reports/[TICKER]/credit.json`.
 

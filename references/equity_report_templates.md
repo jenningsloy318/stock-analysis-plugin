@@ -163,7 +163,7 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 [Fama-French 5-factor loadings (market, SMB, HML, RMW, CMA). Alpha after factor decomposition. Liquidity score and position sizing constraint. Days to liquidate at 10% participation. Market impact estimate for target position size. Short interest dynamics: SI% float, days to cover, squeeze score. Activist exposure: 13D presence, proxy fight probability, insider confidence ratio.]
 
 ## 7b. Tail Risk & Portfolio Context (if portfolio specified)
-[VaR/CVaR at 95% and 99% confidence. Max drawdown and drawdown duration. Calmar ratio. Correlation regime (normal/elevated/crisis). Drawdown recovery history (mean/median recovery days). Current drawdown status.]
+[VaR/CVaR at 95% and 99% confidence. Max drawdown and drawdown duration. Calmar ratio. Correlation regime (normal/elevated/crisis) from `correlation.json`. Tail correlation spike (does diversification fail under stress?). Asymmetric beta: upside capture vs downside capture ratio. Stress-adjusted beta for position sizing. Drawdown recovery history (mean/median recovery days). Current drawdown status.]
 
 ## 8. Recommendation
 - **Rating**: [Buy/Hold/Avoid]
@@ -222,6 +222,7 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 - Consensus: Revenue $X, EPS $X
 - Variant View: [where and why we differ]
 - Seasonality: [Q seasonal index (1.0=avg). Current quarter vs seasonal expectation (above/in-line/below). Historical beat rate in this quarter.]
+- Earnings Edge: Beat rate [X]% (last [N] quarters). Pre-earnings drift: [positive/negative/none]. PEAD tendency: [positive/negative/none]. Next earnings: [date] ([X] days away).
 
 ## 4. Relative Valuation
 [P/E (trailing/forward/NTM) vs 5yr avg and peers. EV/EBITDA vs peers with growth justification. P/FCF yield vs risk-free rate. PEG ratio. Private market comp: LBO floor price (if market cap < $100B). Precedent transaction premium range.]
@@ -285,6 +286,7 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 - Short interest: X% of float, X days to cover — Squeeze score: X/10 ([Low/Moderate/High/Extreme])
 - Positioning divergence: [convergent/divergent] — momentum [direction] vs short interest [direction]
 - Options flow: [unusual activity callout]
+- Gamma exposure (GEX): [positive/negative] regime — [pinning/amplification]. Flip strike: $X. Top GEX strikes: [$X, $X]
 - Institutional flow: [dark pool, 13F timing]
 - Activist exposure: [None / Fund name (X% ownership)] — Proxy fight probability: [Low/Moderate/High]
 - AAII sentiment: [% bullish — contrarian at extremes >50% or <25%]

@@ -48,7 +48,7 @@ timeout_mins: 15
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_private_comps.py [TICKER] --output ./reports/[TICKER]/private_comps.json` for M&A/LBO analysis.
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_scores.py --metrics ./reports/[TICKER]/metrics.json --technicals ./reports/[TICKER]/tech.json --capital-structure ./reports/[TICKER]/capital_structure.json --liquidity ./reports/[TICKER]/liquidity.json --short-interest ./reports/[TICKER]/short_interest.json --activist ./reports/[TICKER]/activist.json --report-type [TYPE] --ticker [TICKER]` for component scores incl. Weinstein/CANSLIM, liquidity-adjusted position sizing, squeeze catalysts, and activist exposure.
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/forecast.py ./reports/[TICKER]/raw-data.json --enhanced --returns-file ./reports/[TICKER]/returns.json` for GARCH volatility + fat-tail risk.
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_options.py [TICKER] --output ./reports/[TICKER]/options.json` for IV surface, max pain, put/call ratios, unusual activity.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_options.py [TICKER] --mode full --output ./reports/[TICKER]/options.json` for IV surface, max pain, put/call ratios, unusual activity, and gamma exposure (GEX regime, flip strike, dealer hedging dynamics).
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_factors.py [TICKER] --output ./reports/[TICKER]/factors.json` for Fama-French 5-factor regression and factor attribution.
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_cot.py [TICKER] --output ./reports/[TICKER]/cot.json` for CFTC Commitments of Traders institutional positioning.
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json` for news sentiment NLP, narrative tracking, and coverage spike detection.
@@ -56,6 +56,7 @@ timeout_mins: 15
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest dynamics, squeeze potential, and positioning divergence.
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_activist_exposure.py --ticker [TICKER] --output ./reports/[TICKER]/activist.json` for activist investor tracking, 13D exposure, and insider activity patterns.
   Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_seasonality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/seasonality.json` for quarterly revenue/EPS seasonal patterns and current-quarter assessment.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_earnings_edge.py [TICKER] --output ./reports/[TICKER]/earnings_edge.json` for historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend, and next earnings date proximity.
 
   For supplementary valuation/sentiment data, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[TICKER] analyst price target [year]", "[TICKER] short interest data"

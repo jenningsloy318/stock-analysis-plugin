@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compute options market signals: IV surface, put/call skew, gamma exposure, max pain.
+"""Compute options market signals: IV surface, put/call skew, gamma exposure, term structure, max pain.
 
 Usage:
     calculate_options.py AAPL                             # Basic options analysis
@@ -14,6 +14,7 @@ Computes from yfinance options chain data:
   - ATM IV, IV30 (30-day constant-maturity IV)
   - Put/Call skew (25-delta risk reversal)
   - Gamma exposure profile (simplified — dealer positioning proxy)
+  - IV term structure (contango/backwardation across expiries)
   - Unusual options activity detection (volume/OI spike vs 20-day avg)
 
 Free data source: yfinance (CBOE delayed options data).
@@ -23,18 +24,17 @@ For institutional-grade flow, a paid provider (CBOE LiveVol, ORATS) is needed.
 
 import argparse
 import json
-import math
 import os
 import sys
-from collections import defaultdict
-from datetime import datetime, timezone, timedelta
-from typing import Any
+from datetime import datetime, timezone
 
 try:
     import yfinance as yf
     import numpy as np
 except ImportError:
-    sys.stderr.write("Error: yfinance and numpy required. Run: pip install yfinance numpy\n")
+    sys.stderr.write(
+        "Error: yfinance and numpy required. Run: pip install yfinance numpy\n"
+    )
     sys.exit(1)
 
 
@@ -88,8 +88,8 @@ def compute_max_pain(calls: list[dict], puts: list[dict]) -> dict:
         "min_total_loss": round(min_pain, 2),
         "strike_count": len(all_strikes),
         "interpretation": f"Max Pain at ${max_pain_strike:.2f}. "
-                          f"Price tends to gravitate toward this level near expiration "
-                          f"due to dealer hedging dynamics.",
+        f"Price tends to gravitate toward this level near expiration "
+        f"due to dealer hedging dynamics.",
     }
 
 
@@ -190,7 +190,7 @@ def compute_iv_surface(calls: list[dict], puts: list[dict], spot: float) -> dict
         "otm_put_iv": round(otm_put_iv, 4) if otm_put_iv else None,
         "otm_call_iv": round(otm_call_iv, 4) if otm_call_iv else None,
         "methodology": "IV skew = OTM put IV - OTM call IV. Positive = puts expensive (hedging demand). "
-                       "Negative = calls expensive (speculative upside demand).",
+        "Negative = calls expensive (speculative upside demand).",
     }
 
 
@@ -207,21 +207,23 @@ def detect_unusual_activity(calls: list[dict], puts: list[dict]) -> dict:
             oi = opt.get("openInterest", 0) or 0
             strike = opt.get("strike")
             if volume > 500 and oi > 0 and volume / oi > 1.0:
-                unusual.append({
-                    "type": opt_type,
-                    "strike": strike,
-                    "volume": volume,
-                    "open_interest": oi,
-                    "volume_oi_ratio": round(volume / oi, 2),
-                    "implied_volatility": opt.get("impliedVolatility"),
-                    "signal": (
-                        "Bullish flow — new positions being opened"
-                        if opt_type == "CALL" and volume / oi > 2
-                        else "Bearish flow — new positions being opened"
-                        if opt_type == "PUT" and volume / oi > 2
-                        else "Elevated volume — investigate further"
-                    ),
-                })
+                unusual.append(
+                    {
+                        "type": opt_type,
+                        "strike": strike,
+                        "volume": volume,
+                        "open_interest": oi,
+                        "volume_oi_ratio": round(volume / oi, 2),
+                        "implied_volatility": opt.get("impliedVolatility"),
+                        "signal": (
+                            "Bullish flow — new positions being opened"
+                            if opt_type == "CALL" and volume / oi > 2
+                            else "Bearish flow — new positions being opened"
+                            if opt_type == "PUT" and volume / oi > 2
+                            else "Elevated volume — investigate further"
+                        ),
+                    }
+                )
 
     unusual.sort(key=lambda x: x["volume_oi_ratio"], reverse=True)
 
@@ -233,14 +235,148 @@ def detect_unusual_activity(calls: list[dict], puts: list[dict]) -> dict:
     }
 
 
+def compute_gamma_exposure(calls: list[dict], puts: list[dict], spot: float) -> dict:
+    """Estimate net gamma exposure (GEX) by strike.
+
+    Assumes dealers are short calls (retail buys calls) and long puts (retail buys puts).
+    GEX per strike = OI × 100 × gamma_approx × spot. Positive GEX = pinning force;
+    negative GEX = amplification (moves away from strike accelerate).
+    """
+    if not spot or spot <= 0:
+        return {"error": "Cannot compute GEX without spot price"}
+
+    gex_by_strike: dict[float, float] = {}
+    total_call_gex = 0.0
+    total_put_gex = 0.0
+
+    for opt in calls:
+        strike = opt.get("strike")
+        oi = opt.get("openInterest", 0) or 0
+        if not strike or oi == 0:
+            continue
+        moneyness = abs(spot - strike) / spot
+        gamma_approx = max(0.01, 0.04 * (1 - min(moneyness * 5, 1.0)))
+        contract_gex = oi * 100 * gamma_approx * spot
+        gex_by_strike[strike] = gex_by_strike.get(strike, 0) + contract_gex
+        total_call_gex += contract_gex
+
+    for opt in puts:
+        strike = opt.get("strike")
+        oi = opt.get("openInterest", 0) or 0
+        if not strike or oi == 0:
+            continue
+        moneyness = abs(spot - strike) / spot
+        gamma_approx = max(0.01, 0.04 * (1 - min(moneyness * 5, 1.0)))
+        contract_gex = oi * 100 * gamma_approx * spot
+        gex_by_strike[strike] = gex_by_strike.get(strike, 0) - contract_gex
+        total_put_gex += contract_gex
+
+    net_gex = total_call_gex - total_put_gex
+
+    top_strikes = sorted(gex_by_strike.items(), key=lambda x: abs(x[1]), reverse=True)[
+        :5
+    ]
+
+    flip_strike = None
+    sorted_strikes = sorted(gex_by_strike.items(), key=lambda x: x[0])
+    for i in range(len(sorted_strikes) - 1):
+        if sorted_strikes[i][1] > 0 and sorted_strikes[i + 1][1] < 0:
+            flip_strike = sorted_strikes[i][0]
+            break
+        elif sorted_strikes[i][1] < 0 and sorted_strikes[i + 1][1] > 0:
+            flip_strike = sorted_strikes[i + 1][0]
+            break
+
+    return {
+        "net_gex": round(net_gex, 0),
+        "gex_regime": "positive" if net_gex > 0 else "negative",
+        "interpretation": (
+            "Positive GEX: dealer hedging pins price, expect low volatility and mean reversion"
+            if net_gex > 0
+            else "Negative GEX: dealer hedging amplifies moves, expect high volatility and trending"
+        ),
+        "gamma_flip_strike": flip_strike,
+        "top_gex_strikes": [{"strike": s, "gex": round(g, 0)} for s, g in top_strikes],
+        "total_call_gex": round(total_call_gex, 0),
+        "total_put_gex": round(total_put_gex, 0),
+        "methodology": "Approximate GEX using moneyness-based gamma proxy. Dealers assumed short calls, long puts.",
+    }
+
+
+def compute_iv_term_structure(
+    stock, expiries: list[str], spot: float, primary_expiry: str
+) -> dict:
+    """Compare ATM IV across expiration dates to detect vol term structure shape.
+
+    Contango (normal): far-dated IV > near-dated IV — market calm.
+    Backwardation: near-dated IV > far-dated IV — imminent event/stress.
+    """
+    if len(expiries) < 2:
+        return {"error": "Need 2+ expiry dates for term structure"}
+
+    term_points = []
+    for exp in expiries[:5]:
+        try:
+            chain = stock.option_chain(exp)
+            calls = chain.calls.to_dict("records")
+            atm_strike = min(
+                (c["strike"] for c in calls if c.get("strike")),
+                key=lambda x: abs(x - spot),
+                default=None,
+            )
+            if not atm_strike:
+                continue
+            atm_calls = [
+                c
+                for c in calls
+                if c.get("strike") == atm_strike
+                and c.get("impliedVolatility")
+                and 0 < c["impliedVolatility"] < 5
+            ]
+            if atm_calls:
+                iv = atm_calls[0]["impliedVolatility"]
+                term_points.append({"expiry": exp, "atm_iv": round(iv, 4)})
+        except Exception:
+            continue
+
+    if len(term_points) < 2:
+        return {"error": "Insufficient term structure data"}
+
+    near_iv = term_points[0]["atm_iv"]
+    far_iv = term_points[-1]["atm_iv"]
+    slope = round(far_iv - near_iv, 4)
+
+    structure = (
+        "contango" if slope > 0.01 else "backwardation" if slope < -0.01 else "flat"
+    )
+
+    return {
+        "term_points": term_points,
+        "structure": structure,
+        "slope": slope,
+        "interpretation": {
+            "contango": "Normal — market expects future vol higher than near-term. No imminent stress.",
+            "backwardation": "Inverted — near-term vol elevated. Likely event-driven (earnings, macro). Hedging demand concentrated short-term.",
+            "flat": "Flat — no significant term structure signal.",
+        }[structure],
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compute options market signals from yfinance data"
     )
     parser.add_argument("ticker", help="Ticker symbol")
-    parser.add_argument("--expiry", help="Specific expiration date (YYYY-MM-DD). Default: nearest monthly.")
-    parser.add_argument("--mode", choices=["basic", "full"], default="basic",
-                        help="Analysis depth (basic = nearest expiry; full = all expiries)")
+    parser.add_argument(
+        "--expiry",
+        help="Specific expiration date (YYYY-MM-DD). Default: nearest monthly.",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["basic", "full"],
+        default="basic",
+        help="Analysis depth (basic = nearest expiry; full = all expiries)",
+    )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     args = parser.parse_args()
 
@@ -249,10 +385,16 @@ def main():
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-        spot = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose")
+        spot = (
+            info.get("currentPrice")
+            or info.get("regularMarketPrice")
+            or info.get("previousClose")
+        )
 
         if not spot:
-            print(f"Error: Cannot determine current price for {ticker}", file=sys.stderr)
+            print(
+                f"Error: Cannot determine current price for {ticker}", file=sys.stderr
+            )
             sys.exit(1)
 
         # Get available expiration dates
@@ -286,9 +428,13 @@ def main():
         result["put_call_ratios"] = compute_put_call_ratios(calls, puts)
         result["iv_surface"] = compute_iv_surface(calls, puts, spot)
 
-        # Full mode: unusual activity detection
+        # Full mode: unusual activity detection + gamma exposure + term structure
         if args.mode == "full":
             result["unusual_activity"] = detect_unusual_activity(calls, puts)
+            result["gamma_exposure"] = compute_gamma_exposure(calls, puts, spot)
+            result["iv_term_structure"] = compute_iv_term_structure(
+                stock, expiries, spot, selected_expiry
+            )
 
         # Summary signal
         signals = []
@@ -309,15 +455,45 @@ def main():
         if max_pain_strike and spot:
             mp_diff_pct = (max_pain_strike - spot) / spot * 100
             if mp_diff_pct > 2:
-                signals.append(f"Bullish — Max Pain ${max_pain_strike:.2f} ({mp_diff_pct:.1f}% above spot)")
+                signals.append(
+                    f"Bullish — Max Pain ${max_pain_strike:.2f} ({mp_diff_pct:.1f}% above spot)"
+                )
             elif mp_diff_pct < -2:
-                signals.append(f"Bearish — Max Pain ${max_pain_strike:.2f} ({mp_diff_pct:.1f}% below spot)")
+                signals.append(
+                    f"Bearish — Max Pain ${max_pain_strike:.2f} ({mp_diff_pct:.1f}% below spot)"
+                )
+
+        # GEX regime signal (full mode only)
+        gex_data = result.get("gamma_exposure", {})
+        if gex_data and not gex_data.get("error"):
+            gex_regime = gex_data.get("gex_regime")
+            if gex_regime == "negative":
+                signals.append(
+                    "Bearish — negative GEX (dealer hedging amplifies moves)"
+                )
+            elif gex_regime == "positive":
+                signals.append(
+                    "Neutral — positive GEX (dealer pinning, low vol expected)"
+                )
+
+        # IV term structure signal (full mode only)
+        ts_data = result.get("iv_term_structure", {})
+        if ts_data and not ts_data.get("error"):
+            structure = ts_data.get("structure")
+            if structure == "backwardation":
+                signals.append(
+                    "Bearish — IV backwardation (near-term stress/event premium)"
+                )
 
         result["signals_summary"] = {
             "signals": signals,
             "net_sentiment": (
-                "Bullish" if len([s for s in signals if "Bullish" in s]) > len([s for s in signals if "Bearish" in s])
-                else "Bearish" if len([s for s in signals if "Bearish" in s]) > len([s for s in signals if "Bullish" in s])
+                "Bullish"
+                if len([s for s in signals if "Bullish" in s])
+                > len([s for s in signals if "Bearish" in s])
+                else "Bearish"
+                if len([s for s in signals if "Bearish" in s])
+                > len([s for s in signals if "Bullish" in s])
                 else "Neutral / Mixed"
             ),
         }
