@@ -1,4 +1,10 @@
 prompt = """
+<output-language>
+CRITICAL: 所有报告必须使用中文撰写。ALL reports MUST be written in Chinese (中文).
+DO NOT write reports in English under any circumstances.
+Only technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) and source citations may remain in English.
+</output-language>
+
 <purpose>Review previously generated reports and provide status update. Spawns search-agent for current price data and catalyst checks. Output in Chinese.</purpose>
 
 <usage>/stock-analysis:watchlist [TICKER|all]</usage>

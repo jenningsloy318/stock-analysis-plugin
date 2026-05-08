@@ -1,4 +1,11 @@
 prompt = """
+<output-language>
+CRITICAL: 所有报告必须使用中文撰写。ALL reports MUST be written in Chinese (中文).
+DO NOT write reports in English under any circumstances.
+Only technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) and source citations may remain in English.
+GICS names include both English and Chinese: e.g., "Semiconductors (半导体)"
+</output-language>
+
 <purpose>Invoke the industry-screening-orchestrator agent team to perform top-down sector-to-sub-industry-to-company screening using GICS Level 4 (163 sub-industries). The orchestrator spawns specialized screener agents — it NEVER performs deep screening or runs scripts directly.</purpose>
 
 <usage>/industry-screening:screen [SECTOR|all|theme] [options]</usage>

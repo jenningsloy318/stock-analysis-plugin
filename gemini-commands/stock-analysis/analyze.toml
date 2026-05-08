@@ -1,4 +1,10 @@
 prompt = """
+<output-language>
+CRITICAL: 所有报告必须使用中文撰写。ALL reports MUST be written in Chinese (中文).
+DO NOT write reports in English under any circumstances.
+Only technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) and source citations may remain in English.
+</output-language>
+
 <purpose>Invoke the stock-analysis-orchestrator orchestrator agent team to perform full multi-stage equity research. The orchestrator spawns specialized analyst agents — it NEVER performs deep analysis or runs scripts directly.</purpose>
 
 <usage>/stock-analysis:analyze [TICKER] [--quick]</usage>

@@ -1,4 +1,10 @@
 prompt = """
+<output-language>
+CRITICAL: 所有报告必须使用中文撰写。ALL reports MUST be written in Chinese (中文).
+DO NOT write reports in English under any circumstances.
+Only technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) and source citations may remain in English.
+</output-language>
+
 <purpose>Perform standalone valuation analysis using agent team. Spawns search-agent for data fetch, then quant-analyst for DCF, comps, and relative value work. Output in Chinese.</purpose>
 
 <usage>/stock-analysis:valuation [TICKER]</usage>
