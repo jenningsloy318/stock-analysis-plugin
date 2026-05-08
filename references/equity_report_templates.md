@@ -154,11 +154,13 @@ When frameworks produce contradictory conclusions:
 - **Weinstein Stage**: [1/2/3/4] — Only buy in Stage 2
 - **Position Size**: X% of portfolio (Druckenmiller & Quarter-Kelly adjusted)
 - **Monitoring Triggers**: [what to watch]
+- **Framework Divergences**: [None / list of unresolved tensions with investigation notes]
 
 ## Appendix: Data Quality & Coverage
 - Blocking sources checked: [Tier 0/Tier 1 list]
 - Missing/stale dimensions: [None / list with impact]
 - Source conflicts: [None / list]
+- Framework divergences resolved: [count resolved / total detected]
 - Confidence cap applied: [None / Medium / Low]
 ```
 

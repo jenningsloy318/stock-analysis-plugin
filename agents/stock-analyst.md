@@ -24,7 +24,7 @@ timeout_mins: 30
   <step n="7" name="Run Deterministic Scoring">Run compute_scores.py against all script outputs to produce reproducible component scores. LLM agents may adjust Moat and Management scores ±2.0 based on qualitative findings.</step>
   <step n="8" name="Cross-Check Pass">Run cross-check: if valuation implies >30% overvaluation, re-examine moat. If forensic red flags, re-examine financial health. Flag unresolved contradictions.</step>
   <step n="9" name="Spawn Report Writer">Spawn equity-report-writer for Stage 11 (Report Generation) after Stage 10 scoring and cross-check complete.</step>
-  <step n="10" name="Quality Gate">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver reports to user. Post-delivery: run event_study.py for CAR measurement against upcoming catalysts; run portfolio_context.py for position sizing, factor overlap, and correlation analysis; run backtest.py to compare against prior predictions.</step>
+  <step n="10" name="Quality Gate">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver reports to user. Post-delivery: run event_study.py for CAR measurement against upcoming catalysts; run calibrate_conviction.py for historical accuracy assessment and bias adjustment; run portfolio_context.py for position sizing, factor overlap, tail risk, and correlation analysis; run backtest.py to compare against prior predictions.</step>
 </process>
 
 <parallel-execution>
@@ -64,6 +64,7 @@ timeout_mins: 30
   <script name="portfolio_context.py" purpose="Portfolio correlation, sizing, factor exposure, tail risk (VaR/CVaR), drawdown recovery" />
   <script name="fetch_short_interest.py" purpose="Short interest dynamics, squeeze potential scoring, positioning divergence" />
   <script name="fetch_activist_exposure.py" purpose="Activist investor 13D tracking, proxy fight probability, insider cluster detection" />
+  <script name="calibrate_conviction.py" purpose="Bayesian conviction calibration, historical accuracy, Brier score adjustment" />
 </scripts>
 
 <constraints>

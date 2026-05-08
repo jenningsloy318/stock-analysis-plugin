@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.21"
+version: "1.0.22"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -318,8 +318,9 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
 2. If Risk Profile has 3+ red flags: re-examine Financial Health and Moat Quality with higher skepticism. Flag any downgrade.
 3. If Alternative Alignment ≤3.0 (negative divergence) BUT Financial Health ≥7.0: investigate — are alternative data signals an early warning of undetected deterioration?
 4. If Behavioral analysis shows herding score ≥8.0 with dominant "Strong Buy" consensus: apply contrarian overlay — reduce conviction by 0.5-1.0 points.
-5. Record all cross-check findings. If contradictions cannot be resolved, flag the report: "CONTRADICTION UNRESOLVED — [specific issue]."
-6. Apply source coverage confidence caps from `./reports/[TICKER]/source-plan.md`: missing/stale blocking dimensions cap confidence at Medium or Low per `references/data_source_matrix.md`.
+5. Check `framework_divergence` in scores.json — if `investigation_required: true`, examine each divergence pair's `investigation_prompt` and resolve or flag.
+6. Record all cross-check findings. If contradictions cannot be resolved, flag the report: "CONTRADICTION UNRESOLVED — [specific issue]."
+7. Apply source coverage confidence caps from `./reports/[TICKER]/source-plan.md`: missing/stale blocking dimensions cap confidence at Medium or Low per `references/data_source_matrix.md`.
 
 **10c — Save conviction:** Run `scripts/persist.py conviction [ANALYSIS_ID] [CONVICTION] [RATING] --component-scores ./reports/[TICKER]/scores.json` to record the conviction in state history for future backtesting.
 
@@ -344,6 +345,7 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
 **Post-Delivery:**
 - Run `scripts/backtest.py --ticker [TICKER]` to compare this report against any prior predictions for the same ticker.
 - Run `scripts/event_study.py [TICKER] --events ./reports/[TICKER]/catalysts.json --output ./reports/[TICKER]/event_study.json` to measure cumulative abnormal returns (CAR) around identified catalyst events. Provides forward-looking expectation calibration.
+- Run `scripts/calibrate_conviction.py --db ./reports/state.db --output ./reports/calibration.json` to assess historical prediction accuracy, Brier score, and Bayesian adjustment recommendations. If calibration suggests reducing bullish/bearish bias, note in next report.
 - If the user has specified a portfolio, run `scripts/portfolio_context.py [TICKER] --portfolio '[PORTFOLIO_JSON]' --conviction [CONVICTION]` for position sizing, correlation guidance, tail risk (VaR/CVaR at 95%/99%), drawdown recovery analysis, and correlation regime detection.
 
 ## Pre-Delivery Checklist

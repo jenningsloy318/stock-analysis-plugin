@@ -121,6 +121,7 @@
 | `portfolio_context.py` | Portfolio correlation, position sizing, factor exposure, tail risk (VaR/CVaR), drawdown recovery | 10 |
 | `fetch_short_interest.py` | Short interest dynamics, squeeze scoring, positioning divergence | 6, 7 |
 | `fetch_activist_exposure.py` | Activist 13D tracking, proxy fight probability, insider cluster detection | 6, 7 |
+| `calibrate_conviction.py` | Bayesian conviction calibration, historical accuracy, Brier score | 10 (post-delivery) |
 
 ## Report Quality Gates (MUST follow)
 

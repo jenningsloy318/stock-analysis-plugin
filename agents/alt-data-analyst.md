@@ -31,6 +31,8 @@ timeout_mins: 15
   Run `scripts/fetch_alternatives.py [TICKER]` for alternative data.
   Run `scripts/fetch_behavioral.py [TICKER] --analyst-json ./reports/[TICKER]/sentiment.json --price-changes ./reports/[TICKER]/price_changes.json --output ./reports/[TICKER]/behavioral.json` for behavioral signals (narrative, herding, anchoring, reflexivity).
   Run `scripts/calculate_candor.py ./reports/[TICKER]/transcript.txt` for NLP candor index.
+  Run `scripts/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json` for news sentiment NLP, narrative theme tracking, and coverage spike detection.
+  Run `scripts/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest as contrarian signal (when divergent from fundamentals).
   Paywalled sources return `null` — this is expected, proceed.
 
   Tinyfish authentication (MUST do once per session before social/alt queries):
@@ -59,6 +61,9 @@ timeout_mins: 15
 <validation-gates>
   - At least 3 of 6 alternative data dimensions have non-null readings
   - NLP earnings call analysis completed (if transcript available)
+  - News NLP sentiment and coverage spike analysis completed
+  - Behavioral signals (herding, anchoring, reflexivity) assessed
+  - Convergence score computed across all available alt-data signals
 </validation-gates>
 
 <output>Write stage summary to `./reports/[TICKER]/stage9.md`</output>

@@ -1578,6 +1578,86 @@ def compute_canslim(
 
 
 # ---------------------------------------------------------------------------
+# Framework divergence detection
+# ---------------------------------------------------------------------------
+
+
+def detect_framework_divergence(scores: dict) -> dict:
+    """Detect when component scores strongly disagree, indicating analytical tension.
+
+    Flags pairs of components where one is bullish (≥7.5) and the other is
+    bearish (≤3.5). These divergences require human investigation.
+    """
+    components = [
+        "financial_health",
+        "moat_quality",
+        "management_quality",
+        "valuation_attractiveness",
+        "macro_tailwind",
+        "risk_profile",
+        "alternative_alignment",
+        "technical_setup",
+        "capital_structure",
+        "weinstein_alignment",
+        "canslim",
+    ]
+
+    score_values = {}
+    for comp in components:
+        obj = scores.get(comp, {})
+        s = obj.get("score") if isinstance(obj, dict) else None
+        if s is not None:
+            score_values[comp] = s
+
+    divergences = []
+
+    # Known meaningful divergence pairs
+    tension_pairs = [
+        ("financial_health", "valuation_attractiveness", "Value trap or recovery?"),
+        ("moat_quality", "technical_setup", "Moat intact but market disagrees?"),
+        ("macro_tailwind", "financial_health", "Strong company in weak macro?"),
+        ("alternative_alignment", "financial_health", "Alt data sees deterioration?"),
+        ("management_quality", "risk_profile", "Good management but high risk?"),
+        ("valuation_attractiveness", "technical_setup", "Cheap but in downtrend?"),
+        ("weinstein_alignment", "moat_quality", "Technical stage conflicts moat?"),
+    ]
+
+    for comp_a, comp_b, question in tension_pairs:
+        a = score_values.get(comp_a)
+        b = score_values.get(comp_b)
+        if a is None or b is None:
+            continue
+        spread = abs(a - b)
+        if spread >= 4.0 and ((a >= 7.5 and b <= 3.5) or (b >= 7.5 and a <= 3.5)):
+            divergences.append(
+                {
+                    "pair": [comp_a, comp_b],
+                    "scores": [a, b],
+                    "spread": round(spread, 1),
+                    "investigation_prompt": question,
+                    "severity": "high" if spread >= 5.0 else "moderate",
+                }
+            )
+
+    # Overall dispersion (standard deviation of available scores)
+    if len(score_values) >= 4:
+        values = list(score_values.values())
+        mean = sum(values) / len(values)
+        variance = sum((v - mean) ** 2 for v in values) / len(values)
+        dispersion = variance**0.5
+    else:
+        dispersion = None
+
+    return {
+        "divergences": divergences,
+        "divergence_count": len(divergences),
+        "score_dispersion": round(dispersion, 2) if dispersion else None,
+        "high_conviction_signal": len(divergences) == 0 and (dispersion or 0) < 1.5,
+        "investigation_required": len(divergences) > 0,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Final conviction computation
 # ---------------------------------------------------------------------------
 
@@ -1681,6 +1761,15 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
     if len(missing) >= 3:
         confidence = "Low"
         overrides.append(f"{len(missing)} missing components → Low confidence")
+
+    # Rule: framework divergence reduces confidence
+    divergence = scores.get("framework_divergence", {})
+    if divergence.get("divergence_count", 0) >= 2:
+        if confidence == "High":
+            confidence = "Medium"
+        overrides.append(
+            f"{divergence['divergence_count']} framework divergences → confidence capped at Medium"
+        )
 
     # Rule: red flag override
     risk_obj = scores.get("risk_profile", {})
@@ -1835,6 +1924,9 @@ def main():
     scores["capital_structure"] = compute_capital_structure(capital_data)
     scores["weinstein_alignment"] = compute_weinstein_alignment(technicals)
     scores["canslim"] = compute_canslim(metrics, technicals, sentiment)
+
+    # Framework divergence detection
+    scores["framework_divergence"] = detect_framework_divergence(scores)
 
     # Conviction
     scores["conviction"] = compute_conviction(scores, args.report_type)
