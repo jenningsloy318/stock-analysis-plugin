@@ -30,7 +30,17 @@ All 3 analysis agents run in parallel, then scoring + report generation.
   <step n="0" name="Team Setup">Identify ticker. This is the only step you do directly.</step>
   <step n="1" name="Data Fetch">Spawn @search-agent for triage scripts. Wait for completion.</step>
   <step n="2" name="Spawn Agents">Delegate to @fundamental-analyst, @quant-analyst, @risk-analyst in parallel</step>
-  <step n="3" name="Scoring & Report">Run compute_scores.py (via @search-agent), then spawn @equity-report-writer for 3 condensed reports. Explicitly instruct: "ALL reports MUST be written in Chinese (中文)"</step>
+  <step n="3" name="Scoring & Report">
+    Run compute_scores.py (via @search-agent), then write 3 condensed reports (long/mid/short).
+    LANGUAGE: 必须使用中文撰写报告。Begin each report with this Chinese header structure:
+    ```
+    # [TICKER] [长期|中期|短期]快速分析报告
+    **分析日期**: [DATE]
+    **综合评分**: [SCORE]/10 | **投资建议**: [建议] | **置信度**: [高/中/低]
+    ## 执行摘要
+    ```
+    Continue writing the ENTIRE report body in Chinese.
+  </step>
 </process>
 
 <constraints>

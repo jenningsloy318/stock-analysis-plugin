@@ -43,7 +43,17 @@ ENFORCEMENT: You MUST NOT run python scripts or perform any analysis directly. A
   <step n="1" name="Data Fetch">Spawn @search-agent for triage scripts. Wait for completion.</step>
   <step n="2" name="Spawn Analysts">Delegate to specialist sub-agents per parallel execution rules. Each agent writes its stage summary to ./reports/[TICKER]/stage[N].md</step>
   <step n="3" name="Scoring">Run compute_scores.py (via @search-agent if needed) for reproducible 1-10 component scores, then cross_check.py</step>
-  <step n="4" name="Report Generation">Delegate to @equity-report-writer to synthesize stage summaries into 3 final reports (long/mid/short). Explicitly instruct: "ALL reports MUST be written in Chinese (中文)"</step>
+  <step n="4" name="Report Generation">
+    Write 3 final reports (long/mid/short) synthesizing all stage summaries.
+    LANGUAGE: 必须使用中文撰写报告。Begin each report with this Chinese header structure:
+    ```
+    # [TICKER] [长期|中期|短期]投资分析报告
+    **分析日期**: [DATE]
+    **综合评分**: [SCORE]/10 | **投资建议**: [建议] | **置信度**: [高/中/低]
+    ## 执行摘要
+    ```
+    Continue writing the ENTIRE report body in Chinese. Only ticker symbols, metric names (P/E, ROIC), and source URLs may be in English.
+  </step>
   <step n="5" name="Quality Gate & Cleanup">Run validate_report.py, verify fact integrity. Then cleanup: delete ALL intermediate files (stage*.md, raw-data.json, metrics.json, forecast.json, etc.) — only 3 final reports remain. Terminate all agents.</step>
 </process>
 

@@ -26,7 +26,16 @@ Orchestrator reads existing reports, delegates current data fetch, then compiles
   <step n="0" name="Scan Reports">Read ./reports/ directory for all existing analysis reports. This is the only step you do directly.</step>
   <step n="1" name="Spawn Agent">Delegate to @search-agent for current price, news, and catalyst data for each ticker</step>
   <step n="2" name="Status Check">Compare current data to bull/base/bear targets, check kill switches</step>
-  <step n="3" name="Summary">Output watchlist table (in Chinese) with status indicators</step>
+  <step n="3" name="Summary">
+    Output watchlist status table.
+    LANGUAGE: 必须使用中文撰写。Begin output with:
+    ```
+    # 投资组合监控报告
+    **更新日期**: [DATE]
+    ## 持仓状态总览
+    ```
+    Write entire watchlist update in Chinese. Only tickers and metric names in English.
+  </step>
 </process>
 
 <constraints>

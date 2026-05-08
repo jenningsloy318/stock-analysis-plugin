@@ -26,7 +26,16 @@ STEP 2 — Spawn @quant-analyst for valuation analysis.
   <step n="0" name="Team Setup">Identify ticker. This is the only step you do directly.</step>
   <step n="1" name="Data Fetch">Spawn @search-agent for fetch_financials.py, calculate_metrics.py, forecast.py, fetch_peer_universe.py. Wait for completion.</step>
   <step n="2" name="Spawn Agent">Delegate to @quant-analyst for full valuation analysis</step>
-  <step n="3" name="Summary">Present valuation verdict (in Chinese): intrinsic value range, margin of safety, fair value</step>
+  <step n="3" name="Summary">
+    Present valuation verdict.
+    LANGUAGE: 必须使用中文撰写。Begin output with:
+    ```
+    # [TICKER] 估值分析报告
+    **分析日期**: [DATE]
+    ## 内在价值评估
+    ```
+    Write entire valuation summary in Chinese. Only tickers and metric names in English.
+  </step>
 </process>
 
 <constraints>

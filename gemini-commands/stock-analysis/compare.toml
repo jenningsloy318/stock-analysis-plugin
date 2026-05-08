@@ -29,7 +29,16 @@ Max 3 agents concurrent. Orchestrator merges scores into comparison table.
   <step n="0" name="Team Setup">Confirm all tickers valid, resolve ambiguous names. This is the only step you do directly.</step>
   <step n="1" name="Data Fetch">Spawn @search-agent to run fetch_financials.py and calculate_metrics.py for each ticker. Wait for completion.</step>
   <step n="2" name="Spawn Agents">Delegate to @quant-analyst and @fundamental-analyst for each ticker in parallel</step>
-  <step n="3" name="Comparison">Merge scores into side-by-side comparison table (in Chinese), rank by composite</step>
+  <step n="3" name="Comparison">
+    Merge scores into side-by-side comparison table and ranking.
+    LANGUAGE: 必须使用中文撰写。Begin output with:
+    ```
+    # 股票对比分析报告
+    **分析日期**: [DATE]
+    ## 综合评分对比
+    ```
+    Write entire comparison in Chinese. Only tickers and metric names in English.
+  </step>
 </process>
 
 <constraints>

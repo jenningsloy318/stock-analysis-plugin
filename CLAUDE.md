@@ -11,10 +11,12 @@
 ## Report Language Rule (MUST follow)
 
 - ALL reports produced by both `stock-analysis` and `industry-screening` skills MUST be written in **Chinese (中文)**
+- 所有分析报告必须使用中文撰写，不得使用英文撰写报告正文
 - This applies to: equity research reports, screening reports, stage summaries, executive summaries, investment theses, and company commentaries
 - Technical terms (ticker symbols, financial metric names like P/E, EV/EBITDA, ROIC) may remain in English
 - GICS classification names should include both English and Chinese: e.g., "Semiconductors (半导体)"
 - Source citations remain in their original language
+- When writing report files, begin with Chinese headers (e.g., "# [TICKER] 长期投资分析报告") to ensure Chinese output
 
 ## Multi-Horizon Output Rule (MUST follow)
 
