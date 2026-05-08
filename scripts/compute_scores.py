@@ -120,6 +120,12 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
             score_margin = _score_from_percentile(op_margin, 0.15, 0.30, 0.08, 0.03)
         elif sector == 30:  # Consumer Staples
             score_margin = _score_from_percentile(op_margin, 0.15, 0.25, 0.08, 0.03)
+        elif sector == 10:  # Energy — highly cyclical, FCF matters more than margins
+            score_margin = _score_from_percentile(op_margin, 0.15, 0.30, 0.05, 0.00)
+        elif sector == 25:  # Consumer Discretionary — wide range by sub-industry
+            score_margin = _score_from_percentile(op_margin, 0.10, 0.20, 0.05, 0.02)
+        elif sector == 55:  # Utilities — regulated, stable but low margins
+            score_margin = _score_from_percentile(op_margin, 0.15, 0.25, 0.10, 0.05)
         else:
             score_margin = _score_from_percentile(op_margin, 0.15, 0.25, 0.08, 0.03)
         if score_margin:
@@ -187,6 +193,18 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
         elif sector == 15:  # Materials/Mining — capex-heavy, moderate leverage ok
             score_leverage = _score_from_percentile(
                 debt_to_equity, 0.7, 2.0, 0.4, 1.0, higher_is_better=False
+            )
+        elif sector == 10:  # Energy — capital-intensive, tolerate higher leverage
+            score_leverage = _score_from_percentile(
+                debt_to_equity, 0.6, 1.8, 0.3, 0.9, higher_is_better=False
+            )
+        elif sector == 55:  # Utilities — regulated, high leverage is structural
+            score_leverage = _score_from_percentile(
+                debt_to_equity, 1.5, 3.0, 0.8, 1.5, higher_is_better=False
+            )
+        elif sector == 25:  # Consumer Discretionary — moderate leverage acceptable
+            score_leverage = _score_from_percentile(
+                debt_to_equity, 0.6, 1.5, 0.3, 0.8, higher_is_better=False
             )
         else:
             score_leverage = _score_from_percentile(
