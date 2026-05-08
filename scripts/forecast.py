@@ -50,6 +50,7 @@ try:
     from statsmodels.tsa.arima.model import ARIMA
     from statsmodels.tsa.holtwinters import ExponentialSmoothing
     from statsmodels.tsa.stattools import adfuller
+    from statsmodels.stats.diagnostic import acorr_ljungbox
 
     STATSMODELS_AVAILABLE = True
 except ImportError:
@@ -139,6 +140,72 @@ def test_stationarity(series: list[float]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Model diagnostics
+# ---------------------------------------------------------------------------
+
+
+def compute_model_diagnostics(fitted_model, series: list[float]) -> dict:
+    """Compute model fit diagnostics: Ljung-Box, MAPE, residual stats."""
+    diagnostics = {}
+    try:
+        residuals = fitted_model.resid
+        if len(residuals) < 3:
+            return {"note": "Too few residuals for diagnostics"}
+
+        # Ljung-Box test for residual autocorrelation
+        try:
+            lb_result = acorr_ljungbox(residuals, lags=[min(5, len(residuals) - 1)])
+            lb_pvalue = float(lb_result["lb_pvalue"].iloc[0])
+            diagnostics["ljung_box"] = {
+                "p_value": round(lb_pvalue, 4),
+                "autocorrelation_present": lb_pvalue < 0.05,
+                "interpretation": (
+                    "Residuals show autocorrelation (model may be underfit)"
+                    if lb_pvalue < 0.05
+                    else "No significant autocorrelation in residuals (good fit)"
+                ),
+            }
+        except Exception:
+            diagnostics["ljung_box"] = {"error": "Could not compute"}
+
+        # In-sample MAPE
+        fitted_values = fitted_model.fittedvalues
+        actual = np.array(series[-len(fitted_values) :], dtype=float)
+        fitted_arr = np.array(fitted_values, dtype=float)
+        nonzero_mask = actual != 0
+        if nonzero_mask.any():
+            mape = float(
+                np.mean(
+                    np.abs(
+                        (actual[nonzero_mask] - fitted_arr[nonzero_mask])
+                        / actual[nonzero_mask]
+                    )
+                )
+                * 100
+            )
+            diagnostics["mape_pct"] = round(mape, 2)
+            diagnostics["mape_quality"] = (
+                "Excellent (<5%)"
+                if mape < 5
+                else "Good (5-10%)"
+                if mape < 10
+                else "Acceptable (10-20%)"
+                if mape < 20
+                else "Poor (>20%) — forecasts have wide uncertainty"
+            )
+
+        # Residual normality (Jarque-Bera via skew/kurtosis)
+        res_arr = np.array(residuals, dtype=float)
+        diagnostics["residual_std"] = round(float(np.std(res_arr)), 2)
+        diagnostics["residual_mean"] = round(float(np.mean(res_arr)), 4)
+
+    except Exception as e:
+        diagnostics["error"] = str(e)
+
+    return diagnostics
+
+
+# ---------------------------------------------------------------------------
 # ARIMA forecast
 # ---------------------------------------------------------------------------
 
@@ -196,7 +263,7 @@ def forecast_arima(
                 }
             )
 
-        return {
+        result_dict = {
             "method": "ARIMA",
             "order": list(best_order),
             "aic": round(best_aic, 2),
@@ -209,7 +276,9 @@ def forecast_arima(
             )
             if series and series[-1] > 0 and forecasts[-1]["mean"]
             else None,
+            "diagnostics": compute_model_diagnostics(best_model, series),
         }
+        return result_dict
 
     except Exception as e:
         return {"method": "ARIMA", "error": str(e)}

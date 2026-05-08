@@ -245,6 +245,18 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 ## 6. Macro Tailwinds/Headwinds
 [Tailwinds: 1-3 factors. Headwinds: 1-3 factors. Net assessment.]
 
+### Currency/FX Exposure (if international_revenue_pct > 25%)
+| Metric | Value |
+|--------|-------|
+| International Revenue % | X% |
+| Reporting Currency | [USD/EUR/etc.] |
+| ADR Status | [Yes/No] |
+| DXY Correlation (1Y) | [X.XX] |
+| FX EPS Impact (YTD) | [±X.X% headwind/tailwind] |
+| Hedging Program | [Active/Partial/None] |
+
+[If material: state whether current USD cycle is headwind or tailwind, and whether consensus EPS estimates already reflect FX guidance.]
+
 ## 7. Position Sizing & Recommendation
 - **Rating**: [Buy / Hold / Sell]
 - **Target Price**: $X (X% upside, 12-month) | Confidence interval: 60% probability $X-$Y

@@ -176,7 +176,7 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 - [ ] 4.2 Interest Rates — Company sensitivity (floating/fixed debt), central bank direction, valuation impact
 - [ ] 4.3 Inflation — Input cost pressure, pricing power, margin regime analysis, TIPS breakeven
 - [ ] 4.4 Supply/Demand — Capacity utilization, backlog, inventory levels, pricing cycle position
-- [ ] 4.5 Currency — Revenue by currency, natural hedging, hedging effectiveness
+- [ ] 4.5 Currency — **Run `${PLUGIN_SCRIPTS}/fetch_currency_exposure.py [TICKER] --raw-data ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/currency_exposure.json`** for ADR detection, geographic revenue mix, DXY correlation, EPS FX impact, and hedging assessment. If international revenue >50%, flag as material macro driver.
 - [ ] 4.6 Sector Drivers — 3-5 macro variables most correlated with sector; historical sensitivity
 
 **Data acquisition:** Run `${PLUGIN_SCRIPTS}/fetch_macro.py --output ./reports/macro.json` to pull FRED indicators. If `./reports/macro.json` already exists from Step 0, reuse it. **If analyzing a non-US company,** explicitly use `mcp__tavily-remote-mcp__tavily_search` to pull regional equivalents (e.g., ECB rates, Eurozone inflation, PBOC rates, China PMI) since FRED is US-centric.

@@ -68,6 +68,16 @@ SOURCE_FILES: dict[str, tuple[set[str] | None, str]] = {
     "liquidity.json": (None, "Market microstructure (compute_liquidity)"),
     "cot.json": (None, "CFTC positioning (fetch_cot)"),
     "cross_check.json": (None, "Cross-check contradictions (cross_check)"),
+    "activist.json": (None, "Activist exposure (fetch_activist_exposure)"),
+    "alternatives.json": (None, "Alternative data signals (fetch_alternatives)"),
+    "economic_surprises.json": (
+        None,
+        "Economic surprise indices (fetch_economic_surprises)",
+    ),
+    "global_macro.json": (None, "Global macro non-US (fetch_global_macro)"),
+    "realtime.json": (None, "Real-time quotes/options (fetch_realtime)"),
+    "candor.json": (None, "Management candor NLP (calculate_candor)"),
+    "currency_exposure.json": (None, "FX/ADR exposure (fetch_currency_exposure)"),
 }
 
 REQUIRED_FILES = {

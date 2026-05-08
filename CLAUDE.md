@@ -108,6 +108,7 @@
 | `fetch_private_comps.py` | M&A target probability, LBO floor, activist probability, precedent transactions | 6,8 |
 | `fetch_esg_carbon.py` | ESG materiality, carbon pricing scenarios, stranded assets, transition risk | 8 |
 | `fetch_supply_chain.py` | Supply chain concentration, geographic HHI, sector chokepoints, resilience score | 3 |
+| `fetch_currency_exposure.py` | ADR detection, geographic revenue mix, DXY correlation, FX EPS impact | 4 |
 | `calculate_metrics.py` | Ratios, DCF, RIM, DDM, Piotroski F-Score, Beneish, Altman Z, peer comparison, Monte Carlo | 6 |
 | `calculate_earnings_quality.py` | Accruals quality, cash conversion, revenue quality, expense signals, persistence | 1 |
 | `calculate_candor.py` | Management candor NLP (hedging, certainty, Q&A delta) | 9 |

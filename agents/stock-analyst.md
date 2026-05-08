@@ -75,6 +75,7 @@ timeout_mins: 30
   <script name="fetch_supply_chain.py" purpose="Supply chain mapping, concentration risk, disruption vulnerability" />
   <script name="fetch_esg_carbon.py" purpose="ESG ratings, carbon intensity, transition risk, regulatory exposure" />
   <script name="compute_sector_rs.py" purpose="Sector relative strength rankings vs SPY across 1M/3M/6M/12M" />
+  <script name="fetch_currency_exposure.py" purpose="ADR detection, geographic revenue mix, DXY correlation, FX EPS impact" />
 </scripts>
 
 <constraints>
