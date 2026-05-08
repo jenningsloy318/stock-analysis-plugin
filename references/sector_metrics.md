@@ -196,3 +196,5 @@ For these sectors, load the dedicated industry reference file for specialized KP
 | Data Centers / Cloud | `references/industry_datacenters.md` | MW capacity, PUE, utilization, WALE, $/MW, AI density |
 | Aerospace & Defense | `references/industry_aerospace.md` | Backlog/revenue, book-to-bill, aftermarket %, program lifecycle |
 | Gaming / iGaming | `references/industry_gaming.md` | GGR, hold %, ARPDAU, regulatory status, promotional intensity |
+| Materials / Mining | `references/industry_materials.md` | AISC, reserve life, P/NAV, commodity cycle position, grade trend |
+| Transportation / Logistics | `references/industry_transportation.md` | Operating ratio, RASM/CASM, load factor, TCE, freight demand |

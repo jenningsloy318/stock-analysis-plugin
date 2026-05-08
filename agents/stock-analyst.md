@@ -66,6 +66,9 @@ timeout_mins: 30
   <script name="fetch_activist_exposure.py" purpose="Activist investor 13D tracking, proxy fight probability, insider cluster detection" />
   <script name="calibrate_conviction.py" purpose="Bayesian conviction calibration, historical accuracy, Brier score adjustment" />
   <script name="compute_seasonality.py" purpose="Quarterly revenue/EPS seasonal indices, YoY decomposition, current-quarter assessment" />
+  <script name="compute_correlation_regime.py" purpose="Rolling beta, tail correlation, asymmetric beta, correlation regime, stress-adjusted sizing" />
+  <script name="compute_earnings_edge.py" purpose="Historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend" />
+  <script name="calculate_earnings_quality.py" purpose="Accruals quality, cash conversion, revenue quality, composite earnings quality score" />
 </scripts>
 
 <constraints>
