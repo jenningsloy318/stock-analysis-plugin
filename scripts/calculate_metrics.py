@@ -39,7 +39,9 @@ def compute_cagr(values: list[float]) -> float | None:
     return (end / start) ** (1 / years) - 1
 
 
-def compute_eva(roic: float | None, wacc: float, invested_capital: float | None) -> dict:
+def compute_eva(
+    roic: float | None, wacc: float, invested_capital: float | None
+) -> dict:
     """Compute Economic Value Added (EVA) and ROIC vs WACC spread."""
     if roic is None or invested_capital is None:
         return {"error": "ROIC and Invested Capital required for EVA."}
@@ -53,51 +55,91 @@ def compute_eva(roic: float | None, wacc: float, invested_capital: float | None)
         "spread": round(spread, 4),
         "invested_capital": round(invested_capital, 2),
         "eva": round(eva, 2),
-        "interpretation": "Value-creating (Moat expanding)" if spread > 0 else "Value-destroying (Moat shrinking)"
+        "interpretation": "Value-creating (Moat expanding)"
+        if spread > 0
+        else "Value-destroying (Moat shrinking)",
     }
 
 
-def generate_mermaid_charts(ticker: str, rev_series: list[float], fcf_series: list[float]) -> dict:
+def generate_mermaid_charts(
+    ticker: str, rev_series: list[float], fcf_series: list[float]
+) -> dict:
     """Generate Mermaid syntax charts for the markdown reports."""
     charts = {}
-    
+
     # Ensure we have data and matching lengths, limit to 5 years
     if rev_series and fcf_series:
         min_len = min(len(rev_series), len(fcf_series), 5)
         revs = [round(r, 2) for r in reversed(rev_series[:min_len])]
         fcfs = [round(f, 2) for f in reversed(fcf_series[:min_len])]
         years = [f"Y-{i}" for i in reversed(range(1, min_len))] + ["Current"]
-        
-        xy_chart = f"```mermaid\nxychart-beta\n    title \"{ticker} Revenue vs FCF\"\n    x-axis {json.dumps(years)}\n    y-axis \"Value\"\n    bar {json.dumps(revs)}\n    line {json.dumps(fcfs)}\n```"
+
+        xy_chart = f'```mermaid\nxychart-beta\n    title "{ticker} Revenue vs FCF"\n    x-axis {json.dumps(years)}\n    y-axis "Value"\n    bar {json.dumps(revs)}\n    line {json.dumps(fcfs)}\n```'
         charts["revenue_fcf_trend"] = xy_chart
 
     return charts
 
 
 def compute_dupont(
-    net_income: float, revenue: float, assets: float, equity: float
+    net_income: float,
+    revenue: float,
+    assets: float,
+    equity: float,
+    ebit: float | None = None,
+    ebt: float | None = None,
 ) -> dict:
-    """DuPont 3-factor decomposition of ROE.
+    """DuPont 5-factor decomposition of ROE.
 
-    ROE = Net Profit Margin × Asset Turnover × Equity Multiplier
+    ROE = Tax Burden × Interest Burden × Operating Margin × Asset Turnover × Equity Multiplier
+    Where: Tax Burden = NI/EBT, Interest Burden = EBT/EBIT
+    Falls back to 3-factor if EBIT/EBT unavailable.
     """
     net_margin = safe_div(net_income, revenue)
     asset_turnover = safe_div(revenue, assets)
     equity_multiplier = safe_div(assets, equity)
     roe = safe_div(net_income, equity)
 
-    return {
-        "methodology": "DuPont 3-Factor Decomposition: ROE = Margin × Turnover × Leverage",
+    result = {
         "roe": round(roe, 4) if roe else None,
         "net_profit_margin": round(net_margin, 4) if net_margin else None,
         "asset_turnover": round(asset_turnover, 4) if asset_turnover else None,
         "equity_multiplier": round(equity_multiplier, 4) if equity_multiplier else None,
         "interpretation": {
-            "margin_driven": net_margin and net_margin > 0.15,
-            "turnover_driven": asset_turnover and asset_turnover > 1.0,
-            "leverage_driven": equity_multiplier and equity_multiplier > 3.0,
+            "margin_driven": net_margin is not None and net_margin > 0.15,
+            "turnover_driven": asset_turnover is not None and asset_turnover > 1.0,
+            "leverage_driven": equity_multiplier is not None
+            and equity_multiplier > 3.0,
         },
     }
+
+    if ebit and ebt and ebit != 0 and ebt != 0:
+        tax_burden = safe_div(net_income, ebt)
+        interest_burden = safe_div(ebt, ebit)
+        operating_margin = safe_div(ebit, revenue)
+        result["methodology"] = (
+            "DuPont 5-Factor: ROE = Tax Burden × Interest Burden × "
+            "Op Margin × Turnover × Leverage"
+        )
+        result["tax_burden"] = round(tax_burden, 4) if tax_burden else None
+        result["interest_burden"] = (
+            round(interest_burden, 4) if interest_burden else None
+        )
+        result["operating_margin"] = (
+            round(operating_margin, 4) if operating_margin else None
+        )
+        result["interpretation"]["tax_efficient"] = (
+            tax_burden is not None and tax_burden > 0.75
+        )
+        result["interpretation"]["low_interest_drag"] = (
+            interest_burden is not None and interest_burden > 0.85
+        )
+    else:
+        result["methodology"] = (
+            "DuPont 3-Factor: ROE = Margin × Turnover × Leverage "
+            "(EBIT/EBT unavailable for 5-factor)"
+        )
+
+    return result
 
 
 def compute_beneish_mscore(
@@ -814,7 +856,9 @@ def compute_ratios(
         "net_margin": round(safe_div(ni, rev), 4) if ni and rev else None,
         "roa": round(safe_div(ni, assets), 4) if ni and assets else None,
         "roe": round(safe_div(ni, equity), 4) if ni and equity else None,
-        "roic": round(safe_div(oi * (1 - 0.21), equity + debt - cash), 4) if oi and equity and debt is not None and cash is not None else None,
+        "roic": round(safe_div(oi * (1 - 0.21), equity + debt - cash), 4)
+        if oi and equity and debt is not None and cash is not None
+        else None,
         "debt_to_equity": round(safe_div(debt, equity), 4) if debt and equity else None,
         "net_debt": round(debt - cash, 2)
         if debt is not None and cash is not None
@@ -852,7 +896,9 @@ def compute_ratios(
 
     # DuPont
     if ni and rev and assets and equity:
-        ratios["dupont"] = compute_dupont(ni, rev, assets, equity)
+        ebt_series = extract_values(income.get("pretax_income", []))
+        ebt = ebt_series[0] if ebt_series else None
+        ratios["dupont"] = compute_dupont(ni, rev, assets, equity, ebit=oi, ebt=ebt)
 
     return ratios
 
@@ -1202,7 +1248,11 @@ def main():
 
     # Add EVA
     roic_val = metrics["ratios"].get("roic")
-    invested_capital = (equity + debt - cash) if equity and debt is not None and cash is not None else None
+    invested_capital = (
+        (equity + debt - cash)
+        if equity and debt is not None and cash is not None
+        else None
+    )
     metrics["economic_value_added"] = compute_eva(roic_val, args.wacc, invested_capital)
 
     # Add Mermaid charts

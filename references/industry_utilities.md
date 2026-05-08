@@ -42,9 +42,8 @@
 ### Valuation Approach
 
 - P/E: 15-20x (premium for constructive regulation + high rate base growth)
-- Dividend yield: 3-5% (floor valuation)
-- Rate base CAGR is the primary growth proxy; 1% rate base growth ~ 1% EPS growth
-- RAB (Regulated Asset Base) approach: Market cap / Rate base; premium = growth expectation
+- Dividend yield: 3-5% (floor valuation); RAB approach: Market cap / Rate base
+- Rate base CAGR is primary growth proxy; 1% rate base growth ~ 1% EPS growth
 
 ### Growth Catalysts
 
@@ -82,10 +81,8 @@ NextEra (NEE), Duke Energy (DUK), Southern Company (SO), Dominion (D), AEP, Xcel
 
 ### Risk Factors
 
-- Merchant power price volatility (gas price pass-through depends on fuel type)
-- Coal plant retirement economics (accelerating, stranded asset risk)
-- Nuclear decommissioning liability (funded vs unfunded status)
-- Regulatory/political risk (capacity market redesign, carbon pricing uncertainty)
+- Merchant power price volatility; coal plant stranded asset risk (accelerating retirements)
+- Nuclear decommissioning liability (funded vs unfunded); capacity market redesign risk
 
 ### Valuation
 
@@ -127,8 +124,7 @@ Vistra (VST), Constellation Energy (CEG), NRG Energy (NRG), Talen Energy (TLN), 
 ### Valuation
 
 - EV/MW installed: $1.5-2.5M/MW (solar), $2-4M/MW (onshore wind), $4-7M/MW (offshore)
-- CAFD yield (Cash Available for Distribution): target 5-8%
-- DCF of contracted cash flows with terminal value for recontracting
+- CAFD yield target 5-8%; DCF of contracted cash flows with recontracting terminal value
 - Tax equity complexity reduces comparability; focus on unlevered project returns
 
 ### Key Players

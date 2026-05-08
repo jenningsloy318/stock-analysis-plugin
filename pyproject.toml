@@ -1,6 +1,6 @@
 [project]
 name = "stock-analysis-scripts"
-version = "1.0.8"
+version = "1.0.20"
 description = "Python scripts for stock analysis plugin - deterministic calculations, data fetching, and scoring"
 requires-python = ">=3.10"
 dependencies = [
@@ -12,6 +12,8 @@ dependencies = [
     "praw>=7.7",
     "statsmodels>=0.14",
     "pandas>=2.0",
+    "scipy>=1.10",
+    "arch>=6.0",
 ]
 
 [dependency-groups]

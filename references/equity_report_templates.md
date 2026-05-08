@@ -138,7 +138,10 @@ When frameworks produce contradictory conclusions:
 ## 6. Key Long-term Risks
 [Top 3-5 risks to permanent capital loss (Klarman: permanent vs temporary impairment distinction). Mitigants for each. ESG/carbon pricing risk for carbon-intensive sectors. M&A/activist probability flag (if score >60/100).]
 
-## 7. Recommendation
+## 7. Factor Attribution & Liquidity
+[Fama-French 5-factor loadings (market, SMB, HML, RMW, CMA). Alpha after factor decomposition. Liquidity score and position sizing constraint. Days to liquidate at 10% participation. Market impact estimate for target position size.]
+
+## 8. Recommendation
 - **Rating**: [Buy/Hold/Avoid]
 - **Target Price**: $X (X% upside) | Confidence interval: 60% probability $X-$Y
 - **Margin of Safety**: X%
@@ -360,10 +363,13 @@ by ≥1.5 points, flag as "MATERIAL CHANGE."
 | Moat Quality | X.X | Y.Y | ±Z.Z |
 | Management Quality | X.X | Y.Y | ±Z.Z |
 | Valuation Attractiveness | X.X | Y.Y | ±Z.Z |
+| Capital Structure | X.X | Y.Y | ±Z.Z |
 | Macro Tailwind | X.X | Y.Y | ±Z.Z |
 | Risk Profile | X.X | Y.Y | ±Z.Z |
 | Alternative Alignment | X.X | Y.Y | ±Z.Z |
 | Technical Setup | X.X | Y.Y | ±Z.Z |
+| Weinstein Alignment | X.X | Y.Y | ±Z.Z |
+| CANSLIM | X.X | Y.Y | ±Z.Z |
 
 **Prior Conviction**: X.X/10 ([Rating]) | **Current Conviction**: Y.Y/10 ([Rating]) | **Δ**: ±Z.Z
 
