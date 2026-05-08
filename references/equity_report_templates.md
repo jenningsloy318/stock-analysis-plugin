@@ -4,23 +4,23 @@
 
 ### Long-term Report Conviction
 ```
-Conviction = (Financial_Health × 0.20) + (Moat_Quality × 0.25) + (Management_Quality × 0.20) +
-             (Valuation_Attractiveness × 0.20) + (Macro_Tailwind × 0.05) +
-             (Risk_Profile × 0.10)
+Conviction = (Financial_Health × 0.15) + (Moat_Quality × 0.20) + (Management_Quality × 0.15) +
+             (Valuation_Attractiveness × 0.20) + (Capital_Structure × 0.10) +
+             (Macro_Tailwind × 0.05) + (Risk_Profile × 0.10) + (Weinstein_Alignment × 0.05)
 ```
 
 ### Mid-term Report Conviction
 ```
-Conviction = (Financial_Health × 0.15) + (Moat_Quality × 0.10) + (Management_Quality × 0.10) +
-             (Valuation_Attractiveness × 0.25) + (Macro_Tailwind × 0.25) +
-             (Risk_Profile × 0.15)
+Conviction = (Financial_Health × 0.10) + (Moat_Quality × 0.10) + (Management_Quality × 0.10) +
+             (Valuation_Attractiveness × 0.20) + (Macro_Tailwind × 0.20) +
+             (Risk_Profile × 0.10) + (Weinstein_Alignment × 0.10) + (CANSLIM × 0.10)
 ```
 
 ### Short-term Report Conviction
 ```
-Conviction = (Valuation_Attractiveness × 0.15) + (Macro_Tailwind × 0.10) +
-             (Risk_Profile × 0.10) + (Alternative_Alignment × 0.35) +
-             (Technical_Setup × 0.30)
+Conviction = (Valuation_Attractiveness × 0.10) + (Macro_Tailwind × 0.10) +
+             (Risk_Profile × 0.10) + (Alternative_Alignment × 0.25) +
+             (Technical_Setup × 0.20) + (Weinstein_Alignment × 0.15) + (CANSLIM × 0.10)
 ```
 
 ## Component Scoring (1-10 Scale)
@@ -31,10 +31,13 @@ Conviction = (Valuation_Attractiveness × 0.15) + (Macro_Tailwind × 0.10) +
 | Moat Quality | Narrowing moat, share loss, pricing pressure | Stable moat, flat share, pricing intact | Widening moat, gaining share, pricing power |
 | Management Quality | Poor allocation, insider selling, guidance misses | Average allocation, neutral insider, mixed guidance | Excellent allocation, insider buying, beats |
 | Valuation Attractiveness | >30% above intrinsic, 5yr high multiples | ±15% of intrinsic, near historical avg | >30% below intrinsic, 5yr low multiples |
+| Capital Structure | Value-destructive buybacks, SBC >10%, suboptimal leverage | Neutral buybacks, moderate SBC, average capital returns | Buybacks at discount, low SBC, total return >4% |
 | Macro Tailwind | 3+ headwinds | 1-2 headwinds, offset | 3+ tailwinds |
 | Risk Profile | 3+ red flags, litigation, Altman Z <1.81 | Manageable risks, mitigants present | Clean, low litigation, strong balance sheet |
 | Alternative Alignment | Digital diverging negative from reported | Mixed, no clear divergence | Digital confirming/exceeding reported |
 | Technical Setup | Broken trend, distribution, below support | Mixed, range-bound | Strong trend, accumulation, above support |
+| Weinstein Alignment | Stage 4 (Declining), RS < 0.9 | Stage 1/3 (Basing/Topping) | Stage 2 (Advancing), RS > 1.1 |
+| CANSLIM | <3/7 factors passing, EPS declining | 3-4/7 factors, mixed signals | 5+/7 factors passing, strong EPS + RS |
 
 ## Rating Anchors
 

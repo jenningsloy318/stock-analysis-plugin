@@ -19,16 +19,19 @@ timeout_mins: 15
   <step n="3" name="Competitive Landscape">Market share trends, positioning map, peer comparisons, disruption threats</step>
   <step n="4" name="Market Sizing">TAM/SAM/SOM (top-down + bottom-up), penetration rate, adjacent markets</step>
   <step n="5" name="Platform Economics">Network effects, liquidity, multi-tenanting, take rate (if applicable)</step>
-  <step n="6" name="Supply Chain">Supplier diversification, geographic concentration, critical components</step>
+  <step n="6" name="Supply Chain Risk Mapping">Supplier diversification (customer/supplier HHI), geographic concentration (% revenue from single country/region), critical single-source components, chokepoint identification (e.g., TSMC for chips, rare earths for EVs), lead time variability, inventory buffer adequacy. Score: Low/Medium/High concentration risk per dimension.</step>
   <step n="7" name="Ecosystem Mapping">Upstream/downstream dependency, single-point-of-failure, complementor health</step>
 </process>
 
 <reference-files>
   - references/frameworks_value_growth.md (Porter, Morningstar moat, Fisher's Scuttlebutt)
   - references/sector_metrics.md (sector-specific competitive metrics)
+  - references/international_markets.md (for non-US companies: structural adjustments)
 </reference-files>
 
 <data-acquisition>
+  Run `scripts/fetch_supply_chain.py [TICKER] --sector [GICS] --output ./reports/[TICKER]/supply_chain.json` for supply chain concentration risk scoring.
+
   For competitive landscape and industry research, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[COMPANY] market share [industry] [year]", "[COMPANY] competitors analysis"
   2. `mcp__firecrawl__firecrawl_agent` — "Research the competitive landscape for [COMPANY] including market share data, key competitors, Porter's Five Forces analysis, and TAM/SAM sizing for [industry]"
@@ -42,6 +45,7 @@ timeout_mins: 15
 <validation-gates>
   - At least 3 peer companies identified with GICS alignment justification
   - TAM estimate produced with methodology stated
+  - Supply chain concentration risk scored (Low/Medium/High) with key dependencies identified
 </validation-gates>
 
 <output>Write stage summary to `./reports/[TICKER]/stage3.md`</output>

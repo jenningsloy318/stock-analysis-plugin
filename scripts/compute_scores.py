@@ -8,14 +8,15 @@ Usage:
         --technicals ./reports/[TICKER]/tech.json \
         --alternatives ./reports/[TICKER]/alt-data.json \
         --sentiment ./reports/[TICKER]/sentiment.json \
+        --capital-structure ./reports/[TICKER]/capital_structure.json \
         --report-type long \
         [--gics-sector 45] \
         [--output ./reports/[TICKER]/scores.json]
 
-Produces reproducible, rubric-based 1-10 scores for all 8 conviction
+Produces reproducible, rubric-based 1-10 scores for 11 conviction
 components: Financial Health, Moat Quality, Management Quality, Valuation
-Attractiveness, Macro Tailwind, Risk Profile, Alternative Alignment, and
-Technical Setup.
+Attractiveness, Macro Tailwind, Risk Profile, Alternative Alignment,
+Technical Setup, Capital Structure, Weinstein Alignment, and CANSLIM.
 
 Then computes the final conviction rating using the per-report-type
 weighted formulas, applying override rules (component ≤3 caps at Hold,

@@ -103,7 +103,9 @@
 | `fetch_capital_structure.py` | Buyback ROI, SBC dilution, capital return yield, debt maturity, optimal leverage | 1,2 |
 | `fetch_private_comps.py` | M&A target probability, LBO floor, activist probability, precedent transactions | 6,8 |
 | `fetch_esg_carbon.py` | ESG materiality, carbon pricing scenarios, stranded assets, transition risk | 8 |
+| `fetch_supply_chain.py` | Supply chain concentration, geographic HHI, sector chokepoints, resilience score | 3 |
 | `calculate_metrics.py` | Ratios, DCF, RIM, DDM, Piotroski F-Score, Beneish, Altman Z, peer comparison, Monte Carlo | 6 |
+| `calculate_earnings_quality.py` | Accruals quality, cash conversion, revenue quality, expense signals, persistence | 1 |
 | `calculate_candor.py` | Management candor NLP (hedging, certainty, Q&A delta) | 9 |
 | `calculate_options.py` | Options signals: IV surface, max pain, put/call ratios, unusual activity | 6 |
 | `forecast.py` | ARIMA/ETS ensemble + GARCH volatility + fat-tail Monte Carlo + regime detection | 6 |

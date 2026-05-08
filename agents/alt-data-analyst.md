@@ -24,10 +24,12 @@ timeout_mins: 15
 
 <reference-files>
   - references/frameworks_risk_alt.md (ARK's disruption framework)
+  - references/frameworks_behavioral.md (Soros reflexivity, anchoring bias, herding detection, narrative economics)
 </reference-files>
 
 <data-acquisition>
   Run `scripts/fetch_alternatives.py [TICKER]` for alternative data.
+  Run `scripts/fetch_behavioral.py [TICKER] --analyst-json ./reports/[TICKER]/sentiment.json --price-changes ./reports/[TICKER]/price_changes.json --output ./reports/[TICKER]/behavioral.json` for behavioral signals (narrative, herding, anchoring, reflexivity).
   Run `scripts/calculate_candor.py ./reports/[TICKER]/transcript.txt` for NLP candor index.
   Paywalled sources return `null` — this is expected, proceed.
 

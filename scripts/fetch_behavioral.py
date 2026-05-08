@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Behavioral finance analysis: narrative tracking, sentiment divergence,
-analyst herding, overreaction detection.
+analyst herding, overreaction detection, anchoring bias, reflexivity.
 
 Usage:
     fetch_behavioral.py AAPL
@@ -11,7 +11,8 @@ Analyzes behavioral factors that can drive stock prices beyond fundamentals:
   - Analyst herding: consensus clustering vs dispersion
   - Sentiment divergence: retail vs institutional sentiment gap
   - Overreaction detection: extreme price moves vs fundamental changes
-  - Confirmation bias indicators: cherry-picked evidence detection
+  - Anchoring bias: stale price targets anchored to 52w highs or round numbers
+  - Reflexivity (Soros): self-reinforcing feedback loops via autocorrelation
   - Contrarian signals: crowding indicators
 """
 

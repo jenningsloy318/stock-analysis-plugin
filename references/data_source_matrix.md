@@ -31,6 +31,8 @@ Use this matrix before running stock-analysis or industry-screening. The goal is
 | ESG & carbon risk | yfinance sustainability fields, sector benchmarks, GICS emission intensity tables | 90 days for ESG scores; 12 months for carbon intensity | Required for long-term risk assessment in carbon-intensive sectors (GICS 10, 15, 20, 55) |
 | International market adjustments | akshare (China), EDINET/TDnet (Japan), BSE/NSE (India), DART/KRX (Korea) | 90 days for structural metrics; 30 days for flows | Required when primary listing is non-US or >20% revenue from covered markets |
 | Volatility & tail risk | yfinance daily returns (2yr), GARCH model output, Student-t fitting | 7 days for short-term; 30 days otherwise | Required for enhanced risk metrics and position sizing |
+| Supply chain concentration | yfinance geographic segments, GICS sector chokepoint mapping, revenue HHI | 90 days for segments; 12 months for structural | Required for industry analysis (Stage 3) and operational due diligence |
+| Earnings quality | Financial statements (income, cash flow, balance sheet), 3-5yr history | Latest filing | Required for forensic accounting and fundamental quality assessment |
 
 ## Freshness SLA
 
