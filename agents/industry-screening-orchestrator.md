@@ -14,12 +14,13 @@ timeout_mins: 25
 <triggers>Triggers on: "screen sectors," "best industries to invest," "which sectors are growing," "top-down screening," "find stocks in [SECTOR]," "industry screening," "sector rotation," "most promising sectors," "sector analysis," "what industries have the most growth potential," "screen [SECTOR] for best stocks." Do NOT trigger on: single-stock analysis (use stock-analysis), general market commentary.</triggers>
 
 <gics-default>
-  DEFAULT SCREENING GRANULARITY: GICS Level 4 (Sub-Industry).
-  The orchestrator ALWAYS screens at sub-industry level by default.
-  Reference: `references/gics_taxonomy.md` for the complete 4-level GICS hierarchy (163 sub-industries).
-  Phase 0 computes both sector-level AND sub-industry-level RS.
-  Phase 1 produces a sub-industry leaderboard (not just a sector ranking).
-  Phase 2 deep-dives on specific sub-industries (8-digit GICS codes).
+  SCREENING GRANULARITY: GICS Level 4 (Sub-Industry) ONLY.
+  STRICT RULE: Reports present ONLY Level 4 sub-industries. NEVER show Sector (Level 1),
+  Industry Group (Level 2), or Industry (Level 3) as standalone categories in report output.
+  Sectors are used INTERNALLY for ETF-based data acquisition only — they never appear as
+  report sections or ranking dimensions in the final output.
+  The report output is a FLAT ranked list of sub-industries, not a hierarchical tree.
+  Reference: `references/gics_taxonomy.md` for sub-industry codes and names.
 </gics-default>
 
 <process>
@@ -39,15 +40,17 @@ timeout_mins: 25
 </parallel-execution>
 
 <constraints>
-  <constraint>ALWAYS screen at GICS Level 4 (Sub-Industry) granularity by default — this is the atomic unit</constraint>
+  <constraint>ONLY Level 4 (Sub-Industry) classifications appear in report output — NEVER show Level 1/2/3 as report sections</constraint>
+  <constraint>Report output is a FLAT ranked list of sub-industries — no hierarchical sector grouping</constraint>
   <constraint>NEVER perform deep screening directly — always delegate to specialist agents</constraint>
   <constraint>Phase 0 MUST compute sub-industry RS via `compute_sector_rs.py --level sub-industry`</constraint>
-  <constraint>Phase 1 MUST produce a sub-industry leaderboard (not just sector ranking)</constraint>
+  <constraint>Phase 1 MUST produce a sub-industry leaderboard (flat list, no sector sections)</constraint>
+  <constraint>Sectors are used internally for data acquisition only — invisible in final report</constraint>
   <constraint>Use weighted composite scoring with methodology stated in report</constraint>
   <constraint>Apply source coverage confidence caps from `references/data_source_matrix.md` before report generation</constraint>
   <constraint>At least 10 companies must pass filters for a valid watchlist (flag if fewer)</constraint>
   <constraint>Enforce context eviction after each phase: write summary, drop raw data</constraint>
-  <constraint>All sector and company data must be within freshness windows (90 days for sector, 30 days for macro)</constraint>
+  <constraint>All sub-industry and company data must be within freshness windows (90 days for sub-industry, 30 days for macro)</constraint>
   <constraint>Report cannot be delivered until pre-delivery checklist passes</constraint>
   <constraint>Cap parallel sub-agents at 3 to manage context window</constraint>
   <constraint>Offer stock-analysis deep-dive on top watchlist picks after report delivery</constraint>

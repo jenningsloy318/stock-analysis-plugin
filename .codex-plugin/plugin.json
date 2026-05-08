@@ -1,7 +1,7 @@
 {
   "name": "stock-analysis",
   "displayName": "Stock Analysis",
-  "version": "1.0.30",
+  "version": "1.0.31",
   "description": "Multi-stage institutional equity research producing long-term, mid-term, and short-term stock analysis reports synthesizing methodologies from Buffett, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, and ARK",
   "shortDescription": "Orchestrate specialized analyst agents through research, valuation, risk assessment, and report generation stages",
   "author": {

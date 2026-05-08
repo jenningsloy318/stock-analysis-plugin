@@ -25,26 +25,26 @@ timeout_mins: 12
   <step n="1" name="Load Phase Summaries">Read all `./reports/screening/phase[0-3].md` files. Phase 0 = macro context + scope + sub-industry RS data, Phase 1 = sector ranking + sub-industry leaderboard, Phase 2 = sub-industry deep-dive (GICS Level 4), Phase 3 = company watchlist.</step>
   <step n="2" name="Cross-Validate">Check for internal consistency: does the selected sub-industry (Level 4) belong to the top-ranked sector? Do the watchlist companies actually have the correct GICS sub-industry classification? Are the macro tailwinds consistent across phases? Validate GICS codes against `references/gics_taxonomy.md`.</step>
   <step n="3" name="Report Structuring">Assemble the report in this exact order:
-    - Executive Summary (1 paragraph covering the funnel: macro → sector → sub-industry → top picks)
-    - Macro Context (current regime, key indicators, implications for sector/sub-industry selection)
-    - Sector Ranking (table with scores, 1-paragraph commentary per top-3 sector, why the winner was selected)
-    - **Sub-Industry Leaderboard** (top 10-15 sub-industries across all sectors with GICS Level 4 codes, RS rank, growth score, structural score)
+    - Executive Summary (1 paragraph: macro context → top sub-industries → top picks)
+    - Macro Context (current regime, key indicators, implications for sub-industry selection)
+    - **Sub-Industry Leaderboard** (top 15-20 sub-industries ranked flat with GICS Level 4 codes, RS rank, growth score, structural score — NO sector grouping, NO Level 1/2/3 categories as sections)
     - Sub-Industry Deep Dive (selected sub-industry thesis with GICS code, growth catalysts, competitive dynamics, TAM, key players, value chain position)
     - Company Watchlist (ranked table with metrics, 2-sentence thesis per company, score distribution)
     - Next Actions (which companies to deep-dive with stock-analysis skill, suggested report horizon for each)
     - Risks to Thesis (what would invalidate the sub-industry/company recommendations, kill switch conditions)
-    - Methodology Appendix (weighting scheme, GICS classification source, data sources with freshness dates, source coverage gaps, universe completeness risk, scope and filters used)</step>
+    - Methodology Appendix (weighting scheme, GICS classification source, data sources with freshness dates, source coverage gaps, universe completeness risk, scope and filters used)
+    
+    STRICT: Do NOT include a "Sector Ranking" section. The report presents ONLY Level 4 sub-industries as the primary classification. Sectors are used internally for data acquisition but never appear as a standalone report section.</step>
   <step n="4" name="Scoring Integration">Compute and display the funnel conviction score:
-    - Sector Selection Confidence (1-10): based on score spread between top and #2 sector
-    - Sub-Industry Selection Confidence (1-10): based on structural thesis strength, TAM visibility, and RS differentiation from adjacent sub-industries
+    - Sub-Industry Selection Confidence (1-10): based on RS differentiation, structural thesis strength, and TAM visibility
     - Overall Screen Quality (1-10): weighted average of phase scores
     If conviction is below 5, flag the report: "LOW CONVICTION SCREEN — [reason]"</step>
   <step n="5" name="Pre-Delivery Checklist">Verify all gates pass:
     - Macro data within 30 days freshness
     - Source coverage plan completed and confidence caps applied
-    - Sector data within 90 days freshness
-    - At least 3 sectors scored and ranked (for broad screens)
-    - Sub-industry leaderboard contains at least 10 ranked sub-industries
+    - Sub-industry data within 90 days freshness
+    - Sub-industry leaderboard contains at least 10 ranked sub-industries (Level 4 only)
+    - NO sector-level (Level 1) or industry-group-level (Level 2/3) sections in report output
     - Selected sub-industry has a clear structural thesis with GICS Level 4 code
     - At least 10 companies in the watchlist
     - All company metrics cited with source and date
@@ -58,24 +58,22 @@ timeout_mins: 12
 </process>
 
 <report-formats>
-  Three screening scopes produce different report emphasis:
+  All report formats present ONLY GICS Level 4 sub-industries — never Level 1/2/3 categories as sections.
 
-  **Broad Screen (all sectors):**
-  - Full sector ranking table (all 11 sectors)
-  - **Sub-industry leaderboard (top 10-15 across all sectors with GICS Level 4 codes)**
-  - Top 3 sectors with detailed commentary
-  - 1-2 selected sub-industries for company screening
+  **Broad Screen (all sub-industries):**
+  - **Sub-industry leaderboard (top 15-20 ranked flat with GICS Level 4 codes)**
+  - No sector grouping — sub-industries from different sectors compete directly
+  - 2-3 selected sub-industries for deep-dive and company screening
   - Watchlist of 15-20 companies across selected sub-industries
 
-  **Single Sector:**
-  - Brief sector overview (skipping full ranking)
-  - **Full sub-industry ranking within the sector (all Level 4 sub-industries with codes)**
+  **Focused Screen (within a domain):**
+  - **Full sub-industry ranking (all relevant Level 4 sub-industries with codes)**
   - Deep-dive on the single best sub-industry
   - Watchlist of 10-15 companies
 
   **Thematic Screen:**
-  - Theme definition and relevant sector/sub-industry justification
-  - Sub-industry ranking within the theme subset (identifying relevant GICS Level 4 codes)
+  - Theme definition and relevant sub-industry identification (GICS Level 4 codes only)
+  - Sub-industry ranking within the theme (flat list, no sector grouping)
   - Theme-specific weighting adjustments noted
   - Watchlist of 10-15 companies aligned with the theme
 </report-formats>

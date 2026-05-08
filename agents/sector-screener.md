@@ -68,18 +68,29 @@ timeout_mins: 12
 </deep-dive-mode>
 
 <data-acquisition>
-  Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for sector-level RS.
   Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --level sub-industry --output ./reports/screening/sub_industry_rs.json` for sub-industry RS.
-  For a single sector's sub-industries: `${PLUGIN_SCRIPTS}/compute_sector_rs.py --level sub-industry --sector [SECTOR_NAME] --output ./reports/screening/sub_industry_rs_[SECTOR].json`
+  Run `${PLUGIN_SCRIPTS}/fetch_sub_industry_universe.py --code [GICS_CODE] --output ./reports/screening/universe_[CODE].json` for constituent discovery.
 
-  For sector and industry research, use search tools:
-  1. `mcp__firecrawl__firecrawl_search` — "[SECTOR] sector performance 2025 2026 outlook", "[SUB_INDUSTRY] industry growth forecast CAGR"
-  2. `mcp__tavily-remote-mcp__tavily_research` with `model: "pro"` — "Comprehensive analysis of [SUB_INDUSTRY]: growth trends, profitability, competitive dynamics, and 2026 outlook"
-  3. `mcp__tavily-remote-mcp__tavily_search` with `search_depth: "advanced"` — "[SUB_INDUSTRY] P/E ratio vs 5-year average historical valuation"
-  4. `mcp__exa__web_search_exa` — "industry research report [SUB_INDUSTRY] growth drivers innovation trends 2026"
-  5. `mcp__web-search-prime__web_search_prime` — "[SECTOR] ETF fund flows institutional positioning latest quarter"
-  6. `mcp__xcrawl-mcp__xcrawl_search` — "[SUB_INDUSTRY] regulation policy changes 2025 2026"
+  IMPORTANT: ALL search queries should target GICS Level 4 sub-industry names directly.
+  Do NOT search for broad sector terms (e.g., "Technology sector"). Instead search for the
+  specific sub-industry (e.g., "Semiconductors industry", "Application Software market",
+  "Managed Health Care industry"). This ensures the research data is granular enough for
+  Level 4 reporting.
+
+  For sub-industry research, use search tools:
+  1. `mcp__firecrawl__firecrawl_search` — "[SUB_INDUSTRY_NAME] industry performance 2025 2026 outlook growth forecast CAGR"
+  2. `mcp__tavily-remote-mcp__tavily_research` with `model: "pro"` — "Comprehensive analysis of [SUB_INDUSTRY_NAME] industry: growth trends, profitability, competitive dynamics, TAM, key players, and 2026 outlook"
+  3. `mcp__tavily-remote-mcp__tavily_search` with `search_depth: "advanced"` — "[SUB_INDUSTRY_NAME] industry P/E ratio valuation historical comparison market size"
+  4. `mcp__exa__web_search_exa` — "industry research report [SUB_INDUSTRY_NAME] growth drivers innovation trends 2026"
+  5. `mcp__web-search-prime__web_search_prime` — "[SUB_INDUSTRY_NAME] ETF fund flows institutional positioning latest quarter"
+  6. `mcp__xcrawl-mcp__xcrawl_search` — "[SUB_INDUSTRY_NAME] regulation policy changes 2025 2026"
   7. Official/public data where relevant from `references/data_source_matrix.md`: BEA, BLS, Census, EIA, FDA, FDIC/OCC, USPTO/PatentsView, Treasury, CFTC, FINRA
+
+  Search query examples (Level 4 specific):
+  - "semiconductors industry revenue growth 2025 2026 forecast" (NOT "technology sector growth")
+  - "application software SaaS industry TAM market size 2026" (NOT "IT services sector")
+  - "managed health care industry profitability margins MCR" (NOT "healthcare sector margins")
+  - "regional banks NIM deposit beta 2025" (NOT "financials sector performance")
 </data-acquisition>
 
 <validation-gates>

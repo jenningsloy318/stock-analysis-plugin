@@ -13,7 +13,7 @@ description: >
   industries to invest," "which sectors are growing," "top-down screening,"
   "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.30"
+version: "1.0.31"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -22,12 +22,14 @@ compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime,
 
 ## Overview
 
-<purpose>Industry-screening-orchestrator (team lead) agent team workflow. Uses GICS Level 4 (Sub-Industry, 163 classifications) as the DEFAULT atomic screening unit. The orchestrator spawns specialized screener teammates for sector and sub-industry analysis — it NEVER performs deep screening directly, only spawns, coordinates, and synthesizes. Screener agents analyze sectors AND their sub-industries in a top-down funnel: Macro → Sector → Sub-Industry → Company.</purpose>
+<purpose>Industry-screening-orchestrator (team lead) agent team workflow. Uses GICS Level 4 (Sub-Industry, 163 classifications) as the ONLY screening unit. Reports present ONLY sub-industry classifications — never show Sector (Level 1), Industry Group (Level 2), or Industry (Level 3) as standalone categories. The orchestrator spawns specialized screener teammates — it NEVER performs deep analysis directly, only spawns, coordinates, and synthesizes.</purpose>
 
 <default-granularity>
-  GICS Level 4 (Sub-Industry) is ALWAYS the default screening unit.
-  The funnel: 11 Sectors → filter → rank 163 Sub-Industries → deep-dive top 2-3 → company screen.
-  Reference: `references/gics_taxonomy.md` for the complete 4-level hierarchy.
+  GICS Level 4 (Sub-Industry) is the ONLY classification shown in reports.
+  STRICT RULE: Do NOT present Level 1/2/3 categories as report sections or ranking dimensions.
+  Internal workflow may use sectors for ETF-based RS calculation, but the REPORT OUTPUT
+  presents ONLY the 163 sub-industries directly — flat ranked list, no hierarchical grouping.
+  Reference: `references/gics_taxonomy.md` for sub-industry codes and names.
 </default-granularity>
 
 <triggers>Triggers on: "screen sectors," "best industries to invest," "which sectors are growing," "top-down screening," "find stocks in [SECTOR]," "industry screening," "sector rotation," "most promising sectors," "sector analysis," "what industries have the most growth potential," "screen [SECTOR] for best stocks," "which companies in [INDUSTRY] are worth investing in." Do NOT trigger on: single-stock analysis requests (use stock-analysis skill), general market commentary without screening intent, portfolio allocation questions without ticker discovery intent.</triggers>
@@ -112,15 +114,17 @@ Scripts are bundled with the plugin. Set `PLUGIN_ROOT` based on platform, then d
 
 6. **Source coverage plan**: Load `references/data_source_matrix.md` and `references/gics_taxonomy.md`. Write `./reports/screening/source-plan.md` with classification sources (GICS Level 4 sub-industries), required source tiers, freshness windows, and confidence cap rules.
 
-### Phase 1: Sector & Sub-Industry Screening (parallel per sector)
+### Phase 1: Sub-Industry Screening (GICS Level 4 — the ONLY output level)
 
-**Objective:** Score and rank all 11 GICS sectors (Level 1) AND their Level 4 sub-industries to identify the most attractive sub-industry niches — not just broad sectors.
+**Objective:** Rank all 163 GICS Level 4 sub-industries directly to produce a flat sub-industry leaderboard. Sectors (Level 1) are used INTERNALLY for ETF-based data acquisition only — they NEVER appear in report output.
 
-**GICS Granularity:** This phase uses `references/gics_taxonomy.md` as the authoritative classification. The screening funnel works top-down:
-- Level 1 (Sector, 11): Broad filtering to eliminate weak sectors
-- Level 4 (Sub-Industry, 163): Granular ranking within top sectors to identify the strongest niche
+**GICS Granularity:** This phase uses `references/gics_taxonomy.md` as the authoritative classification.
+- Internal only: Level 1 (Sector, 11) for ETF RS data acquisition
+- **Report output: Level 4 (Sub-Industry, 163) ONLY** — flat ranked list, no hierarchical grouping
 
-**Spawn strategy:** Spawn up to 3 `sector-screener` agents in parallel. Each agent handles a batch of sectors AND their sub-industries:
+**Research approach:** ALL search queries target sub-industry names directly (e.g., "Semiconductors industry growth 2026") — never broad sector terms (e.g., "Technology sector").
+
+**Spawn strategy:** Spawn up to 3 `sector-screener` agents in parallel. Each agent handles a batch of sub-industries grouped by parent sector for data acquisition efficiency:
 - Batch A: Technology (11 sub-industries), Communication Services (10 sub-industries), Consumer Discretionary (19 sub-industries)
 - Batch B: Financials (15 sub-industries), Healthcare (10 sub-industries), Industrials (19 sub-industries)
 - Batch C: Energy (7 sub-industries), Materials (16 sub-industries), Consumer Staples (12 sub-industries), Utilities (6 sub-industries), Real Estate (14 sub-industries)
@@ -180,11 +184,11 @@ For each sector scoring above median in Pass 1, rank all its GICS Level 4 sub-in
 For long-term and mid-term reports, use constituent quality as a tiebreaker. For sector screens where supply/demand is central (energy, semis, industrials, commodities), reallocate up to 5% from Innovation or Capital Flows to Supply/Demand Cycle and disclose the adjustment.
 
 **Deliverable:** 
-- Sector ranking table with scores (11 sectors)
-- **Sub-industry leaderboard** (top 10-15 sub-industries with RS, growth, and structural scores)
+- **Sub-industry leaderboard** (top 15-20 sub-industries ranked flat with GICS Level 4 codes, RS, growth, and structural scores — NO sector grouping)
 - Top 2-3 sub-industries identified for Phase 2 deep dive
+- NO sector ranking table in report output (sectors used internally only)
 
-**Eviction:** After ranking is produced, drop raw sector batch files. Retain: sector ranking table, sub-industry leaderboard, top-3 sub-industry summaries (3 sentences each).
+**Eviction:** After ranking is produced, drop raw batch files. Retain: sub-industry leaderboard, top-3 sub-industry summaries (3 sentences each).
 
 ### Phase 2: Sub-Industry Deep Dive (GICS Level 4 focused)
 
