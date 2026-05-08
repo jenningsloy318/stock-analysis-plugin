@@ -4,7 +4,7 @@ analyst herding, overreaction detection.
 
 Usage:
     fetch_behavioral.py AAPL
-    fetch_behavioral.py AAPL --output /tmp/behavioral.json
+    fetch_behavioral.py AAPL --output ./reports/[TICKER]/behavioral.json
 
 Analyzes behavioral factors that can drive stock prices beyond fundamentals:
   - Narrative economics: dominant story driving the stock

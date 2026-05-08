@@ -117,7 +117,7 @@
 
 ## Context Window Management (MUST follow)
 
-- After each stage: write stage summary to `/tmp/stock-analysis-[TICKER]-stage[N].md`
+- After each stage: write stage summary to `./reports/[TICKER]/stage[N].md`
 - Drop raw data from context (SEC filings, full transcripts, raw financials)
 - Retain only: key metrics table, stage scores, 3-sentence narrative per sub-section
 - Maximum active context at any point: <80% of the context window

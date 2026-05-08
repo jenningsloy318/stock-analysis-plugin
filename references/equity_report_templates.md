@@ -49,6 +49,20 @@ Conviction = (Valuation_Attractiveness × 0.15) + (Macro_Tailwind × 0.10) +
 
 **Override rule**: If any single component scores ≤3, the rating cannot exceed "Hold."
 
+## Data Coverage Confidence
+
+Load `references/data_source_matrix.md` before report writing. Confidence is not just analyst certainty; it is capped by source coverage:
+
+| Coverage Result | Maximum Confidence |
+|-----------------|--------------------|
+| All blocking Tier 0/Tier 1 dimensions pass freshness and source quorum | High |
+| One non-central blocking dimension unavailable or stale | Medium |
+| Any central blocking dimension unavailable or two or more blocking dimensions stale | Low |
+| Thesis support relies mainly on Tier 3 alternative data | Low |
+| Numeric claim fails fact check | Remove claim; rerun affected stage if material |
+
+Every report must include a Data Quality & Coverage appendix with source freshness, missing/stale dimensions, source conflicts, and confidence impact.
+
 ## Framework Conflict Resolution (Rules 1-4)
 
 When frameworks produce contradictory conclusions:
@@ -124,6 +138,12 @@ When frameworks produce contradictory conclusions:
 - **Entry Criteria**: [price level or condition]
 - **Position Size**: X% of portfolio (Druckenmiller & Quarter-Kelly adjusted)
 - **Monitoring Triggers**: [what to watch]
+
+## Appendix: Data Quality & Coverage
+- Blocking sources checked: [Tier 0/Tier 1 list]
+- Missing/stale dimensions: [None / list with impact]
+- Source conflicts: [None / list]
+- Confidence cap applied: [None / Medium / Low]
 ```
 
 ### Mid-term Report (1-12 months)
@@ -176,6 +196,12 @@ When frameworks produce contradictory conclusions:
 - **Entry**: [price or condition]
 - **Stop Loss**: $X (-X%)
 - **Monitoring Triggers**: [1-3 specific conditions]
+
+## Appendix: Data Quality & Coverage
+- Blocking sources checked: [Tier 0/Tier 1 list]
+- Missing/stale dimensions: [None / list with impact]
+- Source conflicts: [None / list]
+- Confidence cap applied: [None / Medium / Low]
 ```
 
 ### Short-term Report (days to weeks)
@@ -225,6 +251,12 @@ When frameworks produce contradictory conclusions:
 ## 5. Kill Switch
 **Exit immediately if**: [specific, observable condition]
 **Current monitoring status**: [NOT present / approaching trigger level]
+
+## Appendix: Data Quality & Coverage
+- Quote/options/technicals freshness: [timestamp]
+- Missing/stale dimensions: [None / list with impact]
+- Source conflicts: [None / list]
+- Confidence cap applied: [None / Medium / Low]
 ```
 
 ## Scenario Analysis Template (All Reports)

@@ -46,7 +46,7 @@ timeout_mins: 15
   - Kill switch defined with specific, observable trigger conditions
 </validation-gates>
 
-<output>Write stage summary to `/tmp/stock-analysis-[TICKER]-stage8.md`</output>
+<output>Write stage summary to `./reports/[TICKER]/stage8.md`</output>
 
 <constraints>
   <constraint>A company cannot receive "Buy" rating with an active forensic red flag (Beneish > -1.78 or Altman Z < 1.81)</constraint>

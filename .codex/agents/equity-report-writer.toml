@@ -6,7 +6,7 @@ developer_instructions = """
 <stages>Handles Stage 10 (Report Generation)</stages>
 
 <process>
-  <step n="1" name="Load Summaries">Read all /tmp/stock-analysis-[TICKER]-stage[1-9].md files</step>
+  <step n="1" name="Load Summaries">Read all ./reports/[TICKER]/stage[1-9].md files</step>
   <step n="2" name="Conviction Scoring">Apply component scores and report-type weights</step>
   <step n="3" name="Framework Integration">Apply methodology weights, resolve conflicts (Rules 1-4)</step>
   <step n="4" name="Report Drafting">Generate report per template structure</step>

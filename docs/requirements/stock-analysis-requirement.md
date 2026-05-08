@@ -1070,9 +1070,9 @@ AAPL_ShortTerm_2026-01-15.md
 
 **Intermediate Artifacts** (for audit trail):
 ```
-/tmp/stock-analysis-[TICKER]-stage[N].md    # Per-stage summaries
-/tmp/stock-analysis-[TICKER]-raw-data.json  # Raw financial data (from scripts)
-/tmp/stock-analysis-[TICKER]-metrics.json   # Computed metrics (from scripts)
+./reports/[TICKER]/stage[N].md    # Per-stage summaries
+./reports/[TICKER]/raw-data.json  # Raw financial data (from scripts)
+./reports/[TICKER]/metrics.json   # Computed metrics (from scripts)
 ```
 
 Intermediate artifacts are:
@@ -1120,7 +1120,7 @@ The skill's progressive disclosure architecture (see Skill Packaging Specificati
 | Short-term | 40,000 | 1 at a time | 2 (Stages 7-8 can parallelize) |
 
 **Context Eviction Protocol:**
-1. After completing a stage, write the stage summary to a temp file (`/tmp/stock-analysis-[TICKER]-stage[N].md`)
+1. After completing a stage, write the stage summary to a temp file (`./reports/[TICKER]/stage[N].md`)
 2. Drop raw data (SEC filing text, full transcripts, raw financials) from active context
 3. Retain only: key metrics summary, stage scores, and a 3-sentence narrative per sub-section
 4. Load the next stage's reference file and proceed

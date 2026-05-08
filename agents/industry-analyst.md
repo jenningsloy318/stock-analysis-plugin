@@ -44,7 +44,7 @@ timeout_mins: 15
   - TAM estimate produced with methodology stated
 </validation-gates>
 
-<output>Write stage summary to `/tmp/stock-analysis-[TICKER]-stage3.md`</output>
+<output>Write stage summary to `./reports/[TICKER]/stage3.md`</output>
 
 <constraints>
   <constraint>Skip Platform Economics (3.5) if company has no platform/network business model</constraint>

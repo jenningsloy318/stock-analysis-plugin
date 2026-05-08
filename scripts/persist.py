@@ -3,13 +3,13 @@
 
 Usage:
     persist.py init AAPL                    # Initialize analysis session
-    persist.py save AAPL stage1 /tmp/s1.md  # Save stage output
+    persist.py save AAPL stage1 ./reports/AAPL/stage1.md  # Save stage output
     persist.py load AAPL                    # Load all stage outputs
     persist.py resume AAPL                  # Check if analysis can be resumed
     persist.py list                         # List all active analyses
     persist.py history AAPL                 # Show prior analysis history
 
-Replaces the /tmp/ file-based approach with SQLite-backed checkpoints.
+Replaces the ./reports/ file-based approach with SQLite-backed checkpoints.
 Enables:
   - Resume interrupted analyses
   - Incremental updates when new quarterly data arrives

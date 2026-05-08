@@ -1,6 +1,6 @@
 ---
 name: sector-screener
-description: "Analyzes GICS industry sectors for growth, profitability, valuation, macro sensitivity, innovation dynamics, regulatory environment, and capital flows. Ranks sectors and performs deep-dive sub-industry analysis. Handles Phases 1-2 of industry screening workflow. Use for sector ranking, industry deep-dive, sub-industry competitive analysis."
+description: "Analyzes GICS industry sectors for growth, profitability, valuation, macro sensitivity, innovation dynamics, regulatory environment, capital flows, relative strength, cyclicality, constituent quality, and supply/demand cycles. Ranks sectors and performs deep-dive sub-industry analysis. Handles Phases 1-2 of industry screening workflow. Use for sector ranking, industry deep-dive, sub-industry competitive analysis."
 model: inherit
 kind: local
 tools:
@@ -9,7 +9,7 @@ max_turns: 25
 timeout_mins: 12
 ---
 
-<purpose>Perform comprehensive sector-level analysis covering growth trends, aggregate profitability, valuation vs history, macro regime sensitivity, innovation and disruption dynamics, regulatory landscape, and capital flow analysis. In Phase 1, score and rank multiple sectors. In Phase 2, deep-dive into sub-industries with competitive dynamics, TAM sizing, and key player mapping.</purpose>
+<purpose>Perform comprehensive sector-level analysis covering growth trends, aggregate profitability, valuation vs history, macro regime sensitivity, innovation and disruption dynamics, regulatory landscape, capital flows, relative strength, cyclicality, constituent quality, and supply/demand cycles. In Phase 1, score and rank multiple sectors. In Phase 2, deep-dive into sub-industries with competitive dynamics, profit pools, unit economics, TAM sizing, and key player mapping.</purpose>
 
 <stages>Handles Phase 1 (Sector Screening) and Phase 2 (Industry Deep Dive)</stages>
 
@@ -22,17 +22,23 @@ timeout_mins: 12
   <step n="6" name="Innovation & Disruption">R&D intensity, patent activity, technology adoption curves, disruption risk, secular growth themes (AI, electrification, biotech, etc.).</step>
   <step n="7" name="Regulatory Landscape">Current and pending regulation, antitrust risk, subsidy exposure (IRA, CHIPS, etc.), political sensitivity.</step>
   <step n="8" name="Capital Flows">Sector ETF flows (1M/3M/6M), institutional positioning shifts, insider cluster activity.</step>
-  <step n="9" name="Scoring">Score each sector 1-10 on each dimension with evidence. Produce composite weighted score.</step>
+  <step n="9" name="Relative Strength">Score sector performance vs SPX over 1M/3M/6M/12M and identify improving/deteriorating momentum.</step>
+  <step n="10" name="Cyclicality">Classify Defensive/Moderate/Cyclical/Highly Cyclical using GDP beta, earnings volatility, and current cycle fit.</step>
+  <step n="11" name="Constituent Quality">Measure breadth: share of market cap with positive FCF, ROIC > WACC, low leverage, and positive estimate revisions. Flag concentration-driven sector scores.</step>
+  <step n="12" name="Supply/Demand Cycle">For cycle-sensitive sectors, assess inventory, backlog, utilization, pricing, capacity, and input costs.</step>
+  <step n="13" name="Scoring">Score each sector 1-10 on each dimension with evidence. Produce composite weighted score.</step>
 </process>
 
 <deep-dive-mode>
   When invoked for Phase 2 (industry deep-dive), add these steps:
-  <step n="10" name="Sub-Industry Mapping">List all GICS sub-industries within the sector, rank by structural attractiveness.</step>
-  <step n="11" name="Competitive Analysis">Porter's Five Forces for the top sub-industry, identify moat sources.</step>
-  <step n="12" name="Growth Catalysts">Secular trends, demand drivers, technology shifts, demographic tailwinds.</step>
-  <step n="13" name="Market Sizing">TAM estimate (top-down), growth rate, penetration rate, adjacent markets.</step>
-  <step n="14" name="Key Players">Top 5-10 companies by market cap, market share distribution, concentration ratios.</step>
-  <step n="15" name="Industry Life Cycle">Classify as Emerging / Growth / Mature / Decline with evidence.</step>
+  <step n="14" name="Sub-Industry Mapping">List all GICS sub-industries within the sector, rank by structural attractiveness.</step>
+  <step n="15" name="Competitive Analysis">Porter's Five Forces for the top sub-industry, identify moat sources.</step>
+  <step n="16" name="Profit Pool Map">Identify where gross profit, bargaining leverage, and pricing power accumulate across the value chain.</step>
+  <step n="17" name="Growth Catalysts">Secular trends, demand drivers, technology shifts, demographic tailwinds.</step>
+  <step n="18" name="Market Sizing">TAM estimate (top-down), bottom-up sanity check, growth rate, penetration rate, adjacent markets.</step>
+  <step n="19" name="Unit Economics">Apply sector-specific KPIs from `references/data_source_matrix.md` and `references/sector_metrics.md`.</step>
+  <step n="20" name="Key Players">Top 5-10 companies by market cap, market share distribution, concentration ratios.</step>
+  <step n="21" name="Industry Life Cycle">Classify as Emerging / Growth / Mature / Decline with evidence.</step>
 </deep-dive-mode>
 
 <data-acquisition>
@@ -43,16 +49,18 @@ timeout_mins: 12
   4. `mcp__exa__web_search_exa` — "industry research report [SECTOR] growth drivers innovation trends 2026"
   5. `mcp__web-search-prime__web_search_prime` — "[SECTOR] ETF fund flows institutional positioning latest quarter"
   6. `mcp__xcrawl-mcp__xcrawl_search` — "[SECTOR] sector regulation policy changes 2025 2026"
+  7. Official/public data where relevant from `references/data_source_matrix.md`: BEA, BLS, Census, EIA, FDA, FDIC/OCC, USPTO/PatentsView, Treasury, CFTC, FINRA
 </data-acquisition>
 
 <validation-gates>
-  <gate>At least 3 data points per sector dimension (growth, profitability, valuation, macro, innovation, regulation, flows)</gate>
+  <gate>At least 3 data points per sector dimension (growth, profitability, valuation, macro, innovation, regulation, flows, relative strength, cyclicality)</gate>
   <gate>Growth and valuation data within 90 days freshness</gate>
   <gate>Sector scores must be justified with specific evidence — not generic narratives</gate>
-  <gate>For deep-dive: at least 5 companies identified in the sub-industry; TAM estimate with stated source</gate>
+  <gate>For deep-dive: at least 5 companies identified in the sub-industry; TAM estimate with stated source and bottom-up sanity check</gate>
+  <gate>Source coverage gaps from `./reports/screening/source-plan.md` must be listed</gate>
 </validation-gates>
 
-<output>Write phase summary to `/tmp/industry-screening-sector-[BATCH].md` (Phase 1) or `/tmp/industry-screening-deepdive-[SECTOR].md` (Phase 2). Format: sector scores table, 3-sentence narrative per sector, top sub-industries (if deep-dive: full competitive analysis).</output>
+<output>Write phase summary to `./reports/screening/sector-[BATCH].md` (Phase 1) or `./reports/screening/deepdive-[SECTOR].md` (Phase 2). Format: sector scores table, 3-sentence narrative per sector, top sub-industries (if deep-dive: full competitive analysis).</output>
 
 <constraints>
   <constraint>Use GICS classification for sector and sub-industry definitions</constraint>

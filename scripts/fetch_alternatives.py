@@ -3,7 +3,7 @@
 
 Usage:
     fetch_alternatives.py AAPL [--sources web,app,glassdoor,social,patents,hiring]
-    fetch_alternatives.py AAPL --output /tmp/alt-data.json
+    fetch_alternatives.py AAPL --output ./reports/[TICKER]/alt-data.json
 
 Free data sources (all functional — no dead paywalled endpoints):
   - Google Trends (pytrends) — brand search interest trends

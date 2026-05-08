@@ -5,7 +5,7 @@ Usage:
     backtest.py                                    # scan all reports
     backtest.py --ticker AAPL                      # single ticker
     backtest.py --ticker AAPL --since 2025-01-01   # date filter
-    backtest.py --output /tmp/backtest.json         # output file
+    backtest.py --output ./reports/backtest.json         # output file
 
 Reads reports from ./reports/[TICKER]/[TICKER]_[Type]_[Date].md,
 extracts conviction ratings, target prices, and time horizons, then

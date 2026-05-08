@@ -47,7 +47,7 @@ timeout_mins: 15
   - At least one Form 4 filing from last 90 days reviewed
 </validation-gates>
 
-<output>Write stage summaries to `/tmp/stock-analysis-[TICKER]-stage1.md` and `/tmp/stock-analysis-[TICKER]-stage2.md`</output>
+<output>Write stage summaries to `./reports/[TICKER]/stage1.md` and `./reports/[TICKER]/stage2.md`</output>
 
 <constraints>
   <constraint>Never invent financial figures — state "Data not available" if unavailable</constraint>

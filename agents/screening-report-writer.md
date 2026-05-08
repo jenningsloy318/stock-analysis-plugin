@@ -15,7 +15,7 @@ timeout_mins: 12
 
 <process>
   <step n="0" name="Load Templates">Load references/screening_report_templates.md for report structure, funnel conviction scoring formulas, and watchlist rating anchors. Determine which template format to use (Broad Screen / Single Sector / Thematic) based on the screening scope.</step>
-  <step n="1" name="Load Phase Summaries">Read all `/tmp/industry-screening-phase[0-3].md` files. Phase 0 = macro context + scope, Phase 1 = sector ranking, Phase 2 = industry deep-dive, Phase 3 = company watchlist.</step>
+  <step n="1" name="Load Phase Summaries">Read all `./reports/screening/phase[0-3].md` files. Phase 0 = macro context + scope, Phase 1 = sector ranking, Phase 2 = industry deep-dive, Phase 3 = company watchlist.</step>
   <step n="2" name="Cross-Validate">Check for internal consistency: does the selected industry align with the top-ranked sector? Do the watchlist companies actually belong to the selected industry? Are the macro tailwinds consistent across phases?</step>
   <step n="3" name="Report Structuring">Assemble the report in this exact order:
     - Executive Summary (1 paragraph covering the funnel: macro → sector → industry → top picks)
@@ -25,7 +25,7 @@ timeout_mins: 12
     - Company Watchlist (ranked table with metrics, 2-sentence thesis per company, score distribution)
     - Next Actions (which companies to deep-dive with stock-analysis skill, suggested report horizon for each)
     - Risks to Thesis (what would invalidate the industry/company recommendations, kill switch conditions)
-    - Methodology Appendix (weighting scheme, data sources with freshness dates, scope and filters used)</step>
+    - Methodology Appendix (weighting scheme, data sources with freshness dates, source coverage gaps, universe completeness risk, scope and filters used)</step>
   <step n="4" name="Scoring Integration">Compute and display the funnel conviction score:
     - Sector Selection Confidence (1-10): based on score spread between top and #2 sector
     - Industry Selection Confidence (1-10): based on structural thesis strength and TAM visibility
@@ -33,11 +33,14 @@ timeout_mins: 12
     If conviction is below 5, flag the report: "LOW CONVICTION SCREEN — [reason]"</step>
   <step n="5" name="Pre-Delivery Checklist">Verify all gates pass:
     - Macro data within 30 days freshness
+    - Source coverage plan completed and confidence caps applied
     - Sector data within 90 days freshness
     - At least 3 sectors scored and ranked (for broad screens)
     - Selected industry has a clear structural thesis
     - At least 10 companies in the watchlist
     - All company metrics cited with source and date
+    - Universe construction source and missing-universe risk stated
+    - Sector-specific KPIs included where material
     - Methodology weights stated
     - Kill switch conditions defined</step>
   <step n="6" name="Fact Verification">Select 3 random data claims from the report, trace back to phase summary source. If any claim is unverifiable, remove it and flag the gap.</step>
@@ -69,12 +72,14 @@ timeout_mins: 12
 
 <reference-files>
   - references/screening_report_templates.md (Broad/Single Sector/Thematic report formats, funnel scoring formulas, watchlist rating anchors)
+  - references/data_source_matrix.md (source tiers, sector add-ons, confidence caps)
 </reference-files>
 
 <validation-gates>
   <gate>All phase summaries loaded and internally consistent</gate>
   <gate>Cross-validation: selected industry is a sub-industry of the top-ranked sector</gate>
   <gate>No [STALE] flags on critical macro or sector data</gate>
+  <gate>Source coverage gaps and confidence impact disclosed</gate>
   <gate>At least 3 fact checks passed</gate>
   <gate>Kill switch conditions defined for the industry thesis</gate>
   <gate>Handoff to stock-analysis explicitly offered</gate>

@@ -2,8 +2,8 @@
 """Time-series forecasting for revenue, EPS, and FCF.
 
 Usage:
-    forecast.py /tmp/stock-analysis-AAPL-raw-data.json
-    forecast.py raw-data.json --horizon 5 --output /tmp/forecast.json
+    forecast.py ./reports/AAPL/raw-data.json
+    forecast.py raw-data.json --horizon 5 --output ./reports/[TICKER]/forecast.json
     forecast.py raw-data.json --method arima --confidence 0.80
 
 Fits ARIMA and ETS models to financial time series extracted from the

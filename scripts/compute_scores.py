@@ -3,14 +3,14 @@
 
 Usage:
     compute_scores.py \
-        --metrics /tmp/stock-analysis-AAPL-metrics.json \
-        --macro /tmp/stock-analysis-macro.json \
-        --technicals /tmp/tech.json \
-        --alternatives /tmp/alt-data.json \
-        --sentiment /tmp/sentiment.json \
+        --metrics ./reports/AAPL/metrics.json \
+        --macro ./reports/macro.json \
+        --technicals ./reports/[TICKER]/tech.json \
+        --alternatives ./reports/[TICKER]/alt-data.json \
+        --sentiment ./reports/[TICKER]/sentiment.json \
         --report-type long \
         [--gics-sector 45] \
-        [--output /tmp/scores.json]
+        [--output ./reports/[TICKER]/scores.json]
 
 Produces reproducible, rubric-based 1-10 scores for all 8 conviction
 components: Financial Health, Moat Quality, Management Quality, Valuation

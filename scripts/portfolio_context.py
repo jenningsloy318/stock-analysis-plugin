@@ -3,7 +3,7 @@
 
 Usage:
     portfolio_context.py AAPL --portfolio '{"AAPL":0.15,"MSFT":0.10,"SPY":0.25}'
-    portfolio_context.py AAPL --portfolio-file /tmp/portfolio.json
+    portfolio_context.py AAPL --portfolio-file ./reports/portfolio.json
     portfolio_context.py AAPL --portfolio '{"AAPL":0.2}' --risk-free 0.04
 
 Computes:

@@ -32,7 +32,7 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
-  Run `scripts/fetch_macro.py --output /tmp/stock-analysis-macro.json` for FRED indicators.
+  Run `scripts/fetch_macro.py --output ./reports/macro.json` for FRED indicators.
   Reuse existing file if already fetched in Step 0.
 
   For supplementary macro data, use search tools in order:
@@ -55,7 +55,7 @@ timeout_mins: 15
   - Countries representing >80% of revenue assessed for regulatory/geopolitical risk
 </validation-gates>
 
-<output>Write stage summaries to `/tmp/stock-analysis-[TICKER]-stage4.md` and `/tmp/stock-analysis-[TICKER]-stage5.md`</output>
+<output>Write stage summaries to `./reports/[TICKER]/stage4.md` and `./reports/[TICKER]/stage5.md`</output>
 
 <constraints>
   <constraint>Skip Stage 5 for Short-term reports unless geopolitical catalyst is flagged</constraint>

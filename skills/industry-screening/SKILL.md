@@ -12,7 +12,7 @@ description: >
   are growing," "top-down screening," "find stocks in [SECTOR]," "industry
   screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.1"
+version: "1.0.11"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -53,6 +53,15 @@ This skill reuses the same search tool stack as `stock-analysis`. See `agents/se
 - `mcp__tavily-remote-mcp__tavily_research` — Comprehensive multi-source industry research (model: "pro")
 - `mcp__tavily-remote-mcp__tavily_extract` — Extract content from known URLs
 
+## Data Source Coverage
+
+Before Phase 1, load `references/data_source_matrix.md` and write `./reports/screening/source-plan.md`. The plan must define:
+- Classification source for the universe (GICS, NAICS, ETF holdings, exchange lists)
+- Required data by phase: macro, sector aggregates, industry structure, company metrics, valuation, flows, and catalysts
+- Freshness windows and source quorum rules
+- Sector-specific KPIs to apply once a top industry is selected
+- Confidence cap if the company universe, sector valuation, or macro data is stale or incomplete
+
 ## Workflow
 
 ### Phase 0: Setup & Scope (orchestrator executes directly)
@@ -69,11 +78,13 @@ This skill reuses the same search tool stack as `stock-analysis`. See `agents/se
    - "momentum" / "this quarter" → Short-term (momentum + sentiment weighted)
    - Default → Mid-term, then ask if the user wants a different horizon
 
-3. **Fetch macro context**: Run `scripts/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output /tmp/industry-screening-macro.json`. This establishes the macro regime backdrop for sector sensitivity analysis.
+3. **Fetch macro context**: Run `scripts/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output ./reports/screening/macro.json`. This establishes the macro regime backdrop for sector sensitivity analysis.
 
 4. **Create output directory**: `./reports/screening/`
 
 5. **Initialize state**: Run `scripts/persist.py init SCREEN-[TIMESTAMP] --report-type screen` to create a checkpointed screening session. Record the returned `analysis_id`.
+
+6. **Source coverage plan**: Load `references/data_source_matrix.md`. Write `./reports/screening/source-plan.md` with classification sources, required source tiers, freshness windows, and confidence cap rules.
 
 ### Phase 1: Sector Screening (parallel per sector)
 
@@ -96,10 +107,12 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
 - [ ] **Capital Flows** — Sector ETF flows (1M/3M/6M), institutional positioning, insider sentiment
 - [ ] **Relative Strength** — Price performance vs SPX over 1M/3M/6M/12M periods. Compute RS ranking (percentile rank vs all sectors). Sectors with top-quartile 3M+6M RS and improving 1M RS are strongest momentum candidates. **This is the single most predictive signal for sector rotation.**
 - [ ] **Cyclicality** — Beta to GDP/economic cycle, earnings volatility (5-year std dev of EPS growth), revenue cyclicality classification (Defensive/Moderate/Cyclical/Highly Cyclical). In late-cycle environments, defensive sectors (Utilities, Staples, Healthcare) should receive a scoring bonus; in early-cycle, cyclicals (Industrials, Discretionary, Financials) receive the bonus.
+- [ ] **Constituent Quality & Dispersion** — Percentage of sector market cap with positive FCF, ROIC > WACC, net cash/low leverage, and estimate revision momentum. A sector led by a few mega-caps must be marked as concentration-driven.
+- [ ] **Supply/Demand & Capacity Cycle** — Inventory, backlog, utilization, pricing, capacity expansion, and input cost regime where sector-relevant.
 
-**Output per sector batch:** Each sector-screener writes `/tmp/industry-screening-sector-[BATCH].md` with per-sector scores.
+**Output per sector batch:** Each sector-screener writes `./reports/screening/sector-[BATCH].md` with per-sector scores.
 
-**Validation gate:** At least 3 data points per sector dimension. Growth and valuation data within 90 days freshness.
+**Validation gate:** At least 3 data points per sector dimension. Growth and valuation data within 90 days freshness. Relative strength, flows, and cyclicality must be scored or explicitly marked "Data not available."
 
 **After all batches complete:** Orchestrator reads all batch summaries and ranks sectors using weighted composite:
 
@@ -111,9 +124,13 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
 | Macro Fit | 10% | 15% | 10% |
 | Innovation | 15% | 10% | 5% |
 | Regulatory | 5% | 5% | 5% |
-| Capital Flows | 5% | 5% | 25% |
-| Relative Strength | 5% | 10% | 25% |
+| Capital Flows | 5% | 5% | 20% |
+| Relative Strength | 5% | 10% | 20% |
 | Cyclicality | 5% | 5% | 5% |
+| Constituent Quality | 0% | 0% | 10% |
+| Supply/Demand Cycle | 0% | 0% | 0% |
+
+For long-term and mid-term reports, use constituent quality as a tiebreaker. For sector screens where supply/demand is central (energy, semis, industrials, commodities), reallocate up to 5% from Innovation or Capital Flows to Supply/Demand Cycle and disclose the adjustment.
 
 **Deliverable:** Sector ranking table with scores. Top 2-3 sectors identified for Phase 2 deep dive.
 
@@ -135,10 +152,12 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
 - [ ] **Key players** — Top 5-10 companies by market cap, market share distribution, concentration
 - [ ] **Supply chain** — Critical inputs, geographic concentration, supplier power
 - [ ] **Industry life cycle** — Emerging / Growth / Mature / Decline classification
+- [ ] **Profit Pool Map** — Where gross profit, pricing power, and bargaining leverage accumulate across the value chain
+- [ ] **Adoption Curve & Unit Economics** — Penetration, payback period, utilization, churn/retention, or equivalent industry KPI; use sector-specific add-ons from `references/data_source_matrix.md`
 
-**Output:** Each deep-dive writes `/tmp/industry-screening-deepdive-[SECTOR].md`.
+**Output:** Each deep-dive writes `./reports/screening/deepdive-[SECTOR].md`.
 
-**Validation gate:** At least 5 companies identified in the sub-industry. TAM estimate produced with stated source.
+**Validation gate:** At least 5 companies identified in the sub-industry. TAM estimate produced with stated source and bottom-up sanity check. Profit pool and sector-specific KPIs included or marked "Data not available."
 
 **Orchestrator synthesizes:** After all deep-dives complete, the orchestrator selects the single best industry (or top 2 if user wants broader coverage). Justification must reference specific scores from Phase 1 and deep-dive findings.
 
@@ -163,11 +182,13 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
 - [ ] **Valuation** — P/E, EV/EBITDA, P/FCF vs industry peers, PEG ratio
 - [ ] **Growth Trajectory** — Revenue and EPS growth consistency, guidance trend, estimate revisions
 - [ ] **Risk Flags** — Concentration risk (customer/supplier), debt maturity wall, litigation, regulatory exposure
+- [ ] **Business-Model Fit Metrics** — Apply sector-specific screening metrics from `references/data_source_matrix.md` (e.g., ARR/NRR, CET1/NIM, FFO/AFFO, reserves, pipeline probability, same-store sales)
+- [ ] **Liquidity & Tradability** — Average dollar volume, free float, short interest, borrow/FTD risk for smaller names
 
 **Scoring model:** Each company receives a composite score (1-10):
-- Growth (25%), Profitability/Health (20%), Moat (20%), Valuation (15%), Management (10%), Risk (10%)
+- Growth (20%), Profitability/Health (20%), Moat (20%), Valuation (15%), Management (10%), Risk (10%), Liquidity/Tradability (5%)
 
-**Output:** Company-screener writes `/tmp/industry-screening-companies-[INDUSTRY].md` with:
+**Output:** Company-screener writes `./reports/screening/companies-[INDUSTRY].md` with:
 - Full ranked list of all qualifying companies
 - Top 10-20 in detail with 2-sentence thesis per company
 - Key metrics table (Ticker, Name, Market Cap, P/E, Rev Growth 3Y, ROIC, FCF Yield, Score)
@@ -183,7 +204,7 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
 **Spawn strategy:** Spawn 1 `screening-report-writer` agent. The orchestrator provides the analysis_id and phase summary file paths.
 
 **Screening-report-writer workflow:**
-- [ ] Load all phase summaries from `/tmp/industry-screening-phase[0-3].md`
+- [ ] Load all phase summaries from `./reports/screening/phase[0-3].md`
 - [ ] Cross-validate internal consistency (selected industry aligns with top sector, companies match industry)
 - [ ] Structure the report:
   - **Executive Summary** (1 paragraph covering the funnel: macro → sector → industry → top picks)
@@ -193,7 +214,7 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
   - **Company Watchlist** — Ranked table with key metrics, 2-sentence thesis per company
   - **Next Actions** — Which companies to deep-dive with `stock-analysis` skill, suggested report horizon
   - **Risks to Thesis** — What would invalidate the industry/company recommendations, kill switch conditions
-  - **Methodology Appendix** — Weighting scheme, data sources, freshness dates
+  - **Methodology Appendix** — Weighting scheme, data sources, freshness dates, source coverage gaps, universe completeness risk
 - [ ] Compute funnel conviction scores (Sector Selection Confidence, Industry Selection Confidence, Overall Screen Quality)
 - [ ] Run pre-delivery checklist and fact verification
 - [ ] Write report to `./reports/screening/[SECTOR]_[INDUSTRY]_[YYYY-MM-DD].md`
@@ -206,11 +227,14 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
 
 Before delivering the screening report, verify:
 - [ ] Macro data within 30 days freshness
+- [ ] Source coverage plan completed and confidence caps applied
 - [ ] Sector data within 90 days freshness
 - [ ] At least 3 sectors scored and ranked (for broad screens)
 - [ ] Selected industry has a clear structural thesis (not just momentum)
 - [ ] At least 10 companies in the watchlist
+- [ ] Universe construction source stated and missing-universe risk assessed
 - [ ] All company metrics cited with source and date
+- [ ] Sector-specific KPIs included where material
 - [ ] Methodology weights stated
 - [ ] Kill switch conditions defined (what would invalidate the industry thesis)
 - [ ] No invented data — "Data not available" used where appropriate
@@ -218,8 +242,8 @@ Before delivering the screening report, verify:
 ## Context Eviction Protocol
 
 After every phase, execute this sequence:
-1. Write phase summary to `/tmp/industry-screening-phase[N].md`
-2. Run `scripts/persist.py save [ANALYSIS_ID] [N] /tmp/industry-screening-phase[N].md`
+1. Write phase summary to `./reports/screening/phase[N].md`
+2. Run `scripts/persist.py save [ANALYSIS_ID] [N] ./reports/screening/phase[N].md`
 3. Drop raw data from context (full search results, per-company data, raw sector reports)
 4. Load next phase
 5. If context usage exceeds ~80%, offload additional intermediate data

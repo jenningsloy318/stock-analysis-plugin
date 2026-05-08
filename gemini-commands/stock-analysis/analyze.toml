@@ -26,7 +26,7 @@ Parallel execution rules (max 3 concurrent):
 
 <process>
   <step n="1" name="Triage">Identify ticker, determine report type, check earnings calendar, create output directory, run initial scripts (fetch_financials.py, fetch_macro.py, calculate_metrics.py, forecast.py)</step>
-  <step n="2" name="Stage Execution">Delegate to specialist sub-agents per parallel execution rules for the report type. Each agent writes its stage summary to /tmp/stock-analysis-[TICKER]-stage[N].md</step>
+  <step n="2" name="Stage Execution">Delegate to specialist sub-agents per parallel execution rules for the report type. Each agent writes its stage summary to ./reports/[TICKER]/stage[N].md</step>
   <step n="3" name="Deterministic Scoring">Run compute_scores.py against all script outputs for reproducible 1-10 component scores</step>
   <step n="4" name="Cross-Check">Validate internal contradictions (overvaluation vs wide moat, red flags vs financial health)</step>
   <step n="5" name="Report Generation">Delegate to @equity-report-writer to synthesize stage summaries into final report</step>

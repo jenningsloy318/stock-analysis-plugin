@@ -4,7 +4,7 @@
 Usage:
     fetch_macro.py
     fetch_macro.py --indicators CPI,GDP,UNRATE
-    fetch_macro.py --output /tmp/macro.json
+    fetch_macro.py --output ./reports/macro.json
 
 FRED API is free — register for a key at: https://fred.stlouisfed.org/docs/api/api_key.html
 Set environment variable: FRED_API_KEY

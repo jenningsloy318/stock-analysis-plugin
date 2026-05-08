@@ -2,7 +2,7 @@
 """Compute financial metrics and valuation from raw financial data.
 
 Usage:
-    calculate_metrics.py /tmp/stock-analysis-AAPL-raw-data.json [--output /tmp/metrics.json]
+    calculate_metrics.py ./reports/AAPL/raw-data.json [--output ./reports/[TICKER]/metrics.json]
     calculate_metrics.py raw-data.json --wacc 0.09 --growth 0.03 --market-cap 3000000000000
 
 Deterministic calculations only. No LLM involvement in math.

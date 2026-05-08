@@ -4,7 +4,7 @@
 Usage:
     fetch_technicals.py AAPL
     fetch_technicals.py AAPL --period 6mo --interval 1d
-    fetch_technicals.py AAPL MSFT --output /tmp/tech.json
+    fetch_technicals.py AAPL MSFT --output ./reports/[TICKER]/tech.json
 
 Uses yfinance to fetch OHLCV data (free, no API key), then computes
 technical indicators deterministically — no external API needed beyond

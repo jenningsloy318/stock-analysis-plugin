@@ -39,7 +39,7 @@ timeout_mins: 15
   Run `scripts/fetch_sentiment.py [TICKER] --sources news,social` for sentiment data.
   Run `scripts/fetch_sentiment.py [TICKER] --sources analyst` for analyst consensus.
   Run `scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
-  Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json` for computed valuations.
+  Run `scripts/calculate_metrics.py ./reports/[TICKER]/raw-data.json` for computed valuations.
 
   For supplementary valuation/sentiment data, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[TICKER] analyst price target [year]", "[TICKER] short interest data"
@@ -71,7 +71,7 @@ timeout_mins: 15
   - VIX and credit spread data within 7 days freshness
 </validation-gates>
 
-<output>Write stage summaries to `/tmp/stock-analysis-[TICKER]-stage6.md` and `/tmp/stock-analysis-[TICKER]-stage7.md`</output>
+<output>Write stage summaries to `./reports/[TICKER]/stage6.md` and `./reports/[TICKER]/stage7.md`</output>
 
 <constraints>
   <constraint>All math must come from scripts or be explicitly derived — never approximate financial calculations</constraint>

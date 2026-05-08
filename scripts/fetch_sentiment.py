@@ -4,7 +4,7 @@
 Usage:
     fetch_sentiment.py AAPL
     fetch_sentiment.py AAPL --sources insider,news,earnings,analyst
-    fetch_sentiment.py AAPL MSFT --output /tmp/sentiment.json
+    fetch_sentiment.py AAPL MSFT --output ./reports/[TICKER]/sentiment.json
 
 Primary data source: Finnhub (free tier: 60 API calls/minute).
 Register for a free key at: https://finnhub.io/

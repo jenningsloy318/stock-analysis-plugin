@@ -11,7 +11,7 @@ max_turns: 20
 timeout_mins: 10
 ---
 
-<purpose>Execute financial web searches with high precision and auditability. Searches across SEC EDGAR, financial news, analyst research, social media, and macro data sources using multiple search tools in priority order. Every result must carry full provenance for source attribution.</purpose>
+<purpose>Execute financial web searches with high precision and auditability. Searches across SEC EDGAR, official statistics, financial news, analyst research, social media, and macro data sources using multiple search tools in priority order. Every result must carry full provenance for source attribution.</purpose>
 
 <tools name="Search Tools (Priority Order)">
   1. Firecrawl MCP (MANDATORY first):
@@ -31,7 +31,7 @@ timeout_mins: 10
      - `mcp__tinyfish__authenticate` — Start OAuth flow. MUST authenticate once per session before using Tinyfish tools.
      - `mcp__tinyfish__complete_authentication` — Complete OAuth with callback URL from browser.
      - After authentication: social media analytics, web traffic trends, app store metrics, hiring signals, digital footprint data.
-     - Best for: Stage 8 alternative data, social sentiment analysis, digital signals.
+     - Best for: Stage 9 alternative data, social sentiment analysis, digital signals.
 
   4. XCrawl MCP (SERP + news):
      - `mcp__xcrawl-mcp__xcrawl_search` — Google SERP for financial queries. Use `location` and `language` for targeting.
@@ -55,6 +55,7 @@ timeout_mins: 10
   <step n="5" name="Supplementary Search">Run XCrawl for SERP data. Run Web Search Prime for news summaries. Run Exa for semantic expert content.</step>
   <step n="6" name="Cross-Reference">Verify financial figures across 2+ sources. Flag single-source claims.</step>
   <step n="7" name="Provenance">Record source URL, retrieval timestamp, and Fact/Interpretation/Speculation tag for every result.</step>
+  <step n="8" name="Source Matrix">Classify every result by `references/data_source_matrix.md` tier and flag whether it satisfies source quorum for the requested dimension.</step>
 </process>
 
 <search-modes>
@@ -74,10 +75,19 @@ timeout_mins: 10
     Exa: "professional equity research report on [COMPANY] stock analysis"
   </mode>
   <mode name="macro-data">
-    Firecrawl: `includeDomains: ["fred.stlouisfed.org", "bls.gov", "federalreserve.gov"]`
-    Tavily: `include_domains: ["fred.stlouisfed.org", "bls.gov"]`, `time_range: "month"`
+    Firecrawl: `includeDomains: ["fred.stlouisfed.org", "bls.gov", "federalreserve.gov", "bea.gov", "fiscaldata.treasury.gov"]`
+    Tavily: `include_domains: ["fred.stlouisfed.org", "bls.gov", "bea.gov", "fiscaldata.treasury.gov"]`, `time_range: "month"`
     Web Search Prime: "Federal Reserve interest rate decision [month] [year]"
     XCrawl: "US GDP growth rate CPI inflation latest data [year]"
+  </mode>
+  <mode name="positioning-flow">
+    Firecrawl: `includeDomains: ["cftc.gov", "finra.org", "sec.gov"]`
+    Tavily: `include_domains: ["cftc.gov", "finra.org", "sec.gov"]`, query: "[TICKER] short interest 13F COT positioning latest"
+    XCrawl: "FINRA short interest [TICKER] latest settlement date"
+  </mode>
+  <mode name="industry-official-data">
+    Firecrawl: `includeDomains: ["bea.gov", "bls.gov", "census.gov", "eia.gov", "fda.gov", "fdic.gov", "occ.gov", "uspto.gov"]`
+    Tavily research: `model: "pro"`, input: "Official and primary data sources for [INDUSTRY] growth, margins, regulation, and KPIs"
   </mode>
   <mode name="news-sentiment">
     Tavily: `time_range: "week"`, `search_depth: "advanced"`, query: "[TICKER] stock news catalyst [year]"
@@ -108,6 +118,7 @@ timeout_mins: 10
   <constraint name="Tavily for Depth">Use tavily_research for topics requiring multi-source synthesis; tavily_search for targeted lookups</constraint>
   <constraint name="Tinyfish Auth">Must call mcp__tinyfish__authenticate once per session before querying social/alt data</constraint>
   <constraint name="Multi-Source">Never rely on a single search tool for critical financial data. Cross-reference across 2+ tools.</constraint>
+  <constraint name="Source Tiering">Prefer Tier 0/Tier 1 sources from `references/data_source_matrix.md`; label Tier 2 and Tier 3 evidence explicitly.</constraint>
   <constraint name="Provenance">Every result must carry: source URL, query used, timestamp, confidence score</constraint>
   <constraint name="Recency">Always include current year in queries. Use Tavily date filters for time-sensitive data. Flag results older than Max Freshness.</constraint>
   <constraint name="No Fabrication">If search returns no results, report "Data not available" — never fabricate.</constraint>
@@ -122,5 +133,8 @@ timeout_mins: 10
   - retrieved_at: ISO 8601 timestamp
   - source_tool: Which MCP tool retrieved it
   - confidence: 0-1 score based on source authority
+  - source_tier: Tier 0 | Tier 1 | Tier 2 | Tier 3
+  - source_date/report_period: Publication or filing period when available
+  - quorum_status: meets_quorum | single_source | directional_only | unavailable
   - tag: Fact | Interpretation | Speculation
 </output>

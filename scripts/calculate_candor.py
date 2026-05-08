@@ -2,7 +2,7 @@
 """Calculate Management Candor Index from earnings call transcripts.
 
 Usage:
-    calculate_candor.py /tmp/stock-analysis-AAPL-transcript.txt
+    calculate_candor.py ./reports/AAPL/transcript.txt
 
 Analyzes transcripts for linguistic deception indicators:
 1. Hedging Word Density (uncertainty: 'maybe', 'perhaps', 'could')

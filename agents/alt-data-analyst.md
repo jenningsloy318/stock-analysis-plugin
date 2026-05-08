@@ -28,7 +28,7 @@ timeout_mins: 15
 
 <data-acquisition>
   Run `scripts/fetch_alternatives.py [TICKER]` for alternative data.
-  Run `scripts/calculate_candor.py /tmp/stock-analysis-[TICKER]-transcript.txt` for NLP candor index.
+  Run `scripts/calculate_candor.py ./reports/[TICKER]/transcript.txt` for NLP candor index.
   Paywalled sources return `null` — this is expected, proceed.
 
   Tinyfish authentication (MUST do once per session before social/alt queries):
@@ -51,7 +51,7 @@ timeout_mins: 15
   1. `mcp__firecrawl__firecrawl_search` — "[TICKER] earnings call transcript Q[N] [year]"
   2. `mcp__firecrawl__firecrawl_scrape` — Scrape the transcript page for full text
   3. `mcp__tavily-remote-mcp__tavily_extract` — Extract transcript content from known URL (use `extract_depth: "advanced"` for protected sites)
-  4. Save to `/tmp/stock-analysis-[TICKER]-transcript.txt` for NLP analysis
+  4. Save to `./reports/[TICKER]/transcript.txt` for NLP analysis
 </data-acquisition>
 
 <validation-gates>
@@ -59,7 +59,7 @@ timeout_mins: 15
   - NLP earnings call analysis completed (if transcript available)
 </validation-gates>
 
-<output>Write stage summary to `/tmp/stock-analysis-[TICKER]-stage9.md`</output>
+<output>Write stage summary to `./reports/[TICKER]/stage9.md`</output>
 
 <constraints>
   <constraint>Paywalled sources returning null is normal — never fabricate data to fill gaps</constraint>

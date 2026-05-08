@@ -3,7 +3,7 @@
 
 Usage:
     fetch_credit.py AAPL
-    fetch_credit.py AAPL --output /tmp/credit.json
+    fetch_credit.py AAPL --output ./reports/[TICKER]/credit.json
 
 Fetches credit risk indicators from free public sources:
   - FRED credit spreads (HY OAS, IG OAS, TED spread)

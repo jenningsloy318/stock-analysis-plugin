@@ -55,7 +55,13 @@ Where:
 | Macro Fit | 15% | 20% | 10% | Sensitivity to rates, inflation, GDP; current tailwind/headwind |
 | Innovation | 15% | 10% | 5% | R&D intensity, patent activity, disruption exposure |
 | Regulatory | 5% | 5% | 5% | Current/pending regulation, antitrust, subsidy exposure |
-| Capital Flows | 5% | 5% | 40% | ETF flows (1M/3M/6M), institutional positioning |
+| Capital Flows | 5% | 5% | 20% | ETF flows (1M/3M/6M), institutional positioning |
+| Relative Strength | 5% | 10% | 20% | Sector performance vs SPX over 1M/3M/6M/12M |
+| Cyclicality | 5% | 5% | 5% | GDP beta, earnings volatility, early/mid/late-cycle fit |
+| Constituent Quality | 0% | 0% | 10% | Breadth of profitable/FCF-positive companies, revision breadth, concentration risk |
+| Supply/Demand Cycle | 0% | 0% | 0% | Inventory, utilization, backlog, input costs; use as disclosed reallocation for cycle-sensitive sectors |
+
+For cycle-sensitive sectors, the analyst may reallocate up to 5% from Innovation or Capital Flows to Supply/Demand Cycle. Any reallocation must be stated in the Methodology Appendix.
 
 ### Sector Score Interpretation
 | Score | Rating | Action |
@@ -69,18 +75,20 @@ Where:
 ## Company Scoring Model (Phase 3)
 
 ```
-Company_Score = (Growth × 0.25) + (Profitability/Health × 0.20) + (Moat × 0.20) +
-                 (Valuation × 0.15) + (Management × 0.10) + (Risk × 0.10)
+Company_Score = (Growth × 0.20) + (Profitability/Health × 0.20) + (Moat × 0.20) +
+                 (Valuation × 0.15) + (Management × 0.10) + (Risk × 0.10) +
+                 (Liquidity/Tradability × 0.05)
 ```
 
 | Component | Sub-Factors |
 |-----------|------------|
-| Growth (25%) | Revenue CAGR (3Y), EPS CAGR (3Y), analyst estimate revision momentum |
+| Growth (20%) | Revenue CAGR (3Y), EPS CAGR (3Y), analyst estimate revision momentum |
 | Profitability/Health (20%) | ROIC, FCF margin, Altman Z-Score, interest coverage |
 | Moat (20%) | Morningstar framework: cost advantages, network effects, intangibles, switching costs, efficient scale |
 | Valuation (15%) | P/E percentile vs industry, EV/EBITDA percentile, P/FCF yield, PEG ratio |
 | Management (10%) | CEO tenure, insider ownership %, capital allocation track record |
 | Risk (10%) | Inverse of risk flags: customer concentration, debt maturity wall, litigation, regulatory |
+| Liquidity/Tradability (5%) | Average dollar volume, free float, short interest, borrow/FTD risk |
 
 ### Watchlist Rating Anchors
 | Score | Rating | Action |
@@ -140,11 +148,11 @@ Implications for sector selection: which sectors benefit from current regime, wh
 
 ### Composite Sector Scores
 
-| Rank | Sector | Growth | Profit. | Valuation | Macro Fit | Innovation | Reg. | Flows | **Score** |
-|------|--------|--------|---------|-----------|-----------|------------|------|-------|-----------|
-| 1 | [Sector] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
-| 2 | [Sector] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
-| ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
+| Rank | Sector | Growth | Profit. | Val. | Macro | Innov. | Reg. | Flows | RS | Cycle | Quality | **Score** |
+|------|--------|--------|---------|------|-------|--------|------|-------|----|-------|---------|-----------|
+| 1 | [Sector] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
+| 2 | [Sector] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
+| ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
 **Weighting**: [Long-term / Mid-term / Short-term] scheme applied.
 
@@ -185,6 +193,12 @@ Implications for sector selection: which sectors benefit from current regime, wh
 **Market Sizing**
 - TAM: $X billion | Growth Rate: X% CAGR | Penetration: X%
 - Source: [Report name / publication | Retrieved: YYYY-MM-DD]
+- Bottom-up sanity check: [customers/units/spend × penetration × pricing]
+
+**Profit Pool & Unit Economics**
+- Profit pool concentration: [Where value accrues across the value chain]
+- Key industry KPIs: [Sector-specific KPIs from data_source_matrix.md]
+- Adoption/unit economics: [Payback, utilization, churn/retention, capacity, or equivalent]
 
 **Industry Life Cycle**: [Emerging / Growth / Mature / Decline]
 [Evidence: revenue growth trajectory, capacity expansion, consolidation activity, innovation rate.]
@@ -208,11 +222,11 @@ Implications for sector selection: which sectors benefit from current regime, wh
 
 ### Ranked Watchlist
 
-| Rank | Ticker | Company | Market Cap | P/E | Rev Growth 3Y | ROIC | FCF Yield | **Score** |
-|------|--------|---------|------------|-----|---------------|------|-----------|-----------|
-| 1 | [TICK] | [Name] | $XB | XX.X | XX% | XX% | X.X% | **X.X** |
-| 2 | [TICK] | [Name] | $XB | XX.X | XX% | XX% | X.X% | **X.X** |
-| ... | ... | ... | ... | ... | ... | ... | ... | ... |
+| Rank | Ticker | Company | Market Cap | P/E | Rev Growth 3Y | ROIC | FCF Yield | Liquidity | **Score** |
+|------|--------|---------|------------|-----|---------------|------|-----------|-----------|-----------|
+| 1 | [TICK] | [Name] | $XB | XX.X | XX% | XX% | X.X% | $XM/day | **X.X** |
+| 2 | [TICK] | [Name] | $XB | XX.X | XX% | XX% | X.X% | $XM/day | **X.X** |
+| ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
 ### Top Picks — Investment Theses
 
@@ -255,6 +269,8 @@ Implications for sector selection: which sectors benefit from current regime, wh
 - **Quantitative Filters**: Market cap ≥ $[X]M, Revenue growth 3Y CAGR ≥ [X]%, FCF positive, ROIC ≥ WACC, D/E ≤ [X]x
 - **Data Freshness**: Macro: [date], Sector data: [date range], Company data: [date range]
 - **Sources**: [List primary data sources used]
+- **Source Coverage Gaps**: [Missing/stale dimensions and confidence impact]
+- **Universe Completeness Risk**: [Classification and source limitations]
 - **Framework Attribution**: Morningstar (moat), Porter (competitive dynamics), GICS (classification)
 ```
 

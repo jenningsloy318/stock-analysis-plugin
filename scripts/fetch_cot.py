@@ -3,7 +3,7 @@
 
 Usage:
     fetch_cot.py --market SP500
-    fetch_cot.py --market SP500,NASDAQ,VIX,GOLD,USD --output /tmp/cot-data.json
+    fetch_cot.py --market SP500,NASDAQ,VIX,GOLD,USD --output ./reports/cot-data.json
 
 CFTC COT report (free, weekly release every Friday):
   Shows net positioning of Commercials, Large Speculators, and Small Speculators

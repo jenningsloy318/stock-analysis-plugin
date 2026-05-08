@@ -1,0 +1,84 @@
+# Data Source Matrix
+
+Use this matrix before running stock-analysis or industry-screening. The goal is coverage by dimension, source quality, and freshness, not volume of citations.
+
+## Source Tiers
+
+| Tier | Use | Examples | Completion Rule |
+|------|-----|----------|-----------------|
+| Tier 0 | Market prices and tradable instruments | Exchange/finance tool, yfinance, Polygon/Alpaca when configured | Required for current price, market cap, beta, technicals, and options-sensitive reports |
+| Tier 1 | Primary filings and official statistics | SEC EDGAR submissions/companyfacts, company IR filings, FRED/Federal Reserve, BEA, BLS, Treasury FiscalData, CFTC COT, FINRA short interest, EIA, FDA, FDIC/OCC | Blocking for any claim directly supported by these datasets |
+| Tier 2 | Audited or institutionally curated secondary data | Exchange filings outside the US, S&P/FactSet/Capital IQ if available, ETF issuer holdings, rating agency releases, consensus providers, reputable industry reports | Allowed when Tier 1 does not cover the dimension; must be labeled |
+| Tier 3 | Directional alternative data | Google Trends, Similarweb snippets, app-store ranks, Glassdoor public pages, Reddit/social sentiment, patents, hiring pages, channel-check summaries | Never decisive alone; requires convergence with at least one Tier 1 or Tier 2 signal |
+
+## Coverage Requirements By Dimension
+
+| Dimension | Minimum Sources | Freshness Target | Notes |
+|-----------|-----------------|------------------|-------|
+| Current price, volume, options | 1 Tier 0 source | Same day for short-term, 7 days for mid/long | Quote staleness must be explicit in reports |
+| Financial statements | SEC/company filings plus script output | Latest 10-K/10-Q or local market equivalent | For non-US companies, use exchange filings and label accounting standard |
+| Segment and geography | Latest annual report, 10-K/20-F/40-F, investor presentation | Latest annual filing; update if material 8-K/6-K exists | Required for multi-segment valuation and geopolitical exposure |
+| Management and governance | DEF 14A/proxy, Form 4, board/company filings | Proxy within 15 months; Form 4 within 90 days | If no recent Form 4 exists, state "No recent Form 4 found" instead of failing |
+| Macro | FRED/Fed plus BEA/BLS/Treasury where relevant | 30 days for monthly/daily series; latest quarter for GDP | Use regional official sources for non-US issuers |
+| Credit and liquidity | FRED spreads, Treasury, company debt notes, ratings releases | 7 days for spreads; latest filing for maturity schedule | Mandatory for levered companies and financials |
+| Positioning and flow | CFTC COT, FINRA short interest, ETF holdings/flows, 13F/13D/13G | 7 days for COT, latest settlement for short interest, latest quarter for 13F | Distinguish short interest from short-sale volume |
+| Industry structure | GICS/NAICS mapping, BEA industry data, reputable industry report | 90 days for market data; 12 months for structural reports | Require both top-down and bottom-up TAM sanity checks |
+| Company screening universe | GICS/ETF holdings/exchange lists plus web verification | 90 days | Missing companies must be reported as universe risk |
+| Alternative data | At least 3 independent directional signals | 30 days for social/search/app; 12 months for patents | Mark as directional and non-representative |
+
+## Freshness SLA
+
+| Data Class | Max Freshness | Blocks Stage? |
+|------------|---------------|---------------|
+| Quote, options, technicals | Same day for short-term; 7 days otherwise | Yes for short-term and valuation |
+| News and catalysts | 7 days | Yes for short-term and event-driven mid-term |
+| Macro daily/weekly series | 30 days | Yes for Stages 4, 7 and screening Phase 0 |
+| Financial statements | Latest reported quarter/year | Yes for Stages 1, 6, 8 and company screening |
+| Insider/Form 4 | 90 days if activity exists | No if no filing exists; annotate |
+| Sector valuation/growth | 90 days | Yes for broad screening |
+| Industry reports/TAM | 12 months | No, but confidence drops if older |
+| Patents/governance/proxy | 12-15 months | Yes for long-term management or innovation claims |
+
+## Source Quorum Rules
+
+1. A numeric investment claim needs one Tier 1/Tier 0 source or two independent Tier 2 sources.
+2. A qualitative thesis claim needs at least two independent sources, unless it is directly stated in a company filing.
+3. Alternative data can support direction, timing, or divergence only after convergence scoring.
+4. If sources conflict, preserve the conflict in the report and assign lower confidence.
+5. If a critical source is unavailable, write "Data not available" and lower confidence instead of substituting an unverifiable proxy.
+
+## Non-US Coverage
+
+For non-US companies, replace US-only sources with local equivalents:
+
+| Dimension | Preferred Sources |
+|-----------|-------------------|
+| Filings | Local exchange filings, annual report, 20-F/40-F/6-K if SEC-listed ADR |
+| Macro | Central bank, national statistics office, IMF/OECD/World Bank where official local APIs are unavailable |
+| Rates and currency | Local central bank, Treasury/sovereign yield data, FX market data |
+| Industry | Local industry regulator, trade body, exchange sector classification, regional government statistics |
+| Governance | Local proxy/annual meeting materials, exchange governance filings |
+
+## Sector-Specific Add-Ons
+
+| Sector | Required Add-Ons |
+|--------|------------------|
+| Banks | Regulatory capital, CET1, NIM, loan loss provisions, deposit beta, unrealized securities losses, FDIC/OCC/Fed data where available |
+| Insurance | Combined ratio, reserves, float yield, catastrophe exposure, solvency capital |
+| REITs | FFO/AFFO, occupancy, lease maturities, cap rates, debt maturity schedule |
+| Energy | Production volumes, reserves, decline rates, realized prices, hedges, EIA commodity data |
+| Biotech/Pharma | Pipeline phase probabilities, trial readouts, FDA calendar, patent cliff, payer/reimbursement risk |
+| SaaS/Software | ARR, NRR/GRR, CAC payback, rule of 40, RPO, churn, seat expansion, cloud gross margin |
+| Semiconductors | Node exposure, wafer starts, utilization, inventory days, customer concentration, export controls |
+| Industrials | Backlog, book-to-bill, capacity utilization, input costs, order cycle |
+| Consumer | Same-store sales, traffic, basket size, inventory turns, promotion intensity |
+
+## Report Confidence Mapping
+
+| Coverage Result | Confidence Impact |
+|-----------------|-------------------|
+| All blocking dimensions pass, 0-1 stale non-critical sources | High confidence eligible |
+| One blocking dimension unavailable but not central to thesis | Medium confidence maximum |
+| Two or more blocking dimensions unavailable or stale | Low confidence maximum |
+| Alternative-data-only thesis support | Low confidence maximum |
+| Numeric claims fail fact check | Remove claim; rerun affected stage if material |

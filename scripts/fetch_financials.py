@@ -4,7 +4,7 @@
 Usage:
     fetch_financials.py AAPL [--years 5] [--api-key-env FMP_API_KEY]
     fetch_financials.py AAPL MSFT GOOGL --years 3
-    fetch_financials.py BRK.B --output /tmp/brk-data.json
+    fetch_financials.py BRK.B --output ./reports/BRK.B/raw-data.json
 
 Market-aware fallback chain:
   China/HK tickers (.SZ, .SH, .HK, 6-digit codes) → akshare → yfinance → FMP
