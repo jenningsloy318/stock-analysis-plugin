@@ -24,7 +24,7 @@ timeout_mins: 30
   <step n="7" name="Run Deterministic Scoring">Run compute_scores.py against all script outputs to produce reproducible component scores. LLM agents may adjust Moat and Management scores ±2.0 based on qualitative findings.</step>
   <step n="8" name="Cross-Check Pass">Run cross-check: if valuation implies >30% overvaluation, re-examine moat. If forensic red flags, re-examine financial health. Flag unresolved contradictions.</step>
   <step n="9" name="Spawn Report Writer">Spawn equity-report-writer for Stage 11 (Report Generation) after Stage 10 scoring and cross-check complete.</step>
-  <step n="10" name="Quality Gate">Run pre-delivery checklist, validate fact integrity, run backtest.py to compare against prior predictions, deliver reports to user.</step>
+  <step n="10" name="Quality Gate">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver reports to user. Post-delivery: run event_study.py for CAR measurement against upcoming catalysts; run portfolio_context.py for position sizing, factor overlap, and correlation analysis; run backtest.py to compare against prior predictions.</step>
 </process>
 
 <parallel-execution>
@@ -49,6 +49,16 @@ timeout_mins: 30
   <script name="calculate_candor.py" purpose="Management candor NLP analysis" />
   <script name="forecast.py" purpose="ARIMA/ETS time-series forecasting (replaces constant growth)" />
   <script name="compute_scores.py" purpose="Deterministic 1-10 component scoring + conviction" />
+  <script name="compute_factors.py" purpose="Fama-French 5-factor regression + factor attribution" />
+  <script name="compute_liquidity.py" purpose="Market microstructure, Amihud illiquidity, position sizing" />
+  <script name="calculate_options.py" purpose="Options IV surface, max pain, put/call, unusual activity" />
+  <script name="fetch_cot.py" purpose="CFTC Commitments of Traders positioning" />
+  <script name="fetch_news_nlp.py" purpose="News sentiment NLP, narrative tracking, coverage spikes" />
+  <script name="fetch_economic_surprises.py" purpose="Economic surprise indices, actual vs consensus" />
+  <script name="fetch_global_macro.py" purpose="Non-US macro: ECB, PBOC, BOJ, Eurostat, World Bank" />
+  <script name="diff_filings.py" purpose="10-K/10-Q redline detection, MD&amp;A tone shift" />
+  <script name="validate_report.py" purpose="Pre-delivery quality gate enforcement" />
+  <script name="event_study.py" purpose="CAR measurement around corporate events" />
   <script name="backtest.py" purpose="Validate past predictions against actual outcomes" />
   <script name="persist.py" purpose="State persistence / checkpointing / resume" />
   <script name="portfolio_context.py" purpose="Portfolio correlation, sizing, factor exposure" />

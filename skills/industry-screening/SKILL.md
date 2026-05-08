@@ -12,7 +12,7 @@ description: >
   are growing," "top-down screening," "find stocks in [SECTOR]," "industry
   screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.12"
+version: "1.0.18"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -79,6 +79,8 @@ Before Phase 1, load `references/data_source_matrix.md` and write `./reports/scr
    - Default → Mid-term, then ask if the user wants a different horizon
 
 3. **Fetch macro context**: Run `scripts/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output ./reports/screening/macro.json`. This establishes the macro regime backdrop for sector sensitivity analysis.
+3b. **Fetch economic surprises**: Run `scripts/fetch_economic_surprises.py --output ./reports/screening/economic_surprises.json` for actual-vs-consensus data. Persistent positive surprises favor cyclicals; negative surprises favor defensives.
+3c. **Compute sector relative strength**: Run `scripts/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for deterministic sector price momentum rankings vs SPY across 1M/3M/6M/12M. This provides the quantitative backbone for the Relative Strength dimension in Phase 1.
 
 4. **Create output directory**: `./reports/screening/`
 

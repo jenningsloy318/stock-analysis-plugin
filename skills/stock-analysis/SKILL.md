@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.12"
+version: "1.0.18"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -94,9 +94,11 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 6. **Earnings calendar check**: Run `scripts/fetch_sentiment.py [TICKER] --sources earnings` for upcoming earnings dates and past surprises. If FINNHUB_API_KEY is not set, fall back to `mcp__web-search-prime__web_search_prime` for "[TICKER] next earnings date [YEAR]". If earnings are within 14 days, warn the user: "Earnings report on [DATE] may invalidate this analysis. Proceed or wait?" If within 3 days, recommend waiting unless the user explicitly overrides.
 7. Run `scripts/fetch_financials.py [TICKER] --years 5 --output ./reports/[TICKER]/raw-data.json` to retrieve financial data.
 8. Run `scripts/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM,CPILFESL,PCEPI,PCEPILFE,T5YIFR,BAA10Y,BAMLH0A0HYM2,INDPRO,TCU,HOUST,UMCSENT --output ./reports/macro.json` to capture current macro, inflation, credit, and activity context.
+8b. Run `scripts/fetch_global_macro.py --output ./reports/global_macro.json` for non-US macro data (ECB, PBOC, BOJ, Eurostat, World Bank). Required for non-US issuers; informative for US companies with international revenue.
+8c. Run `scripts/fetch_economic_surprises.py --output ./reports/economic_surprises.json` for economic surprise indices (actual vs consensus for GDP, CPI, PMI, payrolls). Positive surprises = macro tailwind; negative = headwind.
 9. **Time-series forecasting**: Run `scripts/forecast.py ./reports/[TICKER]/raw-data.json --horizon 5 --method ensemble --output ./reports/[TICKER]/forecast.json` to produce ARIMA/ETS ensemble forecasts for revenue, EPS, and FCF. This replaces the old single constant-growth assumption.
 10. **Credit market check**: Run `scripts/fetch_credit.py [TICKER] --output ./reports/[TICKER]/credit.json` to retrieve credit spreads, debt maturity, and credit rating. Bond markets often price risk faster than equities.
-11. **Filing redline analysis**: For US issuers, use `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` to find the current and previous 10-K/10-Q. Scrape via `mcp__firecrawl__firecrawl_scrape`. For ADRs/non-US issuers, use 20-F/40-F/6-K or local annual/interim reports. Identify "Risk Factor", liquidity, segment, and accounting policy additions/deletions.
+11. **Filing redline analysis**: Run `scripts/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json` for automated 10-K/10-Q redline detection (risk factor additions/deletions, MD&A tone shift, accounting policy changes). For ADRs/non-US issuers, use 20-F/40-F/6-K or local annual/interim reports. Supplement with `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` if script output is incomplete.
 12. Run `scripts/calculate_metrics.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/metrics.json` to compute ratios and valuation. If market cap is known, add `--market-cap [VALUE]`.
 13. Call `finance` tool for current price, market cap, 52-week range, shares outstanding.
 
@@ -197,11 +199,14 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 - [ ] 6.1b **Monte Carlo Simulation**: Run `scripts/calculate_metrics.py ./reports/[TICKER]/raw-data.json --monte-carlo --mc-growth-mu [ENSEMBLE_CAGR] --mc-growth-sigma [RESIDUAL_STD] --wacc [WACC] --market-cap [VALUE] --shares [SHARES] --output ./reports/[TICKER]/metrics.json`. Produces 10K-run distribution with VaR, CVaR, and percentile-based price targets. **Do this for Long-term and Mid-term reports.**
 - [ ] 6.2 Relative Value — P/E vs history/peers, EV/EBITDA with growth justification, P/FCF vs risk-free rate, PEG. **Run `scripts/fetch_sentiment.py [TICKER] --sources peers`** to algorithmically fetch sub-industry peers for an unbiased comparison group before evaluating multiples.
 - [ ] 6.3 Technical — Trend (MAs, higher highs/lows), momentum (RSI, MACD), volume (OBV), support/resistance. **Run `scripts/fetch_technicals.py [TICKER] --period 2y`** for deterministic indicator computation and composite trend/momentum scores.
-- [ ] 6.4 Sentiment — Put/call ratio, VIX term structure, short interest, options flow, dark pool prints. **Run `scripts/fetch_sentiment.py [TICKER] --sources news,social`** for news sentiment buzz and social media metrics. **For Short-term reports, also run `scripts/fetch_realtime.py [TICKER] --mode options`** for options chain data (put/call OI, max pain, ATM IV).
+- [ ] 6.4 Sentiment — Put/call ratio, VIX term structure, short interest, options flow, dark pool prints. **Run `scripts/fetch_sentiment.py [TICKER] --sources news,social`** for news sentiment buzz and social media metrics. **Run `scripts/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json`** for NLP-based news sentiment, narrative theme tracking, and coverage spike detection. **For Short-term reports, also run `scripts/fetch_realtime.py [TICKER] --mode options`** for options chain data (put/call OI, max pain, ATM IV).
+- [ ] 6.4b Options-Implied Signals — **Run `scripts/calculate_options.py [TICKER] --output ./reports/[TICKER]/options.json`** for IV surface analysis, max pain computation, put/call ratios, skew interpretation, and unusual activity detection. Options markets price tail risk — divergence from equity price signals early.
 - [ ] 6.5 Institutional Flow — 13F analysis, activist 13D, Form 4 clusters, ownership concentration. **Run `scripts/fetch_sentiment.py [TICKER] --sources analyst`** for analyst consensus and price targets.
 - [ ] 6.6 Estimate Revisions — **Run `scripts/fetch_sentiment.py [TICKER] --sources revisions`** for earnings revision velocity (3-month direction and magnitude). Positive revision momentum is among the strongest short-term alpha signals. Flag if 3+ consecutive months of upward/downward revisions.
 - [ ] 6.7 Valuation Method Fit — Select methods by business type: DCF for cash-generative operating companies, RIM for banks/insurers, DDM for mature dividend payers, NAV for asset-heavy/REIT/resource businesses, SOTP for multi-segment companies, probability-weighted pipeline valuation for biotech, and revenue/FCF multiples only as supporting evidence for unprofitable high-growth firms.
 - [ ] 6.8 Consensus Bridge — Show where the model differs from consensus: revenue growth, margin, reinvestment, terminal multiple/growth, WACC, and share count. If no variant view exists, conviction cannot exceed 7.4.
+- [ ] 6.9 Factor Attribution — **Run `scripts/compute_factors.py [TICKER] --output ./reports/[TICKER]/factors.json`** for Fama-French 5-factor regression (market, SMB, HML, RMW, CMA). Reveals whether returns are driven by systematic exposure or alpha. High factor loadings reduce conviction in idiosyncratic thesis.
+- [ ] 6.10 Liquidity & Microstructure — **Run `scripts/compute_liquidity.py [TICKER] --position-size [SIZE] --output ./reports/[TICKER]/liquidity.json`** for Amihud illiquidity ratio, market impact estimate, days-to-liquidate, and position sizing constraints. Flag if liquidity score < 4 (micro/nano-cap) — requires reduced position sizing regardless of conviction.
 
 **Reference:** Load `references/frameworks_macro_quant.md` for Greenblatt's Magic Formula. Load `references/frameworks_risk_alt.md` for Burry's SEC deep-dive. For sector-specific valuation, load the relevant deep-dive reference: `references/industry_saas.md` (Tech/SaaS), `references/industry_biotech.md` (Pharma/Biotech), or `references/industry_banks.md` (Financials).
 
@@ -332,6 +337,7 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
 
 **Post-Delivery:**
 - Run `scripts/backtest.py --ticker [TICKER]` to compare this report against any prior predictions for the same ticker.
+- Run `scripts/event_study.py [TICKER] --events ./reports/[TICKER]/catalysts.json --output ./reports/[TICKER]/event_study.json` to measure cumulative abnormal returns (CAR) around identified catalyst events. Provides forward-looking expectation calibration.
 - If the user has specified a portfolio, run `scripts/portfolio_context.py [TICKER] --portfolio '[PORTFOLIO_JSON]' --conviction [CONVICTION]` for position sizing and correlation guidance.
 
 ## Pre-Delivery Checklist

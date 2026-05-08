@@ -47,6 +47,11 @@ timeout_mins: 15
   Run `scripts/fetch_private_comps.py [TICKER] --output ./reports/[TICKER]/private_comps.json` for M&A/LBO analysis.
   Run `scripts/compute_scores.py --metrics ./reports/[TICKER]/metrics.json --technicals ./reports/[TICKER]/tech.json --capital-structure ./reports/[TICKER]/capital_structure.json --report-type [TYPE] --ticker [TICKER]` for component scores incl. Weinstein/CANSLIM.
   Run `scripts/forecast.py ./reports/[TICKER]/raw-data.json --enhanced --returns-file ./reports/[TICKER]/returns.json` for GARCH volatility + fat-tail risk.
+  Run `scripts/calculate_options.py [TICKER] --output ./reports/[TICKER]/options.json` for IV surface, max pain, put/call ratios, unusual activity.
+  Run `scripts/compute_factors.py [TICKER] --output ./reports/[TICKER]/factors.json` for Fama-French 5-factor regression and factor attribution.
+  Run `scripts/fetch_cot.py [TICKER] --output ./reports/[TICKER]/cot.json` for CFTC Commitments of Traders institutional positioning.
+  Run `scripts/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json` for news sentiment NLP, narrative tracking, and coverage spike detection.
+  Run `scripts/compute_liquidity.py [TICKER] --output ./reports/[TICKER]/liquidity.json` for market microstructure and position sizing constraints.
 
   For supplementary valuation/sentiment data, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[TICKER] analyst price target [year]", "[TICKER] short interest data"
@@ -77,6 +82,9 @@ timeout_mins: 15
   - Private market comp / LBO floor computed (if market cap < $100B)
   - Weinstein stage classified with supporting evidence (30-week MA direction, volume, RS)
   - CANSLIM composite scored (7 dimensions)
+  - Options-implied distribution analyzed (IV skew, max pain, put/call ratio)
+  - Fama-French factor attribution computed (market, SMB, HML, RMW, CMA betas)
+  - Liquidity score computed and position sizing constraint assessed
   - Market regime classification derived with at least 4 of 8 sub-items having current data
   - VIX and credit spread data within 7 days freshness
 </validation-gates>

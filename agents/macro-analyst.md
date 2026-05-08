@@ -34,7 +34,9 @@ timeout_mins: 15
 
 <data-acquisition>
   Run `scripts/fetch_macro.py --output ./reports/macro.json` for FRED indicators.
-  Reuse existing file if already fetched in Step 0.
+  Run `scripts/fetch_global_macro.py --output ./reports/global_macro.json` for non-US macro (ECB, PBOC, BOJ, Eurostat, World Bank).
+  Run `scripts/fetch_economic_surprises.py --output ./reports/economic_surprises.json` for CESI proxies, nowcasts, actual-vs-consensus.
+  Reuse existing files if already fetched in Step 0.
 
   For supplementary macro data, use search tools in order:
   1. `mcp__firecrawl__firecrawl_search` with `includeDomains: ["fred.stlouisfed.org", "bls.gov", "federalreserve.gov"]`
@@ -53,7 +55,9 @@ timeout_mins: 15
 
 <validation-gates>
   - PMI, Fed funds rate, 10-year yield, and CPI all within Max Freshness (30 days)
+  - Economic surprise data assessed (actual vs consensus direction for key releases)
   - Countries representing >80% of revenue assessed for regulatory/geopolitical risk
+  - For non-US companies: global macro (ECB/PBOC/BOJ) data loaded and referenced
 </validation-gates>
 
 <output>Write stage summaries to `./reports/[TICKER]/stage4.md` and `./reports/[TICKER]/stage5.md`</output>

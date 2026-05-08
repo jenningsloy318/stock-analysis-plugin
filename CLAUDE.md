@@ -112,9 +112,10 @@
 | `compute_scores.py` | Deterministic 1-11 component scoring (incl. capital structure, Weinstein, CANSLIM) + conviction | 7 (cross-check) |
 | `compute_sector_rs.py` | Sector relative strength rankings vs SPY across 1M/3M/6M/12M | Screening |
 | `compute_factors.py` | Fama-French 5-factor regression + factor attribution (Kenneth French data) | 7 |
+| `compute_liquidity.py` | Market microstructure, Amihud illiquidity, position sizing constraints | 6,10 |
 | `validate_report.py` | Pre-delivery quality gate enforcement (freshness, coverage, consistency, forensics) | 11 (pre-delivery) |
 | `event_study.py` | Cumulative abnormal return (CAR) around corporate events | 10 (post-delivery) |
-| `diff_filings.py` | 10-K/10-Q redline detection: risk factor changes, MD&A tone shift, forensic flags | 8 |
+| `diff_filings.py` | 10-K/10-Q redline detection: risk factor changes, MD&A tone shift, forensic flags | 1,8 |
 | `backtest.py` | Validate past reports against actual outcomes | 10 (post-delivery) |
 | `persist.py` | SQLite state persistence, checkpointing, resume, kill switch monitor | All |
 | `portfolio_context.py` | Portfolio correlation, position sizing, factor exposure | 10 |

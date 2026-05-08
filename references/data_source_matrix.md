@@ -33,6 +33,7 @@ Use this matrix before running stock-analysis or industry-screening. The goal is
 | Volatility & tail risk | yfinance daily returns (2yr), GARCH model output, Student-t fitting | 7 days for short-term; 30 days otherwise | Required for enhanced risk metrics and position sizing |
 | Supply chain concentration | yfinance geographic segments, GICS sector chokepoint mapping, revenue HHI | 90 days for segments; 12 months for structural | Required for industry analysis (Stage 3) and operational due diligence |
 | Earnings quality | Financial statements (income, cash flow, balance sheet), 3-5yr history | Latest filing | Required for forensic accounting and fundamental quality assessment |
+| Liquidity & microstructure | yfinance daily OHLCV (1yr), bid-ask when available, shares outstanding | 7 days for short-term; 30 days otherwise | Required for position sizing constraints and market impact estimation |
 
 ## Freshness SLA
 

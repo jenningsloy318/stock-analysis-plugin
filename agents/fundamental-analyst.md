@@ -36,6 +36,7 @@ timeout_mins: 15
 <data-acquisition>
   Run `scripts/fetch_capital_structure.py [TICKER] --output ./reports/[TICKER]/capital_structure.json` for shareholder return analysis.
   Run `scripts/calculate_earnings_quality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/earnings_quality.json` for accruals, cash conversion, and revenue quality scoring.
+  Run `scripts/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json` for 10-K/10-Q redline detection (risk factor changes, MD&A tone shift, accounting policy changes, forensic flags).
 
   For SEC filings and fundamental data, use search tools:
   1. `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` — "[TICKER] 10-K 10-Q DEF 14A [year]"
@@ -58,6 +59,7 @@ timeout_mins: 15
   - At least one Form 4 filing from last 90 days reviewed
   - Capital structure analysis completed (buyback ROI, SBC dilution, total return yield)
   - Earnings quality score computed (accruals, cash conversion, revenue quality)
+  - Filing diff analyzed (risk factor changes, MD&A language shifts vs prior period)
   - Narrative-to-numbers mapping articulated (3 sentences → model variables)
 </validation-gates>
 
