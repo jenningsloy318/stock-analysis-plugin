@@ -28,11 +28,11 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
-  Run `PLUGIN_SCRIPTS/fetch_alternatives.py [TICKER]` for alternative data.
-  Run `PLUGIN_SCRIPTS/fetch_behavioral.py [TICKER] --analyst-json ./reports/[TICKER]/sentiment.json --price-changes ./reports/[TICKER]/price_changes.json --output ./reports/[TICKER]/behavioral.json` for behavioral signals (narrative, herding, anchoring, reflexivity).
-  Run `PLUGIN_SCRIPTS/calculate_candor.py ./reports/[TICKER]/transcript.txt` for NLP candor index.
-  Run `PLUGIN_SCRIPTS/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json` for news sentiment NLP, narrative theme tracking, and coverage spike detection.
-  Run `PLUGIN_SCRIPTS/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest as contrarian signal (when divergent from fundamentals).
+  Run `${PLUGIN_SCRIPTS}/fetch_alternatives.py [TICKER]` for alternative data.
+  Run `${PLUGIN_SCRIPTS}/fetch_behavioral.py [TICKER] --analyst-json ./reports/[TICKER]/sentiment.json --price-changes ./reports/[TICKER]/price_changes.json --output ./reports/[TICKER]/behavioral.json` for behavioral signals (narrative, herding, anchoring, reflexivity).
+  Run `${PLUGIN_SCRIPTS}/calculate_candor.py ./reports/[TICKER]/transcript.txt` for NLP candor index.
+  Run `${PLUGIN_SCRIPTS}/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json` for news sentiment NLP, narrative theme tracking, and coverage spike detection.
+  Run `${PLUGIN_SCRIPTS}/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest as contrarian signal (when divergent from fundamentals).
   Paywalled sources return `null` — this is expected, proceed.
 
   Tinyfish authentication (MUST do once per session before social/alt queries):

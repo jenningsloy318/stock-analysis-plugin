@@ -62,8 +62,8 @@ timeout_mins: 12
 </deep-dive-mode>
 
 <data-acquisition>
-  Run `PLUGIN_SCRIPTS/compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json` for flat sub-industry RS leaderboard.
-  Run `PLUGIN_SCRIPTS/fetch_sub_industry_universe.py --code [GICS_CODE] --output ./reports/screening/universe_[CODE].json` for constituent discovery.
+  Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json` for flat sub-industry RS leaderboard.
+  Run `${PLUGIN_SCRIPTS}/fetch_sub_industry_universe.py --code [GICS_CODE] --output ./reports/screening/universe_[CODE].json` for constituent discovery.
 
   IMPORTANT: ALL search queries should target GICS Level 4 sub-industry names directly.
   Do NOT search for broad sector terms (e.g., "Technology sector"). Instead search for the

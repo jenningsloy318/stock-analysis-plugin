@@ -51,7 +51,7 @@ timeout_mins: 12
     - `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
     - `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
     Rankings may differ across horizons because weighting schemes prioritize different factors.
-    Run `PLUGIN_SCRIPTS/persist.py complete [ANALYSIS_ID]` after all 3 reports are written.</step>
+    Run `${PLUGIN_SCRIPTS}/persist.py complete [ANALYSIS_ID]` after all 3 reports are written.</step>
   <step n="8" name="Handoff Recommendation">Generate explicit next-step suggestion: "Top-ranked companies from this screen can be deep-dived with the stock-analysis skill. Recommended starting ticker: [TOP_TICKER] (Score: [X.X]/10, GICS: [CODE] [SUB_INDUSTRY_NAME]). Would you like me to run a full equity research analysis?"</step>
 </process>
 
