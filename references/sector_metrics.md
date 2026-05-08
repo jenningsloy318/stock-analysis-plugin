@@ -198,3 +198,5 @@ For these sectors, load the dedicated industry reference file for specialized KP
 | Gaming / iGaming | `references/industry_gaming.md` | GGR, hold %, ARPDAU, regulatory status, promotional intensity |
 | Materials / Mining | `references/industry_materials.md` | AISC, reserve life, P/NAV, commodity cycle position, grade trend |
 | Transportation / Logistics | `references/industry_transportation.md` | Operating ratio, RASM/CASM, load factor, TCE, freight demand |
+| Industrials / Manufacturing | `references/industry_industrials.md` | Book-to-bill, backlog coverage, capacity utilization, cycle-adjusted P/E |
+| REITs / Real Estate | `references/industry_reits.md` | FFO/AFFO, NAV discount/premium, cap rate, occupancy, leasing spreads |

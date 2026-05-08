@@ -69,6 +69,11 @@ timeout_mins: 30
   <script name="compute_correlation_regime.py" purpose="Rolling beta, tail correlation, asymmetric beta, correlation regime, stress-adjusted sizing" />
   <script name="compute_earnings_edge.py" purpose="Historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend" />
   <script name="calculate_earnings_quality.py" purpose="Accruals quality, cash conversion, revenue quality, composite earnings quality score" />
+  <script name="fetch_peer_universe.py" purpose="Automated peer identification via GICS + ETF holdings + description similarity" />
+  <script name="fetch_realtime.py" purpose="Real-time quotes, options chain, pre/post market data" />
+  <script name="fetch_supply_chain.py" purpose="Supply chain mapping, concentration risk, disruption vulnerability" />
+  <script name="fetch_esg_carbon.py" purpose="ESG ratings, carbon intensity, transition risk, regulatory exposure" />
+  <script name="compute_sector_rs.py" purpose="Sector relative strength rankings vs SPY across 1M/3M/6M/12M" />
 </scripts>
 
 <constraints>

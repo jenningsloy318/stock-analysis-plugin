@@ -150,7 +150,7 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 - [ ] 3.3 Competitive Landscape — Market share trends, positioning map, peer comparisons, disruption threats
 - [ ] 3.4 Market Sizing — TAM/SAM/SOM (top-down + bottom-up), penetration rate, adjacent markets
 - [ ] 3.5 Platform Economics (if applicable) — Network effects, liquidity, multi-tenanting, take rate
-- [ ] 3.6 Supply Chain — Supplier diversification, geographic concentration, critical components
+- [ ] 3.6 Supply Chain — Supplier diversification, geographic concentration, critical components. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_supply_chain.py [TICKER] --output ./reports/[TICKER]/supply_chain.json`** for supply chain mapping, concentration risk scoring, and disruption vulnerability assessment.
 - [ ] 3.7 Ecosystem Mapping — Upstream/downstream dependency, single-point-of-failure, complementor health
 - [ ] 3.8 Unit Economics & KPI Benchmarking — Identify the 3-7 KPIs that actually drive valuation in this industry; benchmark against peers and historical ranges
 - [ ] 3.9 TAM Reality Check — Cross-check top-down TAM with bottom-up spend/customer math. Flag any TAM that depends on unrealistic adoption, pricing, or penetration assumptions.
@@ -272,6 +272,7 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 - [ ] 8.8 Thesis Falsifiability — Pre-mortem, falsification conditions, dissenting view search, inversion checklist, kill switch. **Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py kill-switch [TICKER]`** to check if prior kill switch conditions are approaching trigger levels.
 - [ ] 8.9 Risk Signal Ladder — Define leading, coincident, and lagging indicators for the top 3 risks. Each kill switch must include observable source, threshold, and review cadence.
 - [ ] 8.10 Correlation Regime — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_correlation_regime.py [TICKER] --output ./reports/[TICKER]/correlation.json`** for rolling beta, tail correlation (does diversification hold during stress?), asymmetric beta (upside vs downside capture), and correlation regime classification. If tail correlation spikes >0.25 above normal, flag position sizing adjustment needed.
+- [ ] 8.11 ESG & Carbon Risk — **Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_esg_carbon.py [TICKER] --output ./reports/[TICKER]/esg_carbon.json`** for ESG ratings trajectory, carbon intensity vs sector peers, transition risk exposure, and regulatory compliance posture. Flag if ESG rating deteriorating or carbon intensity >2x sector median.
 
 **Reference:** Load `references/frameworks_risk_alt.md` for Marks's risk framework and forensic red flag details. Load `references/institutional_odd.md` for ODD checklists. Load credit findings from `./reports/[TICKER]/credit.json`.
 
@@ -404,7 +405,7 @@ After Stage 11 report generation:
 | 5: Geopolitics | Standard (5.1-5.4) | Deep (5.1-5.5) | Light (5.1 only) |
 | 6: Valuation | Deep (6.1-6.14) | Deep (6.1-6.14) | Deep (6.3-6.5, 6.4b, 6.10-6.14) |
 | 7: Market Regime | Light (7.1-7.3) | Deep (7.1-7.8) | Deep (7.4-7.8) |
-| 8: Risk | Deep (8.1-8.10) | Standard (8.1-8.6, 8.10) | Light (8.2, 8.4, 8.5b, 8.10) |
+| 8: Risk | Deep (8.1-8.11) | Standard (8.1-8.6, 8.10-8.11) | Light (8.2, 8.4, 8.5b, 8.10) |
 | 9: Alternative Data | Light (9.1, 9.4) | Standard (9.1, 9.4-9.5) | Deep (9.1-9.6) |
 | 10: Scoring + Cross-Check | Full | Full | Full |
 | 11: Reports | Full | Full | Full |
