@@ -99,3 +99,64 @@ When running `scripts/backtest.py`, verify:
 4. Confidence level correlated with accuracy (High > Medium > Low)
 
 If backtest shows systematic over/under-performance vs expectations, recalibrate thresholds.
+
+## Bayesian Conviction Calibration
+
+Run `scripts/calibrate_conviction.py --db ./reports/state.db` periodically (after 20+ predictions) to assess systematic biases.
+
+### Interpreting Calibration Output
+
+| Metric | Healthy Range | Action if Outside |
+|--------|--------------|-------------------|
+| Overall accuracy | >60% | Review scoring thresholds; check for data quality issues |
+| Brier score | <0.25 | Values above 0.25 indicate worse than naive random; requires full recalibration |
+| Overconfidence ratio | <0.35 | Above 35% means too many Strong Buy/Buy calls underperform |
+| Strong Buy accuracy | >65% | Below 65% suggests score inflation; apply -0.5 Bayesian adjustment |
+| Sell accuracy | >55% | Below 55% suggests bearish bias; apply +0.5 adjustment |
+
+### Applying Bayesian Adjustments
+
+When calibration recommends an adjustment:
+1. **Do NOT automatically modify scores.** The adjustment is advisory context.
+2. Report the calibration finding in the Data Quality appendix: "Historical calibration suggests [direction] bias of [magnitude]."
+3. If the adjustment has persisted across 3+ calibration runs, consider permanent threshold revision.
+4. Per-sector calibration may differ — if biotech Strong Buys historically underperform while bank Strong Buys outperform, the issue is sector threshold calibration, not global bias.
+
+### Reliability Diagram Interpretation
+
+The reliability diagram shows predicted probability vs observed frequency in quintiles:
+- **Well-calibrated:** Points lie on the diagonal (predicted 70% → observed ~70%)
+- **Overconfident:** Points below the diagonal (predicted 80% → observed only 55%)
+- **Underconfident:** Points above the diagonal (predicted 40% → observed 65%)
+
+## Regime-Aware Weight Context
+
+The conviction weights in `compute_scores.py` are fixed per report type. However, the cross-check step (10b) should apply regime-aware interpretation:
+
+| Market Regime | Weight Emphasis Shift | Rationale |
+|--------------|----------------------|-----------|
+| Risk-Off (VIX > 30, spreads widening) | Elevate Risk Profile, Capital Structure importance | Survival matters more than growth |
+| Reflation (rates rising, PMI expanding) | Elevate Macro Tailwind, Technical Setup | Cyclical momentum dominant |
+| Late Cycle (yield curve flat, unemployment at lows) | Elevate Valuation, Risk Profile | Margin of safety critical |
+| Deflation / Recession | Elevate Financial Health, Moat Quality | Only strongest survive |
+| Speculative (VIX low, margin debt high) | Elevate Alternative Alignment, CANSLIM | Momentum/sentiment drives short-term |
+
+These are NOT automatic weight changes — they inform the cross-check investigation prompts and the confidence narrative in the report.
+
+## Framework Divergence Resolution Protocol
+
+When `compute_scores.py` detects framework divergences (high `score_dispersion` or specific tension pairs):
+
+| Divergence Pattern | Most Likely Explanation | Investigation Path |
+|-------------------|------------------------|-------------------|
+| High Moat + Low Technical | Market pricing in moat erosion early | Check if moat score is stale; review competitive dynamics |
+| High Financial Health + Low Valuation | Cheap for good reason? Or contrarian opportunity? | Check if there's a catalyst or structural issue |
+| High Alt Alignment + Low Financial Health | Alt data seeing recovery before financials | Check revenue leading indicators, order book visibility |
+| High Macro + Low Risk Profile | Tailwind present but company-specific risk dominates | Assess whether risk is idiosyncratic or macro-correlated |
+| High Valuation + Low Technical | Cheap and getting cheaper — value trap risk | Requires hard catalyst with timeline (Klarman) |
+| Low Macro + High CANSLIM | Individual stock defying macro weakness | Verify relative strength is genuine, not sector rotation artifact |
+
+Resolution actions:
+1. If tension is **explainable** (e.g., company is turning around, moat evolving): note in report, no score change
+2. If tension is **suspicious** (e.g., scores based on stale data): refresh data, re-run scoring
+3. If tension is **unresolvable**: reduce confidence one level, flag as "DIVERGENCE NOTED" in report
