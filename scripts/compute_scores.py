@@ -710,12 +710,32 @@ def compute_valuation(metrics: dict, sector: int | None = None) -> dict:
         )
     sub_scores["reverse_dcf"] = score_reverse
 
+    # --- Earnings Yield (Greenblatt Magic Formula) ---
+    earnings_yield = ratios.get("earnings_yield")
+    score_ey = None
+    if earnings_yield is not None and earnings_yield > 0:
+        if earnings_yield > 0.12:
+            score_ey = 9.0
+        elif earnings_yield > 0.08:
+            score_ey = 7.5
+        elif earnings_yield > 0.05:
+            score_ey = 5.5
+        elif earnings_yield > 0.03:
+            score_ey = 3.5
+        else:
+            score_ey = 2.0
+        reasons.append(
+            f"Earnings yield (EBIT/EV): {earnings_yield:.1%} → sub-score {score_ey:.1f}"
+        )
+    sub_scores["earnings_yield"] = score_ey
+
     weights = {
-        "dcf_mos": 0.30,
+        "dcf_mos": 0.25,
         "pe_level": 0.15,
-        "peg_ratio": 0.20,
-        "fcf_yield": 0.20,
+        "peg_ratio": 0.15,
+        "fcf_yield": 0.15,
         "reverse_dcf": 0.15,
+        "earnings_yield": 0.15,
     }
     valid = {k: v for k, v in sub_scores.items() if v is not None}
     if not valid:
@@ -749,7 +769,7 @@ def compute_valuation(metrics: dict, sector: int | None = None) -> dict:
         "assessment": assessment,
         "sub_scores": sub_scores,
         "reasons": reasons,
-        "methodology": "Valuation = DCF_MoS(30%) + PE(15%) + PEG(20%) + FCF_Yield(20%) + ReverseDCF(15%)",
+        "methodology": "Valuation = DCF_MoS(25%) + PE(15%) + PEG(15%) + FCF_Yield(15%) + ReverseDCF(15%) + EarningsYield(15%)",
     }
 
 

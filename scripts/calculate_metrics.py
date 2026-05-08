@@ -840,6 +840,9 @@ def compute_ratios(
     if ev and oi and oi > 0:
         ev_ebitda = safe_div(ev, oi)
 
+    # Greenblatt earnings yield: EBIT / EV (inverse of EV/EBIT)
+    earnings_yield = safe_div(oi, ev) if ev and oi else None
+
     # P/B: Price / Book value per share
     pb_ratio = None
     if market_cap and equity and equity > 0:
@@ -921,6 +924,7 @@ def compute_ratios(
         "eps": round(eps, 2) if eps else None,
         "ev": round(ev, 2) if ev else None,
         "ev_ebitda": round(ev_ebitda, 2) if ev_ebitda else None,
+        "earnings_yield": round(earnings_yield, 4) if earnings_yield else None,
         "pb_ratio": round(pb_ratio, 4) if pb_ratio else None,
         "ps_ratio": round(ps_ratio, 4) if ps_ratio else None,
         "eps_growth": round(eps_growth, 4) if eps_growth else None,
@@ -928,6 +932,7 @@ def compute_ratios(
             "pe": "P/E = Market Cap / Net Income (or from profile if available)",
             "peg": "PEG = P/E / (EPS Growth × 100). Lynch: <1 attractive, 1-2 fair, >2 expensive.",
             "ev_ebitda": "EV/EBITDA ≈ (Market Cap + Net Debt) / Operating Income",
+            "earnings_yield": "EBIT / EV (Greenblatt Magic Formula). >10% attractive, compare to sector median.",
             "pb": "P/B = Market Cap / Stockholders Equity",
             "ps": "P/S = Market Cap / Revenue",
         },
