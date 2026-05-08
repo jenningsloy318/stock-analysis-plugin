@@ -67,6 +67,7 @@ SOURCE_FILES: dict[str, tuple[set[str] | None, str]] = {
     "filing_diff.json": (None, "Filing redline (diff_filings)"),
     "liquidity.json": (None, "Market microstructure (compute_liquidity)"),
     "cot.json": (None, "CFTC positioning (fetch_cot)"),
+    "cross_check.json": (None, "Cross-check contradictions (cross_check)"),
 }
 
 REQUIRED_FILES = {

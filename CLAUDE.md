@@ -114,6 +114,7 @@
 | `calculate_options.py` | Options signals: IV surface, max pain, put/call ratios, unusual activity | 6 |
 | `forecast.py` | ARIMA/ETS ensemble + GARCH volatility + fat-tail Monte Carlo + regime detection | 6 |
 | `compute_scores.py` | Deterministic 1-11 component scoring (incl. capital structure, Weinstein, CANSLIM) + conviction | 7 (cross-check) |
+| `cross_check.py` | Automated contradiction detection between scoring dimensions (valuation vs moat, red flags, alt data divergence) | 10 (cross-check) |
 | `compute_sector_rs.py` | Sector relative strength rankings vs SPY across 1M/3M/6M/12M | Screening |
 | `compute_factors.py` | Fama-French 5-factor regression + factor attribution (Kenneth French data) | 7 |
 | `compute_liquidity.py` | Market microstructure, Amihud illiquidity, position sizing constraints | 6,10 |

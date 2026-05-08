@@ -49,6 +49,7 @@ timeout_mins: 30
   <script name="calculate_candor.py" purpose="Management candor NLP analysis" />
   <script name="forecast.py" purpose="ARIMA/ETS time-series forecasting (replaces constant growth)" />
   <script name="compute_scores.py" purpose="Deterministic 1-10 component scoring + conviction" />
+  <script name="cross_check.py" purpose="Automated contradiction detection between scoring dimensions" />
   <script name="compute_factors.py" purpose="Fama-French 5-factor regression + factor attribution" />
   <script name="compute_liquidity.py" purpose="Market microstructure, Amihud illiquidity, position sizing" />
   <script name="calculate_options.py" purpose="Options IV surface, max pain, put/call, unusual activity" />

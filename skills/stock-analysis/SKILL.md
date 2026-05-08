@@ -322,7 +322,7 @@ scripts/compute_scores.py \
 ```
 This produces deterministic Financial Health, Moat Quality, Management Quality, Valuation Attractiveness, Capital Structure, Macro Tailwind, Risk Profile, Alternative Alignment, Technical Setup, Weinstein Alignment, and CANSLIM scores. Includes liquidity-adjusted position sizing caps, short squeeze catalysts (for short-term reports), and activist exposure flags. The LLM agent may adjust Moat and Management scores ±2.0 based on qualitative findings from Stages 1-3. All other scores are fixed.
 
-**10b — Cross-Check Pass:** After scoring, validate for internal contradictions:
+**10b — Cross-Check Pass:** Run `${CLAUDE_PLUGIN_ROOT}/scripts/cross_check.py ./reports/[TICKER]/scores.json --behavioral ./reports/[TICKER]/behavioral.json --output ./reports/[TICKER]/cross_check.json` to detect scoring contradictions automatically. Then validate for internal contradictions:
 1. If Valuation Attractiveness ≤3.0 (significant overvaluation) AND Moat Quality ≥7.5 (wide moat): re-examine the moat assessment — is the market correctly pricing moat erosion?
 2. If Risk Profile has 3+ red flags: re-examine Financial Health and Moat Quality with higher skepticism. Flag any downgrade.
 3. If Alternative Alignment ≤3.0 (negative divergence) BUT Financial Health ≥7.0: investigate — are alternative data signals an early warning of undetected deterioration?
