@@ -583,7 +583,7 @@ def compute_management_quality(metrics: dict, sentiment: dict | None = None) -> 
 # ---------------------------------------------------------------------------
 
 
-def compute_valuation(metrics: dict) -> dict:
+def compute_valuation(metrics: dict, sector: int | None = None) -> dict:
     """Score valuation attractiveness from DCF, comps, and reverse DCF."""
     reasons: list[str] = []
     sub_scores: dict[str, float | None] = {}
@@ -624,21 +624,34 @@ def compute_valuation(metrics: dict) -> dict:
     # --- P/E vs history / sector ---
     score_pe = None
     if pe and pe > 0:
-        if pe < 10:
+        # Sector-adjusted P/E expectations
+        if sector in (45, 50):  # Tech, Comm Services — growth justifies higher P/E
+            pe_tiers = (15, 22, 30, 40, 55)
+        elif sector == 35:  # Healthcare — pipeline optionality justifies premium
+            pe_tiers = (12, 18, 25, 35, 50)
+        elif sector in (55, 60):  # Utilities, REITs — yield plays, lower P/E expected
+            pe_tiers = (8, 12, 16, 20, 28)
+        elif sector == 10:  # Energy — cyclical, use normalized P/E
+            pe_tiers = (6, 10, 14, 20, 30)
+        elif sector == 40:  # Financials — P/B more relevant, but P/E still useful
+            pe_tiers = (8, 12, 15, 20, 30)
+        else:  # Industrials, Consumer, Materials — moderate expectations
+            pe_tiers = (10, 15, 20, 25, 35)
+        if pe < pe_tiers[0]:
             score_pe = 9.0
-        elif pe < 15:
+        elif pe < pe_tiers[1]:
             score_pe = 7.5
-        elif pe < 20:
+        elif pe < pe_tiers[2]:
             score_pe = 6.0
-        elif pe < 25:
+        elif pe < pe_tiers[3]:
             score_pe = 5.0
-        elif pe < 35:
+        elif pe < pe_tiers[4]:
             score_pe = 3.5
-        elif pe < 50:
-            score_pe = 2.0
         else:
-            score_pe = 1.0
-        reasons.append(f"P/E: {pe:.1f} → sub-score {score_pe:.1f}")
+            score_pe = 1.5
+        reasons.append(
+            f"P/E: {pe:.1f} (GICS {sector or 'generic'} adjusted) → sub-score {score_pe:.1f}"
+        )
     sub_scores["pe_level"] = score_pe
 
     # --- PEG Ratio (Lynch) ---
@@ -1991,7 +2004,7 @@ def main():
     scores["financial_health"] = compute_financial_health(metrics, args.gics_sector)
     scores["moat_quality"] = compute_moat_quality(metrics, args.gics_sector)
     scores["management_quality"] = compute_management_quality(metrics, sentiment)
-    scores["valuation_attractiveness"] = compute_valuation(metrics)
+    scores["valuation_attractiveness"] = compute_valuation(metrics, args.gics_sector)
     scores["macro_tailwind"] = compute_macro_tailwind(macro, metrics)
     scores["risk_profile"] = compute_risk_profile(metrics)
     scores["alternative_alignment"] = compute_alternative_alignment(alternatives)
