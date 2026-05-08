@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.7"
+version: "1.0.8"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -151,7 +151,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 - [ ] 4.5 Currency — Revenue by currency, natural hedging, hedging effectiveness
 - [ ] 4.6 Sector Drivers — 3-5 macro variables most correlated with sector; historical sensitivity
 
-**Data acquisition:** Run `scripts/fetch_macro.py --output /tmp/stock-analysis-macro.json` to pull FRED indicators. If `/tmp/stock-analysis-macro.json` already exists from Step 0, reuse it.
+**Data acquisition:** Run `scripts/fetch_macro.py --output /tmp/stock-analysis-macro.json` to pull FRED indicators. If `/tmp/stock-analysis-macro.json` already exists from Step 0, reuse it. **If analyzing a non-US company,** explicitly use `mcp__tavily-remote-mcp__tavily_search` to pull regional equivalents (e.g., ECB rates, Eurozone inflation, PBOC rates, China PMI) since FRED is US-centric.
 
 **Reference:** Load `references/frameworks_macro_quant.md` for Dalio/Soros/Druckenmiller frameworks.
 
@@ -181,7 +181,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 **Checklist:**
 - [ ] 6.1 Multi-Method — **DCF using ensemble forecast growth rates** (from `/tmp/stock-analysis-[TICKER]-forecast.json`), WACC, terminal value, sensitivity table, reverse DCF. **Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --wacc [WACC] --growth [ENSEMBLE_CAGR] --market-cap [VALUE] --output /tmp/stock-analysis-[TICKER]-metrics.json`** with the ensemble forecast FCF CAGR instead of a fixed constant. Trading Comps (peer universe, EV/EBITDA, P/E, P/FCF, PEG), SOTP if multi-segment. **For financial companies (banks, insurance):** Use Residual Income Model (RIM) instead of DCF — `calculate_metrics.py` produces this automatically when equity and ROE are available. **For mature dividend payers (utilities, REITs, staples):** Use Dividend Discount Model (DDM) — produced automatically when dividend_per_share is in profile data.
 - [ ] 6.1b **Monte Carlo Simulation**: Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --monte-carlo --mc-growth-mu [ENSEMBLE_CAGR] --mc-growth-sigma [RESIDUAL_STD] --wacc [WACC] --market-cap [VALUE] --shares [SHARES] --output /tmp/stock-analysis-[TICKER]-metrics.json`. Produces 10K-run distribution with VaR, CVaR, and percentile-based price targets. **Do this for Long-term and Mid-term reports.**
-- [ ] 6.2 Relative Value — P/E vs history/peers, EV/EBITDA with growth justification, P/FCF vs risk-free rate, PEG
+- [ ] 6.2 Relative Value — P/E vs history/peers, EV/EBITDA with growth justification, P/FCF vs risk-free rate, PEG. **Run `scripts/fetch_sentiment.py [TICKER] --sources peers`** to algorithmically fetch sub-industry peers for an unbiased comparison group before evaluating multiples.
 - [ ] 6.3 Technical — Trend (MAs, higher highs/lows), momentum (RSI, MACD), volume (OBV), support/resistance. **Run `scripts/fetch_technicals.py [TICKER] --period 2y`** for deterministic indicator computation and composite trend/momentum scores.
 - [ ] 6.4 Sentiment — Put/call ratio, VIX term structure, short interest, options flow, dark pool prints. **Run `scripts/fetch_sentiment.py [TICKER] --sources news,social`** for news sentiment buzz and social media metrics. **For Short-term reports, also run `scripts/fetch_realtime.py [TICKER] --mode options`** for options chain data (put/call OI, max pain, ATM IV).
 - [ ] 6.5 Institutional Flow — 13F analysis, activist 13D, Form 4 clusters, ownership concentration. **Run `scripts/fetch_sentiment.py [TICKER] --sources analyst`** for analyst consensus and price targets.

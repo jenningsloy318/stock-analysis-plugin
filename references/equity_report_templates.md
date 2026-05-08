@@ -107,6 +107,8 @@ When frameworks produce contradictory conclusions:
 [Score: X/10. Capital allocation track record. Insider ownership. Compensation structure. Fisher's 15 points assessment.]
 
 ## 3. Intrinsic Value Estimate
+[Embed Mermaid charts (e.g., Revenue vs FCF trend) here if provided by the metrics data]
+[Include Economic Value Added (EVA) calculation and ROIC vs WACC spread to assess moat expansion/destruction]
 [Multiple methods: DCF (base case), Trading Comps, SOTP if applicable. Sensitivity table: WACC vs terminal growth. Reverse DCF implied growth. Margin of safety calculation.]
 
 ## 4. Long-term Growth Runway

@@ -39,6 +39,41 @@ def compute_cagr(values: list[float]) -> float | None:
     return (end / start) ** (1 / years) - 1
 
 
+def compute_eva(roic: float | None, wacc: float, invested_capital: float | None) -> dict:
+    """Compute Economic Value Added (EVA) and ROIC vs WACC spread."""
+    if roic is None or invested_capital is None:
+        return {"error": "ROIC and Invested Capital required for EVA."}
+
+    spread = roic - wacc
+    eva = spread * invested_capital
+    return {
+        "methodology": "Economic Value Added (EVA) = (ROIC - WACC) * Invested Capital",
+        "roic": round(roic, 4),
+        "wacc": wacc,
+        "spread": round(spread, 4),
+        "invested_capital": round(invested_capital, 2),
+        "eva": round(eva, 2),
+        "interpretation": "Value-creating (Moat expanding)" if spread > 0 else "Value-destroying (Moat shrinking)"
+    }
+
+
+def generate_mermaid_charts(ticker: str, rev_series: list[float], fcf_series: list[float]) -> dict:
+    """Generate Mermaid syntax charts for the markdown reports."""
+    charts = {}
+    
+    # Ensure we have data and matching lengths, limit to 5 years
+    if rev_series and fcf_series:
+        min_len = min(len(rev_series), len(fcf_series), 5)
+        revs = [round(r, 2) for r in reversed(rev_series[:min_len])]
+        fcfs = [round(f, 2) for f in reversed(fcf_series[:min_len])]
+        years = [f"Y-{i}" for i in reversed(range(1, min_len))] + ["Current"]
+        
+        xy_chart = f"```mermaid\nxychart-beta\n    title \"{ticker} Revenue vs FCF\"\n    x-axis {json.dumps(years)}\n    y-axis \"Value\"\n    bar {json.dumps(revs)}\n    line {json.dumps(fcfs)}\n```"
+        charts["revenue_fcf_trend"] = xy_chart
+
+    return charts
+
+
 def compute_dupont(
     net_income: float, revenue: float, assets: float, equity: float
 ) -> dict:
@@ -779,6 +814,7 @@ def compute_ratios(
         "net_margin": round(safe_div(ni, rev), 4) if ni and rev else None,
         "roa": round(safe_div(ni, assets), 4) if ni and assets else None,
         "roe": round(safe_div(ni, equity), 4) if ni and equity else None,
+        "roic": round(safe_div(oi * (1 - 0.21), equity + debt - cash), 4) if oi and equity and debt is not None and cash is not None else None,
         "debt_to_equity": round(safe_div(debt, equity), 4) if debt and equity else None,
         "net_debt": round(debt - cash, 2)
         if debt is not None and cash is not None
@@ -1163,6 +1199,18 @@ def main():
             "error": "FCF <= 0, cannot run DCF.",
         },
     }
+
+    # Add EVA
+    roic_val = metrics["ratios"].get("roic")
+    invested_capital = (equity + debt - cash) if equity and debt is not None and cash is not None else None
+    metrics["economic_value_added"] = compute_eva(roic_val, args.wacc, invested_capital)
+
+    # Add Mermaid charts
+    rev_entries = financials.get("income_statement", {}).get("revenue", [])
+    fcf_entries = financials.get("cash_flow", {}).get("free_cash_flow", [])
+    rev_vals = extract_values(rev_entries) if isinstance(rev_entries, list) else []
+    fcf_vals = extract_values(fcf_entries) if isinstance(fcf_entries, list) else []
+    metrics["visualizations"] = generate_mermaid_charts(ticker, rev_vals, fcf_vals)
 
     if args.market_cap and fcf > 0:
         metrics["reverse_dcf"] = compute_reverse_dcf(

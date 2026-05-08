@@ -661,8 +661,8 @@ def main():
     parser.add_argument("tickers", nargs="+", help="Ticker symbols")
     parser.add_argument(
         "--sources",
-        default="insider,news,earnings,analyst,social,revisions",
-        help="Comma-separated sources (default: all). Options: insider,news,earnings,analyst,social,revisions",
+        default="insider,news,earnings,analyst,social,revisions,peers",
+        help="Comma-separated sources (default: all). Options: insider,news,earnings,analyst,social,revisions,peers",
     )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     parser.add_argument(
@@ -678,6 +678,44 @@ def main():
             f"Error: Finnhub API key not found in ${args.api_key_env}.\n"
             "Register for a free key at: https://finnhub.io/\n"
             f"Then set: export {args.api_key_env}=your_key_here\n"
+        )
+        sys.exit(1)
+
+    requested = [s.strip() for s in args.sources.split(",") if s.strip() in SOURCES]
+
+    results = {}
+    for raw_ticker in args.tickers:
+        ticker = raw_ticker.strip().upper()
+        ticker_data = {
+            "ticker": ticker,
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        for source_name in requested:
+            try:
+                data = SOURCES[source_name](ticker, api_key)
+                ticker_data[source_name] = data
+            except Exception as e:
+                ticker_data[source_name] = {
+                    "source": "error",
+                    "error": str(e),
+                }
+
+        results[ticker] = ticker_data
+
+    output = json.dumps(results, indent=2)
+    if args.output:
+        os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
+        with open(args.output, "w") as f:
+            f.write(output)
+    else:
+        print(output)
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
+         f"Then set: export {args.api_key_env}=your_key_here\n"
         )
         sys.exit(1)
 
