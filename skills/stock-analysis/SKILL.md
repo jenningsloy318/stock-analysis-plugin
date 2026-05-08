@@ -29,24 +29,29 @@ This skill performs institutional-grade stock analysis through 11 stages, produc
 
 ## Script Execution
 
-All Python scripts are bundled with the plugin. The script root path is provided by the platform:
-- **Claude Code / Codex CLI**: `${CLAUDE_PLUGIN_ROOT}/scripts` (auto-substituted by runtime)
-- **Gemini CLI**: `${extensionPath}/scripts` (auto-substituted by runtime)
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_DATA:
+    claude: ${CLAUDE_PLUGIN_DATA}
+    gemini: ${extensionPath}/.data
+</platform-paths>
 
-Throughout this document, script paths use `${PLUGIN_SCRIPTS}` as shorthand. Resolve it to the correct platform variable before execution:
-- Claude: `${CLAUDE_PLUGIN_ROOT}/scripts`
-- Gemini: `${extensionPath}/scripts`
+All Python scripts are bundled with the plugin. Set `PLUGIN_ROOT` based on platform, then derive:
+- `PLUGIN_SCRIPTS` = `${PLUGIN_ROOT}/scripts`
+- `PLUGIN_REFS` = `${PLUGIN_ROOT}/references`
 
 Run via `uv run` to ensure correct dependencies:
 ```
 uv run python ${PLUGIN_SCRIPTS}/fetch_financials.py AAPL --years 5 --output ./reports/AAPL/raw-data.json
 ```
 
-If `uv` is not available, fall back to activating the `.venv` in `${CLAUDE_PLUGIN_DATA}` (Claude) or `${extensionPath}/.venv` (Gemini), or using `python` directly with `${PLUGIN_SCRIPTS}/requirements.txt` installed.
+If `uv` is not available, fall back to activating the `.venv` in `${PLUGIN_DATA}`, or using `python` directly with `${PLUGIN_SCRIPTS}/requirements.txt` installed.
 
 **Path variables:**
-- `${CLAUDE_PLUGIN_ROOT}` / `${extensionPath}` — Plugin installation directory (scripts, references, agents). Treat as read-only.
-- `${CLAUDE_PLUGIN_DATA}` — Persistent plugin state (venvs, caches). Survives plugin updates. (Claude-specific; Gemini uses `${extensionPath}/.data/`)
+- `${PLUGIN_ROOT}` — Plugin installation directory (scripts, references, agents). Treat as read-only.
+- `${PLUGIN_DATA}` — Persistent plugin state (venvs, caches). Survives plugin updates.
 - Output always goes to `./reports/` relative to the user's workspace.
 
 ## Search Tools

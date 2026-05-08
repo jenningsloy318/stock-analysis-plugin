@@ -78,10 +78,13 @@
 
 ## Script Execution (MUST follow)
 
-- Python scripts are bundled with the plugin. Scripts are referenced via `${PLUGIN_SCRIPTS}` which resolves per platform:
-  - **Claude Code / Codex CLI**: `${CLAUDE_PLUGIN_ROOT}/scripts` (read-only plugin install dir)
-  - **Gemini CLI**: `${extensionPath}/scripts`
-- Persistent state (venvs, caches) goes in `${CLAUDE_PLUGIN_DATA}` (Claude/Codex) or `${extensionPath}/.data/` (Gemini) to survive plugin updates.
+- Python scripts are bundled with the plugin. `PLUGIN_ROOT` resolves per platform:
+  - **Claude Code / Codex CLI**: `${CLAUDE_PLUGIN_ROOT}`
+  - **Gemini CLI**: `${extensionPath}`
+- `PLUGIN_SCRIPTS` = `${PLUGIN_ROOT}/scripts` (all script references use this).
+- Persistent state (venvs, caches) goes in `${PLUGIN_DATA}`:
+  - **Claude/Codex**: `${CLAUDE_PLUGIN_DATA}`
+  - **Gemini**: `${extensionPath}/.data/`
 - Scripts are called via `exec_shell` / `Bash` tool.
 - Required environment: Python 3.10+, dependencies in `${PLUGIN_SCRIPTS}/requirements.txt`.
 - API keys: `FRED_API_KEY` (macro/credit) and `FINNHUB_API_KEY` (sentiment/insider/earnings) are recommended. All other keys are optional with functional fallbacks.

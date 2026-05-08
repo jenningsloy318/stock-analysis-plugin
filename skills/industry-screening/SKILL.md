@@ -64,9 +64,17 @@ Before Phase 1, load `references/data_source_matrix.md` and write `./reports/scr
 
 ## Script Execution
 
-Scripts are bundled with the plugin. The path variable `${PLUGIN_SCRIPTS}` resolves per platform:
-- **Claude Code / Codex CLI**: `${CLAUDE_PLUGIN_ROOT}/scripts`
-- **Gemini CLI**: `${extensionPath}/scripts`
+<platform-paths>
+  PLUGIN_ROOT:
+    claude: ${CLAUDE_PLUGIN_ROOT}
+    gemini: ${extensionPath}
+  PLUGIN_DATA:
+    claude: ${CLAUDE_PLUGIN_DATA}
+    gemini: ${extensionPath}/.data
+</platform-paths>
+
+Scripts are bundled with the plugin. Set `PLUGIN_ROOT` based on platform, then derive:
+- `PLUGIN_SCRIPTS` = `${PLUGIN_ROOT}/scripts`
 
 ## Workflow
 
