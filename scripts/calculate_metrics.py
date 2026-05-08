@@ -8,6 +8,7 @@ Usage:
 Deterministic calculations only. No LLM involvement in math.
 Output includes methodology attribution for every calculation.
 """
+
 import argparse
 import json
 import os
@@ -38,7 +39,9 @@ def compute_cagr(values: list[float]) -> float | None:
     return (end / start) ** (1 / years) - 1
 
 
-def compute_dupont(net_income: float, revenue: float, assets: float, equity: float) -> dict:
+def compute_dupont(
+    net_income: float, revenue: float, assets: float, equity: float
+) -> dict:
     """DuPont 3-factor decomposition of ROE.
 
     ROE = Net Profit Margin × Asset Turnover × Equity Multiplier
@@ -86,8 +89,14 @@ def compute_beneish_mscore(
             "mscore": None,
             "interpretation": "Insufficient data. Requires 2 consecutive years of financials.",
             "variables": {
-                "DSRI": dsri, "GMI": gmi, "AQI": aqi, "SGI": sgi,
-                "DEPI": depi, "SGAI": sgai, "LVGI": lvgi, "TATA": tata,
+                "DSRI": dsri,
+                "GMI": gmi,
+                "AQI": aqi,
+                "SGI": sgi,
+                "DEPI": depi,
+                "SGAI": sgai,
+                "LVGI": lvgi,
+                "TATA": tata,
             },
         }
 
@@ -115,9 +124,14 @@ def compute_beneish_mscore(
         "flag": mscore > -1.78,
         "interpretation": interp,
         "variables": {
-            "DSRI": round(dsri, 4), "GMI": round(gmi, 4), "AQI": round(aqi, 4),
-            "SGI": round(sgi, 4), "DEPI": round(depi, 4), "SGAI": round(sgai, 4),
-            "LVGI": round(lvgi, 4), "TATA": round(tata, 4),
+            "DSRI": round(dsri, 4),
+            "GMI": round(gmi, 4),
+            "AQI": round(aqi, 4),
+            "SGI": round(sgi, 4),
+            "DEPI": round(depi, 4),
+            "SGAI": round(sgai, 4),
+            "LVGI": round(lvgi, 4),
+            "TATA": round(tata, 4),
         },
     }
 
@@ -140,8 +154,14 @@ def compute_beneish_from_financials(years_data: dict) -> dict:
     # Remaining variables require AR, gross profit, depreciation, SGA, etc.
     # which may not be in the EDGAR companyfacts data. Return partial.
     return compute_beneish_mscore(
-        dsri=None, gmi=None, aqi=None, sgi=sgi,
-        depi=None, sgai=None, tata=None, lvgi=None,
+        dsri=None,
+        gmi=None,
+        aqi=None,
+        sgi=sgi,
+        depi=None,
+        sgai=None,
+        tata=None,
+        lvgi=None,
     )
 
 
@@ -175,7 +195,11 @@ def compute_altman_zscore(
     a = safe_div(working_capital, total_assets) or 0
     b = safe_div(retained_earnings, total_assets) or 0
     c = safe_div(ebit, total_assets) or 0
-    d = safe_div(market_cap, total_liabilities) if market_cap and total_liabilities else 0
+    d = (
+        safe_div(market_cap, total_liabilities)
+        if market_cap and total_liabilities
+        else 0
+    )
     e = safe_div(revenue, total_assets) or 0
 
     zscore = 1.2 * a + 1.4 * b + 3.3 * c + 0.6 * d + 1.0 * e
@@ -195,7 +219,370 @@ def compute_altman_zscore(
         "zscore": round(zscore, 4),
         "zone": zone,
         "interpretation": interp,
-        "components": {"A": round(a, 4), "B": round(b, 4), "C": round(c, 4), "D": round(d, 4), "E": round(e, 4)},
+        "components": {
+            "A": round(a, 4),
+            "B": round(b, 4),
+            "C": round(c, 4),
+            "D": round(d, 4),
+            "E": round(e, 4),
+        },
+    }
+
+
+def compute_piotroski_fscore(financials: dict) -> dict:
+    """Compute Piotroski F-Score (0-9 binary scoring for financial strength).
+
+    Categories:
+      Profitability (4 points): ROA>0, OCF>0, ROA improving, OCF>NI
+      Leverage/Liquidity (3 points): Leverage decreasing, Current ratio improving, No dilution
+      Operating Efficiency (2 points): Gross margin improving, Asset turnover improving
+    """
+    income = financials.get("income_statement", {})
+    balance = financials.get("balance_sheet", {})
+    cashflow = financials.get("cash_flow", {})
+
+    ni_series = extract_values(income.get("net_income", []))
+    rev_series = extract_values(income.get("revenue", []))
+    assets_series = extract_values(balance.get("total_assets", []))
+    equity_series = extract_values(balance.get("stockholders_equity", []))
+    debt_series = extract_values(balance.get("total_debt", []))
+    ocf_series = extract_values(cashflow.get("operating_cash_flow", []))
+    shares_series = extract_values(balance.get("shares_outstanding", []))
+
+    score = 0
+    details = {}
+
+    # --- Profitability (4 points) ---
+    # F1: ROA > 0
+    roa_current = (
+        safe_div(ni_series[0], assets_series[0])
+        if ni_series and assets_series
+        else None
+    )
+    f1 = roa_current is not None and roa_current > 0
+    details["f1_positive_roa"] = {"value": roa_current, "pass": f1}
+    if f1:
+        score += 1
+
+    # F2: OCF > 0
+    ocf_current = ocf_series[0] if ocf_series else None
+    f2 = ocf_current is not None and ocf_current > 0
+    details["f2_positive_ocf"] = {"value": ocf_current, "pass": f2}
+    if f2:
+        score += 1
+
+    # F3: ROA improving (current > prior year)
+    roa_prior = (
+        safe_div(ni_series[1], assets_series[1])
+        if len(ni_series) > 1 and len(assets_series) > 1
+        else None
+    )
+    f3 = roa_current is not None and roa_prior is not None and roa_current > roa_prior
+    details["f3_roa_improving"] = {
+        "current": roa_current,
+        "prior": roa_prior,
+        "pass": f3,
+    }
+    if f3:
+        score += 1
+
+    # F4: OCF > Net Income (accruals quality)
+    ni_current = ni_series[0] if ni_series else None
+    f4 = ocf_current is not None and ni_current is not None and ocf_current > ni_current
+    details["f4_ocf_exceeds_ni"] = {"ocf": ocf_current, "ni": ni_current, "pass": f4}
+    if f4:
+        score += 1
+
+    # --- Leverage / Liquidity (3 points) ---
+    # F5: Leverage decreasing (debt/assets current < prior)
+    lev_current = (
+        safe_div(debt_series[0], assets_series[0])
+        if debt_series and assets_series
+        else None
+    )
+    lev_prior = (
+        safe_div(debt_series[1], assets_series[1])
+        if len(debt_series) > 1 and len(assets_series) > 1
+        else None
+    )
+    f5 = lev_current is not None and lev_prior is not None and lev_current < lev_prior
+    details["f5_leverage_decreasing"] = {
+        "current": lev_current,
+        "prior": lev_prior,
+        "pass": f5,
+    }
+    if f5:
+        score += 1
+
+    # F6: Current ratio improving (approximated as equity/debt improving)
+    cr_current = (
+        safe_div(equity_series[0], debt_series[0])
+        if equity_series and debt_series
+        else None
+    )
+    cr_prior = (
+        safe_div(equity_series[1], debt_series[1])
+        if len(equity_series) > 1 and len(debt_series) > 1
+        else None
+    )
+    f6 = cr_current is not None and cr_prior is not None and cr_current > cr_prior
+    details["f6_liquidity_improving"] = {
+        "current": cr_current,
+        "prior": cr_prior,
+        "pass": f6,
+    }
+    if f6:
+        score += 1
+
+    # F7: No share dilution (shares outstanding not increasing)
+    f7 = False
+    if len(shares_series) >= 2:
+        f7 = shares_series[0] <= shares_series[1]
+    elif not shares_series:
+        f7 = True  # assume no dilution if data unavailable
+    details["f7_no_dilution"] = {
+        "current_shares": shares_series[0] if shares_series else None,
+        "pass": f7,
+    }
+    if f7:
+        score += 1
+
+    # --- Operating Efficiency (2 points) ---
+    # F8: Gross margin improving
+    gm_current = None
+    gm_prior = None
+    cogs_series = extract_values(income.get("cost_of_revenue", []))
+    if rev_series and cogs_series:
+        gm_current = (
+            safe_div(rev_series[0] - cogs_series[0], rev_series[0])
+            if len(cogs_series) > 0
+            else None
+        )
+        gm_prior = (
+            safe_div(rev_series[1] - cogs_series[1], rev_series[1])
+            if len(rev_series) > 1 and len(cogs_series) > 1
+            else None
+        )
+    f8 = gm_current is not None and gm_prior is not None and gm_current > gm_prior
+    details["f8_gross_margin_improving"] = {
+        "current": gm_current,
+        "prior": gm_prior,
+        "pass": f8,
+    }
+    if f8:
+        score += 1
+
+    # F9: Asset turnover improving (revenue/assets current > prior)
+    at_current = (
+        safe_div(rev_series[0], assets_series[0])
+        if rev_series and assets_series
+        else None
+    )
+    at_prior = (
+        safe_div(rev_series[1], assets_series[1])
+        if len(rev_series) > 1 and len(assets_series) > 1
+        else None
+    )
+    f9 = at_current is not None and at_prior is not None and at_current > at_prior
+    details["f9_asset_turnover_improving"] = {
+        "current": at_current,
+        "prior": at_prior,
+        "pass": f9,
+    }
+    if f9:
+        score += 1
+
+    # Interpretation
+    if score >= 8:
+        interp = "Strong financial health. High-quality value candidate."
+        zone = "Strong"
+    elif score >= 5:
+        interp = "Average financial health. Mixed signals."
+        zone = "Average"
+    else:
+        interp = "Weak financial health. Potential value trap."
+        zone = "Weak"
+
+    return {
+        "methodology": "Piotroski F-Score (9-point binary model). >=8 = strong, 5-7 = average, <=4 = weak.",
+        "fscore": score,
+        "max_score": 9,
+        "zone": zone,
+        "interpretation": interp,
+        "components": {
+            "profitability": sum(
+                1
+                for k in [
+                    "f1_positive_roa",
+                    "f2_positive_ocf",
+                    "f3_roa_improving",
+                    "f4_ocf_exceeds_ni",
+                ]
+                if details[k]["pass"]
+            ),
+            "leverage_liquidity": sum(
+                1
+                for k in [
+                    "f5_leverage_decreasing",
+                    "f6_liquidity_improving",
+                    "f7_no_dilution",
+                ]
+                if details[k]["pass"]
+            ),
+            "operating_efficiency": sum(
+                1
+                for k in ["f8_gross_margin_improving", "f9_asset_turnover_improving"]
+                if details[k]["pass"]
+            ),
+        },
+        "details": details,
+    }
+
+
+def compute_residual_income_model(
+    book_value: float | None,
+    roe: float | None,
+    cost_of_equity: float,
+    growth_rate: float = 0.03,
+    years: int = 5,
+    shares_outstanding: float | None = None,
+) -> dict:
+    """Residual Income Model (RIM): Intrinsic Value = Book Value + PV(Excess Returns).
+
+    More appropriate than DCF for financial companies where FCF is meaningless.
+    Intrinsic Value = BV + Sum(Residual Income_t / (1+r)^t) + Terminal RI / (r - g)
+    Where Residual Income = (ROE - Cost of Equity) × Book Value
+    """
+    if book_value is None or book_value <= 0 or roe is None:
+        return {
+            "methodology": "Residual Income Model (RIM)",
+            "value": None,
+            "error": "Book value and ROE required.",
+        }
+
+    if cost_of_equity <= growth_rate:
+        return {
+            "methodology": "Residual Income Model (RIM)",
+            "value": None,
+            "error": "Cost of equity must exceed growth rate.",
+        }
+
+    excess_return = roe - cost_of_equity
+    bv = book_value
+    pv_residual_income = 0
+
+    for t in range(1, years + 1):
+        residual_income = excess_return * bv
+        pv_residual_income += residual_income / ((1 + cost_of_equity) ** t)
+        bv = bv * (1 + growth_rate)
+
+    terminal_ri = (excess_return * bv) / (cost_of_equity - growth_rate)
+    pv_terminal = terminal_ri / ((1 + cost_of_equity) ** years)
+
+    intrinsic_value = book_value + pv_residual_income + pv_terminal
+
+    result = {
+        "methodology": "Residual Income Model: IV = Book Value + PV(Excess Returns). Ideal for financials.",
+        "inputs": {
+            "book_value": book_value,
+            "roe": round(roe, 4),
+            "cost_of_equity": cost_of_equity,
+            "growth_rate": growth_rate,
+            "years": years,
+        },
+        "intrinsic_value": round(intrinsic_value, 2),
+        "book_value_component": round(book_value, 2),
+        "pv_excess_returns": round(pv_residual_income, 2),
+        "pv_terminal": round(pv_terminal, 2),
+        "excess_return_spread": round(excess_return, 4),
+        "interpretation": (
+            f"ROE ({roe:.1%}) {'exceeds' if excess_return > 0 else 'below'} cost of equity ({cost_of_equity:.1%}). "
+            f"{'Value-creating' if excess_return > 0 else 'Value-destroying'} — "
+            f"stock {'deserves premium to' if excess_return > 0 else 'should trade at discount to'} book value."
+        ),
+    }
+
+    if shares_outstanding and shares_outstanding > 0:
+        result["per_share_value"] = round(intrinsic_value / shares_outstanding, 2)
+
+    return result
+
+
+def compute_dividend_discount_model(
+    dividend_per_share: float | None,
+    dividend_growth_rate: float,
+    cost_of_equity: float,
+    payout_ratio: float | None = None,
+    years_high_growth: int = 5,
+    terminal_growth: float = 0.03,
+) -> dict:
+    """Dividend Discount Model (DDM) — two-stage Gordon Growth.
+
+    For mature dividend-paying companies (utilities, REITs, consumer staples).
+    Stage 1: High-growth phase (years_high_growth at dividend_growth_rate)
+    Stage 2: Terminal perpetuity at terminal_growth rate
+    """
+    if dividend_per_share is None or dividend_per_share <= 0:
+        return {
+            "methodology": "Dividend Discount Model (DDM)",
+            "value": None,
+            "error": "Positive dividend per share required.",
+        }
+
+    if cost_of_equity <= terminal_growth:
+        return {
+            "methodology": "Dividend Discount Model (DDM)",
+            "value": None,
+            "error": "Cost of equity must exceed terminal growth rate.",
+        }
+
+    # Stage 1: PV of high-growth dividends
+    pv_stage1 = 0
+    div = dividend_per_share
+    for t in range(1, years_high_growth + 1):
+        div = div * (1 + dividend_growth_rate)
+        pv_stage1 += div / ((1 + cost_of_equity) ** t)
+
+    # Stage 2: Terminal value (Gordon Growth Model)
+    terminal_div = div * (1 + terminal_growth)
+    terminal_value = terminal_div / (cost_of_equity - terminal_growth)
+    pv_terminal = terminal_value / ((1 + cost_of_equity) ** years_high_growth)
+
+    intrinsic_value = pv_stage1 + pv_terminal
+
+    # Sensitivity to growth rate
+    sensitivity = {}
+    for g in [
+        terminal_growth - 0.01,
+        terminal_growth,
+        terminal_growth + 0.01,
+        terminal_growth + 0.02,
+    ]:
+        if cost_of_equity > g > -0.05:
+            tv = div * (1 + g) / (cost_of_equity - g)
+            pv_tv = tv / ((1 + cost_of_equity) ** years_high_growth)
+            sensitivity[f"tg_{g:.1%}"] = round(pv_stage1 + pv_tv, 2)
+
+    return {
+        "methodology": "Two-Stage DDM (Gordon Growth). Ideal for mature dividend payers.",
+        "inputs": {
+            "dividend_per_share": dividend_per_share,
+            "high_growth_rate": round(dividend_growth_rate, 4),
+            "terminal_growth": terminal_growth,
+            "cost_of_equity": cost_of_equity,
+            "years_high_growth": years_high_growth,
+            "payout_ratio": payout_ratio,
+        },
+        "intrinsic_value_per_share": round(intrinsic_value, 2),
+        "pv_high_growth_dividends": round(pv_stage1, 2),
+        "pv_terminal_value": round(pv_terminal, 2),
+        "terminal_pct_of_total": round(pv_terminal / intrinsic_value * 100, 1)
+        if intrinsic_value > 0
+        else None,
+        "dividend_yield_at_iv": round(dividend_per_share / intrinsic_value * 100, 2)
+        if intrinsic_value > 0
+        else None,
+        "sensitivity": sensitivity,
     }
 
 
@@ -209,7 +596,11 @@ def compute_dcf(
 ) -> dict:
     """Compute DCF valuation with sensitivity table."""
     if fcf_current <= 0 or wacc <= 0:
-        return {"methodology": "DCF", "dcf_value": None, "error": "FCF and WACC must be positive."}
+        return {
+            "methodology": "DCF",
+            "dcf_value": None,
+            "error": "FCF and WACC must be positive.",
+        }
 
     fcf_projections = []
     fcf = fcf_current
@@ -218,16 +609,24 @@ def compute_dcf(
         fcf_projections.append(fcf)
 
     if wacc <= terminal_growth:
-        return {"methodology": "DCF", "dcf_value": None, "error": "WACC must exceed terminal growth rate."}
+        return {
+            "methodology": "DCF",
+            "dcf_value": None,
+            "error": "WACC must exceed terminal growth rate.",
+        }
 
-    terminal_value = fcf_projections[-1] * (1 + terminal_growth) / (wacc - terminal_growth)
+    terminal_value = (
+        fcf_projections[-1] * (1 + terminal_growth) / (wacc - terminal_growth)
+    )
 
     pv_fcfs = sum(f / ((1 + wacc) ** y) for y, f in enumerate(fcf_projections, 1))
     pv_terminal = terminal_value / ((1 + wacc) ** years)
     enterprise_value = pv_fcfs + pv_terminal
 
     # Sensitivity table
-    wacc_range = [w for w in [wacc - 0.02, wacc - 0.01, wacc, wacc + 0.01, wacc + 0.02] if w > 0]
+    wacc_range = [
+        w for w in [wacc - 0.02, wacc - 0.01, wacc, wacc + 0.01, wacc + 0.02] if w > 0
+    ]
     tg_range = [terminal_growth - 0.01, terminal_growth, terminal_growth + 0.01]
     sensitivity = {}
     for w in wacc_range:
@@ -266,7 +665,11 @@ def compute_dcf(
 
 
 def compute_reverse_dcf(
-    market_cap: float, fcf_current: float, wacc: float, terminal_growth: float = 0.025, years: int = 5
+    market_cap: float,
+    fcf_current: float,
+    wacc: float,
+    terminal_growth: float = 0.025,
+    years: int = 5,
 ) -> dict:
     """Reverse DCF: what growth rate is implied by the current market price?"""
     if fcf_current <= 0 or market_cap <= 0 or wacc <= terminal_growth:
@@ -301,7 +704,12 @@ def compute_reverse_dcf(
     }
 
 
-def compute_ratios(financials: dict, market_cap: float | None = None, shares_outstanding: float | None = None, profile: dict | None = None) -> dict:
+def compute_ratios(
+    financials: dict,
+    market_cap: float | None = None,
+    shares_outstanding: float | None = None,
+    profile: dict | None = None,
+) -> dict:
     """Compute standard financial ratios from structured financial data."""
     income = financials.get("income_statement", {})
     balance = financials.get("balance_sheet", {})
@@ -372,12 +780,22 @@ def compute_ratios(financials: dict, market_cap: float | None = None, shares_out
         "roa": round(safe_div(ni, assets), 4) if ni and assets else None,
         "roe": round(safe_div(ni, equity), 4) if ni and equity else None,
         "debt_to_equity": round(safe_div(debt, equity), 4) if debt and equity else None,
-        "net_debt": round(debt - cash, 2) if debt is not None and cash is not None else None,
-        "fcf_yield": round(safe_div(fcf, market_cap), 4) if fcf and market_cap else None,
+        "net_debt": round(debt - cash, 2)
+        if debt is not None and cash is not None
+        else None,
+        "fcf_yield": round(safe_div(fcf, market_cap), 4)
+        if fcf and market_cap
+        else None,
         "ocf_to_ni": round(safe_div(ocf, ni), 4) if ocf and ni else None,
-        "revenue_cagr_5yr": round(rc, 4) if (rc := compute_cagr(rev_series)) is not None else None,
-        "ni_cagr_5yr": round(nc, 4) if (nc := compute_cagr(ni_series)) is not None else None,
-        "fcf_cagr_5yr": round(fc, 4) if (fc := compute_cagr(fcf_series)) is not None else None,
+        "revenue_cagr_5yr": round(rc, 4)
+        if (rc := compute_cagr(rev_series)) is not None
+        else None,
+        "ni_cagr_5yr": round(nc, 4)
+        if (nc := compute_cagr(ni_series)) is not None
+        else None,
+        "fcf_cagr_5yr": round(fc, 4)
+        if (fc := compute_cagr(fcf_series)) is not None
+        else None,
         # Valuation multiples
         "pe_ratio": round(pe_ratio, 2) if pe_ratio else None,
         "peg_ratio": round(peg_ratio, 4) if peg_ratio else None,
@@ -412,9 +830,19 @@ def compute_peer_comparison(ticker_data: dict, peer_data: dict) -> dict:
     peers = {t: p.get("ratios", {}) for t, p in peer_data.items()}
 
     comparison = {}
-    for metric in ["pe_ratio", "peg_ratio", "ev_ebitda", "pb_ratio", "ps_ratio",
-                    "operating_margin", "net_margin", "roe", "fcf_yield",
-                    "revenue_cagr_5yr", "ni_cagr_5yr"]:
+    for metric in [
+        "pe_ratio",
+        "peg_ratio",
+        "ev_ebitda",
+        "pb_ratio",
+        "ps_ratio",
+        "operating_margin",
+        "net_margin",
+        "roe",
+        "fcf_yield",
+        "revenue_cagr_5yr",
+        "ni_cagr_5yr",
+    ]:
         own_val = own.get(metric)
         peer_vals = [p.get(metric) for p in peers.values() if p.get(metric) is not None]
         if own_val is None or not peer_vals:
@@ -442,7 +870,8 @@ def compute_peer_comparison(ticker_data: dict, peer_data: dict) -> dict:
             "peer_count": len(peer_vals),
             "percentile": percentile,
             "interpretation": (
-                f"Higher than {percentile}% of peers" if percentile > 50
+                f"Higher than {percentile}% of peers"
+                if percentile > 50
                 else f"Lower than {100 - percentile}% of peers"
             ),
         }
@@ -458,6 +887,7 @@ def compute_peer_comparison(ticker_data: dict, peer_data: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Monte Carlo simulation for valuation (10K runs)
 # ---------------------------------------------------------------------------
+
 
 def compute_monte_carlo(
     fcf_current: float,
@@ -485,7 +915,6 @@ def compute_monte_carlo(
 
     Returns distribution of enterprise values with confidence intervals.
     """
-    import random as _random
     import math
 
     if fcf_current <= 0 or wacc <= 0 or wacc <= terminal_growth:
@@ -521,13 +950,20 @@ def compute_monte_carlo(
                 fcf_projections.append(max(0, fcf))
 
             # WACC variation
-            wacc_varied = max(wacc * 0.85, min(wacc * 1.15,
-                            np_random.normal(wacc, wacc * 0.15)))
+            wacc_varied = max(
+                wacc * 0.85, min(wacc * 1.15, np_random.normal(wacc, wacc * 0.15))
+            )
             if wacc_varied <= terminal_growth:
                 wacc_varied = terminal_growth + 0.01
 
-            terminal_value = fcf_projections[-1] * (1 + terminal_growth) / (wacc_varied - terminal_growth)
-            pv_fcfs = sum(f / ((1 + wacc_varied) ** y) for y, f in enumerate(fcf_projections, 1))
+            terminal_value = (
+                fcf_projections[-1]
+                * (1 + terminal_growth)
+                / (wacc_varied - terminal_growth)
+            )
+            pv_fcfs = sum(
+                f / ((1 + wacc_varied) ** y) for y, f in enumerate(fcf_projections, 1)
+            )
             pv_terminal = terminal_value / ((1 + wacc_varied) ** years)
             ev = pv_fcfs + pv_terminal
 
@@ -602,18 +1038,49 @@ def compute_monte_carlo(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Compute financial metrics from raw data")
+    parser = argparse.ArgumentParser(
+        description="Compute financial metrics from raw data"
+    )
     parser.add_argument("input", help="Path to raw financial data JSON")
     parser.add_argument("--wacc", type=float, default=0.10, help="WACC (default: 0.10)")
-    parser.add_argument("--growth", type=float, default=0.05, help="FCF growth rate (default: 0.05)")
-    parser.add_argument("--terminal-growth", type=float, default=0.025, help="Terminal growth rate (default: 0.025)")
-    parser.add_argument("--market-cap", type=float, help="Market cap for valuation multiples, reverse DCF, and FCF yield")
-    parser.add_argument("--shares", type=float, help="Shares outstanding for per-share DCF and EPS")
-    parser.add_argument("--peers", help="Path to peer financial data JSON (same format as input, for relative valuation comparison)")
-    parser.add_argument("--monte-carlo", action="store_true", help="Run Monte Carlo simulation (10K runs)")
-    parser.add_argument("--mc-growth-mu", type=float, default=0.05, help="Monte Carlo mean growth rate")
-    parser.add_argument("--mc-growth-sigma", type=float, default=0.08, help="Monte Carlo growth rate std dev")
-    parser.add_argument("--mc-simulations", type=int, default=10000, help="Monte Carlo simulation count")
+    parser.add_argument(
+        "--growth", type=float, default=0.05, help="FCF growth rate (default: 0.05)"
+    )
+    parser.add_argument(
+        "--terminal-growth",
+        type=float,
+        default=0.025,
+        help="Terminal growth rate (default: 0.025)",
+    )
+    parser.add_argument(
+        "--market-cap",
+        type=float,
+        help="Market cap for valuation multiples, reverse DCF, and FCF yield",
+    )
+    parser.add_argument(
+        "--shares", type=float, help="Shares outstanding for per-share DCF and EPS"
+    )
+    parser.add_argument(
+        "--peers",
+        help="Path to peer financial data JSON (same format as input, for relative valuation comparison)",
+    )
+    parser.add_argument(
+        "--monte-carlo",
+        action="store_true",
+        help="Run Monte Carlo simulation (10K runs)",
+    )
+    parser.add_argument(
+        "--mc-growth-mu", type=float, default=0.05, help="Monte Carlo mean growth rate"
+    )
+    parser.add_argument(
+        "--mc-growth-sigma",
+        type=float,
+        default=0.08,
+        help="Monte Carlo growth rate std dev",
+    )
+    parser.add_argument(
+        "--mc-simulations", type=int, default=10000, help="Monte Carlo simulation count"
+    )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     args = parser.parse_args()
 
@@ -637,9 +1104,13 @@ def main():
     rev_entries = financials.get("income_statement", {}).get("revenue", [])
     oi_entries = financials.get("income_statement", {}).get("operating_income", [])
 
-    assets_vals = extract_values(assets_entries) if isinstance(assets_entries, list) else []
+    assets_vals = (
+        extract_values(assets_entries) if isinstance(assets_entries, list) else []
+    )
     liab_vals = extract_values(liab_entries) if isinstance(liab_entries, list) else []
-    equity_vals = extract_values(equity_entries) if isinstance(equity_entries, list) else []
+    equity_vals = (
+        extract_values(equity_entries) if isinstance(equity_entries, list) else []
+    )
     rev_vals = extract_values(rev_entries) if isinstance(rev_entries, list) else []
     oi_vals = extract_values(oi_entries) if isinstance(oi_entries, list) else []
 
@@ -650,7 +1121,11 @@ def main():
     ebit = oi_vals[0] if oi_vals else None
 
     # Working capital approximation
-    working_capital = (total_assets - total_liabilities) if total_assets and total_liabilities else None
+    working_capital = (
+        (total_assets - total_liabilities)
+        if total_assets and total_liabilities
+        else None
+    )
 
     # Shares outstanding: from profile if not given
     shares = args.shares
@@ -663,6 +1138,7 @@ def main():
         "input_data_source": data.get("source", "unknown"),
         "input_data_retrieved": data.get("retrieved_at", "unknown"),
         "ratios": compute_ratios(financials, args.market_cap, shares, profile),
+        "piotroski_fscore": compute_piotroski_fscore(financials),
         "beneish_mscore": compute_beneish_from_financials(financials),
         "altman_zscore": compute_altman_zscore(
             working_capital=working_capital,
@@ -679,7 +1155,13 @@ def main():
             wacc=args.wacc,
             terminal_growth=args.terminal_growth,
             shares_outstanding=shares,
-        ) if fcf > 0 else {"methodology": "DCF", "dcf_value": None, "error": "FCF <= 0, cannot run DCF."},
+        )
+        if fcf > 0
+        else {
+            "methodology": "DCF",
+            "dcf_value": None,
+            "error": "FCF <= 0, cannot run DCF.",
+        },
     }
 
     if args.market_cap and fcf > 0:
@@ -687,6 +1169,36 @@ def main():
             market_cap=args.market_cap,
             fcf_current=fcf,
             wacc=args.wacc,
+            terminal_growth=args.terminal_growth,
+        )
+
+    # Residual Income Model (ideal for financials where FCF is meaningless)
+    ni_entries = financials.get("income_statement", {}).get("net_income", [])
+    ni_vals = extract_values(ni_entries) if isinstance(ni_entries, list) else []
+    roe_val = (
+        safe_div(ni_vals[0], equity) if ni_vals and equity and equity > 0 else None
+    )
+    if equity and equity > 0 and roe_val is not None:
+        metrics["residual_income_model"] = compute_residual_income_model(
+            book_value=equity,
+            roe=roe_val,
+            cost_of_equity=args.wacc,
+            growth_rate=args.terminal_growth,
+            shares_outstanding=shares,
+        )
+
+    # Dividend Discount Model (for dividend-paying companies)
+    div_per_share = profile.get("dividend_per_share") or profile.get("dividendPerShare")
+    if div_per_share and div_per_share > 0:
+        div_growth = profile.get("dividend_growth_rate", 0.05)
+        payout = (
+            safe_div(div_per_share * shares, ni_vals[0]) if ni_vals and shares else None
+        )
+        metrics["dividend_discount_model"] = compute_dividend_discount_model(
+            dividend_per_share=div_per_share,
+            dividend_growth_rate=div_growth,
+            cost_of_equity=args.wacc,
+            payout_ratio=payout,
             terminal_growth=args.terminal_growth,
         )
 

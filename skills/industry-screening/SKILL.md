@@ -91,9 +91,11 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
 - [ ] **Profitability** — Aggregate margins (gross, operating, net), ROIC, ROE, FCF conversion
 - [ ] **Valuation** — Sector P/E, EV/EBITDA vs 5-year history (percentile), PEG ratio
 - [ ] **Macro Fit** — Sensitivity to current macro regime (rates, inflation, GDP), correlation with leading indicators
-- [ ] **Innovation** — R&D intensity, patent activity, disruption risk/opportunity, technology adoption curves
+- [ ] **Innovation** — R&D intensity, R&D productivity (pipeline value / cumulative R&D), disruption risk/opportunity, technology adoption curves
 - [ ] **Regulatory** — Current and pending regulation, antitrust, subsidy exposure, political sensitivity
 - [ ] **Capital Flows** — Sector ETF flows (1M/3M/6M), institutional positioning, insider sentiment
+- [ ] **Relative Strength** — Price performance vs SPX over 1M/3M/6M/12M periods. Compute RS ranking (percentile rank vs all sectors). Sectors with top-quartile 3M+6M RS and improving 1M RS are strongest momentum candidates. **This is the single most predictive signal for sector rotation.**
+- [ ] **Cyclicality** — Beta to GDP/economic cycle, earnings volatility (5-year std dev of EPS growth), revenue cyclicality classification (Defensive/Moderate/Cyclical/Highly Cyclical). In late-cycle environments, defensive sectors (Utilities, Staples, Healthcare) should receive a scoring bonus; in early-cycle, cyclicals (Industrials, Discretionary, Financials) receive the bonus.
 
 **Output per sector batch:** Each sector-screener writes `/tmp/industry-screening-sector-[BATCH].md` with per-sector scores.
 
@@ -103,13 +105,15 @@ Or, if user specified a single sector, spawn 1 `sector-screener` for that sector
 
 | Dimension | Long-term Weight | Mid-term Weight | Short-term Weight |
 |-----------|-----------------|-----------------|-------------------|
-| Growth | 30% | 25% | 15% |
-| Profitability | 20% | 15% | 10% |
-| Valuation | 10% | 20% | 15% |
-| Macro Fit | 15% | 20% | 10% |
+| Growth | 25% | 20% | 10% |
+| Profitability | 20% | 15% | 5% |
+| Valuation | 10% | 15% | 10% |
+| Macro Fit | 10% | 15% | 10% |
 | Innovation | 15% | 10% | 5% |
 | Regulatory | 5% | 5% | 5% |
-| Capital Flows | 5% | 5% | 40% |
+| Capital Flows | 5% | 5% | 25% |
+| Relative Strength | 5% | 10% | 25% |
+| Cyclicality | 5% | 5% | 5% |
 
 **Deliverable:** Sector ranking table with scores. Top 2-3 sectors identified for Phase 2 deep dive.
 

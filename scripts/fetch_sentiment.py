@@ -69,16 +69,23 @@ def finnhub_call(endpoint: str, api_key: str, params: dict | None = None) -> dic
 # Insider Transactions
 # ---------------------------------------------------------------------------
 
+
 def fetch_insider_transactions(ticker: str, api_key: str) -> dict:
     """Fetch insider transactions and detect cluster activity.
 
     Cluster detection: 3+ insiders buying/selling within 30 days.
     """
-    data = finnhub_call("/stock/insider-transactions", api_key, {"symbol": ticker, "limit": 100})
+    data = finnhub_call(
+        "/stock/insider-transactions", api_key, {"symbol": ticker, "limit": 100}
+    )
 
     if "error" in data:
-        return {"source": "finnhub", "status": "error", "error": data["error"],
-                "retrieved_at": datetime.now(timezone.utc).isoformat()}
+        return {
+            "source": "finnhub",
+            "status": "error",
+            "error": data["error"],
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     transactions = data.get("data", [])
     if not transactions:
@@ -96,16 +103,18 @@ def fetch_insider_transactions(ticker: str, api_key: str) -> dict:
     for t in transactions[:50]:
         tx_date = t.get("transactionDate", "")
         tx_type = t.get("transactionType", "")
-        parsed.append({
-            "name": t.get("name", ""),
-            "position": t.get("position", ""),
-            "transaction_type": tx_type,
-            "transaction_date": tx_date,
-            "shares": t.get("share"),
-            "price": t.get("price"),
-            "value": t.get("value"),
-            "is_10b5_1": "10b5" in str(t.get("transactionCode", "")).lower(),
-        })
+        parsed.append(
+            {
+                "name": t.get("name", ""),
+                "position": t.get("position", ""),
+                "transaction_type": tx_type,
+                "transaction_date": tx_date,
+                "shares": t.get("share"),
+                "price": t.get("price"),
+                "value": t.get("value"),
+                "is_10b5_1": "10b5" in str(t.get("transactionCode", "")).lower(),
+            }
+        )
 
     # Cluster detection: group transactions by month
     monthly_buys = defaultdict(int)
@@ -129,23 +138,29 @@ def fetch_insider_transactions(ticker: str, api_key: str) -> dict:
             monthly_sellers[month_key].add(t["name"])
 
     cluster_signals = []
-    for month in sorted(set(list(monthly_buyers.keys()) + list(monthly_sellers.keys()))):
+    for month in sorted(
+        set(list(monthly_buyers.keys()) + list(monthly_sellers.keys()))
+    ):
         if len(monthly_buyers.get(month, set())) >= 3:
-            cluster_signals.append({
-                "month": month,
-                "type": "cluster_buying",
-                "insiders": len(monthly_buyers[month]),
-                "total_value": round(monthly_buys[month], 2),
-                "signal": "Bullish — cluster insider buying is the strongest Form 4 signal.",
-            })
+            cluster_signals.append(
+                {
+                    "month": month,
+                    "type": "cluster_buying",
+                    "insiders": len(monthly_buyers[month]),
+                    "total_value": round(monthly_buys[month], 2),
+                    "signal": "Bullish — cluster insider buying is the strongest Form 4 signal.",
+                }
+            )
         if len(monthly_sellers.get(month, set())) >= 3:
-            cluster_signals.append({
-                "month": month,
-                "type": "cluster_selling",
-                "insiders": len(monthly_sellers[month]),
-                "total_value": round(monthly_sells[month], 2),
-                "signal": "Bearish — cluster insider selling warrants investigation.",
-            })
+            cluster_signals.append(
+                {
+                    "month": month,
+                    "type": "cluster_selling",
+                    "insiders": len(monthly_sellers[month]),
+                    "total_value": round(monthly_sells[month], 2),
+                    "signal": "Bearish — cluster insider selling warrants investigation.",
+                }
+            )
 
     return {
         "source": "finnhub",
@@ -156,8 +171,14 @@ def fetch_insider_transactions(ticker: str, api_key: str) -> dict:
         "summary": {
             "buys_count": sum(1 for t in parsed if t["transaction_type"] == "Buy"),
             "sells_count": sum(1 for t in parsed if t["transaction_type"] == "Sell"),
-            "buys_value": round(sum(t["value"] or 0 for t in parsed if t["transaction_type"] == "Buy"), 2),
-            "sells_value": round(sum(t["value"] or 0 for t in parsed if t["transaction_type"] == "Sell"), 2),
+            "buys_value": round(
+                sum(t["value"] or 0 for t in parsed if t["transaction_type"] == "Buy"),
+                2,
+            ),
+            "sells_value": round(
+                sum(t["value"] or 0 for t in parsed if t["transaction_type"] == "Sell"),
+                2,
+            ),
             "note": "Open-market purchases (non-10b5-1) are the strongest insider signal.",
         },
     }
@@ -167,21 +188,30 @@ def fetch_insider_transactions(ticker: str, api_key: str) -> dict:
 # Company News Sentiment
 # ---------------------------------------------------------------------------
 
+
 def fetch_news_sentiment(ticker: str, api_key: str) -> dict:
     """Fetch recent company news with Finnhub's sentiment analysis."""
     # Last 30 days
     date_from = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
     date_to = datetime.now().strftime("%Y-%m-%d")
 
-    data = finnhub_call("/company-news", api_key, {
-        "symbol": ticker,
-        "from": date_from,
-        "to": date_to,
-    })
+    data = finnhub_call(
+        "/company-news",
+        api_key,
+        {
+            "symbol": ticker,
+            "from": date_from,
+            "to": date_to,
+        },
+    )
 
     if "error" in data:
-        return {"source": "finnhub", "status": "error", "error": data["error"],
-                "retrieved_at": datetime.now(timezone.utc).isoformat()}
+        return {
+            "source": "finnhub",
+            "status": "error",
+            "error": data["error"],
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     if isinstance(data, list):
         articles = data[:30]
@@ -230,19 +260,24 @@ def fetch_news_sentiment(ticker: str, api_key: str) -> dict:
             "neutral": total_neutral,
         },
         "sentiment_bias": (
-            "positive" if total_positive > total_negative + total_neutral
-            else "negative" if total_negative > total_positive + total_neutral
-            else "mixed" if total_positive + total_negative > total_neutral
+            "positive"
+            if total_positive > total_negative + total_neutral
+            else "negative"
+            if total_negative > total_positive + total_neutral
+            else "mixed"
+            if total_positive + total_negative > total_neutral
             else "neutral"
         ),
         "buzz_score": buzz,
         "sentiment_score": sentiment_score,
         "recent_headlines": [
-            {"headline": a.get("headline", ""),
-             "source": a.get("source", ""),
-             "datetime": a.get("datetime"),
-             "sentiment": a.get("sentiment"),
-             "url": a.get("url", "")}
+            {
+                "headline": a.get("headline", ""),
+                "source": a.get("source", ""),
+                "datetime": a.get("datetime"),
+                "sentiment": a.get("sentiment"),
+                "url": a.get("url", ""),
+            }
             for a in articles[:10]
         ],
     }
@@ -252,17 +287,22 @@ def fetch_news_sentiment(ticker: str, api_key: str) -> dict:
 # Earnings Calendar
 # ---------------------------------------------------------------------------
 
+
 def fetch_earnings_calendar(ticker: str, api_key: str) -> dict:
     """Fetch past earnings surprises and upcoming earnings date."""
     # Past earnings surprises (last 4 quarters)
     past_data = finnhub_call("/stock/earnings", api_key, {"symbol": ticker, "limit": 4})
 
     # Upcoming earnings (next 4 quarters)
-    upcoming_data = finnhub_call("/calendar/earnings", api_key, {
-        "symbol": ticker,
-        "from": datetime.now().strftime("%Y-%m-%d"),
-        "to": (datetime.now() + timedelta(days=120)).strftime("%Y-%m-%d"),
-    })
+    upcoming_data = finnhub_call(
+        "/calendar/earnings",
+        api_key,
+        {
+            "symbol": ticker,
+            "from": datetime.now().strftime("%Y-%m-%d"),
+            "to": (datetime.now() + timedelta(days=120)).strftime("%Y-%m-%d"),
+        },
+    )
 
     past_surprises = []
     if "error" not in past_data and isinstance(past_data, list):
@@ -274,13 +314,17 @@ def fetch_earnings_calendar(ticker: str, api_key: str) -> dict:
             if actual is not None and estimate is not None and estimate != 0:
                 surprise = actual - estimate
                 surprise_pct = (surprise / abs(estimate)) * 100
-            past_surprises.append({
-                "period": e.get("period", ""),
-                "actual": actual,
-                "estimate": estimate,
-                "surprise": round(surprise, 4) if surprise is not None else None,
-                "surprise_pct": round(surprise_pct, 2) if surprise_pct is not None else None,
-            })
+            past_surprises.append(
+                {
+                    "period": e.get("period", ""),
+                    "actual": actual,
+                    "estimate": estimate,
+                    "surprise": round(surprise, 4) if surprise is not None else None,
+                    "surprise_pct": round(surprise_pct, 2)
+                    if surprise_pct is not None
+                    else None,
+                }
+            )
 
     upcoming = []
     next_date = None
@@ -290,14 +334,16 @@ def fetch_earnings_calendar(ticker: str, api_key: str) -> dict:
             edate = e.get("date", "")
             if not next_date:
                 next_date = edate
-            upcoming.append({
-                "date": edate,
-                "eps_estimate": e.get("epsEstimate"),
-                "eps_actual": e.get("epsActual"),
-                "revenue_estimate": e.get("revenueEstimate"),
-                "revenue_actual": e.get("revenueActual"),
-                "hour": e.get("hour", ""),
-            })
+            upcoming.append(
+                {
+                    "date": edate,
+                    "eps_estimate": e.get("epsEstimate"),
+                    "eps_actual": e.get("epsActual"),
+                    "revenue_estimate": e.get("revenueEstimate"),
+                    "revenue_actual": e.get("revenueActual"),
+                    "hour": e.get("hour", ""),
+                }
+            )
 
     # Beat streak
     beat_streak = 0
@@ -313,14 +359,25 @@ def fetch_earnings_calendar(ticker: str, api_key: str) -> dict:
         "next_earnings_date": next_date,
         "days_until_earnings": (
             (datetime.strptime(next_date, "%Y-%m-%d") - datetime.now()).days
-            if next_date else None
+            if next_date
+            else None
         ),
         "past_surprises": past_surprises,
         "beat_streak": beat_streak,
         "avg_surprise_pct": (
-            round(sum(s["surprise_pct"] for s in past_surprises if s["surprise_pct"] is not None)
-                  / max(1, sum(1 for s in past_surprises if s["surprise_pct"] is not None)), 2)
-            if past_surprises else None
+            round(
+                sum(
+                    s["surprise_pct"]
+                    for s in past_surprises
+                    if s["surprise_pct"] is not None
+                )
+                / max(
+                    1, sum(1 for s in past_surprises if s["surprise_pct"] is not None)
+                ),
+                2,
+            )
+            if past_surprises
+            else None
         ),
         "upcoming_earnings": upcoming,
     }
@@ -330,6 +387,7 @@ def fetch_earnings_calendar(ticker: str, api_key: str) -> dict:
 # Analyst Recommendations & Price Targets
 # ---------------------------------------------------------------------------
 
+
 def fetch_analyst_data(ticker: str, api_key: str) -> dict:
     """Fetch analyst recommendations and price targets from Finnhub."""
     rec_data = finnhub_call("/stock/recommendation", api_key, {"symbol": ticker})
@@ -338,14 +396,16 @@ def fetch_analyst_data(ticker: str, api_key: str) -> dict:
     recommendations = []
     if "error" not in rec_data and isinstance(rec_data, list):
         for r in rec_data[:6]:
-            recommendations.append({
-                "period": r.get("period", ""),
-                "strong_buy": r.get("strongBuy"),
-                "buy": r.get("buy"),
-                "hold": r.get("hold"),
-                "sell": r.get("sell"),
-                "strong_sell": r.get("strongSell"),
-            })
+            recommendations.append(
+                {
+                    "period": r.get("period", ""),
+                    "strong_buy": r.get("strongBuy"),
+                    "buy": r.get("buy"),
+                    "hold": r.get("hold"),
+                    "sell": r.get("sell"),
+                    "strong_sell": r.get("strongSell"),
+                }
+            )
 
     price_target = None
     if "error" not in target_data and isinstance(target_data, dict):
@@ -362,10 +422,17 @@ def fetch_analyst_data(ticker: str, api_key: str) -> dict:
     consensus = None
     if recommendations:
         latest = recommendations[0]
-        total = (latest.get("strongBuy", 0) + latest.get("buy", 0) +
-                 latest.get("hold", 0) + latest.get("sell", 0) + latest.get("strongSell", 0))
+        total = (
+            latest.get("strongBuy", 0)
+            + latest.get("buy", 0)
+            + latest.get("hold", 0)
+            + latest.get("sell", 0)
+            + latest.get("strongSell", 0)
+        )
         if total and total > 0:
-            bull_pct = ((latest.get("strongBuy", 0) + latest.get("buy", 0)) / total) * 100
+            bull_pct = (
+                (latest.get("strongBuy", 0) + latest.get("buy", 0)) / total
+            ) * 100
             if bull_pct >= 70:
                 consensus = "Bullish"
             elif bull_pct >= 50:
@@ -390,12 +457,17 @@ def fetch_analyst_data(ticker: str, api_key: str) -> dict:
 # Social Sentiment (Finnhub)
 # ---------------------------------------------------------------------------
 
+
 def fetch_social_sentiment_finnhub(ticker: str, api_key: str) -> dict:
     """Fetch social media sentiment from Finnhub (Reddit, Twitter)."""
     data = finnhub_call("/stock/social-sentiment", api_key, {"symbol": ticker})
 
     if "error" in data:
-        return {"source": "finnhub", "status": "unavailable", "note": str(data.get("error", ""))}
+        return {
+            "source": "finnhub",
+            "status": "unavailable",
+            "note": str(data.get("error", "")),
+        }
 
     reddit = data.get("reddit", [])
     twitter = data.get("twitter", [])
@@ -423,14 +495,143 @@ def fetch_social_sentiment_finnhub(ticker: str, api_key: str) -> dict:
             "total_mentions": reddit_mentions,
             "positive": reddit_pos,
             "negative": reddit_neg,
-            "sentiment_ratio": round((reddit_pos - reddit_neg) / max(1, reddit_mentions), 3),
+            "sentiment_ratio": round(
+                (reddit_pos - reddit_neg) / max(1, reddit_mentions), 3
+            ),
         },
         "twitter": {
             "total_mentions": twitter_mentions,
             "positive": twitter_pos,
             "negative": twitter_neg,
-            "sentiment_ratio": round((twitter_pos - twitter_neg) / max(1, twitter_mentions), 3),
+            "sentiment_ratio": round(
+                (twitter_pos - twitter_neg) / max(1, twitter_mentions), 3
+            ),
         },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Earnings Estimate Revisions (Finnhub)
+# ---------------------------------------------------------------------------
+
+
+def fetch_estimate_revisions(ticker: str, api_key: str) -> dict:
+    """Fetch earnings estimate revisions and compute revision velocity.
+
+    Revision velocity = direction and magnitude of estimate changes over 1M/3M.
+    Strong predictor of future price movement (estimate momentum factor).
+    """
+    # Fetch EPS estimates (current + next quarter, current + next FY)
+    eps_data = finnhub_call(
+        "/stock/eps-estimate", api_key, {"symbol": ticker, "freq": "quarterly"}
+    )
+    rev_data = finnhub_call(
+        "/stock/revenue-estimate", api_key, {"symbol": ticker, "freq": "quarterly"}
+    )
+
+    eps_revisions = []
+    if "error" not in eps_data and isinstance(eps_data, dict):
+        estimates = eps_data.get("data", [])
+        for est in estimates[:4]:
+            eps_revisions.append(
+                {
+                    "period": est.get("period", ""),
+                    "estimate_avg": est.get("epsAvg"),
+                    "estimate_high": est.get("epsHigh"),
+                    "estimate_low": est.get("epsLow"),
+                    "number_of_analysts": est.get("numberAnalysts"),
+                }
+            )
+
+    rev_revisions = []
+    if "error" not in rev_data and isinstance(rev_data, dict):
+        estimates = rev_data.get("data", [])
+        for est in estimates[:4]:
+            rev_revisions.append(
+                {
+                    "period": est.get("period", ""),
+                    "estimate_avg": est.get("revenueAvg"),
+                    "estimate_high": est.get("revenueHigh"),
+                    "estimate_low": est.get("revenueLow"),
+                    "number_of_analysts": est.get("numberAnalysts"),
+                }
+            )
+
+    # Fetch recommendation trends for revision direction over time
+    rec_data = finnhub_call("/stock/recommendation", api_key, {"symbol": ticker})
+    revision_velocity = None
+    revision_direction = "neutral"
+
+    if "error" not in rec_data and isinstance(rec_data, list) and len(rec_data) >= 2:
+        # Compare latest month vs 3 months ago
+        latest = rec_data[0] if rec_data else {}
+        three_months_ago = rec_data[2] if len(rec_data) > 2 else rec_data[-1]
+
+        latest_bull = (latest.get("strongBuy", 0) or 0) + (latest.get("buy", 0) or 0)
+        latest_bear = (latest.get("sell", 0) or 0) + (latest.get("strongSell", 0) or 0)
+        prior_bull = (three_months_ago.get("strongBuy", 0) or 0) + (
+            three_months_ago.get("buy", 0) or 0
+        )
+        prior_bear = (three_months_ago.get("sell", 0) or 0) + (
+            three_months_ago.get("strongSell", 0) or 0
+        )
+
+        latest_total = latest_bull + latest_bear + (latest.get("hold", 0) or 0)
+        prior_total = prior_bull + prior_bear + (three_months_ago.get("hold", 0) or 0)
+
+        if latest_total > 0 and prior_total > 0:
+            latest_ratio = latest_bull / latest_total
+            prior_ratio = prior_bull / prior_total
+            revision_velocity = round(latest_ratio - prior_ratio, 4)
+
+            if revision_velocity > 0.10:
+                revision_direction = "strong_positive"
+            elif revision_velocity > 0.03:
+                revision_direction = "positive"
+            elif revision_velocity < -0.10:
+                revision_direction = "strong_negative"
+            elif revision_velocity < -0.03:
+                revision_direction = "negative"
+            else:
+                revision_direction = "neutral"
+
+    # Compute consensus change (upgrades minus downgrades)
+    upgrades = 0
+    downgrades = 0
+    if "error" not in rec_data and isinstance(rec_data, list) and len(rec_data) >= 2:
+        for i in range(min(3, len(rec_data) - 1)):
+            curr = rec_data[i]
+            prev = rec_data[i + 1]
+            curr_sb = curr.get("strongBuy", 0) or 0
+            prev_sb = prev.get("strongBuy", 0) or 0
+            curr_b = curr.get("buy", 0) or 0
+            prev_b = prev.get("buy", 0) or 0
+            if curr_sb + curr_b > prev_sb + prev_b:
+                upgrades += 1
+            elif curr_sb + curr_b < prev_sb + prev_b:
+                downgrades += 1
+
+    return {
+        "source": "finnhub",
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "eps_estimates": eps_revisions,
+        "revenue_estimates": rev_revisions,
+        "revision_velocity": {
+            "velocity_3m": revision_velocity,
+            "direction": revision_direction,
+            "upgrades_3m": upgrades,
+            "downgrades_3m": downgrades,
+            "net_revisions": upgrades - downgrades,
+            "interpretation": (
+                "Positive revision momentum — analysts raising estimates (leading price signal)."
+                if revision_direction in ("positive", "strong_positive")
+                else "Negative revision momentum — analysts cutting estimates (bearish signal)."
+                if revision_direction in ("negative", "strong_negative")
+                else "Stable consensus — no meaningful revision trend."
+            ),
+        },
+        "note": "Estimate revision velocity is among the strongest short-term alpha signals. "
+        "3+ consecutive months of upward revisions strongly predict outperformance.",
     }
 
 
@@ -444,12 +645,14 @@ SOURCES = {
     "earnings": fetch_earnings_calendar,
     "analyst": fetch_analyst_data,
     "social": fetch_social_sentiment_finnhub,
+    "revisions": fetch_estimate_revisions,
 }
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -458,8 +661,8 @@ def main():
     parser.add_argument("tickers", nargs="+", help="Ticker symbols")
     parser.add_argument(
         "--sources",
-        default="insider,news,earnings,analyst,social",
-        help="Comma-separated sources (default: all). Options: insider,news,earnings,analyst,social",
+        default="insider,news,earnings,analyst,social,revisions",
+        help="Comma-separated sources (default: all). Options: insider,news,earnings,analyst,social,revisions",
     )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     parser.add_argument(

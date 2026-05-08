@@ -97,12 +97,12 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 - [ ] 1.2 Business Model — Revenue model type, quality (recurring %), unit economics, customer concentration
 - [ ] 1.3 Competitive Moat — Morningstar framework: cost advantages, network effects, intangibles, switching costs, efficient scale; moat trajectory
 - [ ] 1.4 Historical Performance — 5-year CAGR (revenue, EPS, FCF), guidance accuracy, recession performance
-- [ ] 1.5 Forensic Accounting — Beneish M-Score, Altman Z-Score, revenue recognition, accruals check
+- [ ] 1.5 Forensic Accounting — Beneish M-Score, Altman Z-Score, Piotroski F-Score, revenue recognition, accruals check
 - [ ] 1.6 Segment-Level (if multi-segment) — Per-segment revenue, margin, ROIC, moat; BCG classification
 
 **Reference:** Load `references/frameworks_value_growth.md` for Buffett/Munger/Fisher/Lynch frameworks. Load `references/sector_metrics.md` for sector-specific KPIs.
 
-**Validation gate:** At least 3 years of revenue, operating income, FCF, total debt from Tier 1 source. Beneish M-Score and Altman Z-Score computed.
+**Validation gate:** At least 3 years of revenue, operating income, FCF, total debt from Tier 1 source. Beneish M-Score, Altman Z-Score, and Piotroski F-Score computed.
 
 **After completion:** Write stage summary to `/tmp/stock-analysis-[TICKER]-stage1.md`. Drop raw financial data from context. Retain: key metrics (table), moat assessment (3 sentences), forensic flags (list).
 
@@ -114,6 +114,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 - [ ] 2.3 Insider Ownership — CEO ownership multiple, total insider %, recent Form 4 activity, cluster detection. **Run `scripts/fetch_sentiment.py [TICKER] --sources insider`** for structured insider transactions with automated cluster detection.
 - [ ] 2.4 Compensation — Performance metrics (ROIC/FCF vs revenue-only), vesting, clawbacks, peer group
 - [ ] 2.5 Management Quality — Guidance accuracy, promise-to-delivery ratio, Glassdoor trend, employee retention
+- [ ] 2.6 Governance Structure — Dual-class shares (voting power concentration), poison pills, staggered board, shareholder proposal history, proxy fight history, director independence %, board diversity, audit committee financial expertise. **Governance red flags:** dual-class with >10:1 voting ratio, no lead independent director, same person as Chair + CEO without strong lead director.
 
 **Reference:** Use frameworks from `references/frameworks_value_growth.md` (Fisher's 15 points, Scuttlebutt method).
 
@@ -178,12 +179,13 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 ### Stage 6: Valuation → Spawn quant-analyst
 
 **Checklist:**
-- [ ] 6.1 Multi-Method — **DCF using ensemble forecast growth rates** (from `/tmp/stock-analysis-[TICKER]-forecast.json`), WACC, terminal value, sensitivity table, reverse DCF. **Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --wacc [WACC] --growth [ENSEMBLE_CAGR] --market-cap [VALUE] --output /tmp/stock-analysis-[TICKER]-metrics.json`** with the ensemble forecast FCF CAGR instead of a fixed constant. Trading Comps (peer universe, EV/EBITDA, P/E, P/FCF, PEG), SOTP if multi-segment.
+- [ ] 6.1 Multi-Method — **DCF using ensemble forecast growth rates** (from `/tmp/stock-analysis-[TICKER]-forecast.json`), WACC, terminal value, sensitivity table, reverse DCF. **Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --wacc [WACC] --growth [ENSEMBLE_CAGR] --market-cap [VALUE] --output /tmp/stock-analysis-[TICKER]-metrics.json`** with the ensemble forecast FCF CAGR instead of a fixed constant. Trading Comps (peer universe, EV/EBITDA, P/E, P/FCF, PEG), SOTP if multi-segment. **For financial companies (banks, insurance):** Use Residual Income Model (RIM) instead of DCF — `calculate_metrics.py` produces this automatically when equity and ROE are available. **For mature dividend payers (utilities, REITs, staples):** Use Dividend Discount Model (DDM) — produced automatically when dividend_per_share is in profile data.
 - [ ] 6.1b **Monte Carlo Simulation**: Run `scripts/calculate_metrics.py /tmp/stock-analysis-[TICKER]-raw-data.json --monte-carlo --mc-growth-mu [ENSEMBLE_CAGR] --mc-growth-sigma [RESIDUAL_STD] --wacc [WACC] --market-cap [VALUE] --shares [SHARES] --output /tmp/stock-analysis-[TICKER]-metrics.json`. Produces 10K-run distribution with VaR, CVaR, and percentile-based price targets. **Do this for Long-term and Mid-term reports.**
 - [ ] 6.2 Relative Value — P/E vs history/peers, EV/EBITDA with growth justification, P/FCF vs risk-free rate, PEG
 - [ ] 6.3 Technical — Trend (MAs, higher highs/lows), momentum (RSI, MACD), volume (OBV), support/resistance. **Run `scripts/fetch_technicals.py [TICKER] --period 2y`** for deterministic indicator computation and composite trend/momentum scores.
 - [ ] 6.4 Sentiment — Put/call ratio, VIX term structure, short interest, options flow, dark pool prints. **Run `scripts/fetch_sentiment.py [TICKER] --sources news,social`** for news sentiment buzz and social media metrics. **For Short-term reports, also run `scripts/fetch_realtime.py [TICKER] --mode options`** for options chain data (put/call OI, max pain, ATM IV).
 - [ ] 6.5 Institutional Flow — 13F analysis, activist 13D, Form 4 clusters, ownership concentration. **Run `scripts/fetch_sentiment.py [TICKER] --sources analyst`** for analyst consensus and price targets.
+- [ ] 6.6 Estimate Revisions — **Run `scripts/fetch_sentiment.py [TICKER] --sources revisions`** for earnings revision velocity (3-month direction and magnitude). Positive revision momentum is among the strongest short-term alpha signals. Flag if 3+ consecutive months of upward/downward revisions.
 
 **Reference:** Load `references/frameworks_macro_quant.md` for Greenblatt's Magic Formula. Load `references/frameworks_risk_alt.md` for Burry's SEC deep-dive. For sector-specific valuation, load the relevant deep-dive reference: `references/industry_saas.md` (Tech/SaaS), `references/industry_biotech.md` (Pharma/Biotech), or `references/industry_banks.md` (Financials).
 
@@ -210,6 +212,7 @@ This skill uses multiple web search tools for financial data acquisition. See `a
 
 **Data acquisition:**
 - Run `scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
+- **CFTC Commitments of Traders**: Run `scripts/fetch_cot.py --market SP500,VIX,10Y_NOTE,USD,GOLD --output /tmp/stock-analysis-[TICKER]-cot.json` for institutional futures positioning. Crowded longs = contrarian bearish; crowded shorts = squeeze potential. COT data leads equity moves by 1-3 weeks.
 - **Credit market data**: Run `scripts/fetch_credit.py [TICKER] --output /tmp/stock-analysis-[TICKER]-credit.json` for HY/IG OAS spreads, TED spread, credit rating, and debt maturity. Credit markets often lead equities by 2-4 weeks.
 - **Behavioral analysis**: Run `scripts/fetch_behavioral.py [TICKER] --analyst-json /tmp/stock-analysis-[TICKER]-sentiment.json --output /tmp/stock-analysis-[TICKER]-behavioral.json` for analyst herding detection, sentiment divergence, and contrarian signals.
 - `mcp__firecrawl__firecrawl_search` — "VIX term structure credit spreads [month] [year]", "NYSE margin debt latest data"
@@ -382,10 +385,49 @@ The stock-analyst (team lead) spawns specialist teammates for ALL analysis work 
 Stock-analyst (team lead) spawns sub-agents in parallel per report type (max 3 concurrent):
 - Long-term: [fundamental-analyst + industry-analyst] → [macro-analyst] → [quant-analyst] → [risk-analyst] → [alt-data-analyst] → Scoring → [equity-report-writer]
 - Mid-term: [macro-analyst + quant-analyst] → [fundamental-analyst + risk-analyst] → [alt-data-analyst] → Scoring → [equity-report-writer]
-- Short-term: [quant-analyst + alt-data-analyst] → Scoring → [equity-report-writer]
+- Short-term: [quant-analyst + alt-data-analyst] → [risk-analyst] → Scoring → [equity-report-writer]
 - Quick Overview: [fundamental-analyst + quant-analyst + risk-analyst] → Scoring → [equity-report-writer]
 
 Post-stage-9: always run deterministic scoring (Stage 10) and cross-check before report generation (Stage 11).
 
 Cap parallel sub-agents at 3.
 Max concurrent script executions: 2 (scripts are I/O-bound, not CPU-bound).
+
+## Post-Report Monitoring Protocol
+
+After delivering a report, establish monitoring triggers for re-analysis:
+
+### Automatic Re-Analysis Triggers
+The following events should prompt re-running relevant stages:
+
+| Trigger Event | Re-Run Stages | Urgency |
+|---|---|---|
+| Earnings release (actual vs estimate) | 1, 6, 10, 11 | Within 3 days |
+| Kill switch condition approaching (>80% of trigger level) | 8, 10, 11 | Immediate |
+| Price hits target (bull or bear scenario) | 6, 7, 10, 11 | Within 1 week |
+| Material news (M&A, regulatory action, executive departure) | Relevant stage + 8, 10, 11 | Within 3 days |
+| Macro regime change (Dalio quadrant shift) | 4, 7, 10, 11 | Within 1 week |
+| 90 days elapsed since report (Long-term) | Full re-run | Scheduled |
+| 30 days elapsed since report (Mid-term) | 6, 7, 9, 10, 11 | Scheduled |
+| 7 days elapsed since report (Short-term) | 6, 7, 10, 11 | Scheduled |
+
+### Monitoring Commands
+
+After report delivery, suggest to the user:
+> "Monitor this analysis with `/stock-analysis:watchlist [TICKER]` to check kill switch status and trigger conditions."
+
+### State Persistence for Monitoring
+
+- `scripts/persist.py kill-switch [TICKER]` — Checks all active kill switch conditions against current data
+- `scripts/persist.py watchlist` — Lists all active analyses with staleness flags
+- `scripts/persist.py stale --days 30` — Identifies reports exceeding their refresh cadence
+
+### Re-Analysis Protocol
+
+When a trigger fires:
+1. Load prior report from `./reports/[TICKER]/`
+2. Load prior component scores from `persist.py`
+3. Re-run only the affected stages (not full analysis)
+4. Compare new scores vs prior — flag any that moved ≥2.0 points
+5. If conviction rating changes by ≥1.5 points, generate an **UPDATE REPORT** (not full report)
+6. Update `persist.py` state with new scores and timestamp

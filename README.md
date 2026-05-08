@@ -52,12 +52,14 @@ Set as environment variables. The scripts read them at runtime.
 
 | Key | Required | Purpose | Get Key |
 |-----|----------|---------|---------|
-| `FRED_API_KEY` | Yes | Macro indicators (GDP, CPI, rates) | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) |
-| `FINNHUB_API_KEY` | Yes | Sentiment, insider, earnings, analyst | [finnhub.io](https://finnhub.io/) |
+| `FRED_API_KEY` | Yes | Macro indicators (GDP, CPI, rates, ISM Services PMI, JOLTS, LEI, C&I Loans) | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) |
+| `FINNHUB_API_KEY` | Yes | Sentiment, insider, earnings, analyst, estimate revisions | [finnhub.io](https://finnhub.io/) |
 | `REDDIT_CLIENT_ID` | No | Social sentiment (Reddit) | [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) |
 | `REDDIT_CLIENT_SECRET` | No | Social sentiment (Reddit) | Same as above |
 | `FMP_API_KEY` | No | Financial data fallback | [financialmodelingprep.com](https://financialmodelingprep.com/) |
 | `POLYGON_API_KEY` | No | Real-time data fallback | [polygon.io](https://polygon.io/) |
+
+**No API key required for:** `fetch_cot.py` (CFTC public data), `fetch_technicals.py` (yfinance), `fetch_alternatives.py` (public web data).
 
 ```bash
 export FRED_API_KEY="your-key"

@@ -296,6 +296,49 @@ INDICATORS = {
         "category": "activity",
         "description": "ISM Manufacturing PMI Composite Index. >50 = expansion, <50 = contraction.",
     },
+    "NMFCI": {
+        "series_id": "NMFCI",
+        "label": "ISM Services PMI (Business Activity)",
+        "unit": "Index",
+        "frequency": "Monthly",
+        "category": "activity",
+        "description": "ISM Non-Manufacturing (Services) Business Activity Index. Services = ~80% of US GDP. >50 = expansion.",
+    },
+    # ---- JOLTS (Job Openings & Labor Turnover) ----
+    "JTSJOL": {
+        "series_id": "JTSJOL",
+        "label": "Job Openings (JOLTS)",
+        "unit": "Thousands",
+        "frequency": "Monthly",
+        "category": "employment",
+        "description": "Total nonfarm job openings from BLS JOLTS. Leading indicator for labor demand.",
+    },
+    "JTSQUL": {
+        "series_id": "JTSQUL",
+        "label": "Quits Rate (JOLTS)",
+        "unit": "Percent",
+        "frequency": "Monthly",
+        "category": "employment",
+        "description": "Quits rate from BLS JOLTS. High quits = worker confidence; low quits = fear. Leading indicator for wage inflation.",
+    },
+    # ---- Leading Economic Index ----
+    "USSLIND": {
+        "series_id": "USSLIND",
+        "label": "Conference Board Leading Economic Index",
+        "unit": "Index 2016=100",
+        "frequency": "Monthly",
+        "category": "activity",
+        "description": "Composite of 10 leading indicators (claims, orders, building permits, S&P 500, etc.). 6+ months of decline signals recession.",
+    },
+    # ---- Bank Lending (H.8 proxy via FRED) ----
+    "TOTCI": {
+        "series_id": "TOTCI",
+        "label": "Commercial & Industrial Loans (All Banks)",
+        "unit": "Billions of Dollars",
+        "frequency": "Weekly",
+        "category": "money",
+        "description": "Total C&I loans at all commercial banks (H.8). Rising = credit expansion; falling = tightening.",
+    },
 }
 
 
@@ -355,8 +398,10 @@ def compute_change(values: list[dict]) -> dict:
         if latest is not None and yv is not None and yv != 0:
             yoy = (latest - yv) / abs(yv)
 
-    return {"mom_change": round(mom, 6) if mom is not None else None,
-            "yoy_change": round(yoy, 6) if yoy is not None else None}
+    return {
+        "mom_change": round(mom, 6) if mom is not None else None,
+        "yoy_change": round(yoy, 6) if yoy is not None else None,
+    }
 
 
 def compute_macro_summary(results: dict) -> dict:
@@ -395,7 +440,9 @@ def compute_macro_summary(results: dict) -> dict:
 
     # Inflation assessment
     cpi_yoy = keys.get("CPIAUCSL", {}).get("yoy_change")
-    inflation_rising = cpi_yoy is not None and cpi_yoy > 0.02  # >2% YoY is rising concern
+    inflation_rising = (
+        cpi_yoy is not None and cpi_yoy > 0.02
+    )  # >2% YoY is rising concern
     inflation_falling = cpi_yoy is not None and cpi_yoy < 0
 
     # Regime determination
@@ -415,8 +462,37 @@ def compute_macro_summary(results: dict) -> dict:
     # Recession signal
     yield_inverted = spread_val is not None and spread_val < 0
     pmi_contraction = pmi_val is not None and pmi_val < 50
-    recession_risk = "high" if (yield_inverted and pmi_contraction) else \
-                     "elevated" if (yield_inverted or pmi_contraction) else "low"
+    recession_risk = (
+        "high"
+        if (yield_inverted and pmi_contraction)
+        else "elevated"
+        if (yield_inverted or pmi_contraction)
+        else "low"
+    )
+
+    # Services PMI (80% of economy)
+    services_pmi = next((d for d in keys.get("NMFCI", {}).get("data", [])), None)
+    services_pmi_val = services_pmi["value"] if services_pmi else None
+    services_contraction = services_pmi_val is not None and services_pmi_val < 50
+
+    # JOLTS indicators
+    jolts_openings = next((d for d in keys.get("JTSJOL", {}).get("data", [])), None)
+    jolts_quits = next((d for d in keys.get("JTSQUL", {}).get("data", [])), None)
+    jolts_openings_val = jolts_openings["value"] if jolts_openings else None
+    jolts_quits_val = jolts_quits["value"] if jolts_quits else None
+    labor_market_tight = jolts_quits_val is not None and jolts_quits_val > 2.5
+
+    # Leading Economic Index
+    lei = next((d for d in keys.get("USSLIND", {}).get("data", [])), None)
+    lei_val = lei["value"] if lei else None
+    lei_mom = keys.get("USSLIND", {}).get("mom_change")
+    lei_declining = lei_mom is not None and lei_mom < 0
+
+    # C&I Loans (credit expansion/contraction)
+    ci_loans = next((d for d in keys.get("TOTCI", {}).get("data", [])), None)
+    ci_loans_val = ci_loans["value"] if ci_loans else None
+    ci_loans_yoy = keys.get("TOTCI", {}).get("yoy_change")
+    credit_contracting = ci_loans_yoy is not None and ci_loans_yoy < 0
 
     return {
         "macro_regime": regime,
@@ -434,14 +510,34 @@ def compute_macro_summary(results: dict) -> dict:
             "ten_year_yield": yield10_val,
             "ten_two_spread": spread_val,
             "yield_curve_inverted": yield_inverted,
-            "ism_pmi": pmi_val,
+            "ism_manufacturing_pmi": pmi_val,
+            "ism_services_pmi": services_pmi_val,
             "pmi_contraction": pmi_contraction,
+            "services_contraction": services_contraction,
+        },
+        "labor_market": {
+            "unemployment_rate": unrate_val,
+            "jolts_openings_thousands": jolts_openings_val,
+            "jolts_quits_rate": jolts_quits_val,
+            "labor_market_tight": labor_market_tight,
+            "wage_pressure_signal": labor_market_tight,
+        },
+        "leading_indicators": {
+            "lei_value": lei_val,
+            "lei_declining": lei_declining,
+            "lei_note": "6+ consecutive monthly declines historically precede recession.",
+            "ci_loans_billions": ci_loans_val,
+            "credit_contracting": credit_contracting,
         },
         "recession_risk": recession_risk,
         "recession_signals": {
             "yield_curve_inverted": yield_inverted,
-            "pmi_below_50": pmi_contraction,
-            "unemployment_rising": unrate_val is not None and keys.get("UNRATE", {}).get("mom_change", 0) > 0.003,
+            "manufacturing_pmi_below_50": pmi_contraction,
+            "services_pmi_below_50": services_contraction,
+            "lei_declining": lei_declining,
+            "credit_contracting": credit_contracting,
+            "unemployment_rising": unrate_val is not None
+            and keys.get("UNRATE", {}).get("mom_change", 0) > 0.003,
         },
     }
 
@@ -465,7 +561,10 @@ def main():
         help="Environment variable name for FRED API key (default: FRED_API_KEY)",
     )
     parser.add_argument(
-        "--limit", type=int, default=24, help="Number of observations per series (default: 24)"
+        "--limit",
+        type=int,
+        default=24,
+        help="Number of observations per series (default: 24)",
     )
     args = parser.parse_args()
 
@@ -486,8 +585,14 @@ def main():
         )
         sys.exit(1)
 
-    requested = [k.strip() for k in args.indicators.split(",") if k.strip() in INDICATORS]
-    unknown = [k.strip() for k in args.indicators.split(",") if k.strip() and k.strip() not in INDICATORS]
+    requested = [
+        k.strip() for k in args.indicators.split(",") if k.strip() in INDICATORS
+    ]
+    unknown = [
+        k.strip()
+        for k in args.indicators.split(",")
+        if k.strip() and k.strip() not in INDICATORS
+    ]
     if unknown:
         sys.stderr.write(f"Warning: Unknown indicators ignored: {unknown}\n")
 
