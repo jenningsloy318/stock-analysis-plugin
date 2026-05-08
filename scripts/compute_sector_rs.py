@@ -4,7 +4,8 @@
 Usage:
     compute_sector_rs.py                          # all 11 sectors vs SPY
     compute_sector_rs.py --sectors XLK,XLF,XLE    # specific sector ETFs
-    compute_sector_rs.py --level sub-industry     # GICS Level 4 sub-industry ETFs
+    compute_sector_rs.py --level sub-industry     # GICS Level 4 grouped by sector
+    compute_sector_rs.py --level sub-industry --flat  # flat leaderboard across all
     compute_sector_rs.py --level sub-industry --sector Technology
     compute_sector_rs.py --benchmark SPY --period 1y
     compute_sector_rs.py --output ./reports/screening/sector-rs.json
@@ -194,17 +195,17 @@ SUB_INDUSTRY_ETFS: dict[str, dict[str, str | list[str]]] = {
     # --- Real Estate (60) ---
     "Real Estate": {
         "Diversified REITs": "VNQ",
-        "Industrial REITs": "VNQ",
-        "Hotel & Resort REITs": "VNQ",
-        "Office REITs": "VNQ",
-        "Health Care REITs": "VNQ",
-        "Multi-Family Residential REITs": "VNQ",
-        "Single-Family Residential REITs": "VNQ",
-        "Retail REITs": "VNQ",
+        "Industrial REITs": "INDS",
+        "Hotel & Resort REITs": "XLRE",
+        "Office REITs": "XLRE",
+        "Health Care REITs": "XLRE",
+        "Multi-Family Residential REITs": "REZ",
+        "Single-Family Residential REITs": "REZ",
+        "Retail REITs": "XLRE",
         "Data Center REITs": "VNQ",
         "Self-Storage REITs": "VNQ",
         "Telecom Tower REITs": "VNQ",
-        "Timber REITs": "VNQ",
+        "Timber REITs": "XLRE",
         "Other Specialized REITs": "VNQ",
         "Real Estate Services": "XLRE",
     },
@@ -232,14 +233,26 @@ SUB_INDUSTRY_ETFS: dict[str, dict[str, str | list[str]]] = {
 # Flattened sub-industry → representative stock baskets for RS when no ETF exists
 SUB_INDUSTRY_BASKETS: dict[str, list[str]] = {
     "Semiconductor Equipment": ["AMAT", "LRCX", "KLAC", "ASML"],
-    "Data Center REITs": ["EQIX", "DLR"],
+    "Data Center REITs": ["EQIX", "DLR", "QTS"],
     "Industrial REITs": ["PLD", "REXR", "STAG"],
     "Telecom Tower REITs": ["AMT", "CCI", "SBAC"],
     "Self-Storage REITs": ["PSA", "EXR", "CUBE"],
+    "Health Care REITs": ["WELL", "VTR", "OHI"],
+    "Hotel & Resort REITs": ["HST", "PK", "RHP"],
+    "Office REITs": ["BXP", "VNO", "SLG"],
+    "Retail REITs": ["SPG", "O", "NNN"],
+    "Multi-Family Residential REITs": ["EQR", "AVB", "MAA"],
     "Restaurants": ["MCD", "SBUX", "CMG", "YUM"],
     "Homebuilding": ["LEN", "DHI", "NVR", "PHM"],
     "Automobile Manufacturers": ["TSLA", "GM", "F"],
     "Renewable Electricity": ["ENPH", "FSLR", "RUN"],
+    "Life Sciences Tools & Services": ["TMO", "DHR", "A"],
+    "Health Care Equipment": ["SYK", "MDT", "ABT"],
+    "Systems Software": ["MSFT", "ORCL", "PANW"],
+    "Application Software": ["CRM", "ADBE", "NOW"],
+    "IT Consulting & Services": ["ACN", "IBM", "CTSH"],
+    "Financial Exchanges & Data": ["ICE", "CME", "NDAQ"],
+    "Electrical Components & Equipment": ["ETN", "EMR", "ROK"],
 }
 
 
@@ -456,6 +469,59 @@ def rank_sub_industries(rs_results: dict[str, dict], parent_sector: str) -> dict
     return base
 
 
+def _average_basket_rs(basket_results: list[dict]) -> dict:
+    """Average RS data across a basket of stocks to produce a synthetic RS signal."""
+    periods = ["1M", "3M", "6M", "12M"]
+    avg_rs_data = {}
+    for p in periods:
+        changes = [
+            r["rs_data"][p]["rs_change_pct"]
+            for r in basket_results
+            if p in r.get("rs_data", {})
+        ]
+        if changes:
+            avg_rs_data[p] = {
+                "rs_change_pct": round(sum(changes) / len(changes), 2),
+                "sector_return_pct": round(
+                    sum(
+                        r["rs_data"][p]["sector_return_pct"]
+                        for r in basket_results
+                        if p in r.get("rs_data", {})
+                    )
+                    / len(changes),
+                    2,
+                ),
+                "benchmark_return_pct": basket_results[0]["rs_data"]
+                .get(p, {})
+                .get("benchmark_return_pct", 0),
+                "excess_return_pct": round(
+                    sum(
+                        r["rs_data"][p]["excess_return_pct"]
+                        for r in basket_results
+                        if p in r.get("rs_data", {})
+                    )
+                    / len(changes),
+                    2,
+                ),
+            }
+
+    # Determine momentum from averaged data
+    rs_momentum = "neutral"
+    if "1M" in avg_rs_data and "3M" in avg_rs_data:
+        short = avg_rs_data["1M"]["rs_change_pct"]
+        long = avg_rs_data["3M"]["rs_change_pct"]
+        if short > 0 and long > 0:
+            rs_momentum = "strong_positive" if short > long else "positive_stable"
+        elif short > 0 > long:
+            rs_momentum = "improving"
+        elif short < 0 < long:
+            rs_momentum = "deteriorating"
+        elif short < 0 and long < 0:
+            rs_momentum = "strong_negative" if short < long else "negative_stable"
+
+    return {"rs_data": avg_rs_data, "rs_momentum": rs_momentum}
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compute sector/sub-industry relative strength rankings"
@@ -481,6 +547,12 @@ def main():
         "--period", default="2y", help="Lookback period for RS calculation"
     )
     parser.add_argument("--output", help="Output file path (default: stdout)")
+    parser.add_argument(
+        "--flat",
+        action="store_true",
+        help="(sub-industry mode only) Produce a single flat ranked leaderboard "
+        "across all sub-industries instead of grouping by parent sector.",
+    )
     args = parser.parse_args()
 
     if args.level == "sub-industry":
@@ -492,26 +564,122 @@ def main():
             # All sectors' sub-industries
             sectors_to_scan = list(SUB_INDUSTRY_ETFS.keys())
 
-        output = {"level": "sub-industry", "sectors": {}}
+        if args.flat:
+            # Flat leaderboard: rank ALL sub-industries in one list
+            all_results = {}
+            for sector_name in sectors_to_scan:
+                sub_map = SUB_INDUSTRY_ETFS.get(sector_name, {})
+                for sub_ind, etf in sub_map.items():
+                    if isinstance(etf, list):
+                        etf = etf[0]
+                    # Use basket if available for better differentiation
+                    if sub_ind in SUB_INDUSTRY_BASKETS:
+                        basket = SUB_INDUSTRY_BASKETS[sub_ind]
+                        basket_results = []
+                        for t in basket:
+                            r = compute_rs(t, args.benchmark, args.period)
+                            if "error" not in r:
+                                basket_results.append(r)
+                        if basket_results:
+                            # Average the RS data across basket
+                            avg_data = _average_basket_rs(basket_results)
+                            all_results[sub_ind] = {
+                                "data": avg_data,
+                                "parent_sector": sector_name,
+                                "proxy": f"basket({','.join(basket)})",
+                            }
+                            continue
+                    data = compute_rs(etf, args.benchmark, args.period)
+                    all_results[sub_ind] = {
+                        "data": data,
+                        "parent_sector": sector_name,
+                        "proxy": etf,
+                    }
 
-        for sector_name in sectors_to_scan:
-            sub_map = SUB_INDUSTRY_ETFS.get(sector_name, {})
-            if not sub_map:
-                output["sectors"][sector_name] = {
-                    "error": f"No sub-industry mapping for '{sector_name}'"
+            # Build flat ranking
+            scored = []
+            for sub_ind, info in all_results.items():
+                data = info["data"]
+                if "error" in data:
+                    continue
+                rs = data.get("rs_data", {})
+                score = 0.0
+                weights = {"1M": 0.15, "3M": 0.30, "6M": 0.30, "12M": 0.25}
+                for period, weight in weights.items():
+                    if period in rs:
+                        rs_change = rs[period]["rs_change_pct"]
+                        period_score = min(4.0, max(-4.0, rs_change * 0.5))
+                        score += period_score * weight
+                momentum = data.get("rs_momentum", "neutral")
+                momentum_bonus = {
+                    "strong_positive": 1.5,
+                    "positive_stable": 0.8,
+                    "improving": 1.0,
+                    "neutral": 0.0,
+                    "deteriorating": -1.0,
+                    "negative_stable": -0.8,
+                    "strong_negative": -1.5,
                 }
-                continue
+                score += momentum_bonus.get(momentum, 0)
+                scored.append(
+                    {
+                        "sub_industry": sub_ind,
+                        "parent_sector": info["parent_sector"],
+                        "proxy": info["proxy"],
+                        "composite_rs": round(score, 2),
+                        "rs_momentum": momentum,
+                        "rs_1m": rs.get("1M", {}).get("rs_change_pct"),
+                        "rs_3m": rs.get("3M", {}).get("rs_change_pct"),
+                        "rs_6m": rs.get("6M", {}).get("rs_change_pct"),
+                        "rs_12m": rs.get("12M", {}).get("rs_change_pct"),
+                    }
+                )
 
-            # Deduplicate: multiple sub-industries may share an ETF
-            results = {}
-            for sub_ind, etf in sub_map.items():
-                if isinstance(etf, list):
-                    etf = etf[0]
-                data = compute_rs(etf, args.benchmark, args.period)
-                results[sub_ind] = data
+            scored.sort(key=lambda x: x["composite_rs"], reverse=True)
+            n = len(scored)
+            for i, entry in enumerate(scored):
+                entry["rank"] = i + 1
+                entry["percentile"] = round((1 - i / max(n - 1, 1)) * 100, 1)
 
-            ranking = rank_sub_industries(results, sector_name)
-            output["sectors"][sector_name] = ranking
+            output = {
+                "level": "sub-industry",
+                "format": "flat_leaderboard",
+                "total_sub_industries": n,
+                "computed_at": datetime.now(timezone.utc).isoformat(),
+                "ranking": scored,
+                "top_quartile": [
+                    e["sub_industry"] for e in scored if e["percentile"] >= 75
+                ],
+                "bottom_quartile": [
+                    e["sub_industry"] for e in scored if e["percentile"] <= 25
+                ],
+                "methodology": "Flat leaderboard: all sub-industries ranked by composite RS. "
+                "Composite = Σ(period RS × weight) + momentum bonus. "
+                "Weights: 1M=15%, 3M=30%, 6M=30%, 12M=25%. "
+                "Stock baskets used for differentiation where available.",
+            }
+        else:
+            # Grouped mode (original): sub-industries grouped by parent sector
+            output = {"level": "sub-industry", "sectors": {}}
+
+            for sector_name in sectors_to_scan:
+                sub_map = SUB_INDUSTRY_ETFS.get(sector_name, {})
+                if not sub_map:
+                    output["sectors"][sector_name] = {
+                        "error": f"No sub-industry mapping for '{sector_name}'"
+                    }
+                    continue
+
+                # Deduplicate: multiple sub-industries may share an ETF
+                results = {}
+                for sub_ind, etf in sub_map.items():
+                    if isinstance(etf, list):
+                        etf = etf[0]
+                    data = compute_rs(etf, args.benchmark, args.period)
+                    results[sub_ind] = data
+
+                ranking = rank_sub_industries(results, sector_name)
+                output["sectors"][sector_name] = ranking
 
     else:
         # Sector mode (original behavior)

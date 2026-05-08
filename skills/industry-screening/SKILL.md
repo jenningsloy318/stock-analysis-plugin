@@ -115,7 +115,7 @@ Scripts are bundled with the plugin. Set `PLUGIN_ROOT` based on platform, then d
 3. **Fetch macro context**: Run `${PLUGIN_SCRIPTS}/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output ./reports/screening/macro.json`. This establishes the macro regime backdrop for sector sensitivity analysis.
 3b. **Fetch economic surprises**: Run `${PLUGIN_SCRIPTS}/fetch_economic_surprises.py --output ./reports/screening/economic_surprises.json` for actual-vs-consensus data. Persistent positive surprises favor cyclicals; negative surprises favor defensives.
 3c. **Compute sector relative strength**: Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for deterministic sector price momentum rankings vs SPY across 1M/3M/6M/12M. This provides the quantitative backbone for the Relative Strength dimension in Phase 1.
-3d. **Compute sub-industry relative strength**: Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --level sub-industry --output ./reports/screening/sub_industry_rs.json` for GICS Level 4 sub-industry RS rankings. This enables granular identification of the strongest sub-industry trends within each sector.
+3d. **Compute sub-industry relative strength**: Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json` for a flat-ranked GICS Level 4 sub-industry RS leaderboard across all sectors. Uses stock baskets for differentiation where sub-industries share an ETF proxy.
 
 4. **Create output directory**: `./reports/screening/`
 

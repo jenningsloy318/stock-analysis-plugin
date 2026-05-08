@@ -145,7 +145,7 @@
 | `forecast.py` | ARIMA/ETS ensemble + GARCH volatility + fat-tail Monte Carlo + regime detection | 6 |
 | `compute_scores.py` | Deterministic 1-11 component scoring (incl. capital structure, Weinstein, CANSLIM) + conviction | 7 (cross-check) |
 | `cross_check.py` | Automated contradiction detection between scoring dimensions (valuation vs moat, red flags, alt data divergence) | 10 (cross-check) |
-| `compute_sector_rs.py` | Sector AND sub-industry relative strength rankings vs SPY (supports `--level sub-industry` for GICS Level 4) | Screening |
+| `compute_sector_rs.py` | Sector AND sub-industry relative strength rankings vs SPY (supports `--level sub-industry --flat` for GICS Level 4 flat leaderboard) | Screening |
 | `compute_factors.py` | Fama-French 5-factor regression + factor attribution (Kenneth French data) | 7 |
 | `compute_liquidity.py` | Market microstructure, Amihud illiquidity, position sizing constraints | 6,10 |
 | `validate_report.py` | Pre-delivery quality gate enforcement (freshness, coverage, consistency, forensics) | 11 (pre-delivery) |
