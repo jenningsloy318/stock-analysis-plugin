@@ -70,21 +70,41 @@ export FINNHUB_API_KEY="your-key"
 
 ## Commands
 
+### Gemini CLI
+
 | Command | Description |
 |---------|-------------|
-| `/stock-analysis:analyze [TICKER]` | Full multi-stage equity research |
+| `/stock-analysis:analyze [TICKER]` | Full multi-stage equity research (all 3 horizons) |
 | `/stock-analysis:quick-overview [TICKER]` | Rapid 3-stage analysis (1-3 min) |
 | `/stock-analysis:compare [T1],[T2],[T3]` | Side-by-side stock comparison |
+| `/stock-analysis:valuation [TICKER]` | Standalone valuation (DCF, comps, relative) |
 | `/stock-analysis:watchlist [TICKER\|all]` | Status check on prior analyses |
-| `/stock-analysis:valuation [TICKER]` | Standalone valuation (Stage 6 only) |
+| `/industry-screening:screen [SCOPE]` | Top-down GICS Level 4 sub-industry screening |
+
+### Claude Code
+
+| Command | Description |
+|---------|-------------|
+| `/stock-analyze [TICKER]` | Full multi-stage equity research (all 3 horizons) |
+| `/quick-overview [TICKER]` | Rapid 3-stage analysis (1-3 min) |
+| `/compare [T1],[T2],[T3]` | Side-by-side stock comparison |
+| `/valuation [TICKER]` | Standalone valuation (DCF, comps, relative) |
+| `/watchlist [TICKER\|all]` | Status check on prior analyses |
+| `/screen-industry [SCOPE]` | Top-down GICS Level 4 sub-industry screening |
+
+### OpenAI Codex
+
+Codex uses the same commands as Claude Code via skill-embedded orchestration.
+
+All commands produce **3 reports** (long-term, mid-term, short-term) automatically — no need to specify horizon. Reports are written in **Chinese (中文)**.
 
 ## Architecture
 
-The `stock-analyst` acts as a team lead — it spawns specialist sub-agents for all analysis work, never performing deep analysis directly. Agent definitions in `agents/` are shared by both Claude Code and Gemini CLI.
+The `stock-analysis-orchestrator` acts as team lead — it spawns specialist sub-agents for all analysis work, never performing deep analysis directly. Agent definitions in `agents/` are shared by both Claude Code and Gemini CLI.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     stock-analyst                             │
+│               stock-analysis-orchestrator                     │
 │                  (Team Lead / Orchestrator)                   │
 │         Spawns specialists, manages parallel execution        │
 └─────────────┬───────────────────────────────┬───────────────┘
@@ -106,7 +126,7 @@ The `stock-analyst` acts as a team lead — it spawns specialist sub-agents for 
               │                               │
               └───────────────┬───────────────┘
                     ┌─────────▼─────────┐
-                    │   equity-report-writer    │
+                    │ equity-report-writer│
                     │   Stage 10-11     │
                     └───────────────────┘
 ```
@@ -140,8 +160,7 @@ stock-analysis-plugin/
 ├── GEMINI.md                # → symlink to CLAUDE.md
 ├── AGENTS.md                # Agent index
 ├── agents/                  # Specialist agent definitions (MD)
-├── commands/                # Claude Code slash commands
-├── gemini-commands/         # Gemini CLI commands (TOML)
+├── commands/                # Slash commands (Claude .md + Gemini .toml)
 ├── skills/                  # Main orchestrator skill
 ├── scripts/                 # Python analysis scripts
 ├── references/              # Analysis framework docs
