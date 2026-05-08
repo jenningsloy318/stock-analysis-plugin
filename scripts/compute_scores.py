@@ -1758,6 +1758,7 @@ def main():
     parser.add_argument(
         "--capital-structure", help="Path to fetch_capital_structure.py output JSON"
     )
+    parser.add_argument("--liquidity", help="Path to compute_liquidity.py output JSON")
     parser.add_argument("--output", help="Output file path (default: stdout)")
     parser.add_argument(
         "--ticker", default="UNKNOWN", help="Ticker symbol for output labeling"
@@ -1795,6 +1796,11 @@ def main():
         with open(args.capital_structure) as f:
             capital_data = json.load(f)
 
+    liquidity_data = {}
+    if args.liquidity:
+        with open(args.liquidity) as f:
+            liquidity_data = json.load(f)
+
     scores = {
         "ticker": args.ticker,
         "report_type": args.report_type,
@@ -1816,6 +1822,31 @@ def main():
 
     # Conviction
     scores["conviction"] = compute_conviction(scores, args.report_type)
+
+    # Liquidity-adjusted position sizing
+    if liquidity_data:
+        liq_score = liquidity_data.get("liquidity_score", 10.0)
+        warnings = liquidity_data.get("warnings", [])
+        pos_sizing = liquidity_data.get("position_sizing", {})
+        scores["liquidity"] = {
+            "score": liq_score,
+            "rating": liquidity_data.get("liquidity_rating", "Unknown"),
+            "days_to_liquidate": pos_sizing.get("days_to_liquidate"),
+            "market_impact_bps": pos_sizing.get("estimated_slippage_bps"),
+            "liquidity_constrained": pos_sizing.get("liquidity_constrained", False),
+            "warnings": warnings,
+        }
+        conv = scores["conviction"]
+        if liq_score < 4.0:
+            conv["position_size_cap"] = "micro_cap_max_2pct"
+            conv["liquidity_note"] = (
+                "Liquidity score <4: max position 2% AUM regardless of conviction"
+            )
+        elif liq_score < 6.0:
+            conv["position_size_cap"] = "small_cap_max_4pct"
+            conv["liquidity_note"] = "Liquidity score <6: max position 4% AUM"
+        else:
+            conv["position_size_cap"] = "standard"
 
     output = json.dumps(scores, indent=2)
     if args.output:

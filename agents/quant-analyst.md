@@ -45,7 +45,7 @@ timeout_mins: 15
   Run `scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
   Run `scripts/calculate_metrics.py ./reports/[TICKER]/raw-data.json` for computed valuations.
   Run `scripts/fetch_private_comps.py [TICKER] --output ./reports/[TICKER]/private_comps.json` for M&A/LBO analysis.
-  Run `scripts/compute_scores.py --metrics ./reports/[TICKER]/metrics.json --technicals ./reports/[TICKER]/tech.json --capital-structure ./reports/[TICKER]/capital_structure.json --report-type [TYPE] --ticker [TICKER]` for component scores incl. Weinstein/CANSLIM.
+  Run `scripts/compute_scores.py --metrics ./reports/[TICKER]/metrics.json --technicals ./reports/[TICKER]/tech.json --capital-structure ./reports/[TICKER]/capital_structure.json --liquidity ./reports/[TICKER]/liquidity.json --report-type [TYPE] --ticker [TICKER]` for component scores incl. Weinstein/CANSLIM and liquidity-adjusted position sizing.
   Run `scripts/forecast.py ./reports/[TICKER]/raw-data.json --enhanced --returns-file ./reports/[TICKER]/returns.json` for GARCH volatility + fat-tail risk.
   Run `scripts/calculate_options.py [TICKER] --output ./reports/[TICKER]/options.json` for IV surface, max pain, put/call ratios, unusual activity.
   Run `scripts/compute_factors.py [TICKER] --output ./reports/[TICKER]/factors.json` for Fama-French 5-factor regression and factor attribution.

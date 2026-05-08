@@ -25,8 +25,9 @@ timeout_mins: 15
 
 <reference-files>
   - references/frameworks_value_growth.md (Porter, Morningstar moat, Fisher's Scuttlebutt)
-  - references/sector_metrics.md (sector-specific competitive metrics)
+  - references/sector_metrics.md (sector-specific competitive metrics + Extended Industry Verticals table)
   - references/international_markets.md (for non-US companies: structural adjustments)
+  - Load the relevant industry deep-dive file from `references/sector_metrics.md` Extended Industry Verticals table based on GICS classification (e.g., industry_saas.md for SaaS, industry_healthcare.md for MedTech, industry_consumer.md for Retail)
 </reference-files>
 
 <data-acquisition>

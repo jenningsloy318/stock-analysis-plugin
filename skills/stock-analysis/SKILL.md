@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.18"
+version: "1.0.19"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -300,12 +300,14 @@ scripts/compute_scores.py \
   --technicals ./reports/[TICKER]/tech.json \
   --alternatives ./reports/[TICKER]/alt-data.json \
   --sentiment ./reports/[TICKER]/sentiment.json \
+  --capital-structure ./reports/[TICKER]/capital_structure.json \
+  --liquidity ./reports/[TICKER]/liquidity.json \
   --report-type [long|mid|short|quick] \
   --gics-sector [SECTOR_CODE] \
   --ticker [TICKER] \
   --output ./reports/[TICKER]/scores.json
 ```
-This produces deterministic Financial Health, Moat Quality, Management Quality, Valuation Attractiveness, Macro Tailwind, Risk Profile, Alternative Alignment, and Technical Setup scores. The LLM agent may adjust Moat and Management scores ±2.0 based on qualitative findings from Stages 1-3. All other scores are fixed.
+This produces deterministic Financial Health, Moat Quality, Management Quality, Valuation Attractiveness, Capital Structure, Macro Tailwind, Risk Profile, Alternative Alignment, Technical Setup, Weinstein Alignment, and CANSLIM scores. Includes liquidity-adjusted position sizing caps. The LLM agent may adjust Moat and Management scores ±2.0 based on qualitative findings from Stages 1-3. All other scores are fixed.
 
 **10b — Cross-Check Pass:** After scoring, validate for internal contradictions:
 1. If Valuation Attractiveness ≤3.0 (significant overvaluation) AND Moat Quality ≥7.5 (wide moat): re-examine the moat assessment — is the market correctly pricing moat erosion?
