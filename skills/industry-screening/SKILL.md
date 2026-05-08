@@ -13,7 +13,7 @@ description: >
   industries to invest," "which sectors are growing," "top-down screening,"
   "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.28"
+version: "1.0.30"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -33,6 +33,8 @@ compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime,
 <triggers>Triggers on: "screen sectors," "best industries to invest," "which sectors are growing," "top-down screening," "find stocks in [SECTOR]," "industry screening," "sector rotation," "most promising sectors," "sector analysis," "what industries have the most growth potential," "screen [SECTOR] for best stocks," "which companies in [INDUSTRY] are worth investing in." Do NOT trigger on: single-stock analysis requests (use stock-analysis skill), general market commentary without screening intent, portfolio allocation questions without ticker discovery intent.</triggers>
 
 This skill performs institutional-grade top-down screening through 4 phases, producing a ranked sector map and a company watchlist suitable as input to the `stock-analysis` skill for deep dives.
+
+**Report language:** ALL screening reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. GICS classification names should include both English and Chinese: e.g., "Semiconductors (半导体)". Source citations remain in original language.
 
 **Critical constraint:** The context window is a shared resource. Follow the eviction protocol strictly. Raw data from completed phases is dropped; only phase summaries persist.
 

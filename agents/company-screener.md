@@ -16,12 +16,12 @@ timeout_mins: 15
   PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
 </platform-paths>
 
-<purpose>Screen all public companies in a given industry, apply quantitative filters to eliminate weak candidates, score survivors on a multi-factor composite, rank them, and produce a prioritized watchlist with abbreviated investment theses. Designed as the bottom of the top-down funnel — feeds into the stock-analysis skill for deep dives on top picks.</purpose>
+<purpose>Screen all public companies in a given GICS Level 4 sub-industry (8-digit code), apply quantitative filters to eliminate weak candidates, score survivors on a multi-factor composite, rank them, and produce a prioritized watchlist with abbreviated investment theses. Designed as the bottom of the top-down funnel — feeds into the stock-analysis skill for deep dives on top picks.</purpose>
 
 <stages>Handles Phase 3 (Company Screening)</stages>
 
 <process>
-  <step n="1" name="Universe Construction">Identify all publicly traded companies in the target industry using GICS classification. Source from sector ETF holdings, industry classification databases, and web search. Target: complete universe for the sub-industry.</step>
+  <step n="1" name="Universe Construction">Identify all publicly traded companies in the target sub-industry using the GICS Level 4 code (8-digit). Reference `references/gics_taxonomy.md` for the sub-industry definition and representative tickers. Source from sector ETF holdings, sub-industry ETF proxy holdings (see taxonomy), industry classification databases, and web search. Cross-reference with exchange-listed companies sharing the same GICS sub-industry code. Target: complete universe for the sub-industry.</step>
   <step n="2" name="Data Fetch">For each company, gather: market cap, revenue (trailing + 3-year history), EPS (trailing + 3-year history), FCF, total debt, cash, P/E, EV/EBITDA, ROIC, ROE, revenue growth (3Y CAGR), average dollar volume, free float, short interest, and sector-specific KPIs. Use finance tool, Firecrawl, Tavily, and official/public sources from `references/data_source_matrix.md` for data acquisition.</step>
   <step n="3" name="Quantitative Filters">Apply minimum thresholds. Companies that fail any filter are excluded with reason noted:
     - Market cap ≥ $500M (adjustable by user)

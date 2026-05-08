@@ -8,6 +8,14 @@
 - Bump the patch level (e.g., 1.0.0 → 1.0.1) and include ALL four files in the same commit
 - ALL four manifest versions MUST always match each other
 
+## Report Language Rule (MUST follow)
+
+- ALL reports produced by both `stock-analysis` and `industry-screening` skills MUST be written in **Chinese (中文)**
+- This applies to: equity research reports, screening reports, stage summaries, executive summaries, investment theses, and company commentaries
+- Technical terms (ticker symbols, financial metric names like P/E, EV/EBITDA, ROIC) may remain in English
+- GICS classification names should include both English and Chinese: e.g., "Semiconductors (半导体)"
+- Source citations remain in their original language
+
 ## Analysis Philosophy (MUST follow)
 
 - **Data integrity first**: Never invent financial figures. If data is unavailable, state "Data not available" — never guess.
@@ -120,7 +128,7 @@
 | `forecast.py` | ARIMA/ETS ensemble + GARCH volatility + fat-tail Monte Carlo + regime detection | 6 |
 | `compute_scores.py` | Deterministic 1-11 component scoring (incl. capital structure, Weinstein, CANSLIM) + conviction | 7 (cross-check) |
 | `cross_check.py` | Automated contradiction detection between scoring dimensions (valuation vs moat, red flags, alt data divergence) | 10 (cross-check) |
-| `compute_sector_rs.py` | Sector relative strength rankings vs SPY across 1M/3M/6M/12M | Screening |
+| `compute_sector_rs.py` | Sector AND sub-industry relative strength rankings vs SPY (supports `--level sub-industry` for GICS Level 4) | Screening |
 | `compute_factors.py` | Fama-French 5-factor regression + factor attribution (Kenneth French data) | 7 |
 | `compute_liquidity.py` | Market microstructure, Amihud illiquidity, position sizing constraints | 6,10 |
 | `validate_report.py` | Pre-delivery quality gate enforcement (freshness, coverage, consistency, forensics) | 11 (pre-delivery) |
@@ -135,6 +143,7 @@
 | `compute_seasonality.py` | Quarterly seasonality indices, YoY decomposition, seasonal expectation assessment | 6 |
 | `compute_correlation_regime.py` | Rolling beta, tail correlation, asymmetric beta, correlation regime, stress-adjusted sizing | 8 |
 | `compute_earnings_edge.py` | Historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend | 6 |
+| `fetch_sub_industry_universe.py` | GICS Level 4 sub-industry constituent discovery via ETF holdings + market cap filter | Screening |
 
 ## Report Quality Gates (MUST follow)
 
