@@ -75,6 +75,26 @@ When frameworks produce contradictory conclusions:
 **Rule 3 — Consensus Distance**: When rules 1-2 don't resolve, explicitly quantify the disagreement and synthesize an intermediate recommendation.
 **Rule 4 — Second-Level Tiebreaker**: Apply Marks: "What does consensus think, and how does my view differ?" Default to consensus-aligned if no variant perception.
 
+## Visual Conviction Scorecard
+
+Include this Mermaid radar chart in every Long-term and Mid-term report to visualize component balance:
+
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+radar
+  title Conviction Scorecard
+  "Financial Health": [SCORE]
+  "Moat Quality": [SCORE]
+  "Management": [SCORE]
+  "Valuation": [SCORE]
+  "Macro": [SCORE]
+  "Risk Profile": [SCORE]
+  "Technical": [SCORE]
+  "Alt Data": [SCORE]
+```
+
+Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions with null scores. For Short-term reports, use a simplified 5-dimension chart (Valuation, Macro, Risk, Technical, Alt Data).
+
 ## Report Templates
 
 ### Long-term Report (1-3+ years)
