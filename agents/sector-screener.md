@@ -114,7 +114,13 @@ timeout_mins: 12
   <gate>Source coverage gaps from `./reports/screening/source-plan.md` must be listed</gate>
 </validation-gates>
 
-<output>Write phase summary to `./reports/screening/sector-[BATCH].md` (Phase 1) or `./reports/screening/deepdive-[SUB_INDUSTRY_CODE]-[NAME].md` (Phase 2). Format: sector scores table, sub-industry leaderboard (top 5 per sector), 3-sentence narrative per sector, and for deep-dive: full competitive analysis at GICS Level 4.</output>
+<output>Write phase summary to `./reports/screening/sector-[BATCH].md` (Phase 1) or `./reports/screening/deepdive-[SUB_INDUSTRY_CODE]-[NAME].md` (Phase 2). Format: sector scores table, sub-industry leaderboard (top 5 per sector), 3-sentence narrative per sector, and for deep-dive: full competitive analysis at GICS Level 4.
+
+  DIMENSION TRANSPARENCY REQUIREMENTS:
+  - Phase 1 output MUST include a full dimension breakdown table for EVERY scored sector: Growth | Profitability | Valuation | Macro Fit | Innovation | Regulation | Capital Flows | RS | Cyclicality | Constituent Quality | Supply/Demand | Composite (all numeric X.X/10)
+  - For sub-industry ranking (Pass 2), show ALL ranking dimensions per sub-industry: RS Rank | Growth Attractiveness | Structural Tailwinds | Concentration Risk | Investable Depth | Composite
+  - Include "关键区分维度" (Key Discriminating Dimensions): which dimensions had the MOST variance and thus drove the ranking differences
+  - Never present only the final composite — always show individual dimension scores so downstream report writer can explain WHY each sub-industry/sector ranked where it did</output>
 
 <constraints>
   <constraint>Use GICS 4-level classification from `references/gics_taxonomy.md` for all sector and sub-industry definitions</constraint>

@@ -32,8 +32,19 @@ DO NOT write reports in English. This rule has NO exceptions.
     - Executive Summary (1 paragraph: macro context → top sub-industries → top picks)
     - Macro Context (current regime, key indicators, implications for sub-industry selection)
     - **Sub-Industry Leaderboard** (top 15-20 sub-industries ranked flat with GICS Level 4 codes, RS rank, growth score, structural score — NO sector grouping as standalone sections. Each entry includes parent sector context inline: "Sector: [X], Industry Group: [Y]")
+    - **Sub-Industry Selection Rationale** (为什么选择这些子行业: For each top-ranked sub-industry, show ALL scoring dimensions with actual figures. Present as a dimension breakdown table: RS Rank | Growth Score | Structural Score | Macro Tailwind Score | Valuation Attractiveness | Innovation Velocity. For each dimension, include the RAW DATA that drives the score — e.g., Growth: "Rev CAGR 28%, EPS CAGR 35%, forward estimate revision +12%". State standard deviation per dimension to show discrimination power. Explain which dimensions most strongly differentiated winners from losers. State "这些子行业胜出的关键维度是...")
     - Sub-Industry Deep Dive (selected sub-industry thesis with GICS code, growth catalysts, competitive dynamics, TAM. MUST include parent-level context: sector tailwinds/headwinds, industry-group dynamics, value chain position relative to adjacent sub-industries)
+    - **Company Selection Rationale** (为什么选择这些公司: For EACH watchlist company, show ALL composite scoring dimensions with actual figures AND the raw data behind each score. Present as a multi-column table: Growth(20%) | Profitability(20%) | Moat(20%) | Valuation(15%) | Management(10%) | Risk(10%) | Liquidity(5%) | Composite. Then for each top-5 company, a detailed data table showing:
+      - Growth: Rev CAGR X%, EPS CAGR X%, estimate revision trend (+X%/-X%)
+      - Profitability: ROIC X%, FCF margin X%, Altman Z X.X, interest coverage X.Xx
+      - Moat: type + specific evidence (market share X%, switching cost metric, patent count)
+      - Valuation: P/E X.X (vs industry X.X), EV/EBITDA X.X (vs X.X), PEG X.X
+      - Management: CEO tenure X yrs, insider own X%, buyback ROI X%
+      - Risk: customer conc X%, D/E X.X, litigation [Y/N], Z-Score X.X
+      - Liquidity: vol $XM/day, float X%, SI X%, borrow [easy/hard]
+      Explain which dimensions drove each company's ranking — "该公司排名靠前主要因为..." Include dimension-level comparison showing WHY #1 beats #2, WHY #2 beats #3, etc. Show the actual numeric delta per dimension.)
     - Company Watchlist (ranked table with metrics, 2-sentence thesis per company, score distribution)
+    - **Dimension Impact Analysis** (维度影响分析: Which dimensions had the MOST variance/discrimination power across candidates? Which dimensions were non-differentiating? Show dimension correlation with final rank. This helps the reader understand what REALLY drove the selections.)
     - Next Actions (which companies to deep-dive with stock-analysis skill, suggested report horizon for each)
     - Risks to Thesis (what would invalidate the sub-industry/company recommendations, kill switch conditions)
     - Methodology Appendix (weighting scheme, GICS classification source, data sources with freshness dates, source coverage gaps, universe completeness risk, scope and filters used)
@@ -121,4 +132,5 @@ For broad screens covering multiple sub-industries, write 3 reports per selected
   <constraint>Methodology appendix must state all weights per horizon type</constraint>
   <constraint>Next Actions must include at least 1 specific ticker recommendation with the suggested stock-analysis report type (long/mid/short)</constraint>
   <constraint>Report writing is the final step — no further analysis or data fetching</constraint>
+  <constraint>DIMENSION TRANSPARENCY (NON-NEGOTIABLE): Every sub-industry in the leaderboard MUST show ALL scoring dimensions with numeric values. Every company in the watchlist MUST show ALL composite scoring dimensions (Growth, Profitability, Moat, Valuation, Management, Risk, Liquidity) with individual scores. Never present only the final composite — always decompose into dimensions so the reader can see WHAT drove the selection. Include "为什么选择" rationale sections explaining which dimensions were decisive.</constraint>
 </constraints>

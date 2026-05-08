@@ -123,6 +123,37 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 
 ---
 
+## 投资评分维度分解 (Conviction Score Decomposition)
+
+### Dimension Scores & Rationale
+
+| Dimension | Weight | Score | Weighted | Key Data Points | Rationale |
+|-----------|--------|-------|----------|-----------------|-----------|
+| Financial Health | 15% | X.X | X.XX | ROIC: XX%, FCF margin: XX%, Z-Score: X.X | [1-sentence: why this score] |
+| Moat Quality | 20% | X.X | X.XX | [Moat type], market share: XX%, retention: XX% | [1-sentence: why this score] |
+| Management | 15% | X.X | X.XX | CEO tenure: X yrs, insider own: X%, alloc: [grade] | [1-sentence: why this score] |
+| Valuation | 20% | X.X | X.XX | P/E: XX.X (vs XX.X), MoS: XX%, PEG: X.X | [1-sentence: why this score] |
+| Capital Structure | 10% | X.X | X.XX | Buyback ROI: XX%, SBC: X%, D/E: X.X | [1-sentence: why this score] |
+| Macro Tailwind | 5% | X.X | X.XX | [Key tailwind/headwind with data] | [1-sentence: why this score] |
+| Risk Profile | 10% | X.X | X.XX | Red flags: X, Z-Score: X.X, litigation: [Y/N] | [1-sentence: why this score] |
+| Weinstein | 5% | X.X | X.XX | Stage: X, RS: X.XX, 30W MA: [direction] | [1-sentence: why this score] |
+| **TOTAL** | 100% | — | **X.XX** | — | — |
+
+### 关键决定维度 (Key Decisive Dimensions)
+[Which 2-3 dimensions MOST influenced the final conviction. State which scored highest/lowest and WHY.
+Example: "本次评级主要由Moat(8.5)和Valuation(8.0)驱动——公司拥有强网络效应(月活用户3.2亿, 留存率95%)，且当前估值P/E 18.5x显著低于行业中位数25.2x，提供32%安全边际。Risk维度(4.5)是主要拖累因素，因客户集中度达35%。"]
+
+### Peer Dimension Comparison (if peers available)
+| Dimension | [TICKER] | Peer 1 | Peer 2 | Peer 3 | Peer Median |
+|-----------|----------|--------|--------|--------|-------------|
+| Financial Health | X.X | X.X | X.X | X.X | X.X |
+| Moat Quality | X.X | X.X | X.X | X.X | X.X |
+| Valuation | X.X | X.X | X.X | X.X | X.X |
+| ... | ... | ... | ... | ... | ... |
+[Explain where the subject stock is STRONGER and WEAKER vs peers, and why]
+
+---
+
 ## Investment Thesis
 - [Bullet 1 — max 2 sentences]
 - [Bullet 2 — max 2 sentences]
@@ -204,6 +235,28 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 [1 paragraph, max 150 words]
 
 **Conviction Rating: [X.X]/10 | Confidence: [Low/Medium/High]**
+
+---
+
+## 投资评分维度分解 (Conviction Score Decomposition — Mid-term)
+
+### Dimension Scores & Rationale
+
+| Dimension | Weight | Score | Weighted | Key Data Points | Rationale |
+|-----------|--------|-------|----------|-----------------|-----------|
+| Financial Health | 10% | X.X | X.XX | ROIC: XX%, FCF: $XM, coverage: X.Xx | [1-sentence] |
+| Moat Quality | 10% | X.X | X.XX | [Moat source + evidence] | [1-sentence] |
+| Management | 10% | X.X | X.XX | CEO tenure: X yrs, beat rate: X/X qtrs | [1-sentence] |
+| Valuation | 20% | X.X | X.XX | P/E: XX.X vs peer XX.X, PEG: X.X | [1-sentence] |
+| Macro Tailwind | 20% | X.X | X.XX | [Rates/GDP/PMI direction + impact] | [1-sentence] |
+| Risk Profile | 10% | X.X | X.XX | Red flags: X, maturity wall: [Y/N] | [1-sentence] |
+| Weinstein | 10% | X.X | X.XX | Stage: X, RS rank: top X% | [1-sentence] |
+| CANSLIM | 10% | X.X | X.XX | [X/7 pass]: C[P/F] A[P/F] N[P/F] S[P/F] L[P/F] I[P/F] M[P/F] | [1-sentence] |
+| **TOTAL** | 100% | — | **X.XX** | — | — |
+
+### 关键决定维度 (Key Decisive Dimensions — Mid-term)
+[Which 2-3 dimensions MOST influenced mid-term conviction. Mid-term prioritizes Valuation + Macro.
+Example: "中期评级由Macro(8.0)和CANSLIM(7.5)主导——当前周期中期扩张阶段利好该公司，且EPS加速增长连续3季超预期(beat rate: 4/4)。Valuation维度(5.5)限制了更高评级，因P/E 25x已接近历史均值。"]
 
 ---
 
@@ -292,6 +345,27 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 [1 paragraph: why now, what's the trade? What is priced in vs what is likely?]
 
 **Conviction Rating: [X.X]/10 | Confidence: [Low/Medium/High]**
+
+---
+
+## 交易评分维度分解 (Conviction Score Decomposition — Short-term)
+
+### Dimension Scores & Rationale
+
+| Dimension | Weight | Score | Weighted | Key Data Points | Rationale |
+|-----------|--------|-------|----------|-----------------|-----------|
+| Valuation | 10% | X.X | X.XX | P/E vs sector: XXx vs XXx, catalyst premium: [Y/N] | [1-sentence] |
+| Macro Tailwind | 10% | X.X | X.XX | [Rate direction, PMI trend, sector rotation] | [1-sentence] |
+| Risk Profile | 10% | X.X | X.XX | Earnings in X days, event risk: [low/med/high] | [1-sentence] |
+| Alt Alignment | 25% | X.X | X.XX | Web traffic: +X%, app rank: #X, social: [bullish/bearish] | [1-sentence] |
+| Technical Setup | 20% | X.X | X.XX | RSI: XX, MACD: [signal], above/below MA: [Y/N] | [1-sentence] |
+| Weinstein | 15% | X.X | X.XX | Stage: X, breakout: [confirmed/pending], volume: [X vs avg] | [1-sentence] |
+| CANSLIM | 10% | X.X | X.XX | M-factor: [confirmed uptrend/correction], EPS accel: [Y/N] | [1-sentence] |
+| **TOTAL** | 100% | — | **X.XX** | — | — |
+
+### 关键决定维度 (Key Decisive Dimensions — Short-term)
+[Which 2-3 dimensions MOST influenced the trade setup. Short-term prioritizes Alt Data + Technical.
+Example: "短期交易信号主要由Alt Alignment(9.0)和Technical(8.5)驱动——网站流量周环比+32%暗示需求加速，且股价刚突破Stage 2阻力位伴随2.5x平均成交量确认。Risk维度(6.0)因5天后财报发布略有折扣。"]
 
 ---
 

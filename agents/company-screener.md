@@ -72,9 +72,12 @@ timeout_mins: 15
 
 <output>Write to `./reports/screening/companies-[INDUSTRY].md`:
   1. Universe summary: total companies screened, number passed/failed filters, filter failure breakdown
-  2. Ranked watchlist table: Ticker | Name | Market Cap | P/E | Rev Growth 3Y | ROIC | FCF Yield | Liquidity | Score
-  3. Top 10-20 companies: 2-sentence thesis each
-  4. Methodology appendix: weights, data sources, freshness dates
+  2. Ranked watchlist table: Ticker | Name | 当前股价 | Market Cap | P/E | Rev Growth 3Y | ROIC | FCF Yield | Liquidity | Score
+  3. **Dimension Breakdown Table** (维度分解): For ALL top-20 companies, show a full multi-column table with EVERY scoring dimension: Growth(20%) | Profitability(20%) | Moat(20%) | Valuation(15%) | Management(10%) | Risk(10%) | Liquidity(5%) | Composite. Each cell contains the numeric score (X.X/10).
+  4. **Selection Rationale** (为什么选择这些公司): For each top-10 company, explain which 2-3 dimensions MOST drove its high ranking (e.g., "该公司排名第2主要因为: Moat 9.2 (强网络效应) + Growth 8.8 (3年CAGR 45%)"). Show WHY #1 beats #2, #2 beats #3 — what dimension differences cause rank differences.
+  5. **Dimension Discrimination Analysis** (维度区分度): State which dimensions had the HIGHEST variance across candidates (most discriminating) and which had the LOWEST variance (non-differentiating). This helps readers understand what truly separates winners.
+  6. Top 10-20 companies: 2-sentence thesis each
+  7. Methodology appendix: weights, data sources, freshness dates
 </output>
 
 <constraints>

@@ -179,6 +179,27 @@ This is NOT a sector ranking — it is context to help the reader locate sub-ind
 
 ---
 
+## Sub-Industry Selection Rationale (为什么选择这些子行业)
+
+### Dimension Breakdown — Top 10 Sub-Industries
+
+| Rank | Sub-Industry | Growth | Profitability | Valuation | Macro Fit | Innovation | Regulation | Capital Flows | RS | Cyclicality | Quality | **Composite** |
+|------|--------------|--------|---------------|-----------|-----------|------------|------------|---------------|-----|------------|---------|---------------|
+| 1 | [Name] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
+| 2 | [Name] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
+| ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
+
+### Key Discriminating Dimensions (关键区分维度)
+[Which 2-3 dimensions had the MOST variance across sub-industries and thus MOST influenced rankings.
+Example: "Growth和Innovation维度的差异最大（标准差分别为2.3和1.9），是拉开排名差距的主要因素。
+排名第1的[Name]在Growth维度得分X.X远超第2名的X.X，主因是..."]
+
+### Why #1 Beats #2, Why #2 Beats #3
+[For each top-3 pair, identify the specific dimensions that caused the rank difference.
+Example: "#1 vs #2: Growth差异(+1.2) + Innovation差异(+0.8) 合计贡献了排名差距的80%"]
+
+---
+
 ## Sub-Industry Deep Dive
 
 ### Selected Sub-Industry: [Name] (GICS: [8-digit Code])
@@ -235,11 +256,47 @@ What sector-level tailwinds/headwinds apply. How this sub-industry fits within t
 
 ### Ranked Watchlist
 
-| Rank | Ticker | Company | Market Cap | P/E | Rev Growth 3Y | ROIC | FCF Yield | Liquidity | **Score** |
-|------|--------|---------|------------|-----|---------------|------|-----------|-----------|-----------|
-| 1 | [TICK] | [Name] | $XB | XX.X | XX% | XX% | X.X% | $XM/day | **X.X** |
-| 2 | [TICK] | [Name] | $XB | XX.X | XX% | XX% | X.X% | $XM/day | **X.X** |
+| Rank | Ticker | Company | 当前股价 | Market Cap | P/E | Rev Growth 3Y | ROIC | FCF Yield | Liquidity | **Score** |
+|------|--------|---------|---------|------------|-----|---------------|------|-----------|-----------|-----------|
+| 1 | [TICK] | [Name] | $XX.XX | $XB | XX.X | XX% | XX% | X.X% | $XM/day | **X.X** |
+| 2 | [TICK] | [Name] | $XX.XX | $XB | XX.X | XX% | XX% | X.X% | $XM/day | **X.X** |
+| ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
+
+### Company Scoring Dimension Breakdown (公司评分维度分解)
+
+| Rank | Ticker | Growth(20%) | Profitability(20%) | Moat(20%) | Valuation(15%) | Management(10%) | Risk(10%) | Liquidity(5%) | **Composite** |
+|------|--------|------------|-------------------|-----------|---------------|----------------|-----------|---------------|---------------|
+| 1 | [TICK] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
+| 2 | [TICK] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
 | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
+
+### Company Selection Rationale (为什么选择这些公司)
+
+**Dimension Data Behind Each Score** (维度详细数据):
+For each top company, show the RAW DATA that drove each dimension score:
+
+**[#1 — TICKER] Dimension Detail:**
+| Dimension | Score | Key Data Points | Source |
+|-----------|-------|-----------------|--------|
+| Growth (X.X) | Rev CAGR: XX%, EPS CAGR: XX%, Estimate Revisions: +X% | [Source, Date] |
+| Profitability (X.X) | ROIC: XX%, FCF Margin: XX%, Z-Score: X.X | [Source, Date] |
+| Moat (X.X) | [Moat type]: [specific evidence — market share XX%, retention XX%, patents XX] | [Source, Date] |
+| Valuation (X.X) | P/E: XX.X (vs industry XX.X), EV/EBITDA: XX.X (vs XX.X), PEG: X.X | [Source, Date] |
+| Management (X.X) | CEO tenure: X years, Insider own: X%, Capital alloc: [track record] | [Source, Date] |
+| Risk (X.X) | Customer conc: X%, D/E: X.X, Litigation: [none/pending], Regulatory: [low/med] | [Source, Date] |
+| Liquidity (X.X) | Avg Vol: $XM/day, Float: XX%, Short Interest: X%, Borrow: [easy/hard] | [Source, Date] |
+
+[Repeat for #2, #3 ... top 5 minimum]
+
+**Key Discriminating Dimensions (关键区分维度)**:
+[Which dimensions had the MOST score variance across the watchlist and thus most influenced final rankings.
+Include: standard deviation per dimension, correlation with final rank.
+Example: "Moat维度标准差最高(2.1)，与最终排名相关系数0.89，是最具区分力的维度"]
+
+**Rank Difference Explanation (排名差异解释)**:
+- #1 vs #2: [TICK1]胜出因为Growth差(+X.X) + Moat差(+X.X)，虽然Valuation较弱(-X.X)
+- #2 vs #3: [TICK2]胜出因为Profitability差(+X.X) + Management差(+X.X)
+[Continue for top-5 pairs]
 
 ### Top Picks — Investment Theses
 

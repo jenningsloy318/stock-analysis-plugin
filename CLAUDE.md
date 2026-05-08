@@ -57,6 +57,7 @@
 - **Methodology transparency**: Every conclusion must be traceable to a specific analytical framework (Buffett, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, or ARK).
 - **Second-level thinking**: Always ask "what's priced in?" not just "what's happening?"
 - **Multi-dimensional analysis**: Cover all critical factors that move stock prices (fundamentals + macro + technicals + alternative data).
+- **Dimension transparency (data-driven)**: Every final report MUST decompose the conviction score into ALL individual dimensions with numeric scores AND the raw data behind each score. Never present only the composite — always show the dimension breakdown table with per-dimension rationale, key data points, and sources. Explain WHICH dimensions most influenced the ranking/rating and WHY (with figures). Include dimension discrimination analysis (standard deviation, correlation with rank) to show what truly drove the selection.
 - **Progressive disclosure**: Load reference files on-demand per analysis stage. Drop raw data after each stage summary is written.
 - **Source attribution**: Every data claim must use `[Source: ... | Retrieved: ... | Fact/Interpretation/Speculation]` format.
 
