@@ -31,7 +31,7 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
-  Run `scripts/fetch_supply_chain.py [TICKER] --sector [GICS] --output ./reports/[TICKER]/supply_chain.json` for supply chain concentration risk scoring.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_supply_chain.py [TICKER] --sector [GICS] --output ./reports/[TICKER]/supply_chain.json` for supply chain concentration risk scoring.
 
   For competitive landscape and industry research, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[COMPANY] market share [industry] [year]", "[COMPANY] competitors analysis"

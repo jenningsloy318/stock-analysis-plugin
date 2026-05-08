@@ -67,6 +67,7 @@ def detect_market(ticker: str) -> str:
 # Tier 0 (China/HK): akshare — wraps East Money, Sina Finance, etc.
 # ---------------------------------------------------------------------------
 
+
 def fetch_from_akshare(ticker: str, years: int) -> dict | None:
     """Fetch Chinese/HK stock data from akshare. Free, no API key.
 
@@ -91,10 +92,23 @@ def fetch_from_akshare(ticker: str, years: int) -> dict | None:
             "entity_name": "",
             "profile": {},
             "financials": {
-                "income_statement": {"revenue": [], "net_income": [], "operating_income": []},
-                "balance_sheet": {"total_assets": [], "total_liabilities": [],
-                                  "stockholders_equity": [], "total_debt": [], "cash": []},
-                "cash_flow": {"operating_cash_flow": [], "capex": [], "free_cash_flow": []},
+                "income_statement": {
+                    "revenue": [],
+                    "net_income": [],
+                    "operating_income": [],
+                },
+                "balance_sheet": {
+                    "total_assets": [],
+                    "total_liabilities": [],
+                    "stockholders_equity": [],
+                    "total_debt": [],
+                    "cash": [],
+                },
+                "cash_flow": {
+                    "operating_cash_flow": [],
+                    "capex": [],
+                    "free_cash_flow": [],
+                },
             },
             "insider_transactions": [],
             "institutional_holdings": [],
@@ -102,7 +116,13 @@ def fetch_from_akshare(ticker: str, years: int) -> dict | None:
             "years_requested": years,
         }
 
-        code = ticker.upper().replace(".SZ", "").replace(".SH", "").replace(".BJ", "").replace(".HK", "")
+        code = (
+            ticker.upper()
+            .replace(".SZ", "")
+            .replace(".SH", "")
+            .replace(".BJ", "")
+            .replace(".HK", "")
+        )
 
         # -- Company profile --
         try:
@@ -127,9 +147,15 @@ def fetch_from_akshare(ticker: str, years: int) -> dict | None:
         # -- Historical K-line for price context --
         try:
             import pandas as pd
+
             if market == "china":
-                hist = ak.stock_zh_a_hist(symbol=code, period="daily",
-                    start_date=f"{2025-years}0101", end_date="20991231", adjust="qfq")
+                hist = ak.stock_zh_a_hist(
+                    symbol=code,
+                    period="daily",
+                    start_date=f"{2025-years}0101",
+                    end_date="20991231",
+                    adjust="qfq",
+                )
             else:
                 hist = ak.stock_hk_daily(symbol=code, adjust="qfq")
 
@@ -140,9 +166,15 @@ def fetch_from_akshare(ticker: str, years: int) -> dict | None:
                 low_c = "最低" if "最低" in hist.columns else "low"
 
                 last = hist.iloc[-1]
-                result["profile"]["current_price"] = float(last[close_c]) if pd.notna(last[close_c]) else None
-                result["profile"]["52w_high"] = float(hist[high_c].max()) if high_c in hist.columns else None
-                result["profile"]["52w_low"] = float(hist[low_c].min()) if low_c in hist.columns else None
+                result["profile"]["current_price"] = (
+                    float(last[close_c]) if pd.notna(last[close_c]) else None
+                )
+                result["profile"]["52w_high"] = (
+                    float(hist[high_c].max()) if high_c in hist.columns else None
+                )
+                result["profile"]["52w_low"] = (
+                    float(hist[low_c].min()) if low_c in hist.columns else None
+                )
         except Exception:
             pass
 
@@ -174,7 +206,6 @@ def fetch_from_akshare(ticker: str, years: int) -> dict | None:
 def _fetch_akshare_us(ticker: str, years: int, ak) -> dict | None:
     """Fetch US stock data via akshare (East Money global coverage)."""
     try:
-        import pandas as pd
         hist = ak.stock_us_daily(symbol=ticker, adjust="qfq")
         if hist is None or hist.empty:
             return None
@@ -186,7 +217,9 @@ def _fetch_akshare_us(ticker: str, years: int, ak) -> dict | None:
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
             "entity_name": ticker,
             "profile": {
-                "current_price": float(close_vals.iloc[-1]) if len(close_vals) > 0 else None,
+                "current_price": float(close_vals.iloc[-1])
+                if len(close_vals) > 0
+                else None,
                 "52w_high": float(close_vals.max()) if len(close_vals) > 0 else None,
                 "52w_low": float(close_vals.min()) if len(close_vals) > 0 else None,
             },
@@ -226,7 +259,6 @@ def _cn_int(value) -> int | None:
 
 def _parse_cn_financials(df, out: dict, years: int):
     """Parse akshare financial_abstract (wide-format) into standard JSON."""
-    import pandas as pd
     if df is None or df.empty:
         return
 
@@ -239,8 +271,10 @@ def _parse_cn_financials(df, out: dict, years: int):
             if mask.any():
                 row = df[mask].iloc[0]
                 return [
-                    {"period": f"{str(c)[:4]}-{str(c)[4:6]}-{str(c)[6:8]}",
-                     "value": _cn_num(row[c])}
+                    {
+                        "period": f"{str(c)[:4]}-{str(c)[4:6]}-{str(c)[6:8]}",
+                        "value": _cn_num(row[c]),
+                    }
                     for c in date_cols[:years]
                 ]
         return []
@@ -252,12 +286,13 @@ def _parse_cn_financials(df, out: dict, years: int):
     out["balance_sheet"]["total_liabilities"] = pick(["负债合计", "总负债"])
     out["balance_sheet"]["stockholders_equity"] = pick(["股东权益", "所有者权益"])
     out["balance_sheet"]["cash"] = pick(["货币资金"])
-    out["cash_flow"]["operating_cash_flow"] = pick(["经营活动产生的现金流量净额", "经营活动现金流"])
+    out["cash_flow"]["operating_cash_flow"] = pick(
+        ["经营活动产生的现金流量净额", "经营活动现金流"]
+    )
 
 
 def _parse_hk_financials(df, out: dict, years: int):
     """Parse HK financial indicators (East Money format)."""
-    import pandas as pd
     if df is None or df.empty:
         return
     try:
@@ -278,6 +313,7 @@ def _parse_hk_financials(df, out: dict, years: int):
 # ---------------------------------------------------------------------------
 # Tier 1 fallback: yfinance (free, no API key, wraps Yahoo Finance)
 # ---------------------------------------------------------------------------
+
 
 def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
     """Fetch from Yahoo Finance via yfinance library. Free, no API key needed."""
@@ -307,8 +343,10 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
                 return []
             row = df.loc[field]
             return [
-                {"period": str(idx.date()) if hasattr(idx, "date") else str(idx),
-                 "value": float(row[idx]) if pd.notna(row[idx]) else None}
+                {
+                    "period": str(idx.date()) if hasattr(idx, "date") else str(idx),
+                    "value": float(row[idx]) if pd.notna(row[idx]) else None,
+                }
                 for idx in row.index[:years]
             ]
 
@@ -320,10 +358,26 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
         gross_profit = df_to_series(income_stmt, "Gross Profit")
 
         total_assets = df_to_series(balance_sheet, "Total Assets")
-        total_liabilities = df_to_series(balance_sheet, "Total Liabilities Net Minority Interest")
+        total_liabilities = df_to_series(
+            balance_sheet, "Total Liabilities Net Minority Interest"
+        )
         stockholders_equity = df_to_series(balance_sheet, "Stockholders Equity")
-        total_debt = df_to_series(balance_sheet, "Total Debt") or df_to_series(balance_sheet, "Long Term Debt")
+        total_debt = df_to_series(balance_sheet, "Total Debt") or df_to_series(
+            balance_sheet, "Long Term Debt"
+        )
         cash_equiv = df_to_series(balance_sheet, "Cash And Cash Equivalents")
+        inventory = df_to_series(balance_sheet, "Inventory")
+        accounts_receivable = df_to_series(
+            balance_sheet, "Accounts Receivable"
+        ) or df_to_series(balance_sheet, "Receivables")
+        accounts_payable = df_to_series(balance_sheet, "Accounts Payable")
+        current_assets = df_to_series(balance_sheet, "Current Assets")
+        current_liabilities = df_to_series(balance_sheet, "Current Liabilities")
+        retained_earnings = df_to_series(balance_sheet, "Retained Earnings")
+        cost_of_revenue = df_to_series(income_stmt, "Cost Of Revenue")
+        pretax_income = df_to_series(income_stmt, "Pretax Income") or df_to_series(
+            income_stmt, "Income Before Tax"
+        )
 
         ocf = df_to_series(cash_flow, "Operating Cash Flow")
         capex = df_to_series(cash_flow, "Capital Expenditure")
@@ -332,15 +386,25 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
         fcf_series = []
         for o, c in zip(ocf, capex):
             if o.get("value") is not None and c.get("value") is not None:
-                fcf_series.append({
-                    "period": o["period"],
-                    "value": o["value"] - abs(c["value"]),
-                })
+                fcf_series.append(
+                    {
+                        "period": o["period"],
+                        "value": o["value"] - abs(c["value"]),
+                    }
+                )
 
         # Quarterly data for recent trend
         quarterly_income = stock.quarterly_financials
-        quarterly_revenue = df_to_series(quarterly_income, "Total Revenue") if quarterly_income is not None else []
-        quarterly_eps = df_to_series(quarterly_income, "Diluted EPS") if quarterly_income is not None else []
+        quarterly_revenue = (
+            df_to_series(quarterly_income, "Total Revenue")
+            if quarterly_income is not None
+            else []
+        )
+        quarterly_eps = (
+            df_to_series(quarterly_income, "Diluted EPS")
+            if quarterly_income is not None
+            else []
+        )
 
         # Insider transactions
         insider_txns = []
@@ -348,13 +412,15 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
             insider_raw = stock.insider_transactions
             if insider_raw is not None and not insider_raw.empty:
                 for _, row in insider_raw.head(30).iterrows():
-                    insider_txns.append({
-                        "name": str(row.get("Insider", "")),
-                        "transaction_type": str(row.get("Transaction", "")),
-                        "shares": row.get("Shares"),
-                        "value": row.get("Value"),
-                        "date": str(row.get("Start Date", "")),
-                    })
+                    insider_txns.append(
+                        {
+                            "name": str(row.get("Insider", "")),
+                            "transaction_type": str(row.get("Transaction", "")),
+                            "shares": row.get("Shares"),
+                            "value": row.get("Value"),
+                            "date": str(row.get("Start Date", "")),
+                        }
+                    )
         except Exception:
             pass
 
@@ -364,12 +430,16 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
             inst_raw = stock.institutional_holders
             if inst_raw is not None and not inst_raw.empty:
                 for _, row in inst_raw.head(20).iterrows():
-                    inst_holders.append({
-                        "holder": str(row.get("Holder", "")),
-                        "shares": row.get("Shares"),
-                        "date_reported": str(row.get("Date Reported", "")),
-                        "pct_out": row.get("% Out") if "% Out" in row.index else None,
-                    })
+                    inst_holders.append(
+                        {
+                            "holder": str(row.get("Holder", "")),
+                            "shares": row.get("Shares"),
+                            "date_reported": str(row.get("Date Reported", "")),
+                            "pct_out": row.get("% Out")
+                            if "% Out" in row.index
+                            else None,
+                        }
+                    )
         except Exception:
             pass
 
@@ -405,6 +475,8 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
                     "net_income": net_income,
                     "operating_income": operating_income,
                     "gross_profit": gross_profit,
+                    "cost_of_revenue": cost_of_revenue,
+                    "pretax_income": pretax_income,
                 },
                 "balance_sheet": {
                     "total_assets": total_assets,
@@ -412,6 +484,12 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
                     "stockholders_equity": stockholders_equity,
                     "total_debt": total_debt,
                     "cash": cash_equiv,
+                    "inventory": inventory,
+                    "accounts_receivable": accounts_receivable,
+                    "accounts_payable": accounts_payable,
+                    "current_assets": current_assets,
+                    "current_liabilities": current_liabilities,
+                    "retained_earnings": retained_earnings,
                 },
                 "cash_flow": {
                     "operating_cash_flow": ocf,
@@ -437,6 +515,7 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
 # ---------------------------------------------------------------------------
 # Tier 2 fallback: SEC EDGAR (free, no API key)
 # ---------------------------------------------------------------------------
+
 
 def _load_cik_mapping() -> dict:
     """Load SEC EDGAR ticker-to-CIK mapping."""
@@ -599,6 +678,7 @@ def fetch_from_edgar(ticker: str, years: int) -> dict | None:
 # Tier 3 fallback: Financial Modeling Prep (premium, API key required)
 # ---------------------------------------------------------------------------
 
+
 def fetch_from_fmp(ticker: str, api_key: str, years: int) -> dict | None:
     """Fetch from Financial Modeling Prep API."""
     try:
@@ -679,6 +759,7 @@ def fetch_from_fmp(ticker: str, api_key: str, years: int) -> dict | None:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(

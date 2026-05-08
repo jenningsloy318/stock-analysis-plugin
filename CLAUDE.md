@@ -78,10 +78,14 @@
 
 ## Script Execution (MUST follow)
 
-- Python scripts in `scripts/` perform deterministic calculations (DCF, ratios, scores, forecasting) — no LLM involvement in math.
+- Python scripts are bundled with the plugin. Reference them using the platform-appropriate root variable:
+  - **Claude Code / Codex CLI**: `${CLAUDE_PLUGIN_ROOT}/scripts/` (read-only plugin install dir)
+  - **Gemini CLI**: Substitute `${extensionPath}` wherever you see `${CLAUDE_PLUGIN_ROOT}` below
+- Persistent state (venvs, caches) goes in `${CLAUDE_PLUGIN_DATA}` (Claude/Codex) to survive plugin updates.
 - Scripts are called via `exec_shell` / `Bash` tool.
-- Required environment: Python 3.10+, dependencies in `scripts/requirements.txt`.
+- Required environment: Python 3.10+, dependencies in `${CLAUDE_PLUGIN_ROOT}/scripts/requirements.txt`.
 - API keys: `FRED_API_KEY` (macro/credit) and `FINNHUB_API_KEY` (sentiment/insider/earnings) are recommended. All other keys are optional with functional fallbacks.
+- Output always goes to `./reports/` relative to the user's workspace.
 
 ### Script Inventory
 
@@ -122,6 +126,7 @@
 | `fetch_short_interest.py` | Short interest dynamics, squeeze scoring, positioning divergence | 6, 7 |
 | `fetch_activist_exposure.py` | Activist 13D tracking, proxy fight probability, insider cluster detection | 6, 7 |
 | `calibrate_conviction.py` | Bayesian conviction calibration, historical accuracy, Brier score | 10 (post-delivery) |
+| `compute_seasonality.py` | Quarterly seasonality indices, YoY decomposition, seasonal expectation assessment | 6 |
 
 ## Report Quality Gates (MUST follow)
 

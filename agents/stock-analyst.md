@@ -65,6 +65,7 @@ timeout_mins: 30
   <script name="fetch_short_interest.py" purpose="Short interest dynamics, squeeze potential scoring, positioning divergence" />
   <script name="fetch_activist_exposure.py" purpose="Activist investor 13D tracking, proxy fight probability, insider cluster detection" />
   <script name="calibrate_conviction.py" purpose="Bayesian conviction calibration, historical accuracy, Brier score adjustment" />
+  <script name="compute_seasonality.py" purpose="Quarterly revenue/EPS seasonal indices, YoY decomposition, current-quarter assessment" />
 </scripts>
 
 <constraints>

@@ -34,11 +34,11 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
-  Run `scripts/fetch_credit.py [TICKER] --output ./reports/[TICKER]/credit.json` for credit spreads, debt maturity, and covenant proxies.
-  Run `scripts/fetch_behavioral.py [TICKER] --output ./reports/[TICKER]/behavioral.json` for narrative economics and contrarian signals.
-  Run `scripts/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json` for risk factor changes and MD&A tone shift.
-  Run `scripts/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest dynamics (bear thesis validation).
-  Run `scripts/fetch_activist_exposure.py --ticker [TICKER] --output ./reports/[TICKER]/activist.json` for activist exposure and governance vulnerability (M&A/activist probability refinement).
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_credit.py [TICKER] --output ./reports/[TICKER]/credit.json` for credit spreads, debt maturity, and covenant proxies.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_behavioral.py [TICKER] --output ./reports/[TICKER]/behavioral.json` for narrative economics and contrarian signals.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json` for risk factor changes and MD&A tone shift.
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest dynamics (bear thesis validation).
+  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_activist_exposure.py --ticker [TICKER] --output ./reports/[TICKER]/activist.json` for activist exposure and governance vulnerability (M&A/activist probability refinement).
 
   For risk research and dissenting view search, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[TICKER] short seller report bear case [year]", "[TICKER] litigation lawsuit regulatory risk"

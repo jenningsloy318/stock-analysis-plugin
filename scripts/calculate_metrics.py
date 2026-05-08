@@ -850,8 +850,45 @@ def compute_ratios(
     if market_cap and rev and rev > 0:
         ps_ratio = market_cap / rev
 
+    # Gross margin from cost_of_revenue
+    cogs_series_r = extract_values(income.get("cost_of_revenue", []))
+    gp_series = extract_values(income.get("gross_profit", []))
+    gross_margin = None
+    if gp_series and rev:
+        gross_margin = round(safe_div(gp_series[0], rev), 4)
+    elif cogs_series_r and rev:
+        gross_margin = round((rev - cogs_series_r[0]) / rev, 4) if rev > 0 else None
+
+    # Margin trajectory (multi-year trend)
+    margin_trajectory = None
+    if len(rev_series) >= 3 and (len(gp_series) >= 3 or len(cogs_series_r) >= 3):
+        gm_history = []
+        for i in range(min(len(rev_series), max(len(gp_series), len(cogs_series_r)))):
+            r = rev_series[i]
+            if r and r > 0:
+                if i < len(gp_series) and gp_series[i]:
+                    gm_history.append(round(gp_series[i] / r, 4))
+                elif i < len(cogs_series_r) and cogs_series_r[i]:
+                    gm_history.append(round((r - cogs_series_r[i]) / r, 4))
+        if len(gm_history) >= 3:
+            recent_avg = (
+                sum(gm_history[:2]) / 2 if len(gm_history) >= 2 else gm_history[0]
+            )
+            older_avg = sum(gm_history[-2:]) / 2
+            delta = recent_avg - older_avg
+            margin_trajectory = {
+                "history": gm_history,
+                "trend": "expanding"
+                if delta > 0.01
+                else "contracting"
+                if delta < -0.01
+                else "stable",
+                "delta_bps": round(delta * 10000),
+            }
+
     ratios = {
-        "gross_margin": None,
+        "gross_margin": gross_margin,
+        "margin_trajectory": margin_trajectory,
         "operating_margin": round(safe_div(oi, rev), 4) if oi and rev else None,
         "net_margin": round(safe_div(ni, rev), 4) if ni and rev else None,
         "roa": round(safe_div(ni, assets), 4) if ni and assets else None,
@@ -859,7 +896,9 @@ def compute_ratios(
         "roic": round(safe_div(oi * (1 - 0.21), equity + debt - cash), 4)
         if oi and equity and debt is not None and cash is not None
         else None,
+        "incremental_roic": None,
         "debt_to_equity": round(safe_div(debt, equity), 4) if debt and equity else None,
+        "current_ratio": None,
         "net_debt": round(debt - cash, 2)
         if debt is not None and cash is not None
         else None,
@@ -894,6 +933,67 @@ def compute_ratios(
         },
     }
 
+    # Cash Conversion Cycle (DIO + DSO - DPO)
+    inv_series = extract_values(balance.get("inventory", []))
+    ar_series = extract_values(balance.get("accounts_receivable", []))
+    ap_series = extract_values(balance.get("accounts_payable", []))
+    cogs_series = extract_values(income.get("cost_of_revenue", []))
+    inv_val = inv_series[0] if inv_series else None
+    ar_val = ar_series[0] if ar_series else None
+    ap_val = ap_series[0] if ap_series else None
+    cogs_val = cogs_series[0] if cogs_series else None
+
+    if cogs_val and cogs_val > 0:
+        dio = round((inv_val / cogs_val) * 365, 1) if inv_val else None
+        dpo = round((ap_val / cogs_val) * 365, 1) if ap_val else None
+    else:
+        dio = None
+        dpo = None
+    dso = round((ar_val / rev) * 365, 1) if ar_val and rev and rev > 0 else None
+
+    ccc = None
+    if dio is not None and dso is not None and dpo is not None:
+        ccc = round(dio + dso - dpo, 1)
+
+    ratios["cash_conversion_cycle"] = {
+        "dio_days": dio,
+        "dso_days": dso,
+        "dpo_days": dpo,
+        "ccc_days": ccc,
+        "interpretation": (
+            "Negative CCC = company gets paid before paying suppliers (capital efficient)"
+            if ccc is not None and ccc < 0
+            else "Lower CCC = faster cash conversion (more efficient working capital)"
+            if ccc is not None
+            else "Insufficient data for CCC computation"
+        ),
+    }
+
+    # Current ratio from balance sheet
+    ca_vals_r = extract_values(balance.get("current_assets", []))
+    cl_vals_r = extract_values(balance.get("current_liabilities", []))
+    if ca_vals_r and cl_vals_r and cl_vals_r[0] and cl_vals_r[0] > 0:
+        ratios["current_ratio"] = round(ca_vals_r[0] / cl_vals_r[0], 4)
+
+    # Incremental ROIC: Δ NOPAT / Δ Invested Capital (year-over-year)
+    if (
+        len(oi_series) >= 2
+        and len(equity_series) >= 2
+        and len(debt_series) >= 2
+        and len(cash_series) >= 2
+    ):
+        nopat_curr = oi_series[0] * (1 - 0.21) if oi_series[0] else None
+        nopat_prior = oi_series[1] * (1 - 0.21) if oi_series[1] else None
+        ic_curr = (
+            (equity_series[0] or 0) + (debt_series[0] or 0) - (cash_series[0] or 0)
+        )
+        ic_prior = (
+            (equity_series[1] or 0) + (debt_series[1] or 0) - (cash_series[1] or 0)
+        )
+        delta_ic = ic_curr - ic_prior
+        if nopat_curr and nopat_prior and delta_ic and abs(delta_ic) > 0:
+            ratios["incremental_roic"] = round((nopat_curr - nopat_prior) / delta_ic, 4)
+
     # DuPont
     if ni and rev and assets and equity:
         ebt_series = extract_values(income.get("pretax_income", []))
@@ -921,7 +1021,9 @@ def compute_peer_comparison(ticker_data: dict, peer_data: dict) -> dict:
         "operating_margin",
         "net_margin",
         "roe",
+        "roic",
         "fcf_yield",
+        "debt_to_equity",
         "revenue_cagr_5yr",
         "ni_cagr_5yr",
     ]:
@@ -1202,12 +1304,22 @@ def main():
     revenue = rev_vals[0] if rev_vals else None
     ebit = oi_vals[0] if oi_vals else None
 
-    # Working capital approximation
-    working_capital = (
-        (total_assets - total_liabilities)
-        if total_assets and total_liabilities
-        else None
-    )
+    # Working capital: prefer current_assets - current_liabilities over total approximation
+    ca_entries = financials.get("balance_sheet", {}).get("current_assets", [])
+    cl_entries = financials.get("balance_sheet", {}).get("current_liabilities", [])
+    re_entries = financials.get("balance_sheet", {}).get("retained_earnings", [])
+    ca_vals = extract_values(ca_entries) if isinstance(ca_entries, list) else []
+    cl_vals = extract_values(cl_entries) if isinstance(cl_entries, list) else []
+    re_vals = extract_values(re_entries) if isinstance(re_entries, list) else []
+
+    if ca_vals and cl_vals:
+        working_capital = ca_vals[0] - cl_vals[0]
+    elif total_assets and total_liabilities:
+        working_capital = total_assets - total_liabilities
+    else:
+        working_capital = None
+
+    retained_earnings = re_vals[0] if re_vals else None
 
     # Shares outstanding: from profile if not given
     shares = args.shares
@@ -1224,7 +1336,7 @@ def main():
         "beneish_mscore": compute_beneish_from_financials(financials),
         "altman_zscore": compute_altman_zscore(
             working_capital=working_capital,
-            retained_earnings=None,
+            retained_earnings=retained_earnings,
             ebit=ebit,
             market_cap=args.market_cap,
             total_liabilities=total_liabilities,

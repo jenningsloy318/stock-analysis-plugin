@@ -146,11 +146,12 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 ## 3. Intrinsic Value Estimate
 [Embed Mermaid charts (e.g., Revenue vs FCF trend) here if provided by the metrics data]
 [Include Economic Value Added (EVA) calculation and ROIC vs WACC spread to assess moat expansion/destruction]
+[Gross margin trajectory: expanding/stable/contracting (delta in bps). Incremental ROIC: efficiency of new capital deployment.]
 [Multiple methods: DCF (base case), Trading Comps, SOTP if applicable. Sensitivity table: WACC vs terminal growth. Reverse DCF implied growth. Margin of safety calculation.]
 [Private market comp / LBO floor (if market cap < $100B): maximum PE buyout price at 20% IRR. Precedent transaction premiums in sector.]
 
 ## 4. Capital Structure & Shareholder Returns
-[Buyback ROI: avg buyback price vs current price (value created/destroyed per dollar). SBC dilution rate (net share count trajectory). Total capital return yield: (Dividends + Net Buybacks) / Market Cap. Debt maturity assessment. Optimal leverage vs sector peers.]
+[Buyback ROI: avg buyback price vs current price (value created/destroyed per dollar). SBC dilution rate (net share count trajectory). Total capital return yield: (Dividends + Net Buybacks) / Market Cap. Debt maturity assessment. Optimal leverage vs sector peers. Cash Conversion Cycle (DIO + DSO - DPO): working capital efficiency vs peers. Current ratio and quick ratio.]
 
 ## 5. Narrative & Growth Runway
 [Damodaran Narrative+Numbers: 3-sentence company future narrative. Each sentence → model variable mapping (growth, margin, reinvestment, risk). Narrative plausibility score. TAM/SAM/SOM. Secular trends. Industry life cycle. Multi-year compounding potential.]
@@ -220,6 +221,7 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 - Our Estimate: Revenue $X, EPS $X
 - Consensus: Revenue $X, EPS $X
 - Variant View: [where and why we differ]
+- Seasonality: [Q seasonal index (1.0=avg). Current quarter vs seasonal expectation (above/in-line/below). Historical beat rate in this quarter.]
 
 ## 4. Relative Valuation
 [P/E (trailing/forward/NTM) vs 5yr avg and peers. EV/EBITDA vs peers with growth justification. P/FCF yield vs risk-free rate. PEG ratio. Private market comp: LBO floor price (if market cap < $100B). Precedent transaction premium range.]
