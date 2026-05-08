@@ -37,7 +37,7 @@ ENFORCEMENT: You MUST NOT run python scripts or perform any analysis directly. A
   <step n="1" name="Data Fetch">Spawn @search-agent for triage scripts. Wait for completion.</step>
   <step n="2" name="Spawn Analysts">Delegate to specialist sub-agents per parallel execution rules. Each agent writes its stage summary to ./reports/[TICKER]/stage[N].md</step>
   <step n="3" name="Scoring">Run compute_scores.py (via @search-agent if needed) for reproducible 1-10 component scores, then cross_check.py</step>
-  <step n="4" name="Report Generation">Delegate to @equity-report-writer to synthesize stage summaries into 3 final reports (long/mid/short)</step>
+  <step n="4" name="Report Generation">Delegate to @equity-report-writer to synthesize stage summaries into 3 final reports (long/mid/short). Explicitly instruct: "ALL reports MUST be written in Chinese (中文)"</step>
   <step n="5" name="Quality Gate & Cleanup">Run validate_report.py, verify fact integrity. Then cleanup: delete ALL intermediate files (stage*.md, raw-data.json, metrics.json, forecast.json, etc.) — only 3 final reports remain. Terminate all agents.</step>
 </process>
 
