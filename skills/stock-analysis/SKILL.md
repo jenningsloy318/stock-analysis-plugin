@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.31"
+version: "1.0.32"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -23,7 +23,7 @@ compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl 
 
 <triggers>Triggers on: "analyze [TICKER]", "stock analysis", "equity research", "should I buy [TICKER]", "deep dive on [COMPANY]", "investment thesis", "valuation of [TICKER]", "due diligence on [COMPANY]". Do NOT trigger on: general market commentary, portfolio questions without specific tickers, non-financial queries.</triggers>
 
-This skill performs institutional-grade stock analysis through 11 stages, producing 1-3 reports (long/mid/short-term) per ticker. Analysis depth adjusts per report type — see `references/equity_report_templates.md` for output formats.
+This skill performs institutional-grade stock analysis through 11 stages, producing 3 reports (long/mid/short-term) per ticker. Analysis depth adjusts per report type — see `references/equity_report_templates.md` for output formats.
 
 **Report language:** ALL reports MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. Source citations remain in original language.
 
@@ -102,13 +102,13 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 ### Step 0: Triage (orchestrator executes directly)
 
 1. Identify the ticker symbol from the user's request. If ambiguous (e.g., "Apple"), resolve via `mcp__xcrawl-mcp__xcrawl_search`: "Apple Inc stock ticker symbol."
-2. Determine report type(s) using the decision tree:
-   - "long-term" / "invest" / "intrinsic value" → Long-term (1-3+ years)
-   - "trade" / "swing" / "catalyst" / "earnings" → Mid-term (1-12 months)
-   - "options" / "momentum" / "this week" / "setup" → Short-term (days-weeks)
-   - "quick" / "overview" / "snapshot" → Quick Overview (reduced stages, Mid-term format)
-   - Default (no horizon specified) → Mid-term, then ask: "Would you also like a long-term intrinsic value analysis?"
-3. **Initialize state**: Run `${PLUGIN_SCRIPTS}/persist.py init [TICKER] --report-type [TYPE]` to create a checkpointed analysis session. Record the returned `analysis_id` — use it for all subsequent `persist.py save` calls.
+2. **Report types — ALL THREE automatically**: Every stock analysis run produces 3 reports covering all horizons:
+   - **Long-term** (1-3+ years) — intrinsic value, moat, secular growth
+   - **Mid-term** (1-12 months) — catalyst, cycle positioning, valuation entry
+   - **Short-term** (days-weeks) — momentum, technicals, sentiment, options setup
+   
+   Do NOT ask the user which horizon — always produce all three. Each horizon generates a separate final report file. The "quick" option is only used if the user explicitly says "quick" or "overview."
+3. **Initialize state**: Run `${PLUGIN_SCRIPTS}/persist.py init [TICKER] --report-type long` to create the primary analysis session. Record the returned `analysis_id`. One data-collection pass feeds all 3 report types — the reports diverge at the synthesis/scoring stage.
 4. Create output directory: `./reports/[TICKER]/`
 5. **Source coverage plan**: Load `references/data_source_matrix.md`. Write `./reports/[TICKER]/source-plan.md` with required data by dimension, source tier, max freshness, and confidence cap rules. For non-US issuers, explicitly name local filing/statistical substitutes.
 6. **Earnings calendar check**: Run `${PLUGIN_SCRIPTS}/fetch_sentiment.py [TICKER] --sources earnings` for upcoming earnings dates and past surprises. If FINNHUB_API_KEY is not set, fall back to `mcp__web-search-prime__web_search_prime` for "[TICKER] next earnings date [YEAR]". If earnings are within 14 days, warn the user: "Earnings report on [DATE] may invalidate this analysis. Proceed or wait?" If within 3 days, recommend waiting unless the user explicitly overrides.
@@ -354,7 +354,7 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
 1. Read all stage summaries from `./reports/[TICKER]/stage[1-9].md`
 2. Load deterministic scores from `./reports/[TICKER]/scores.json`
 3. Load `references/equity_report_templates.md` for output structure and `references/data_source_matrix.md` for confidence/data-quality disclosure
-4. Determine which report types to generate (from Step 0 triage)
+4. Generate ALL 3 report types (long-term, mid-term, short-term) from the same data:
 5. For each report type:
    - Use the deterministic conviction score and rating from `compute_scores.py` output (do NOT invent a new conviction number)
    - Apply methodology weights per report type
@@ -363,7 +363,10 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
    - Include a Data Quality & Coverage section in the appendix with stale/missing source impacts
    - Generate the report following the template structure exactly
    - Run the pre-delivery checklist (see below)
-6. Write each report to `./reports/[TICKER]/[TICKER]_[ReportType]_[YYYY-MM-DD].md`
+6. Write 3 reports:
+   - `./reports/[TICKER]/[TICKER]_long_[YYYY-MM-DD].md`
+   - `./reports/[TICKER]/[TICKER]_mid_[YYYY-MM-DD].md`
+   - `./reports/[TICKER]/[TICKER]_short_[YYYY-MM-DD].md`
 7. Run `${PLUGIN_SCRIPTS}/persist.py complete [ANALYSIS_ID]` to mark the analysis as completed.
 
 **Post-Delivery:**

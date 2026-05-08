@@ -56,15 +56,16 @@ timeout_mins: 12
 <deep-dive-mode>
   When invoked for Phase 2 (sub-industry deep-dive), the target is a specific GICS Level 4 sub-industry (8-digit code). Load `references/gics_taxonomy.md` for the sub-industry definition and representative tickers. Perform these steps:
   <step n="15" name="Sub-Industry Definition">State exact GICS Level 4 code, name, parent hierarchy (Sector → Industry Group → Industry → Sub-Industry), what's included/excluded, and boundary cases with adjacent sub-industries.</step>
-  <step n="16" name="Complete Universe">List ALL publicly traded companies in this sub-industry using GICS code, ETF holdings cross-reference, and exchange data. This is the candidate pool for Phase 3.</step>
-  <step n="17" name="Peer Comparison">Compare this sub-industry vs adjacent sub-industries in the same Industry Group (GICS Level 3). Why is this sub-industry stronger?</step>
-  <step n="18" name="Competitive Analysis">Porter's Five Forces for the sub-industry, identify moat sources.</step>
-  <step n="19" name="Profit Pool Map">Identify where gross profit, bargaining leverage, and pricing power accumulate across the value chain.</step>
-  <step n="20" name="Growth Catalysts">Secular trends, demand drivers, technology shifts, demographic tailwinds specific to this sub-industry.</step>
-  <step n="21" name="Market Sizing">TAM estimate (top-down), bottom-up sanity check, growth rate, penetration rate, adjacent markets.</step>
-  <step n="22" name="Unit Economics">Apply sector-specific KPIs from `references/data_source_matrix.md` and `references/sector_metrics.md`.</step>
-  <step n="23" name="Key Players">Top 5-10 companies by market cap, market share distribution, concentration ratios.</step>
-  <step n="24" name="Industry Life Cycle">Classify as Emerging / Growth / Mature / Decline with evidence.</step>
+  <step n="16" name="Parent-Level Context">Research and document the parent sector's macro sensitivity, industry-group dynamics, and how adjacent sub-industries relate. This context is embedded in the sub-industry analysis, not as a separate section. Include: sector tailwinds/headwinds, industry-group competitive positioning, and value chain adjacencies.</step>
+  <step n="17" name="Complete Universe">List ALL publicly traded companies in this sub-industry using GICS code, ETF holdings cross-reference, and exchange data. This is the candidate pool for Phase 3.</step>
+  <step n="18" name="Peer Comparison">Compare this sub-industry vs adjacent sub-industries in the same Industry Group (GICS Level 3). Why is this sub-industry stronger?</step>
+  <step n="19" name="Competitive Analysis">Porter's Five Forces for the sub-industry, identify moat sources.</step>
+  <step n="20" name="Profit Pool Map">Identify where gross profit, bargaining leverage, and pricing power accumulate across the value chain.</step>
+  <step n="21" name="Growth Catalysts">Secular trends, demand drivers, technology shifts, demographic tailwinds specific to this sub-industry.</step>
+  <step n="22" name="Market Sizing">TAM estimate (top-down), bottom-up sanity check, growth rate, penetration rate, adjacent markets.</step>
+  <step n="23" name="Unit Economics">Apply sector-specific KPIs from `references/data_source_matrix.md` and `references/sector_metrics.md`.</step>
+  <step n="24" name="Key Players">Top 5-10 companies by market cap, market share distribution, concentration ratios.</step>
+  <step n="25" name="Industry Life Cycle">Classify as Emerging / Growth / Mature / Decline with evidence.</step>
 </deep-dive-mode>
 
 <data-acquisition>

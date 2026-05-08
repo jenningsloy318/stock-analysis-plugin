@@ -13,7 +13,7 @@ description: >
   industries to invest," "which sectors are growing," "top-down screening,"
   "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.31"
+version: "1.0.32"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -25,11 +25,17 @@ compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime,
 <purpose>Industry-screening-orchestrator (team lead) agent team workflow. Uses GICS Level 4 (Sub-Industry, 163 classifications) as the ONLY screening unit. Reports present ONLY sub-industry classifications — never show Sector (Level 1), Industry Group (Level 2), or Industry (Level 3) as standalone categories. The orchestrator spawns specialized screener teammates — it NEVER performs deep analysis directly, only spawns, coordinates, and synthesizes.</purpose>
 
 <default-granularity>
-  GICS Level 4 (Sub-Industry) is the ONLY classification shown in reports.
-  STRICT RULE: Do NOT present Level 1/2/3 categories as report sections or ranking dimensions.
-  Internal workflow may use sectors for ETF-based RS calculation, but the REPORT OUTPUT
-  presents ONLY the 163 sub-industries directly — flat ranked list, no hierarchical grouping.
-  Reference: `references/gics_taxonomy.md` for sub-industry codes and names.
+  GICS Level 4 (Sub-Industry) is the PRIMARY structural unit in all reports.
+  STRICT RULE: Do NOT present Level 1/2/3 categories as standalone report SECTIONS or ranking dimensions.
+  The REPORT STRUCTURE uses Level 4 sub-industries as the organizing principle — flat ranked list, no hierarchical grouping by sector.
+  
+  HOWEVER: Level 1 (Sector), Level 2 (Industry Group), and Level 3 (Industry) data IS CRUCIAL
+  and MUST be included as CONTEXTUAL INFORMATION within each Level 4 sub-industry section.
+  For example, a sub-industry entry should note its parent sector's macro sensitivity,
+  industry-group competitive dynamics, and how it relates to adjacent sub-industries.
+  
+  Rule: Level 4 = STRUCTURE (sections, rankings). Level 1/2/3 = CONTEXT (within Level 4 sections).
+  Reference: `references/gics_taxonomy.md` for full GICS hierarchy.
 </default-granularity>
 
 <triggers>Triggers on: "screen sectors," "best industries to invest," "which sectors are growing," "top-down screening," "find stocks in [SECTOR]," "industry screening," "sector rotation," "most promising sectors," "sector analysis," "what industries have the most growth potential," "screen [SECTOR] for best stocks," "which companies in [INDUSTRY] are worth investing in." Do NOT trigger on: single-stock analysis requests (use stock-analysis skill), general market commentary without screening intent, portfolio allocation questions without ticker discovery intent.</triggers>
@@ -97,11 +103,12 @@ Scripts are bundled with the plugin. Set `PLUGIN_ROOT` based on platform, then d
    - "[theme]" (e.g., "AI," "clean energy," "aging population") → Identify relevant sectors via web search, then screen those
    - Default (no scope specified) → Ask: "Screen all sectors or focus on a specific one?"
 
-2. **Determine investment horizon** (affects composite weightings):
-   - "long-term" / "invest" / "5 years" → Long-term (growth + moat weighted)
-   - "trade" / "6 months" / "cyclical" → Mid-term (macro cycle + valuation weighted)
-   - "momentum" / "this quarter" → Short-term (momentum + sentiment weighted)
-   - Default → Mid-term, then ask if the user wants a different horizon
+2. **Investment horizon — ALL THREE automatically**: Every screening run produces 3 reports covering all horizons. The composite weightings differ per horizon:
+   - **Long-term** (growth + moat weighted)
+   - **Mid-term** (macro cycle + valuation weighted)
+   - **Short-term** (momentum + sentiment weighted)
+   
+   Do NOT ask the user which horizon — always produce all three. Each horizon generates a separate final report file.
 
 3. **Fetch macro context**: Run `${PLUGIN_SCRIPTS}/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output ./reports/screening/macro.json`. This establishes the macro regime backdrop for sector sensitivity analysis.
 3b. **Fetch economic surprises**: Run `${PLUGIN_SCRIPTS}/fetch_economic_surprises.py --output ./reports/screening/economic_surprises.json` for actual-vs-consensus data. Persistent positive surprises favor cyclicals; negative surprises favor defensives.
@@ -110,7 +117,7 @@ Scripts are bundled with the plugin. Set `PLUGIN_ROOT` based on platform, then d
 
 4. **Create output directory**: `./reports/screening/`
 
-5. **Initialize state**: Run `${PLUGIN_SCRIPTS}/persist.py init SCREEN-[TIMESTAMP] --report-type screen` to create a checkpointed screening session. Record the returned `analysis_id`.
+5. **Initialize state**: Run `${PLUGIN_SCRIPTS}/persist.py init SCREEN-[TIMESTAMP] --report-type screen` to create a checkpointed screening session. Record the returned `analysis_id`. One session covers all 3 horizons — the horizons diverge at scoring/weighting time, not at data collection time.
 
 6. **Source coverage plan**: Load `references/data_source_matrix.md` and `references/gics_taxonomy.md`. Write `./reports/screening/source-plan.md` with classification sources (GICS Level 4 sub-industries), required source tiers, freshness windows, and confidence cap rules.
 
@@ -256,27 +263,32 @@ For long-term and mid-term reports, use constituent quality as a tiebreaker. For
 
 ### Phase 4: Report Generation → Spawn screening-report-writer
 
-**Objective:** Synthesize all phase summaries into a final screening report with conviction scoring.
+**Objective:** Synthesize all phase summaries into final screening reports with conviction scoring. Produce **3 separate reports** — one per investment horizon (long-term, mid-term, short-term) — each with horizon-specific composite weightings.
 
-**Spawn strategy:** Spawn 1 `screening-report-writer` agent. The orchestrator provides the analysis_id and phase summary file paths.
+**Spawn strategy:** Spawn 1 `screening-report-writer` agent. The orchestrator provides the analysis_id, phase summary file paths, and instructs the writer to produce all 3 horizon variants.
 
 **Screening-report-writer workflow:**
 - [ ] Load all phase summaries from `./reports/screening/phase[0-3].md`
-- [ ] Cross-validate internal consistency (selected industry aligns with top sector, companies match industry)
-- [ ] Structure the report:
-  - **Executive Summary** (1 paragraph covering the funnel: macro → sector → industry → top picks)
-  - **Macro Context** — Current regime, key indicators, implications for sector selection
-  - **Sector Ranking** — Table with scores, 1-paragraph commentary per top-3 sector
-  - **Industry Deep Dive** — Selected industry thesis, growth catalysts, competitive dynamics, TAM
+- [ ] Cross-validate internal consistency (selected sub-industry companies match GICS Level 4 code)
+- [ ] For EACH horizon (long-term, mid-term, short-term), apply the corresponding weighting scheme and produce a report with this structure (ALL output in Chinese, Level 4 as PRIMARY structure):
+  - **Executive Summary** — 1 paragraph: macro → top sub-industries → top picks
+  - **Macro Context** — Current regime, key indicators, implications for sub-industry selection
+  - **Sub-Industry Leaderboard** — Flat ranked table of top 15-20 sub-industries with GICS Level 4 codes, NO sector grouping as separate sections. Each sub-industry entry includes its parent sector/industry-group context inline.
+  - **Sub-Industry Deep Dive** — Selected sub-industry thesis with GICS code, growth catalysts, competitive dynamics, TAM. MUST include parent-level context: sector tailwinds, industry-group dynamics, and where this sub-industry sits in the broader value chain.
   - **Company Watchlist** — Ranked table with key metrics, 2-sentence thesis per company
   - **Next Actions** — Which companies to deep-dive with `stock-analysis` skill, suggested report horizon
-  - **Risks to Thesis** — What would invalidate the industry/company recommendations, kill switch conditions
-  - **Methodology Appendix** — Weighting scheme, data sources, freshness dates, source coverage gaps, universe completeness risk
-- [ ] Compute funnel conviction scores (Sector Selection Confidence, Industry Selection Confidence, Overall Screen Quality)
+  - **Risks to Thesis** — What would invalidate the sub-industry/company recommendations, kill switch conditions
+  - **Methodology Appendix** — Weighting scheme, GICS Level 4 classification source, data sources, freshness dates, source coverage gaps
+- [ ] Compute conviction scores (Sub-Industry Selection Confidence, Overall Screen Quality) per horizon
 - [ ] Run pre-delivery checklist and fact verification
-- [ ] Write report to `./reports/screening/[SECTOR]_[INDUSTRY]_[YYYY-MM-DD].md`
+- [ ] Write 3 reports:
+  - `./reports/screening/[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
+  - `./reports/screening/[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
+  - `./reports/screening/[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
 - [ ] Run `${PLUGIN_SCRIPTS}/persist.py complete [ANALYSIS_ID]`
 - [ ] Generate handoff recommendation for stock-analysis deep-dive
+
+**Note:** Rankings may differ across horizons because weighting schemes prioritize different factors (growth/moat for long-term vs momentum/flows for short-term).
 
 **Validation gate:** All phase summaries loaded and internally consistent. At least 3 fact checks passed. Kill switch conditions defined.
 
@@ -285,16 +297,18 @@ For long-term and mid-term reports, use constituent quality as a tiebreaker. For
 Before delivering the screening report, verify:
 - [ ] Macro data within 30 days freshness
 - [ ] Source coverage plan completed and confidence caps applied
-- [ ] Sector data within 90 days freshness
-- [ ] At least 3 sectors scored and ranked (for broad screens)
-- [ ] Selected industry has a clear structural thesis (not just momentum)
+- [ ] Sub-industry data within 90 days freshness
+- [ ] Sub-industry leaderboard contains at least 10 ranked sub-industries (Level 4 only)
+- [ ] NO sector-level (Level 1/2/3) categories used as standalone report SECTIONS (they appear only as context within Level 4 entries)
+- [ ] Selected sub-industry has a clear structural thesis with GICS Level 4 code (not just momentum)
 - [ ] At least 10 companies in the watchlist
 - [ ] Universe construction source stated and missing-universe risk assessed
 - [ ] All company metrics cited with source and date
-- [ ] Sector-specific KPIs included where material
+- [ ] Sub-industry-specific KPIs included where material
 - [ ] Methodology weights stated
-- [ ] Kill switch conditions defined (what would invalidate the industry thesis)
-- [ ] No invented data — "Data not available" used where appropriate
+- [ ] Kill switch conditions defined (what would invalidate the sub-industry thesis)
+- [ ] Report written in Chinese (中文)
+- [ ] No invented data — "数据不可用" used where appropriate
 
 ## Context Eviction Protocol
 

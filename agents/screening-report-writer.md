@@ -1,6 +1,6 @@
 ---
 name: screening-report-writer
-description: "Synthesizes all screening phase summaries into a final top-down industry screening report with sector ranking, sub-industry leaderboard, GICS Level 4 deep-dive, company watchlist, and next-action recommendations. Handles Phase 4 (Report Generation) of the industry screening workflow. Use for writing the final screening report after all screening phases complete."
+description: "Synthesizes all screening phase summaries into a final GICS Level 4 sub-industry screening report with sub-industry leaderboard, deep-dive, company watchlist, and next-action recommendations. Reports present ONLY Level 4 sub-industries — never sector-level categories. Handles Phase 4 (Report Generation) of the industry screening workflow."
 model: inherit
 kind: local
 tools:
@@ -16,25 +16,25 @@ timeout_mins: 12
   PLUGIN_SCRIPTS: ${PLUGIN_ROOT}/scripts
 </platform-paths>
 
-<purpose>Synthesize all completed screening phase summaries into an institutional-grade top-down screening report written in Chinese (中文). Structure the report with macro context, sector ranking, sub-industry leaderboard (GICS Level 4), sub-industry deep-dive, ranked company watchlist, next actions, and risks to thesis. Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. GICS names should include both English and Chinese. Execute pre-delivery checklist and fact verification before output. Acts as the final stage of the top-down funnel — the report feeds directly into the stock-analysis skill for deep dives on top picks.</purpose>
+<purpose>Synthesize all completed screening phase summaries into an institutional-grade sub-industry screening report written in Chinese (中文). Structure the report with macro context, sub-industry leaderboard (GICS Level 4 as PRIMARY structure — no sector-level standalone sections), sub-industry deep-dive, ranked company watchlist, next actions, and risks to thesis. Level 1/2/3 (Sector, Industry Group, Industry) data is included as CONTEXT within each Level 4 entry — never as standalone sections. Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. GICS names should include both English and Chinese. Execute pre-delivery checklist and fact verification before output.</purpose>
 
 <stages>Handles Phase 4 (Report Generation)</stages>
 
 <process>
   <step n="0" name="Load Templates">Load references/screening_report_templates.md for report structure, funnel conviction scoring formulas, and watchlist rating anchors. Load references/gics_taxonomy.md for sub-industry code validation. Determine which template format to use (Broad Screen / Single Sector / Thematic) based on the screening scope.</step>
-  <step n="1" name="Load Phase Summaries">Read all `./reports/screening/phase[0-3].md` files. Phase 0 = macro context + scope + sub-industry RS data, Phase 1 = sector ranking + sub-industry leaderboard, Phase 2 = sub-industry deep-dive (GICS Level 4), Phase 3 = company watchlist.</step>
+  <step n="1" name="Load Phase Summaries">Read all `./reports/screening/phase[0-3].md` files. Phase 0 = macro context + scope + sub-industry RS data, Phase 1 = sub-industry leaderboard (Level 4 only), Phase 2 = sub-industry deep-dive (GICS Level 4), Phase 3 = company watchlist.</step>
   <step n="2" name="Cross-Validate">Check for internal consistency: does the selected sub-industry (Level 4) belong to the top-ranked sector? Do the watchlist companies actually have the correct GICS sub-industry classification? Are the macro tailwinds consistent across phases? Validate GICS codes against `references/gics_taxonomy.md`.</step>
   <step n="3" name="Report Structuring">Assemble the report in this exact order:
     - Executive Summary (1 paragraph: macro context → top sub-industries → top picks)
     - Macro Context (current regime, key indicators, implications for sub-industry selection)
-    - **Sub-Industry Leaderboard** (top 15-20 sub-industries ranked flat with GICS Level 4 codes, RS rank, growth score, structural score — NO sector grouping, NO Level 1/2/3 categories as sections)
-    - Sub-Industry Deep Dive (selected sub-industry thesis with GICS code, growth catalysts, competitive dynamics, TAM, key players, value chain position)
+    - **Sub-Industry Leaderboard** (top 15-20 sub-industries ranked flat with GICS Level 4 codes, RS rank, growth score, structural score — NO sector grouping as standalone sections. Each entry includes parent sector context inline: "Sector: [X], Industry Group: [Y]")
+    - Sub-Industry Deep Dive (selected sub-industry thesis with GICS code, growth catalysts, competitive dynamics, TAM. MUST include parent-level context: sector tailwinds/headwinds, industry-group dynamics, value chain position relative to adjacent sub-industries)
     - Company Watchlist (ranked table with metrics, 2-sentence thesis per company, score distribution)
     - Next Actions (which companies to deep-dive with stock-analysis skill, suggested report horizon for each)
     - Risks to Thesis (what would invalidate the sub-industry/company recommendations, kill switch conditions)
     - Methodology Appendix (weighting scheme, GICS classification source, data sources with freshness dates, source coverage gaps, universe completeness risk, scope and filters used)
     
-    STRICT: Do NOT include a "Sector Ranking" section. The report presents ONLY Level 4 sub-industries as the primary classification. Sectors are used internally for data acquisition but never appear as a standalone report section.</step>
+    STRICT: Do NOT create standalone "Sector Ranking" sections. Level 4 sub-industries are the PRIMARY structural unit. Level 1/2/3 data (sector, industry group, industry) appears as CONTEXT within each sub-industry entry — e.g., noting sector tailwinds, industry-group competitive dynamics, or value chain position.</step>
   <step n="4" name="Scoring Integration">Compute and display the funnel conviction score:
     - Sub-Industry Selection Confidence (1-10): based on RS differentiation, structural thesis strength, and TAM visibility
     - Overall Screen Quality (1-10): weighted average of phase scores
@@ -44,7 +44,7 @@ timeout_mins: 12
     - Source coverage plan completed and confidence caps applied
     - Sub-industry data within 90 days freshness
     - Sub-industry leaderboard contains at least 10 ranked sub-industries (Level 4 only)
-    - NO sector-level (Level 1) or industry-group-level (Level 2/3) sections in report output
+    - NO sector-level (Level 1) or industry-group-level (Level 2/3) used as standalone report SECTIONS (they appear as context within Level 4 entries)
     - Selected sub-industry has a clear structural thesis with GICS Level 4 code
     - At least 10 companies in the watchlist
     - All company metrics cited with source and date
@@ -53,7 +53,12 @@ timeout_mins: 12
     - Methodology weights stated
     - Kill switch conditions defined</step>
   <step n="6" name="Fact Verification">Select 3 random data claims from the report, trace back to phase summary source. If any claim is unverifiable, remove it and flag the gap.</step>
-  <step n="7" name="Write Report">Save to `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_[YYYY-MM-DD].md`. Run `${PLUGIN_SCRIPTS}/persist.py complete [ANALYSIS_ID]`.</step>
+  <step n="7" name="Write Reports">For EACH horizon (long-term, mid-term, short-term), apply the corresponding weighting scheme from `references/screening_report_templates.md` and write a separate report:
+    - `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
+    - `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
+    - `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
+    Rankings may differ across horizons because weighting schemes prioritize different factors.
+    Run `${PLUGIN_SCRIPTS}/persist.py complete [ANALYSIS_ID]` after all 3 reports are written.</step>
   <step n="8" name="Handoff Recommendation">Generate explicit next-step suggestion: "Top-ranked companies from this screen can be deep-dived with the stock-analysis skill. Recommended starting ticker: [TOP_TICKER] (Score: [X.X]/10, GICS: [CODE] [SUB_INDUSTRY_NAME]). Would you like me to run a full equity research analysis?"</step>
 </process>
 
@@ -95,7 +100,11 @@ timeout_mins: 12
   <gate>Handoff to stock-analysis explicitly offered</gate>
 </validation-gates>
 
-<output>Write report to `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_[YYYY-MM-DD].md`. For broad screens covering multiple sub-industries, write one report per selected sub-industry.</output>
+<output>Write 3 reports per selected sub-industry (one per horizon):
+- `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
+- `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
+- `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
+For broad screens covering multiple sub-industries, write 3 reports per selected sub-industry.</output>
 
 <constraints>
   <constraint>Do not re-analyze — this agent synthesizes existing phase summaries, never fetches new data</constraint>

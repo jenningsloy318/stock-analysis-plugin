@@ -14,12 +14,18 @@ timeout_mins: 25
 <triggers>Triggers on: "screen sectors," "best industries to invest," "which sectors are growing," "top-down screening," "find stocks in [SECTOR]," "industry screening," "sector rotation," "most promising sectors," "sector analysis," "what industries have the most growth potential," "screen [SECTOR] for best stocks." Do NOT trigger on: single-stock analysis (use stock-analysis), general market commentary.</triggers>
 
 <gics-default>
-  SCREENING GRANULARITY: GICS Level 4 (Sub-Industry) ONLY.
-  STRICT RULE: Reports present ONLY Level 4 sub-industries. NEVER show Sector (Level 1),
-  Industry Group (Level 2), or Industry (Level 3) as standalone categories in report output.
-  Sectors are used INTERNALLY for ETF-based data acquisition only — they never appear as
-  report sections or ranking dimensions in the final output.
-  The report output is a FLAT ranked list of sub-industries, not a hierarchical tree.
+  SCREENING GRANULARITY: GICS Level 4 (Sub-Industry) is the PRIMARY structural unit.
+  STRICT RULE: Reports use Level 4 sub-industries as the organizing structure.
+  NEVER show Sector (Level 1), Industry Group (Level 2), or Industry (Level 3) as
+  standalone report SECTIONS or ranking dimensions.
+  
+  HOWEVER: Level 1/2/3 data is CRUCIAL CONTEXT and MUST be included WITHIN each
+  Level 4 sub-industry entry. Each sub-industry section should reference:
+  - Its parent sector's macro sensitivity and tailwinds
+  - Industry-group competitive dynamics and adjacencies
+  - How it relates to sibling sub-industries in the value chain
+  
+  Rule: Level 4 = STRUCTURE. Level 1/2/3 = CONTEXT within Level 4 sections.
   Reference: `references/gics_taxonomy.md` for sub-industry codes and names.
 </gics-default>
 
@@ -40,8 +46,8 @@ timeout_mins: 25
 </parallel-execution>
 
 <constraints>
-  <constraint>ONLY Level 4 (Sub-Industry) classifications appear in report output — NEVER show Level 1/2/3 as report sections</constraint>
-  <constraint>Report output is a FLAT ranked list of sub-industries — no hierarchical sector grouping</constraint>
+  <constraint>Level 4 (Sub-Industry) is the structural unit in report output — Level 1/2/3 appear only as context WITHIN Level 4 entries</constraint>
+  <constraint>Report output uses a FLAT ranked list of sub-industries as sections — no hierarchical sector grouping as top-level sections</constraint>
   <constraint>NEVER perform deep screening directly — always delegate to specialist agents</constraint>
   <constraint>Phase 0 MUST compute sub-industry RS via `compute_sector_rs.py --level sub-industry`</constraint>
   <constraint>Phase 1 MUST produce a sub-industry leaderboard (flat list, no sector sections)</constraint>

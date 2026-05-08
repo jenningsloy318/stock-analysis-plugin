@@ -21,9 +21,7 @@ import argparse
 import json
 import os
 import sqlite3
-import sys
 from datetime import datetime, timezone
-from pathlib import Path
 
 DB_PATH = os.path.expanduser("~/.stock-analysis/state.db")
 
@@ -100,6 +98,7 @@ def init_db():
 # Analysis lifecycle
 # ---------------------------------------------------------------------------
 
+
 def init_analysis(ticker: str, report_type: str = "mid") -> dict:
     """Initialize a new analysis session."""
     conn = init_db()
@@ -111,18 +110,27 @@ def init_analysis(ticker: str, report_type: str = "mid") -> dict:
     )
     analysis_id = cursor.lastrowid
 
-    stage_names = {
-        1: "Company Fundamentals",
-        2: "Executive & Board Profiles",
-        3: "Product & Industry",
-        4: "Macro Economics",
-        5: "Politics & Geopolitics",
-        6: "Valuation & Quantitative Signals",
-        7: "Market Regime & Positioning",
-        8: "Risk Assessment",
-        9: "Alternative Data",
-        10: "Report Generation",
-    }
+    if report_type == "screen":
+        stage_names = {
+            0: "Setup & Scope",
+            1: "Sub-Industry Screening",
+            2: "Sub-Industry Deep Dive",
+            3: "Company Screening",
+            4: "Report Generation",
+        }
+    else:
+        stage_names = {
+            1: "Company Fundamentals",
+            2: "Executive & Board Profiles",
+            3: "Product & Industry",
+            4: "Macro Economics",
+            5: "Politics & Geopolitics",
+            6: "Valuation & Quantitative Signals",
+            7: "Market Regime & Positioning",
+            8: "Risk Assessment",
+            9: "Alternative Data",
+            10: "Report Generation",
+        }
 
     for stage_num, stage_name in stage_names.items():
         conn.execute(
@@ -143,7 +151,9 @@ def init_analysis(ticker: str, report_type: str = "mid") -> dict:
     }
 
 
-def save_stage(analysis_id: int, stage_num: int, output_path: str, score: float | None = None) -> dict:
+def save_stage(
+    analysis_id: int, stage_num: int, output_path: str, score: float | None = None
+) -> dict:
     """Save a completed stage output."""
     conn = init_db()
 
@@ -160,19 +170,33 @@ def save_stage(analysis_id: int, stage_num: int, output_path: str, score: float 
     conn.commit()
     conn.close()
 
-    return {"status": "ok", "analysis_id": analysis_id, "stage": stage_num, "saved_at": now}
+    return {
+        "status": "ok",
+        "analysis_id": analysis_id,
+        "stage": stage_num,
+        "saved_at": now,
+    }
 
 
-def save_conviction(analysis_id: int, conviction: float, rating: str,
-                    component_scores: dict | None = None) -> dict:
+def save_conviction(
+    analysis_id: int,
+    conviction: float,
+    rating: str,
+    component_scores: dict | None = None,
+) -> dict:
     """Record conviction rating for tracking over time."""
     conn = init_db()
     now = datetime.now(timezone.utc).isoformat()
 
     conn.execute(
         "INSERT INTO conviction_history (analysis_id, conviction, rating, component_scores, recorded_at) VALUES (?, ?, ?, ?, ?)",
-        (analysis_id, conviction, rating,
-         json.dumps(component_scores) if component_scores else None, now),
+        (
+            analysis_id,
+            conviction,
+            rating,
+            json.dumps(component_scores) if component_scores else None,
+            now,
+        ),
     )
     conn.execute(
         "UPDATE analyses SET conviction = ?, rating = ?, updated_at = ? WHERE id = ?",
@@ -180,11 +204,17 @@ def save_conviction(analysis_id: int, conviction: float, rating: str,
     )
     conn.commit()
     conn.close()
-    return {"status": "ok", "analysis_id": analysis_id, "conviction": conviction, "recorded_at": now}
+    return {
+        "status": "ok",
+        "analysis_id": analysis_id,
+        "conviction": conviction,
+        "recorded_at": now,
+    }
 
 
-def save_script_output(analysis_id: int, script_name: str, output_json: str,
-                       output_path: str | None = None) -> dict:
+def save_script_output(
+    analysis_id: int, script_name: str, output_json: str, output_path: str | None = None
+) -> dict:
     """Save a script output for later retrieval."""
     conn = init_db()
     now = datetime.now(timezone.utc).isoformat()
@@ -202,11 +232,14 @@ def save_script_output(analysis_id: int, script_name: str, output_json: str,
 # Analysis loading / resumption
 # ---------------------------------------------------------------------------
 
+
 def load_analysis(analysis_id: int) -> dict:
     """Load a full analysis with all stages."""
     conn = init_db()
 
-    analysis = conn.execute("SELECT * FROM analyses WHERE id = ?", (analysis_id,)).fetchone()
+    analysis = conn.execute(
+        "SELECT * FROM analyses WHERE id = ?", (analysis_id,)
+    ).fetchone()
     if not analysis:
         conn.close()
         return {"error": f"Analysis {analysis_id} not found"}
@@ -232,9 +265,15 @@ def load_analysis(analysis_id: int) -> dict:
         "analysis": dict(analysis),
         "stages": [dict(s) for s in stages],
         "conviction_history": [dict(h) for h in history],
-        "script_outputs": [{"id": o["id"], "script_name": o["script_name"],
-                            "output_path": o["output_path"], "created_at": o["created_at"]}
-                           for o in outputs],
+        "script_outputs": [
+            {
+                "id": o["id"],
+                "script_name": o["script_name"],
+                "output_path": o["output_path"],
+                "created_at": o["created_at"],
+            }
+            for o in outputs
+        ],
     }
 
 
@@ -323,6 +362,7 @@ def get_history(ticker: str) -> list[dict]:
 # Kill switch monitoring
 # ---------------------------------------------------------------------------
 
+
 def check_kill_switch(ticker: str, condition_sql: str) -> dict:
     """Check if a kill switch condition is triggered.
 
@@ -349,6 +389,7 @@ def check_kill_switch(ticker: str, condition_sql: str) -> dict:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(description="State persistence for stock analysis")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -356,7 +397,11 @@ def main():
     # init
     p_init = sub.add_parser("init", help="Initialize new analysis")
     p_init.add_argument("ticker", help="Ticker symbol")
-    p_init.add_argument("--report-type", default="mid", choices=["long", "mid", "short", "quick"])
+    p_init.add_argument(
+        "--report-type",
+        default="mid",
+        choices=["long", "mid", "short", "quick", "screen"],
+    )
 
     # save
     p_save = sub.add_parser("save", help="Save stage output")
@@ -419,13 +464,18 @@ def main():
                 scores = json.load(f)
         result = save_conviction(args.analysis_id, args.conviction, args.rating, scores)
     elif args.command == "script-output":
-        result = save_script_output(args.analysis_id, args.script_name, args.output_json, args.output_path)
+        result = save_script_output(
+            args.analysis_id, args.script_name, args.output_json, args.output_path
+        )
     elif args.command == "load":
         result = load_analysis(args.analysis_id)
     elif args.command == "resume":
         result = check_resume(args.ticker)
         if result is None:
-            result = {"resumable": False, "message": f"No active analysis found for {args.ticker}"}
+            result = {
+                "resumable": False,
+                "message": f"No active analysis found for {args.ticker}",
+            }
     elif args.command == "complete":
         result = complete_analysis(args.analysis_id)
     elif args.command == "list":
