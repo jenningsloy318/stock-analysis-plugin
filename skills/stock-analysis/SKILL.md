@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.20"
+version: "1.0.21"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -207,6 +207,8 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 - [ ] 6.8 Consensus Bridge — Show where the model differs from consensus: revenue growth, margin, reinvestment, terminal multiple/growth, WACC, and share count. If no variant view exists, conviction cannot exceed 7.4.
 - [ ] 6.9 Factor Attribution — **Run `scripts/compute_factors.py [TICKER] --output ./reports/[TICKER]/factors.json`** for Fama-French 5-factor regression (market, SMB, HML, RMW, CMA). Reveals whether returns are driven by systematic exposure or alpha. High factor loadings reduce conviction in idiosyncratic thesis.
 - [ ] 6.10 Liquidity & Microstructure — **Run `scripts/compute_liquidity.py [TICKER] --position-size [SIZE] --output ./reports/[TICKER]/liquidity.json`** for Amihud illiquidity ratio, market impact estimate, days-to-liquidate, and position sizing constraints. Flag if liquidity score < 4 (micro/nano-cap) — requires reduced position sizing regardless of conviction.
+- [ ] 6.11 Short Interest & Squeeze — **Run `scripts/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json`** for short % float, days to cover, squeeze score (1-10), positioning divergence, and catalyst proximity. Critical for short-term reports.
+- [ ] 6.12 Activist & Governance Catalysts — **Run `scripts/fetch_activist_exposure.py --ticker [TICKER] --output ./reports/[TICKER]/activist.json`** for activist investor presence, 13D exposure, proxy fight probability, insider cluster detection, and governance vulnerability scoring.
 
 **Reference:** Load `references/frameworks_macro_quant.md` for Greenblatt's Magic Formula. Load `references/frameworks_risk_alt.md` for Burry's SEC deep-dive. For sector-specific valuation, load the relevant deep-dive reference: `references/industry_saas.md` (Tech/SaaS), `references/industry_biotech.md` (Pharma/Biotech), or `references/industry_banks.md` (Financials).
 
@@ -302,12 +304,14 @@ scripts/compute_scores.py \
   --sentiment ./reports/[TICKER]/sentiment.json \
   --capital-structure ./reports/[TICKER]/capital_structure.json \
   --liquidity ./reports/[TICKER]/liquidity.json \
+  --short-interest ./reports/[TICKER]/short_interest.json \
+  --activist ./reports/[TICKER]/activist.json \
   --report-type [long|mid|short|quick] \
   --gics-sector [SECTOR_CODE] \
   --ticker [TICKER] \
   --output ./reports/[TICKER]/scores.json
 ```
-This produces deterministic Financial Health, Moat Quality, Management Quality, Valuation Attractiveness, Capital Structure, Macro Tailwind, Risk Profile, Alternative Alignment, Technical Setup, Weinstein Alignment, and CANSLIM scores. Includes liquidity-adjusted position sizing caps. The LLM agent may adjust Moat and Management scores ±2.0 based on qualitative findings from Stages 1-3. All other scores are fixed.
+This produces deterministic Financial Health, Moat Quality, Management Quality, Valuation Attractiveness, Capital Structure, Macro Tailwind, Risk Profile, Alternative Alignment, Technical Setup, Weinstein Alignment, and CANSLIM scores. Includes liquidity-adjusted position sizing caps, short squeeze catalysts (for short-term reports), and activist exposure flags. The LLM agent may adjust Moat and Management scores ±2.0 based on qualitative findings from Stages 1-3. All other scores are fixed.
 
 **10b — Cross-Check Pass:** After scoring, validate for internal contradictions:
 1. If Valuation Attractiveness ≤3.0 (significant overvaluation) AND Moat Quality ≥7.5 (wide moat): re-examine the moat assessment — is the market correctly pricing moat erosion?
@@ -340,7 +344,7 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
 **Post-Delivery:**
 - Run `scripts/backtest.py --ticker [TICKER]` to compare this report against any prior predictions for the same ticker.
 - Run `scripts/event_study.py [TICKER] --events ./reports/[TICKER]/catalysts.json --output ./reports/[TICKER]/event_study.json` to measure cumulative abnormal returns (CAR) around identified catalyst events. Provides forward-looking expectation calibration.
-- If the user has specified a portfolio, run `scripts/portfolio_context.py [TICKER] --portfolio '[PORTFOLIO_JSON]' --conviction [CONVICTION]` for position sizing and correlation guidance.
+- If the user has specified a portfolio, run `scripts/portfolio_context.py [TICKER] --portfolio '[PORTFOLIO_JSON]' --conviction [CONVICTION]` for position sizing, correlation guidance, tail risk (VaR/CVaR at 95%/99%), drawdown recovery analysis, and correlation regime detection.
 
 ## Pre-Delivery Checklist
 

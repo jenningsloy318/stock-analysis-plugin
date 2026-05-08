@@ -1759,6 +1759,12 @@ def main():
         "--capital-structure", help="Path to fetch_capital_structure.py output JSON"
     )
     parser.add_argument("--liquidity", help="Path to compute_liquidity.py output JSON")
+    parser.add_argument(
+        "--short-interest", help="Path to fetch_short_interest.py output JSON"
+    )
+    parser.add_argument(
+        "--activist", help="Path to fetch_activist_exposure.py output JSON"
+    )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     parser.add_argument(
         "--ticker", default="UNKNOWN", help="Ticker symbol for output labeling"
@@ -1800,6 +1806,16 @@ def main():
     if args.liquidity:
         with open(args.liquidity) as f:
             liquidity_data = json.load(f)
+
+    short_interest_data = {}
+    if args.short_interest:
+        with open(args.short_interest) as f:
+            short_interest_data = json.load(f)
+
+    activist_data = {}
+    if args.activist:
+        with open(args.activist) as f:
+            activist_data = json.load(f)
 
     scores = {
         "ticker": args.ticker,
@@ -1847,6 +1863,54 @@ def main():
             conv["liquidity_note"] = "Liquidity score <6: max position 4% AUM"
         else:
             conv["position_size_cap"] = "standard"
+
+    # Short interest integration
+    if short_interest_data:
+        squeeze = short_interest_data.get("squeeze_analysis", {})
+        positioning = short_interest_data.get("positioning", {})
+        si = short_interest_data.get("short_interest", {})
+        scores["short_interest"] = {
+            "short_pct_float": si.get("short_pct_float"),
+            "days_to_cover": squeeze.get("days_to_cover"),
+            "squeeze_score": squeeze.get("squeeze_score"),
+            "squeeze_risk_level": squeeze.get("squeeze_risk_level"),
+            "momentum_vs_short": squeeze.get("momentum_vs_short"),
+            "effective_free_float_pct": positioning.get("effective_free_float_pct"),
+        }
+        # For short-term reports, high squeeze score boosts conviction
+        conv = scores["conviction"]
+        sq_score = squeeze.get("squeeze_score", 0)
+        if args.report_type == "short" and sq_score >= 7.0:
+            conv["squeeze_catalyst"] = True
+            conv["squeeze_note"] = (
+                f"Squeeze score {sq_score:.1f}/10 — short-term upside catalyst"
+            )
+        elif sq_score >= 8.0:
+            conv.setdefault("catalysts", []).append(
+                f"High squeeze potential ({sq_score:.1f}/10)"
+            )
+
+    # Activist exposure integration
+    if activist_data:
+        activist_exp = activist_data.get("activist_exposure", {})
+        insider = activist_data.get("insider_activity", {})
+        scores["activist_exposure"] = {
+            "activist_presence_score": activist_exp.get("activist_presence_score"),
+            "proxy_fight_probability": activist_exp.get("proxy_fight_probability"),
+            "activists_detected": activist_exp.get("activists_detected", []),
+            "insider_confidence_ratio": insider.get("insider_confidence_ratio"),
+            "cluster_selling_detected": insider.get("cluster_selling_detected"),
+        }
+        conv = scores["conviction"]
+        presence = activist_exp.get("activist_presence_score", 0)
+        if presence >= 7:
+            conv.setdefault("catalysts", []).append(
+                f"Activist involvement (score {presence}/10) — potential catalyst"
+            )
+        if insider.get("cluster_selling_detected"):
+            conv.setdefault("warnings", []).append(
+                "Insider cluster selling detected — management confidence flag"
+            )
 
     output = json.dumps(scores, indent=2)
     if args.output:

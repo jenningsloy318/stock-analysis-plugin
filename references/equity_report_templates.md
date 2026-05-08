@@ -139,7 +139,10 @@ When frameworks produce contradictory conclusions:
 [Top 3-5 risks to permanent capital loss (Klarman: permanent vs temporary impairment distinction). Mitigants for each. ESG/carbon pricing risk for carbon-intensive sectors. M&A/activist probability flag (if score >60/100).]
 
 ## 7. Factor Attribution & Liquidity
-[Fama-French 5-factor loadings (market, SMB, HML, RMW, CMA). Alpha after factor decomposition. Liquidity score and position sizing constraint. Days to liquidate at 10% participation. Market impact estimate for target position size.]
+[Fama-French 5-factor loadings (market, SMB, HML, RMW, CMA). Alpha after factor decomposition. Liquidity score and position sizing constraint. Days to liquidate at 10% participation. Market impact estimate for target position size. Short interest dynamics: SI% float, days to cover, squeeze score. Activist exposure: 13D presence, proxy fight probability, insider confidence ratio.]
+
+## 7b. Tail Risk & Portfolio Context (if portfolio specified)
+[VaR/CVaR at 95% and 99% confidence. Max drawdown and drawdown duration. Calmar ratio. Correlation regime (normal/elevated/crisis). Drawdown recovery history (mean/median recovery days). Current drawdown status.]
 
 ## 8. Recommendation
 - **Rating**: [Buy/Hold/Avoid]
@@ -255,9 +258,11 @@ When frameworks produce contradictory conclusions:
 
 ## 2. Flow & Sentiment Signals
 - Put/Call ratio: [value] — [contrarian interpretation]
-- Short interest: X% of float, X days to cover
+- Short interest: X% of float, X days to cover — Squeeze score: X/10 ([Low/Moderate/High/Extreme])
+- Positioning divergence: [convergent/divergent] — momentum [direction] vs short interest [direction]
 - Options flow: [unusual activity callout]
 - Institutional flow: [dark pool, 13F timing]
+- Activist exposure: [None / Fund name (X% ownership)] — Proxy fight probability: [Low/Moderate/High]
 - AAII sentiment: [% bullish — contrarian at extremes >50% or <25%]
 
 ## 3. Alternative Data Readings

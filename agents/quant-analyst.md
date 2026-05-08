@@ -45,13 +45,15 @@ timeout_mins: 15
   Run `scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
   Run `scripts/calculate_metrics.py ./reports/[TICKER]/raw-data.json` for computed valuations.
   Run `scripts/fetch_private_comps.py [TICKER] --output ./reports/[TICKER]/private_comps.json` for M&A/LBO analysis.
-  Run `scripts/compute_scores.py --metrics ./reports/[TICKER]/metrics.json --technicals ./reports/[TICKER]/tech.json --capital-structure ./reports/[TICKER]/capital_structure.json --liquidity ./reports/[TICKER]/liquidity.json --report-type [TYPE] --ticker [TICKER]` for component scores incl. Weinstein/CANSLIM and liquidity-adjusted position sizing.
+  Run `scripts/compute_scores.py --metrics ./reports/[TICKER]/metrics.json --technicals ./reports/[TICKER]/tech.json --capital-structure ./reports/[TICKER]/capital_structure.json --liquidity ./reports/[TICKER]/liquidity.json --short-interest ./reports/[TICKER]/short_interest.json --activist ./reports/[TICKER]/activist.json --report-type [TYPE] --ticker [TICKER]` for component scores incl. Weinstein/CANSLIM, liquidity-adjusted position sizing, squeeze catalysts, and activist exposure.
   Run `scripts/forecast.py ./reports/[TICKER]/raw-data.json --enhanced --returns-file ./reports/[TICKER]/returns.json` for GARCH volatility + fat-tail risk.
   Run `scripts/calculate_options.py [TICKER] --output ./reports/[TICKER]/options.json` for IV surface, max pain, put/call ratios, unusual activity.
   Run `scripts/compute_factors.py [TICKER] --output ./reports/[TICKER]/factors.json` for Fama-French 5-factor regression and factor attribution.
   Run `scripts/fetch_cot.py [TICKER] --output ./reports/[TICKER]/cot.json` for CFTC Commitments of Traders institutional positioning.
   Run `scripts/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json` for news sentiment NLP, narrative tracking, and coverage spike detection.
   Run `scripts/compute_liquidity.py [TICKER] --output ./reports/[TICKER]/liquidity.json` for market microstructure and position sizing constraints.
+  Run `scripts/fetch_short_interest.py --ticker [TICKER] --output ./reports/[TICKER]/short_interest.json` for short interest dynamics, squeeze potential, and positioning divergence.
+  Run `scripts/fetch_activist_exposure.py --ticker [TICKER] --output ./reports/[TICKER]/activist.json` for activist investor tracking, 13D exposure, and insider activity patterns.
 
   For supplementary valuation/sentiment data, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[TICKER] analyst price target [year]", "[TICKER] short interest data"
@@ -85,6 +87,8 @@ timeout_mins: 15
   - Options-implied distribution analyzed (IV skew, max pain, put/call ratio)
   - Fama-French factor attribution computed (market, SMB, HML, RMW, CMA betas)
   - Liquidity score computed and position sizing constraint assessed
+  - Short interest and squeeze potential scored (especially for short-term reports)
+  - Activist exposure assessed and 13D/proxy fight probability flagged
   - Market regime classification derived with at least 4 of 8 sub-items having current data
   - VIX and credit spread data within 7 days freshness
 </validation-gates>

@@ -61,7 +61,9 @@ timeout_mins: 30
   <script name="event_study.py" purpose="CAR measurement around corporate events" />
   <script name="backtest.py" purpose="Validate past predictions against actual outcomes" />
   <script name="persist.py" purpose="State persistence / checkpointing / resume" />
-  <script name="portfolio_context.py" purpose="Portfolio correlation, sizing, factor exposure" />
+  <script name="portfolio_context.py" purpose="Portfolio correlation, sizing, factor exposure, tail risk (VaR/CVaR), drawdown recovery" />
+  <script name="fetch_short_interest.py" purpose="Short interest dynamics, squeeze potential scoring, positioning divergence" />
+  <script name="fetch_activist_exposure.py" purpose="Activist investor 13D tracking, proxy fight probability, insider cluster detection" />
 </scripts>
 
 <constraints>

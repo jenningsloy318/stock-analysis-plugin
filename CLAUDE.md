@@ -118,7 +118,9 @@
 | `diff_filings.py` | 10-K/10-Q redline detection: risk factor changes, MD&A tone shift, forensic flags | 1,8 |
 | `backtest.py` | Validate past reports against actual outcomes | 10 (post-delivery) |
 | `persist.py` | SQLite state persistence, checkpointing, resume, kill switch monitor | All |
-| `portfolio_context.py` | Portfolio correlation, position sizing, factor exposure | 10 |
+| `portfolio_context.py` | Portfolio correlation, position sizing, factor exposure, tail risk (VaR/CVaR), drawdown recovery | 10 |
+| `fetch_short_interest.py` | Short interest dynamics, squeeze scoring, positioning divergence | 6, 7 |
+| `fetch_activist_exposure.py` | Activist 13D tracking, proxy fight probability, insider cluster detection | 6, 7 |
 
 ## Report Quality Gates (MUST follow)
 
