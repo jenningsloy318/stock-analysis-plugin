@@ -1,5 +1,6 @@
 ## Plugin versioning rule (MUST follow)
-- Every modification MUST include a patch version bump in ALL platform manifests simultaneously:
+- Version bumps happen ONLY at commit time — one bump per commit, not per modification
+- Every commit MUST include a patch version bump in ALL platform manifests simultaneously:
   - `.claude-plugin/plugin.json`
   - `.claude-plugin/marketplace.json` (the plugin entry version)
   - `.codex-plugin/plugin.json`
