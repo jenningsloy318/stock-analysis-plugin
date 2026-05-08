@@ -85,12 +85,12 @@ export FINNHUB_API_KEY="your-key"
 
 | Command | Description |
 |---------|-------------|
-| `/stock-analyze [TICKER]` | Full multi-stage equity research (all 3 horizons) |
+| `/stock-analysis [TICKER]` | Full multi-stage equity research (all 3 horizons) |
 | `/quick-overview [TICKER]` | Rapid 3-stage analysis (1-3 min) |
 | `/compare [T1],[T2],[T3]` | Side-by-side stock comparison |
 | `/valuation [TICKER]` | Standalone valuation (DCF, comps, relative) |
 | `/watchlist [TICKER\|all]` | Status check on prior analyses |
-| `/screen-industry [SCOPE]` | Top-down GICS Level 4 sub-industry screening |
+| `/industry-screening [SCOPE]` | Top-down GICS Level 4 sub-industry screening |
 
 ### OpenAI Codex
 
@@ -160,8 +160,8 @@ stock-analysis-plugin/
 ├── GEMINI.md                # → symlink to CLAUDE.md
 ├── AGENTS.md                # Agent index
 ├── agents/                  # Specialist agent definitions (MD)
-├── commands/                # Slash commands (Claude .md + Gemini .toml)
-├── skills/                  # Main orchestrator skill
+├── commands/                # Gemini CLI commands (TOML)
+├── skills/                  # Claude Code skills + orchestrators
 ├── scripts/                 # Python analysis scripts
 ├── references/              # Analysis framework docs
 ├── rules/                   # Modular quality guidelines
