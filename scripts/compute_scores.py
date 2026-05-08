@@ -110,6 +110,12 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
             score_margin = _score_from_percentile(op_margin, 0.20, 0.35, 0.10, 0.05)
         elif sector == 35:  # Health Care
             score_margin = _score_from_percentile(op_margin, 0.25, 0.40, 0.12, 0.05)
+        elif (
+            sector == 60
+        ):  # REITs — NOI margins are naturally high; use lenient thresholds
+            score_margin = _score_from_percentile(op_margin, 0.30, 0.50, 0.20, 0.10)
+        elif sector == 20:  # Industrials — lower margins, higher asset turns
+            score_margin = _score_from_percentile(op_margin, 0.12, 0.20, 0.06, 0.03)
         elif sector == 30:  # Consumer Staples
             score_margin = _score_from_percentile(op_margin, 0.15, 0.25, 0.08, 0.03)
         else:
@@ -118,10 +124,21 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
             reasons.append(
                 f"Operating margin: {op_margin:.1%} → sub-score {score_margin:.1f}"
             )
+    # Margin trajectory bonus/penalty
+    margin_traj = ratios.get("margin_trajectory")
+    if margin_traj and score_margin is not None:
+        trend = margin_traj.get("trend", "stable")
+        if trend == "expanding":
+            score_margin = min(10.0, score_margin + 0.5)
+            reasons.append("Margin trajectory: expanding (+0.5)")
+        elif trend == "contracting":
+            score_margin = max(1.0, score_margin - 0.5)
+            reasons.append("Margin trajectory: contracting (-0.5)")
     sub_scores["margin_quality"] = score_margin
 
     # --- ROE / ROIC ---
     roe = ratios.get("roe")
+    incremental_roic = ratios.get("incremental_roic")
     dupont = ratios.get("dupont", {})
     score_roe = None
     if roe is not None:
@@ -138,16 +155,37 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
                 f"ROE: {roe:.1%} (operationally-driven) → sub-score {score_roe:.1f}"
             )
     sub_scores["roe_roic"] = score_roe
+    # Incremental ROIC bonus: high incremental ROIC means new capital is deployed well
+    if incremental_roic is not None and score_roe is not None:
+        if incremental_roic > 0.20:
+            score_roe = min(10.0, score_roe + 0.5)
+            reasons.append(f"Incremental ROIC: {incremental_roic:.1%} (>20% → +0.5)")
+        elif incremental_roic < 0.0:
+            score_roe = max(1.0, score_roe - 0.5)
+            reasons.append(
+                f"Incremental ROIC: {incremental_roic:.1%} (negative → -0.5)"
+            )
+        sub_scores["roe_roic"] = score_roe
 
     # --- Leverage ---
     debt_to_equity = ratios.get("debt_to_equity")
     net_debt = ratios.get("net_debt")
     score_leverage = None
     if debt_to_equity is not None:
-        # Lower is better
-        score_leverage = _score_from_percentile(
-            debt_to_equity, 0.5, 1.5, 0.3, 0.8, higher_is_better=False
-        )
+        if (
+            sector == 60
+        ):  # REITs — higher leverage is structural, use lenient thresholds
+            score_leverage = _score_from_percentile(
+                debt_to_equity, 1.0, 2.5, 0.5, 1.2, higher_is_better=False
+            )
+        elif sector == 40:  # Financials — also higher leverage structural
+            score_leverage = _score_from_percentile(
+                debt_to_equity, 2.0, 5.0, 1.0, 2.0, higher_is_better=False
+            )
+        else:
+            score_leverage = _score_from_percentile(
+                debt_to_equity, 0.5, 1.5, 0.3, 0.8, higher_is_better=False
+            )
         if score_leverage:
             reasons.append(
                 f"Debt/Equity: {debt_to_equity:.2f} → sub-score {score_leverage:.1f}"
@@ -158,6 +196,19 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
         score_leverage = _score_from_percentile(
             adj_leverage, 0.5, 1.5, 0.3, 0.8, higher_is_better=False
         )
+    # Current ratio adjustment: penalize weak liquidity
+    current_ratio = ratios.get("current_ratio")
+    if current_ratio is not None and score_leverage is not None:
+        if current_ratio < 1.0:
+            score_leverage = max(1.0, score_leverage - 1.0)
+            reasons.append(
+                f"Current ratio: {current_ratio:.2f} (<1.0 → -1.0 leverage penalty)"
+            )
+        elif current_ratio > 2.0:
+            score_leverage = min(10.0, score_leverage + 0.3)
+            reasons.append(
+                f"Current ratio: {current_ratio:.2f} (>2.0 → +0.3 liquidity bonus)"
+            )
     sub_scores["leverage"] = score_leverage
 
     # --- FCF Generation ---

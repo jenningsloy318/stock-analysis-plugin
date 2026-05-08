@@ -43,7 +43,7 @@ This reference defines what each conviction score should mean in terms of expect
 
 | Component | Score = 7 Benchmark |
 |-----------|---------------------|
-| Financial Health | Top-quartile margins for sector, 10-15% ROE, D/E < 1.5x, positive FCF growth |
+| Financial Health | Top-quartile margins for sector, expanding trajectory, 10-15% ROE, incremental ROIC > 20%, D/E < 1.5x (sector-adjusted), current ratio > 1.5, CCC improving or negative, positive FCF growth |
 | Moat Quality | Clear competitive advantage, stable/gaining share, 5yr ROIC > WACC |
 | Management Quality | 3+ consecutive earnings beats, net insider buying, competent capital allocation |
 | Valuation | 10-20% below DCF fair value, PEG 1.0-1.3, FCF yield > 4% |

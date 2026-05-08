@@ -583,6 +583,20 @@ def fetch_from_edgar(ticker: str, years: int) -> dict | None:
             "LongTermDebtNoncurrent"
         )
         cash = extract_annual("CashAndCashEquivalentsAtCarryingValue")
+        inventory = extract_annual("InventoryNet") or extract_annual("Inventories")
+        accounts_receivable = extract_annual(
+            "AccountsReceivableNetCurrent"
+        ) or extract_annual("AccountsReceivableNet")
+        accounts_payable = extract_annual("AccountsPayableCurrent")
+        current_assets = extract_annual("AssetsCurrent")
+        current_liabilities = extract_annual("LiabilitiesCurrent")
+        retained_earnings = extract_annual("RetainedEarningsAccumulatedDeficit")
+        cost_of_revenue = extract_annual(
+            "CostOfGoodsAndServicesSold"
+        ) or extract_annual("CostOfRevenue")
+        pretax_income = extract_annual(
+            "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+        )
 
         result = {
             "ticker": ticker,
@@ -602,6 +616,14 @@ def fetch_from_edgar(ticker: str, years: int) -> dict | None:
                     "operating_income": [
                         {"period": e.get("end"), "value": e.get("val")}
                         for e in operating_income
+                    ],
+                    "cost_of_revenue": [
+                        {"period": e.get("end"), "value": e.get("val")}
+                        for e in cost_of_revenue
+                    ],
+                    "pretax_income": [
+                        {"period": e.get("end"), "value": e.get("val")}
+                        for e in pretax_income
                     ],
                 },
                 "balance_sheet": {
@@ -623,6 +645,30 @@ def fetch_from_edgar(ticker: str, years: int) -> dict | None:
                     ],
                     "cash": [
                         {"period": e.get("end"), "value": e.get("val")} for e in cash
+                    ],
+                    "inventory": [
+                        {"period": e.get("end"), "value": e.get("val")}
+                        for e in inventory
+                    ],
+                    "accounts_receivable": [
+                        {"period": e.get("end"), "value": e.get("val")}
+                        for e in accounts_receivable
+                    ],
+                    "accounts_payable": [
+                        {"period": e.get("end"), "value": e.get("val")}
+                        for e in accounts_payable
+                    ],
+                    "current_assets": [
+                        {"period": e.get("end"), "value": e.get("val")}
+                        for e in current_assets
+                    ],
+                    "current_liabilities": [
+                        {"period": e.get("end"), "value": e.get("val")}
+                        for e in current_liabilities
+                    ],
+                    "retained_earnings": [
+                        {"period": e.get("end"), "value": e.get("val")}
+                        for e in retained_earnings
                     ],
                 },
                 "cash_flow": {
