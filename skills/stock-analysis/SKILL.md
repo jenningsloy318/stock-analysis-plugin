@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.35"
+version: "1.0.40"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -34,13 +34,17 @@ This skill performs institutional-grade stock analysis through 11 stages, produc
 <agent-team-protocol>
 This skill ALWAYS operates as an agent team. You are the team lead (stock-analyst orchestrator).
 
-ENFORCEMENT RULE: After completing Step 0 (Triage & data fetch), you MUST spawn sub-agents
-for ALL subsequent stages. You MUST NOT perform Stages 1-9 analysis directly in your own context.
+STEP 1 — Create the team BEFORE spawning any agents:
+  Claude Code: TeamCreate({ name: "stock-analysis-[TICKER]" })
+  Gemini CLI: Team is implicit — agents are spawned via @agent-name syntax.
 
-**Claude Code** — Use the `Agent` tool to spawn each sub-agent:
+STEP 2 — Spawn sub-agents into the team for ALL analysis stages (Stages 1-9):
+
+**Claude Code** — Use the `Agent` tool with `team_name`:
 ```
 Agent({
   subagent_type: "stock-analysis:<agent-name>",
+  team_name: "stock-analysis-[TICKER]",
   prompt: "PLUGIN_ROOT=... PLUGIN_SCRIPTS=... Analyze [TICKER]. Stage data at ./reports/[TICKER]/..."
 })
 ```
@@ -50,9 +54,15 @@ Agent({
 @fundamental-analyst Analyze [TICKER]. PLUGIN_ROOT=... PLUGIN_SCRIPTS=...
 ```
 
+ENFORCEMENT RULE: After completing Step 0 (Triage & data fetch), you MUST spawn sub-agents
+for ALL subsequent stages. You MUST NOT perform Stages 1-9 analysis directly in your own context.
+
 VIOLATION: If you find yourself writing Stage 1-9 analysis content directly (e.g., calculating
 financial ratios, writing Porter's Five Forces, performing DCF), STOP immediately and spawn the
-appropriate agent instead. The orchestrator's job is: triage → spawn → collect summaries → score → spawn report writer.
+appropriate agent instead. The orchestrator's job is: triage → create team → spawn → collect summaries → score → spawn report writer.
+
+TERMINATION: Terminate each sub-agent immediately after it completes its stage work. Do not
+leave idle agents running.
 </agent-team-protocol>
 
 ## Script Execution

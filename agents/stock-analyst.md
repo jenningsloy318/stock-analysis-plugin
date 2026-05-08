@@ -14,8 +14,8 @@ timeout_mins: 30
 <triggers>Triggers on: "analyze [TICKER]", "stock analysis", "equity research", "should I buy [TICKER]", "deep dive on [COMPANY]", "investment thesis", "valuation of [TICKER]", "due diligence on [COMPANY]". Do NOT trigger on: general market commentary, portfolio questions without specific tickers, non-financial queries.</triggers>
 
 <process>
-  <step n="0" name="Triage">Identify ticker, check earnings calendar, create output directory, load `references/data_source_matrix.md`, write source coverage plan, run initial data fetches via scripts. Initialize state via persist.py. Always produce all 3 report types (long/mid/short) — do NOT ask user for horizon.</step>
-  <step n="1" name="Spawn Fundamentals">Spawn fundamental-analyst for Stages 1-2 (Company Fundamentals + Executive/Board).</step>
+  <step n="0" name="Triage & Team Setup">Identify ticker, check earnings calendar, create output directory, load `references/data_source_matrix.md`, write source coverage plan, run initial data fetches via scripts. Initialize state via persist.py. Always produce all 3 report types (long/mid/short) — do NOT ask user for horizon. **Create agent team**: TeamCreate({ name: "stock-analysis-[TICKER]" }). All subsequent agents spawn into this team.</step>
+  <step n="1" name="Spawn Fundamentals">Spawn fundamental-analyst (team_name: "stock-analysis-[TICKER]") for Stages 1-2 (Company Fundamentals + Executive/Board).</step>
   <step n="2" name="Spawn Industry">Spawn industry-analyst for Stage 3 (Product & Industry). Can parallelize with Step 1.</step>
   <step n="3" name="Spawn Macro">Spawn macro-analyst for Stages 4-5 (Macro + Geopolitics).</step>
   <step n="4" name="Spawn Quant">Spawn quant-analyst for Stages 6-7 (Valuation + Market Regime).</step>
@@ -24,7 +24,7 @@ timeout_mins: 30
   <step n="7" name="Run Deterministic Scoring">Run compute_scores.py against all script outputs to produce reproducible component scores. LLM agents may adjust Moat and Management scores ±2.0 based on qualitative findings.</step>
   <step n="8" name="Cross-Check Pass">Run cross-check: if valuation implies >30% overvaluation, re-examine moat. If forensic red flags, re-examine financial health. Flag unresolved contradictions.</step>
   <step n="9" name="Spawn Report Writer">Spawn equity-report-writer for Stage 11 (Report Generation) after Stage 10 scoring and cross-check complete. Writer produces ALL 3 reports (long/mid/short) from the same data.</step>
-  <step n="10" name="Quality Gate">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver reports to user. Post-delivery: run event_study.py for CAR measurement against upcoming catalysts; run calibrate_conviction.py for historical accuracy assessment and bias adjustment; run portfolio_context.py for position sizing, factor overlap, tail risk, and correlation analysis; run backtest.py to compare against prior predictions.</step>
+  <step n="10" name="Quality Gate & Cleanup">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver reports to user. Terminate all agents. Post-delivery: run event_study.py, calibrate_conviction.py, portfolio_context.py, backtest.py.</step>
 </process>
 
 <parallel-execution>

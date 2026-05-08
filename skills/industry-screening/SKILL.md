@@ -13,7 +13,7 @@ description: >
   industries to invest," "which sectors are growing," "top-down screening,"
   "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.35"
+version: "1.0.40"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -51,13 +51,17 @@ This skill performs institutional-grade top-down screening through 4 phases, pro
 <agent-team-protocol>
 This skill ALWAYS operates as an agent team. You are the team lead (industry-screening-orchestrator).
 
-ENFORCEMENT RULE: After completing Phase 0 (Setup & data fetch), you MUST spawn sub-agents
-for ALL subsequent phases. You MUST NOT perform Phase 1-4 screening/analysis directly in your own context.
+STEP 1 — Create the team BEFORE spawning any agents:
+  Claude Code: TeamCreate({ name: "industry-screening-[TIMESTAMP]" })
+  Gemini CLI: Team is implicit — agents are spawned via @agent-name syntax.
 
-**Claude Code** — Use the `Agent` tool to spawn each sub-agent:
+STEP 2 — Spawn sub-agents into the team for ALL screening phases (Phases 1-4):
+
+**Claude Code** — Use the `Agent` tool with `team_name`:
 ```
 Agent({
   subagent_type: "industry-screening:<agent-name>",
+  team_name: "industry-screening-[TIMESTAMP]",
   prompt: "PLUGIN_ROOT=... PLUGIN_SCRIPTS=... Screen [SCOPE]. Macro data at ./reports/screening/macro.json..."
 })
 ```
@@ -67,10 +71,16 @@ Agent({
 @sector-screener Screen all sectors. PLUGIN_ROOT=... PLUGIN_SCRIPTS=...
 ```
 
+ENFORCEMENT RULE: After completing Phase 0 (Setup & data fetch), you MUST spawn sub-agents
+for ALL subsequent phases. You MUST NOT perform Phase 1-4 screening/analysis directly in your own context.
+
 VIOLATION: If you find yourself writing sector analysis, sub-industry deep-dives, or company
 scoring directly (e.g., performing Porter's Five Forces, calculating company metrics, writing
 competitive landscape), STOP immediately and spawn the appropriate agent instead. The orchestrator's
-job is: setup → spawn screeners → collect phase summaries → spawn report writer.
+job is: setup → create team → spawn screeners → collect phase summaries → spawn report writer.
+
+TERMINATION: Terminate each sub-agent immediately after it completes its phase work. Do not
+leave idle agents running.
 </agent-team-protocol>
 
 ## Integration with stock-analysis
