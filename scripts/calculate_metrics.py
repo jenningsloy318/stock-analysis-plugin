@@ -1271,7 +1271,33 @@ def main():
         "--mc-simulations", type=int, default=10000, help="Monte Carlo simulation count"
     )
     parser.add_argument("--output", help="Output file path (default: stdout)")
+    parser.add_argument(
+        "--macro",
+        help="Path to macro.json for dynamic WACC estimation (reads DGS10 for risk-free rate)",
+    )
+    parser.add_argument(
+        "--beta", type=float, help="Company beta for CAPM WACC estimation"
+    )
     args = parser.parse_args()
+
+    # Dynamic WACC estimation from macro data + beta
+    if args.macro and args.wacc == 0.10:
+        try:
+            with open(args.macro) as mf:
+                macro_data = json.load(mf)
+            indicators = macro_data.get("indicators", {})
+            dgs10 = indicators.get("DGS10", {}).get("latest_value")
+            if dgs10 is not None:
+                risk_free = float(dgs10) / 100.0
+                erp = 0.055  # Long-run equity risk premium (~5.5%)
+                beta = args.beta if args.beta else 1.0
+                cost_of_equity = risk_free + beta * erp
+                args.wacc = round(cost_of_equity, 4)
+                sys.stderr.write(
+                    f"Dynamic WACC: Rf={risk_free:.2%} + β({beta:.2f})×ERP({erp:.1%}) = {args.wacc:.2%}\n"
+                )
+        except (FileNotFoundError, json.JSONDecodeError, ValueError, TypeError):
+            pass
 
     with open(args.input) as f:
         raw_data = json.load(f)
