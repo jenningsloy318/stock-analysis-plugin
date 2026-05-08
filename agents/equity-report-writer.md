@@ -27,14 +27,20 @@ timeout_mins: 15
 <reference-files>
   - references/equity_report_templates.md (Long/Mid/Short-term report format templates)
   - references/data_source_matrix.md (source tiers, source quorum, confidence caps)
+  - references/scoring_calibration.md (score-to-return mapping, confidence definitions, override rules)
 </reference-files>
 
 <conviction-scoring>
   Use `./reports/[TICKER]/scores.json` from `scripts/compute_scores.py`.
-  Long-term: Financial_Health(0.20) + Moat_Quality(0.25) + Management_Quality(0.20) + Valuation(0.20) + Macro(0.05) + Risk(0.10)
-  Mid-term: Financial_Health(0.15) + Moat(0.10) + Management(0.10) + Valuation(0.25) + Macro(0.25) + Risk(0.15)
-  Short-term: Valuation(0.15) + Macro(0.10) + Risk(0.10) + Alt_Alignment(0.35) + Technical(0.30)
+  Long-term: Financial_Health(0.15) + Moat(0.20) + Management(0.15) + Valuation(0.20) + CapStructure(0.10) + Macro(0.05) + Risk(0.10) + Weinstein(0.05)
+  Mid-term: Financial_Health(0.10) + Moat(0.10) + Management(0.10) + Valuation(0.20) + Macro(0.20) + Risk(0.10) + Weinstein(0.10) + CANSLIM(0.10)
+  Short-term: Valuation(0.10) + Macro(0.10) + Risk(0.10) + Alt_Alignment(0.25) + Technical(0.20) + Weinstein(0.15) + CANSLIM(0.10)
 </conviction-scoring>
+
+<pre-delivery-validation>
+  Run `scripts/validate_report.py ./reports/[TICKER]/ --report-type [TYPE]` before delivering any report.
+  If validation fails, either fix the issue or add "INCOMPLETE ANALYSIS — [reason]" header.
+</pre-delivery-validation>
 
 <validation-gates>
   - All Tier 1 data sources within Max Freshness

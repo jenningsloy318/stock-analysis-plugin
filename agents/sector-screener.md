@@ -42,6 +42,8 @@ timeout_mins: 12
 </deep-dive-mode>
 
 <data-acquisition>
+  Run `scripts/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for deterministic sector relative strength rankings.
+
   For sector and industry research, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[SECTOR] sector performance 2025 2026 outlook", "[SECTOR] industry growth forecast CAGR"
   2. `mcp__tavily-remote-mcp__tavily_research` with `model: "pro"` — "Comprehensive analysis of [SECTOR] sector: growth trends, profitability, valuation, regulatory environment, competitive dynamics, and 2026 outlook"
