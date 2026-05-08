@@ -13,7 +13,7 @@ description: >
   industries to invest," "which sectors are growing," "top-down screening,"
   "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.40"
+version: "1.0.41"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -51,13 +51,32 @@ This skill performs institutional-grade top-down screening through 4 phases, pro
 <agent-team-protocol>
 This skill ALWAYS operates as an agent team. You are the team lead (industry-screening-orchestrator).
 
-STEP 1 — Create the team BEFORE spawning any agents:
+STEP 0 — Create the team IMMEDIATELY as the FIRST action (before ANY scripts or data fetches):
   Claude Code: TeamCreate({ name: "industry-screening-[TIMESTAMP]" })
   Gemini CLI: Team is implicit — agents are spawned via @agent-name syntax.
 
-STEP 2 — Spawn sub-agents into the team for ALL screening phases (Phases 1-4):
+STEP 1 — Spawn data-fetch agent into the team to run all setup scripts:
+  The orchestrator NEVER runs scripts directly. Delegate initial data collection to a search-agent
+  teammate that runs: fetch_macro.py, fetch_economic_surprises.py, compute_sector_rs.py (both sector
+  and --level sub-industry --flat), persist.py init SCREEN-[TIMESTAMP].
 
-**Claude Code** — Use the `Agent` tool with `team_name`:
+**Claude Code** — Spawn data-fetch agent:
+```
+Agent({
+  subagent_type: "stock-analysis:search-agent",
+  team_name: "industry-screening-[TIMESTAMP]",
+  prompt: "PLUGIN_ROOT=... PLUGIN_SCRIPTS=... Run screening data fetch. Create ./reports/screening/, run fetch_macro.py, fetch_economic_surprises.py, compute_sector_rs.py --output ./reports/screening/sector_rs.json, compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json, persist.py init SCREEN-[TIMESTAMP] --report-type screen."
+})
+```
+
+**Gemini CLI:**
+```
+@search-agent Run screening data fetch. PLUGIN_ROOT=... PLUGIN_SCRIPTS=...
+```
+
+STEP 2+ — Spawn screening sub-agents into the team for ALL phases (Phases 1-4):
+
+**Claude Code:**
 ```
 Agent({
   subagent_type: "industry-screening:<agent-name>",
@@ -66,18 +85,18 @@ Agent({
 })
 ```
 
-**Gemini CLI** — Delegate to agents using `@agent-name` syntax:
+**Gemini CLI:**
 ```
 @sector-screener Screen all sectors. PLUGIN_ROOT=... PLUGIN_SCRIPTS=...
 ```
 
-ENFORCEMENT RULE: After completing Phase 0 (Setup & data fetch), you MUST spawn sub-agents
-for ALL subsequent phases. You MUST NOT perform Phase 1-4 screening/analysis directly in your own context.
+ENFORCEMENT RULE: The orchestrator MUST NOT run any scripts or perform analysis directly.
+ALL work is delegated to sub-agents within the team. The orchestrator's ONLY jobs are:
+create team → spawn data-fetch → spawn screeners → collect phase summaries → spawn report writer → cleanup.
 
-VIOLATION: If you find yourself writing sector analysis, sub-industry deep-dives, or company
-scoring directly (e.g., performing Porter's Five Forces, calculating company metrics, writing
-competitive landscape), STOP immediately and spawn the appropriate agent instead. The orchestrator's
-job is: setup → create team → spawn screeners → collect phase summaries → spawn report writer.
+VIOLATION: If you find yourself running python scripts directly, writing sector analysis,
+sub-industry deep-dives, or company scoring directly, STOP immediately and spawn the
+appropriate agent instead.
 
 TERMINATION: Terminate each sub-agent immediately after it completes its phase work. Do not
 leave idle agents running.

@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.40"
+version: "1.0.41"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -34,13 +34,32 @@ This skill performs institutional-grade stock analysis through 11 stages, produc
 <agent-team-protocol>
 This skill ALWAYS operates as an agent team. You are the team lead (stock-analyst orchestrator).
 
-STEP 1 — Create the team BEFORE spawning any agents:
+STEP 0 — Create the team IMMEDIATELY as the FIRST action (before ANY scripts or data fetches):
   Claude Code: TeamCreate({ name: "stock-analysis-[TICKER]" })
   Gemini CLI: Team is implicit — agents are spawned via @agent-name syntax.
 
-STEP 2 — Spawn sub-agents into the team for ALL analysis stages (Stages 1-9):
+STEP 1 — Spawn data-fetch agent into the team to run all triage scripts:
+  The orchestrator NEVER runs scripts directly. Delegate initial data collection to a search-agent
+  teammate that runs: fetch_financials.py, fetch_macro.py, fetch_global_macro.py, forecast.py,
+  calculate_metrics.py, fetch_credit.py, diff_filings.py, persist.py init.
 
 **Claude Code** — Use the `Agent` tool with `team_name`:
+```
+Agent({
+  subagent_type: "stock-analysis:search-agent",
+  team_name: "stock-analysis-[TICKER]",
+  prompt: "PLUGIN_ROOT=... PLUGIN_SCRIPTS=... Run triage data fetch for [TICKER]. Create ./reports/[TICKER]/, run fetch_financials.py, fetch_macro.py, fetch_global_macro.py, fetch_economic_surprises.py, fetch_credit.py, forecast.py, calculate_metrics.py, diff_filings.py, persist.py init [TICKER]."
+})
+```
+
+**Gemini CLI** — Delegate to agents using `@agent-name` syntax:
+```
+@search-agent Run triage data fetch for [TICKER]. PLUGIN_ROOT=... PLUGIN_SCRIPTS=...
+```
+
+STEP 2+ — Spawn analyst sub-agents into the team for ALL analysis stages (Stages 1-9):
+
+**Claude Code:**
 ```
 Agent({
   subagent_type: "stock-analysis:<agent-name>",
@@ -49,19 +68,20 @@ Agent({
 })
 ```
 
-**Gemini CLI** — Delegate to agents using `@agent-name` syntax:
+**Gemini CLI:**
 ```
 @fundamental-analyst Analyze [TICKER]. PLUGIN_ROOT=... PLUGIN_SCRIPTS=...
 ```
 
-ENFORCEMENT RULE: After completing Step 0 (Triage & data fetch), you MUST spawn sub-agents
-for ALL subsequent stages. You MUST NOT perform Stages 1-9 analysis directly in your own context.
+ENFORCEMENT RULE: The orchestrator MUST NOT run any scripts or perform analysis directly.
+ALL work is delegated to sub-agents within the team. The orchestrator's ONLY jobs are:
+create team → spawn agents → collect summaries → spawn scoring → spawn report writer → quality gate.
 
-VIOLATION: If you find yourself writing Stage 1-9 analysis content directly (e.g., calculating
-financial ratios, writing Porter's Five Forces, performing DCF), STOP immediately and spawn the
-appropriate agent instead. The orchestrator's job is: triage → create team → spawn → collect summaries → score → spawn report writer.
+VIOLATION: If you find yourself running python scripts directly, writing analysis content,
+calculating financial ratios, or performing any Stage 1-9 work, STOP immediately and spawn
+the appropriate agent instead.
 
-TERMINATION: Terminate each sub-agent immediately after it completes its stage work. Do not
+TERMINATION: Terminate each sub-agent immediately after it completes its work. Do not
 leave idle agents running.
 </agent-team-protocol>
 
@@ -135,28 +155,32 @@ Before starting any stage, load `references/data_source_matrix.md` and create a 
 
 ## Workflow
 
-### Step 0: Triage (orchestrator executes directly)
+### Step 0: Team Creation & Data Fetch (orchestrator creates team, then spawns data-fetch agent)
 
 1. Identify the ticker symbol from the user's request. If ambiguous (e.g., "Apple"), resolve via `mcp__xcrawl-mcp__xcrawl_search`: "Apple Inc stock ticker symbol."
-2. **Report types — ALL THREE automatically**: Every stock analysis run produces 3 reports covering all horizons:
+2. **Create agent team IMMEDIATELY** — this is the VERY FIRST action:
+   - Claude Code: `TeamCreate({ name: "stock-analysis-[TICKER]" })`
+   - Gemini CLI: Team is implicit (agents spawned via @agent-name)
+3. **Report types — ALL THREE automatically**: Every stock analysis run produces 3 reports covering all horizons:
    - **Long-term** (1-3+ years) — intrinsic value, moat, secular growth
    - **Mid-term** (1-12 months) — catalyst, cycle positioning, valuation entry
    - **Short-term** (days-weeks) — momentum, technicals, sentiment, options setup
    
    Do NOT ask the user which horizon — always produce all three. Each horizon generates a separate final report file. The "quick" option is only used if the user explicitly says "quick" or "overview."
-3. **Initialize state**: Run `${PLUGIN_SCRIPTS}/persist.py init [TICKER] --report-type long` to create the primary analysis session. Record the returned `analysis_id`. One data-collection pass feeds all 3 report types — the reports diverge at the synthesis/scoring stage.
-4. Create output directory: `./reports/[TICKER]/`
-5. **Source coverage plan**: Load `references/data_source_matrix.md`. Write `./reports/[TICKER]/source-plan.md` with required data by dimension, source tier, max freshness, and confidence cap rules. For non-US issuers, explicitly name local filing/statistical substitutes.
-6. **Earnings calendar check**: Run `${PLUGIN_SCRIPTS}/fetch_sentiment.py [TICKER] --sources earnings` for upcoming earnings dates and past surprises. If FINNHUB_API_KEY is not set, fall back to `mcp__web-search-prime__web_search_prime` for "[TICKER] next earnings date [YEAR]". If earnings are within 14 days, warn the user: "Earnings report on [DATE] may invalidate this analysis. Proceed or wait?" If within 3 days, recommend waiting unless the user explicitly overrides.
-7. Run `${PLUGIN_SCRIPTS}/fetch_financials.py [TICKER] --years 5 --output ./reports/[TICKER]/raw-data.json` to retrieve financial data.
-8. Run `${PLUGIN_SCRIPTS}/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM,CPILFESL,PCEPI,PCEPILFE,T5YIFR,BAA10Y,BAMLH0A0HYM2,INDPRO,TCU,HOUST,UMCSENT --output ./reports/macro.json` to capture current macro, inflation, credit, and activity context.
-8b. Run `${PLUGIN_SCRIPTS}/fetch_global_macro.py --output ./reports/global_macro.json` for non-US macro data (ECB, PBOC, BOJ, Eurostat, World Bank). Required for non-US issuers; informative for US companies with international revenue.
-8c. Run `${PLUGIN_SCRIPTS}/fetch_economic_surprises.py --output ./reports/economic_surprises.json` for economic surprise indices (actual vs consensus for GDP, CPI, PMI, payrolls). Positive surprises = macro tailwind; negative = headwind.
-9. **Time-series forecasting**: Run `${PLUGIN_SCRIPTS}/forecast.py ./reports/[TICKER]/raw-data.json --horizon 5 --method ensemble --output ./reports/[TICKER]/forecast.json` to produce ARIMA/ETS ensemble forecasts for revenue, EPS, and FCF. This replaces the old single constant-growth assumption.
-10. **Credit market check**: Run `${PLUGIN_SCRIPTS}/fetch_credit.py [TICKER] --output ./reports/[TICKER]/credit.json` to retrieve credit spreads, debt maturity, and credit rating. Bond markets often price risk faster than equities.
-11. **Filing redline analysis**: Run `${PLUGIN_SCRIPTS}/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json` for automated 10-K/10-Q redline detection (risk factor additions/deletions, MD&A tone shift, accounting policy changes). For ADRs/non-US issuers, use 20-F/40-F/6-K or local annual/interim reports. Supplement with `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` if script output is incomplete.
-12. Run `${PLUGIN_SCRIPTS}/calculate_metrics.py ./reports/[TICKER]/raw-data.json --macro ./reports/macro.json --output ./reports/[TICKER]/metrics.json` to compute ratios and valuation. The `--macro` flag enables dynamic WACC estimation from the 10Y Treasury rate. If market cap is known, add `--market-cap [VALUE]`. If beta is known, add `--beta [VALUE]`.
-13. Call `finance` tool for current price, market cap, 52-week range, shares outstanding.
+4. **Spawn data-fetch agent** (search-agent) into the team to run ALL triage scripts. Pass PLUGIN_ROOT and PLUGIN_SCRIPTS. The agent handles:
+   - `${PLUGIN_SCRIPTS}/persist.py init [TICKER] --report-type long`
+   - Create output directory: `./reports/[TICKER]/`
+   - Load `references/data_source_matrix.md`. Write `./reports/[TICKER]/source-plan.md`
+   - Earnings calendar check: `${PLUGIN_SCRIPTS}/fetch_sentiment.py [TICKER] --sources earnings`
+   - `${PLUGIN_SCRIPTS}/fetch_financials.py [TICKER] --years 5 --output ./reports/[TICKER]/raw-data.json`
+   - `${PLUGIN_SCRIPTS}/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM,CPILFESL,PCEPI,PCEPILFE,T5YIFR,BAA10Y,BAMLH0A0HYM2,INDPRO,TCU,HOUST,UMCSENT --output ./reports/macro.json`
+   - `${PLUGIN_SCRIPTS}/fetch_global_macro.py --output ./reports/global_macro.json`
+   - `${PLUGIN_SCRIPTS}/fetch_economic_surprises.py --output ./reports/economic_surprises.json`
+   - `${PLUGIN_SCRIPTS}/forecast.py ./reports/[TICKER]/raw-data.json --horizon 5 --method ensemble --output ./reports/[TICKER]/forecast.json`
+   - `${PLUGIN_SCRIPTS}/fetch_credit.py [TICKER] --output ./reports/[TICKER]/credit.json`
+   - `${PLUGIN_SCRIPTS}/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json`
+   - `${PLUGIN_SCRIPTS}/calculate_metrics.py ./reports/[TICKER]/raw-data.json --macro ./reports/macro.json --output ./reports/[TICKER]/metrics.json`
+5. Wait for data-fetch agent to complete. Terminate it. Proceed to analysis stages.
 
 ### Stage 1: Company Fundamentals → Spawn fundamental-analyst
 

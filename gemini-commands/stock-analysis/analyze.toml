@@ -1,42 +1,48 @@
 prompt = """
-<purpose>Invoke the stock-analyst orchestrator agent team to perform full multi-stage equity research. The orchestrator spawns specialized analyst agents — it NEVER performs deep analysis directly.</purpose>
+<purpose>Invoke the stock-analyst orchestrator agent team to perform full multi-stage equity research. The orchestrator spawns specialized analyst agents — it NEVER performs deep analysis or runs scripts directly.</purpose>
 
 <usage>/stock-analysis:analyze [TICKER] [--quick]</usage>
 
 <agent-team>
 MANDATORY: This command operates as an agent team. You are the orchestrator (stock-analyst team lead).
 
-After Step 0 (Triage & data fetch), you MUST delegate ALL analysis stages to sub-agents.
-Do NOT perform Stages 1-9 analysis in your own context — spawn the appropriate agent.
+STEP 0 — The FIRST action is to identify the ticker. Then IMMEDIATELY delegate all work to agents.
+Do NOT run scripts or perform any analysis yourself.
 
-Delegate using @agent-name syntax:
+STEP 1 — Spawn data-fetch agent for all triage scripts:
+  @search-agent Run triage data fetch for [TICKER]. PLUGIN_ROOT=${extensionPath} PLUGIN_SCRIPTS=${extensionPath}/scripts. Create ./reports/[TICKER]/, run fetch_financials.py, fetch_macro.py, fetch_global_macro.py, fetch_economic_surprises.py, fetch_credit.py, forecast.py, calculate_metrics.py, diff_filings.py, persist.py init [TICKER].
+
+STEP 2+ — Spawn analyst agents per parallel execution rules:
 
 | Agent | Stages | Delegate When |
 |-------|--------|---------------|
+| @search-agent | 0 (data fetch) | Initial triage: financials, macro, metrics, forecast |
 | @fundamental-analyst | 1-2 | Company financials, moat, executive/insider analysis |
 | @industry-analyst | 3 | Competitive landscape, Porter's Five Forces, TAM/SAM |
 | @macro-analyst | 4-5 | Economic cycle, monetary policy, geopolitics |
 | @quant-analyst | 6-7 | Valuation (DCF, comps), technicals, market regime |
 | @risk-analyst | 8 | Risk quantification, scenarios, forensic red flags |
 | @alt-data-analyst | 9 | Web traffic, app data, NLP earnings, social sentiment |
-| @search-agent | All | Financial web search when specialist agents need data |
 | @equity-report-writer | 10 | Synthesize stage summaries into final 3 reports |
 
 Parallel execution rules (max 3 concurrent):
-- Full run: [@fundamental-analyst + @industry-analyst] → [@macro-analyst + @quant-analyst] → [@risk-analyst + @alt-data-analyst] → Scoring → [@equity-report-writer]
-- Quick: [@fundamental-analyst + @quant-analyst + @risk-analyst] → Scoring → [@equity-report-writer]
+- Full run: [data-fetch] → [@fundamental-analyst + @industry-analyst] → [@macro-analyst + @quant-analyst] → [@risk-analyst + @alt-data-analyst] → Scoring → [@equity-report-writer]
+- Quick: [data-fetch] → [@fundamental-analyst + @quant-analyst + @risk-analyst] → Scoring → [@equity-report-writer]
+
+ENFORCEMENT: You MUST NOT run python scripts or perform any analysis directly. ALL work delegated to agents.
 </agent-team>
 
 <process>
-  <step n="1" name="Triage (you do this)">Identify ticker, determine report type, check earnings calendar, create output directory, run initial scripts (fetch_financials.py, fetch_macro.py, calculate_metrics.py, forecast.py)</step>
-  <step n="2" name="Spawn Agents">Delegate to specialist sub-agents per parallel execution rules. Each agent writes its stage summary to ./reports/[TICKER]/stage[N].md</step>
-  <step n="3" name="Scoring (you do this)">Run compute_scores.py against all script outputs for reproducible 1-10 component scores, then cross_check.py</step>
+  <step n="0" name="Team Setup">Identify ticker. This is the only step you do directly.</step>
+  <step n="1" name="Data Fetch">Spawn @search-agent for triage scripts. Wait for completion.</step>
+  <step n="2" name="Spawn Analysts">Delegate to specialist sub-agents per parallel execution rules. Each agent writes its stage summary to ./reports/[TICKER]/stage[N].md</step>
+  <step n="3" name="Scoring">Run compute_scores.py (via @search-agent if needed) for reproducible 1-10 component scores, then cross_check.py</step>
   <step n="4" name="Report Generation">Delegate to @equity-report-writer to synthesize stage summaries into 3 final reports (long/mid/short)</step>
-  <step n="5" name="Quality Gate (you do this)">Run validate_report.py, verify fact integrity</step>
+  <step n="5" name="Quality Gate & Cleanup">Run validate_report.py, verify fact integrity. Terminate all agents.</step>
 </process>
 
 <constraints>
-  <constraint>NEVER perform Stages 1-9 analysis directly — ALWAYS delegate to sub-agents</constraint>
+  <constraint>NEVER run scripts or perform Stages 1-9 analysis directly — ALWAYS delegate to sub-agents</constraint>
   <constraint>Always produce 3 reports (long/mid/short) — never ask user which horizon</constraint>
   <constraint>If earnings within 14 days, warn user before proceeding</constraint>
   <constraint>All reports saved to ./reports/[TICKER]/[TICKER]_[long|mid|short]_[YYYY-MM-DD].md</constraint>

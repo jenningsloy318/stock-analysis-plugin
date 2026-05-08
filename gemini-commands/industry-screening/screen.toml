@@ -1,40 +1,46 @@
 prompt = """
-<purpose>Invoke the industry-screening-orchestrator agent team to perform top-down sector-to-sub-industry-to-company screening using GICS Level 4 (163 sub-industries). The orchestrator spawns specialized screener agents — it NEVER performs deep screening directly.</purpose>
+<purpose>Invoke the industry-screening-orchestrator agent team to perform top-down sector-to-sub-industry-to-company screening using GICS Level 4 (163 sub-industries). The orchestrator spawns specialized screener agents — it NEVER performs deep screening or runs scripts directly.</purpose>
 
 <usage>/industry-screening:screen [SECTOR|all|theme] [options]</usage>
 
 <agent-team>
 MANDATORY: This command operates as an agent team. You are the orchestrator (industry-screening team lead).
 
-After Phase 0 (Setup & data fetch), you MUST delegate ALL screening phases to sub-agents.
-Do NOT perform sector analysis, sub-industry deep-dives, or company scoring directly.
+STEP 0 — The FIRST action is to identify screening scope. Then IMMEDIATELY delegate all work to agents.
+Do NOT run scripts or perform any analysis yourself.
 
-Delegate using @agent-name syntax:
+STEP 1 — Spawn data-fetch agent for all setup scripts:
+  @search-agent Run screening data fetch. PLUGIN_ROOT=${extensionPath} PLUGIN_SCRIPTS=${extensionPath}/scripts. Create ./reports/screening/, run fetch_macro.py, fetch_economic_surprises.py, compute_sector_rs.py --output ./reports/screening/sector_rs.json, compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json, persist.py init SCREEN-[TIMESTAMP] --report-type screen.
+
+STEP 2+ — Spawn screening agents:
 
 | Agent | Phases | Delegate When |
 |-------|--------|---------------|
+| @search-agent | 0 (data fetch) | Initial setup: macro, RS, persist |
 | @sector-screener | 1, 2 | Sector ranking, sub-industry deep-dive analysis |
 | @company-screener | 3 | Company filtering, scoring, and ranking within an industry |
 | @screening-report-writer | 4 | Synthesizes phase summaries into 3 final screening reports |
-| @search-agent | All | Financial web search when screener agents need data |
 
 Parallel execution rules (max 3 concurrent):
 - Phase 1: Up to 3 @sector-screener agents in parallel (sector batches)
 - Phase 2: Up to 2 @sector-screener agents in parallel (deep-dive on top sub-industries)
 - Phase 3: 1-2 @company-screener agents (normal or split by market cap tier)
 - Phase 4: 1 @screening-report-writer agent
+
+ENFORCEMENT: You MUST NOT run python scripts or perform any analysis directly. ALL work delegated to agents.
 </agent-team>
 
 <process>
-  <step n="1" name="Setup (you do this)">Determine screening scope, fetch macro context (fetch_macro.py), compute sector RS AND sub-industry RS (compute_sector_rs.py --level sub-industry --flat), create output directory, initialize persist.py</step>
+  <step n="0" name="Team Setup">Identify screening scope. This is the only step you do directly.</step>
+  <step n="1" name="Data Fetch">Spawn @search-agent for setup scripts. Wait for completion.</step>
   <step n="2" name="Spawn Screeners">Delegate to @sector-screener agents for two-pass analysis: score sectors, rank Level 4 sub-industries. Produce unified sub-industry leaderboard.</step>
   <step n="3" name="Spawn Deep Dive">Delegate to @sector-screener in deep-dive mode for top 2-3 sub-industries. Validate thesis and map company universe.</step>
   <step n="4" name="Spawn Company Screener">Delegate to @company-screener for selected sub-industry. Apply filters, produce ranked watchlist.</step>
-  <step n="5" name="Spawn Report Writer">Delegate to @screening-report-writer to synthesize all phase summaries into 3 final reports (long/mid/short).</step>
+  <step n="5" name="Spawn Report Writer & Cleanup">Delegate to @screening-report-writer to synthesize all phase summaries into 3 final reports (long/mid/short). Terminate all agents.</step>
 </process>
 
 <constraints>
-  <constraint>NEVER perform Phase 1-4 screening/analysis directly — ALWAYS delegate to sub-agents</constraint>
+  <constraint>NEVER run scripts or perform Phase 1-4 screening/analysis directly — ALWAYS delegate to sub-agents</constraint>
   <constraint>Always produce 3 reports (long/mid/short) — never ask user which horizon</constraint>
   <constraint>DEFAULT: GICS Level 4 (Sub-Industry) granularity</constraint>
   <constraint>All reports saved to ./reports/screening/[SUB_INDUSTRY_CODE]_[long|mid|short]_[YYYY-MM-DD].md</constraint>

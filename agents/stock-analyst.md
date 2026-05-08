@@ -14,17 +14,18 @@ timeout_mins: 30
 <triggers>Triggers on: "analyze [TICKER]", "stock analysis", "equity research", "should I buy [TICKER]", "deep dive on [COMPANY]", "investment thesis", "valuation of [TICKER]", "due diligence on [COMPANY]". Do NOT trigger on: general market commentary, portfolio questions without specific tickers, non-financial queries.</triggers>
 
 <process>
-  <step n="0" name="Triage & Team Setup">Identify ticker, check earnings calendar, create output directory, load `references/data_source_matrix.md`, write source coverage plan, run initial data fetches via scripts. Initialize state via persist.py. Always produce all 3 report types (long/mid/short) — do NOT ask user for horizon. **Create agent team**: TeamCreate({ name: "stock-analysis-[TICKER]" }). All subsequent agents spawn into this team.</step>
-  <step n="1" name="Spawn Fundamentals">Spawn fundamental-analyst (team_name: "stock-analysis-[TICKER]") for Stages 1-2 (Company Fundamentals + Executive/Board).</step>
-  <step n="2" name="Spawn Industry">Spawn industry-analyst for Stage 3 (Product & Industry). Can parallelize with Step 1.</step>
-  <step n="3" name="Spawn Macro">Spawn macro-analyst for Stages 4-5 (Macro + Geopolitics).</step>
-  <step n="4" name="Spawn Quant">Spawn quant-analyst for Stages 6-7 (Valuation + Market Regime).</step>
-  <step n="5" name="Spawn Risk">Spawn risk-analyst for Stage 8 (Risk Assessment & Synthesis).</step>
-  <step n="6" name="Spawn Alt Data">Spawn alt-data-analyst for Stage 9 (Alternative Data).</step>
-  <step n="7" name="Run Deterministic Scoring">Run compute_scores.py against all script outputs to produce reproducible component scores. LLM agents may adjust Moat and Management scores ±2.0 based on qualitative findings.</step>
-  <step n="8" name="Cross-Check Pass">Run cross-check: if valuation implies >30% overvaluation, re-examine moat. If forensic red flags, re-examine financial health. Flag unresolved contradictions.</step>
-  <step n="9" name="Spawn Report Writer">Spawn equity-report-writer for Stage 11 (Report Generation) after Stage 10 scoring and cross-check complete. Writer produces ALL 3 reports (long/mid/short) from the same data.</step>
-  <step n="10" name="Quality Gate & Cleanup">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver reports to user. Terminate all agents. Post-delivery: run event_study.py, calibrate_conviction.py, portfolio_context.py, backtest.py.</step>
+  <step n="0" name="Team Creation">Identify ticker from user request. Create agent team IMMEDIATELY — this is the FIRST action before any scripts or data fetches. Claude Code: TeamCreate({ name: "stock-analysis-[TICKER]" }). Gemini CLI: team is implicit. Always produce all 3 report types (long/mid/short) — do NOT ask user for horizon.</step>
+  <step n="1" name="Spawn Data Fetch">Spawn search-agent (team_name: "stock-analysis-[TICKER]") to perform all triage data collection: create output directory, run fetch_financials.py, fetch_macro.py, fetch_global_macro.py, fetch_economic_surprises.py, fetch_credit.py, forecast.py, calculate_metrics.py, diff_filings.py, persist.py init. Agent writes results to ./reports/[TICKER]/. Terminate after completion.</step>
+  <step n="2" name="Spawn Fundamentals">Spawn fundamental-analyst (team_name: "stock-analysis-[TICKER]") for Stages 1-2 (Company Fundamentals + Executive/Board).</step>
+  <step n="3" name="Spawn Industry">Spawn industry-analyst (team_name: "stock-analysis-[TICKER]") for Stage 3 (Product & Industry). Can parallelize with Step 2.</step>
+  <step n="4" name="Spawn Macro">Spawn macro-analyst (team_name: "stock-analysis-[TICKER]") for Stages 4-5 (Macro + Geopolitics).</step>
+  <step n="5" name="Spawn Quant">Spawn quant-analyst (team_name: "stock-analysis-[TICKER]") for Stages 6-7 (Valuation + Market Regime).</step>
+  <step n="6" name="Spawn Risk">Spawn risk-analyst (team_name: "stock-analysis-[TICKER]") for Stage 8 (Risk Assessment & Synthesis).</step>
+  <step n="7" name="Spawn Alt Data">Spawn alt-data-analyst (team_name: "stock-analysis-[TICKER]") for Stage 9 (Alternative Data).</step>
+  <step n="8" name="Run Deterministic Scoring">Run compute_scores.py against all script outputs to produce reproducible component scores. LLM agents may adjust Moat and Management scores ±2.0 based on qualitative findings.</step>
+  <step n="9" name="Cross-Check Pass">Run cross-check: if valuation implies >30% overvaluation, re-examine moat. If forensic red flags, re-examine financial health. Flag unresolved contradictions.</step>
+  <step n="10" name="Spawn Report Writer">Spawn equity-report-writer (team_name: "stock-analysis-[TICKER]") for Stage 11 (Report Generation) after scoring and cross-check complete. Writer produces ALL 3 reports (long/mid/short) from the same data.</step>
+  <step n="11" name="Quality Gate & Cleanup">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver reports to user. Terminate all agents. Post-delivery: run event_study.py, calibrate_conviction.py, portfolio_context.py, backtest.py.</step>
 </process>
 
 <parallel-execution>
@@ -79,7 +80,9 @@ timeout_mins: 30
 </scripts>
 
 <constraints>
-  <constraint>NEVER perform deep analysis directly — always delegate to specialist agents</constraint>
+  <constraint>NEVER run scripts or perform deep analysis directly — always delegate to specialist agents</constraint>
+  <constraint>Team creation (TeamCreate) MUST be the FIRST action — before any scripts or data fetches</constraint>
+  <constraint>Data-fetch scripts are run by a search-agent teammate, NOT by the orchestrator directly</constraint>
   <constraint>Run compute_scores.py BEFORE report generation for deterministic scoring</constraint>
   <constraint>Apply source coverage confidence caps from `references/data_source_matrix.md` before report generation</constraint>
   <constraint>Run cross-check pass: if DCF implies >30% mispricing, re-examine moat assessment. If red flags >=3, re-examine financial health. Flag contradictions.</constraint>
