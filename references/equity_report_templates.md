@@ -296,6 +296,115 @@ R/R = (Bull_Price - Current_Price) × Bull_Prob / (Current_Price - Bear_Price) �
 - R/R 1.5-3:1 → Moderate
 - R/R < 1:1 → Avoid
 
+## Update Report Template (Re-Analysis)
+
+When re-running analysis after a trigger event (earnings, price target hit, macro regime change,
+kill switch approaching), produce an **UPDATE REPORT** rather than a full re-report. The update
+report focuses on what changed, what stayed the same, and conviction delta.
+
+**When to use**: Trigger events from the Post-Report Monitoring Protocol (see SKILL.md):
+- Earnings release (within 3 days)
+- Price hits bull or bear scenario target
+- Kill switch condition >80% of trigger level
+- Material news (M&A, regulatory, executive departure)
+- Macro regime change (Dalio quadrant shift)
+- 90/30/7-day elapsed (long/mid/short reports)
+
+**Update report is NOT a full re-report.** Only re-run affected stages. If conviction changes
+by ≥1.5 points, flag as "MATERIAL CHANGE."
+
+```
+# [TICKER] — Analysis Update
+
+**Update Type**: [Earnings Update / Price Target Hit / Catalyst Triggered / Macro Shift / Scheduled Refresh]
+**Update Date**: YYYY-MM-DD
+**Original Report**: [TICKER]_[Type]_[Original Date].md (Conviction: X.X/10)
+
+---
+
+## What Changed
+
+| Dimension | Prior (Date) | Current (Date) | Δ | Impact |
+|-----------|-------------|----------------|----|--------|
+| Price | $X | $Y | +Z% | [Closer to/further from target] |
+| Earnings/Fundamentals | [key metric change] | [value] | [delta] | [Thesis strengthened/weakened] |
+| Valuation | $X/share (MoS: +Y%) | $Z/share (MoS: +W%) | [delta] | [More/less attractive] |
+| Macro | [Regime before] | [Regime now] | [delta] | [Tailwind/headwind shift] |
+| Technical | [Setup before] | [Setup now] | - | [Trend intact/broken] |
+| Risk | [Red flags: N] | [Red flags: M] | [delta] | [Risk increased/decreased] |
+
+## Conviction Delta
+
+| Component | Prior Score | Current Score | Δ |
+|-----------|------------|---------------|----|
+| Financial Health | X.X | Y.Y | ±Z.Z |
+| Moat Quality | X.X | Y.Y | ±Z.Z |
+| Management Quality | X.X | Y.Y | ±Z.Z |
+| Valuation Attractiveness | X.X | Y.Y | ±Z.Z |
+| Macro Tailwind | X.X | Y.Y | ±Z.Z |
+| Risk Profile | X.X | Y.Y | ±Z.Z |
+| Alternative Alignment | X.X | Y.Y | ±Z.Z |
+| Technical Setup | X.X | Y.Y | ±Z.Z |
+
+**Prior Conviction**: X.X/10 ([Rating]) | **Current Conviction**: Y.Y/10 ([Rating]) | **Δ**: ±Z.Z
+
+**[If Δ ≥ 1.5: "MATERIAL CHANGE — thesis significantly altered"]**
+**[If Δ < 1.5: "MINOR ADJUSTMENT — thesis largely intact"]**
+
+## Thesis Status
+
+### Still Valid
+- [Aspect of thesis that remains unchanged]
+- [Aspect of thesis that remains unchanged]
+
+### Modified
+- [What changed and why]
+- [What changed and why]
+
+### New Considerations
+- [New factor not in original thesis]
+- [New factor not in original thesis]
+
+## Updated Recommendation
+
+- **Rating**: [Buy/Hold/Sell] (Prior: [Rating])
+- **Target Price**: $X (Prior: $Y) — [X% upside from current]
+- **Stop Loss**: $X (Prior: $Y)
+- **Time Remaining**: [X months/days] from original horizon
+- **Position Size**: X% [Unchanged / Adjust to Y%]
+
+### Action
+- [ ] Maintain position (thesis intact, within target range)
+- [ ] Add to position (thesis strengthened, larger margin of safety)
+- [ ] Reduce position (thesis partially invalidated, reduce risk)
+- [ ] Exit position (kill switch triggered or thesis broken)
+
+## Kill Switch Status
+
+| Condition | Trigger Level | Current Level | Status |
+|-----------|--------------|---------------|--------|
+| [Condition 1] | [Threshold] | [Value] | [OK / APPROACHING / TRIGGERED] |
+| [Condition 2] | [Threshold] | [Value] | [OK / APPROACHING / TRIGGERED] |
+
+## Next Update
+[Scheduled / Trigger-based: next earnings date, X days, or if price reaches $Y]
+
+## Appendix: Data Quality & Coverage (for re-run stages only)
+- Re-run stages: [List of stage numbers]
+- Data freshness of re-run data: [Dates]
+- Source conflicts introduced: [None / list]
+```
+
+### Update Report Rules
+
+1. **Only re-run affected stages.** Don't redo the full analysis for a minor trigger.
+2. **Compare scores explicitly.** Always show prior vs current component scores side-by-side.
+3. **Flag material changes.** If conviction moves ≥1.5 points, the update report carries "MATERIAL CHANGE" warning.
+4. **Action clarity.** Every update report must give an explicit action (maintain/add/reduce/exit).
+5. **Kill switch always checked.** Re-evaluate all kill switch conditions against fresh data.
+6. **Update report replaces nothing.** The original report remains for audit trail; the update is a supplement.
+7. **Scheduled refreshes are lighter.** A 90-day scheduled refresh for a long-term report only re-runs Stages 6+7+10+11; fundamentals/moat assessments carry forward unless a material event occurred.
+
 ## Source Attribution Format
 
 Every data claim must use:

@@ -9,7 +9,7 @@ max_turns: 30
 timeout_mins: 15
 ---
 
-<purpose>Perform comprehensive risk assessment covering risk identification (operational, financial, competitive, regulatory, macro, geopolitical, ESG), quantification (probability × impact matrix), scenario analysis with regime-adjusted probabilities, catalyst timeline, cross-dimensional synthesis (Marks's 2nd-level thinking, Soros reflexivity, Dalio cycle), forensic red flag summary, operational due diligence, and thesis falsifiability (pre-mortem, kill switch).</purpose>
+<purpose>Perform comprehensive risk assessment covering risk identification (operational, financial, competitive, regulatory, macro, geopolitical, ESG/climate), quantification (probability × impact matrix), scenario analysis with regime-adjusted probabilities, catalyst timeline, cross-dimensional synthesis (Marks's 2nd-level thinking, Soros reflexivity, Dalio cycle), forensic red flag summary, operational due diligence, ESG materiality assessment (climate physical/transition risk, social license, governance), and thesis falsifiability (pre-mortem, kill switch). ESG is a first-class risk dimension — not a sub-item.</purpose>
 
 <stages>Handles Stage 8 (Risk Assessment & Synthesis)</stages>
 
@@ -21,6 +21,7 @@ timeout_mins: 15
   <step n="5" name="Cross-Dimensional Synthesis">Marks's 2nd-level thinking, Soros reflexivity, Dalio cycle position</step>
   <step n="6" name="Forensic Red Flags">Flag if 3+ of 9 red flags present simultaneously</step>
   <step n="7" name="Operational Due Diligence">Cybersecurity, legal history, DR/BC, insurance, IP, compliance, 3rd-party risk</step>
+  <step n="7b" name="ESG Materiality Assessment">Climate physical risk (asset-level exposure to flood/fire/hurricane/sea-level), transition risk (carbon pricing impact on margins, stranded asset risk), social license (labor practices, community relations, human rights in supply chain), governance (board independence, dual-class shares, shareholder rights, audit committee expertise). Score each ESG pillar on materiality (1-10) and trend (improving/stable/deteriorating). Flag any MSCI/Sustainalytics controversy or UNGC non-compliance.</step>
   <step n="8" name="Thesis Falsifiability">Pre-mortem, falsification conditions, dissenting view search, inversion checklist, kill switch</step>
 </process>
 

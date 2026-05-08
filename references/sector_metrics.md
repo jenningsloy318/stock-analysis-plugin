@@ -83,6 +83,70 @@ Select the sector based on GICS classification. If the company spans multiple se
 | **Leasing Spreads** | New rent / Expiring rent | >1.0x (positive re-leasing) | <1.0x (negative re-leasing) |
 | **Debt/EBITDA** | Total Debt / EBITDA | <6x (investment grade) | >8x |
 
+## Communication Services (GICS 50)
+
+| Metric | Formula/Definition | Bullish Threshold | Bearish Threshold |
+|--------|-------------------|-------------------|-------------------|
+| **DAU/MAU Ratio** | Daily Active Users / Monthly Active Users | >50% (social), >30% (content) | <20% |
+| **ARPU Growth** | YoY change in avg revenue per user | >10% | <0% |
+| **Ad Revenue Growth** | YoY advertising revenue | >15% | <5% |
+| **Engagement Time** | Avg minutes per user per day | >40 min (growing) | <20 min (declining) |
+| **Subscriber Growth** | YoY paying subscriber change | >15% (streaming/telecom) | <0% |
+| **Churn Rate** | Monthly subscriber cancellations / avg subs | <3%/mo | >6%/mo |
+| **Postpaid Phone Churn** | Monthly voluntary disconnects (telecom) | <0.80% | >1.20% |
+| **EBITDA Margin** | EBITDA / Revenue | >40% | <25% |
+| **Content Spend / Revenue** | Content cost amortization / Revenue | <50% (efficient) | >65% (overspending) |
+| **FCF Conversion** | FCF / EBITDA | >80% | <50% |
+| **Leverage** | Net Debt / EBITDA | <2.5x | >4.0x |
+| **Spectrum Depth** | MHz/POP holdings vs peers | Above peer median | Below peer median |
+
+## Materials (GICS 15)
+
+| Metric | Formula/Definition | Bullish Threshold | Bearish Threshold |
+|--------|-------------------|-------------------|-------------------|
+| **Production Cost Percentile** | Position on global industry cost curve | Bottom quartile (lowest cost) | Top quartile (highest cost) |
+| **Capacity Utilization** | Actual output / Nameplate capacity | >85% | <70% |
+| **ROIC** | NOPAT / Invested Capital | >15% (through cycle) | <WACC |
+| **FCF Yield** | FCF / Market Cap | >8% | <3% |
+| **Debt/EBITDA** | Total Debt / EBITDA | <2.0x | >3.5x |
+| **Commodity Price Sensitivity** | EBITDA change per 10% commodity price move | Managed via hedges | Unhedged, high beta |
+| **Reserve Life (mining)** | Proven + Probable reserves / Annual production | >20 years | <10 years |
+| **Replacement Capex Ratio** | Sustaining capex / Depreciation | <80% | >120% |
+| **Environmental Liability** | Asset retirement obligations / Market cap | <10% | >25% |
+
+## Utilities (GICS 55)
+
+| Metric | Formula/Definition | Bullish Threshold | Bearish Threshold |
+|--------|-------------------|-------------------|-------------------|
+| **Allowed ROE vs Earned ROE** | Regulatory ROE - Actual ROE | Earned > Allowed (over-earning) | Earned < Allowed by >100bp |
+| **Rate Base Growth** | YoY rate base change | >6% | <2% |
+| **Regulatory Lag** | Time from capex to rate recovery | <12 months | >24 months |
+| **Capacity Factor** | Actual generation / Maximum potential | >90% (nuclear), >35% (solar), >45% (wind) | Declining YoY |
+| **Renewable Generation %** | Renewable MWh / Total MWh | Growing >5pp YoY | Declining or stagnant |
+| **Debt/EBITDA** | Total Debt / EBITDA | <5.0x (regulated) | >6.5x |
+| **FFO/Debt** | Funds From Operations / Total Debt | >18% | <12% |
+| **Dividend Payout Ratio** | Dividends / EPS (or FFO) | 60-75% (regulated) | >90% (unsustainable) |
+| **O&M Cost/MWh** | Operating & Maintenance cost per MWh | Declining or stable | Rising >3% YoY |
+| **Carbon Intensity** | tCO2e / MWh generated | Declining >5% YoY | Above peer median |
+
+## Insurance (GICS 40 — Financials sub-sector)
+
+| Metric | Formula/Definition | Bullish Threshold | Bearish Threshold |
+|--------|-------------------|-------------------|-------------------|
+| **Combined Ratio (P&C)** | (Losses + Expenses) / Premiums | <95% | >105% |
+| **Loss Ratio** | Incurred Losses / Earned Premiums | <65% | >75% |
+| **Expense Ratio** | UW Expenses / Written Premiums | <30% | >38% |
+| **Reserve Development** | Prior-year reserve change / Beginning reserves | Favorable +0 to +3% | Adverse >2% of equity |
+| **NWP Growth** | YoY Net Written Premium change | 8-15% | <0% |
+| **ROE (P&C)** | Net Income / Equity | >10% | <5% |
+| **BVPS Growth** | Book Value Per Share YoY | >8% | <0% |
+| **P/B Ratio** | Price / Book Value | 1.0-2.0× | <0.7× (distress) or >3.0× (overvalued) |
+| **RBC Ratio (Life)** | Risk-Based Capital / Authorized Control Level | >400% | <250% |
+| **MLR (Health)** | Medical Claims / Premiums | 80-85% (individual), 85%+ (large group) | >90% |
+| **Investment Yield** | Net Investment Income / Invested Assets | >4% | <2% |
+| **Embedded Value Growth** | YoY EV per share growth (Life) | >8% | <3% |
+| **Catastrophe Load** | Cat losses / NWP (5yr avg) | <5% | >10% |
+
 ## GICS Sector Classification Reference
 
 | GICS Code | Sector | Key Characteristics |

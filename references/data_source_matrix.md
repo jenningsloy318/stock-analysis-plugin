@@ -73,6 +73,50 @@ For non-US companies, replace US-only sources with local equivalents:
 | Industrials | Backlog, book-to-bill, capacity utilization, input costs, order cycle |
 | Consumer | Same-store sales, traffic, basket size, inventory turns, promotion intensity |
 
+## IFRS vs US GAAP Reconciliation
+
+When analyzing non-US companies reporting under IFRS, adjust for these key differences:
+
+| Area | US GAAP | IFRS | Analysis Impact |
+|------|---------|------|-----------------|
+| **Revenue Recognition** | ASC 606 (similar to IFRS 15) | IFRS 15 | Largely converged. Watch for principal vs agent classification in marketplace/platform companies. |
+| **Leases** | ASC 842: all leases on balance sheet | IFRS 16: all leases on balance sheet | Largely converged. Both capitalize operating leases now. |
+| **Inventory** | LIFO permitted | LIFO prohibited | US companies using LIFO → inventory and COGS not comparable to IFRS peers. Adjust to FIFO for peer comparison. |
+| **Goodwill** | Amortized over ≤10 years (private companies) or tested for impairment (public) | Tested for impairment only (no amortization) | Different impairment triggers and measurement. IFRS goodwill may be overstated. |
+| **Development Costs** | Expensed (with narrow exceptions for software) | Capitalized if certain criteria met | IFRS companies may show higher assets and lower current expenses. Adjust for comparability. |
+| **PP&E Revaluation** | Historical cost only | Revaluation model permitted | IFRS companies may show inflated asset values. Check if revaluation model is used. |
+| **Extraordinary Items** | Permitted (rare) | Prohibited | IFRS income statements are cleaner — no below-the-line extraordinary classification. |
+| **Cash Flow Statement** | Interest paid/received = operating; dividends paid = financing | Choice: interest/dividends can be operating or financing | Classification differences change OCF and FCF. Always check classification choices. |
+| **Financial Instruments** | Complex (ASC 820 fair value hierarchy) | IFRS 9 (simpler classification) | Different hedge accounting and impairment models. |
+| **Consolidation** | Variable interest entity (VIE) model | Control-based model (power + returns) | Different consolidation conclusions for SPVs, structured entities. |
+
+### Analyst Adjustments Required
+
+When comparing IFRS and US GAAP companies:
+
+1. **Always state accounting standard in reports.** "FY2024 results (IFRS)" or "FY2024 (US GAAP)."
+2. **Normalize inventory accounting.** If US peer uses LIFO, adjust to FIFO before comparing gross margins.
+3. **Check for development cost capitalization.** IFRS tech/pharma companies may have higher assets. Subtract capitalized development from assets and add to expenses for comparability.
+4. **Reconcile OCF.** IFRS companies with interest in financing cash flow → OCF overstated. Adjust to US GAAP OCF definition.
+5. **Verify goodwill impairment.** IFRS impairment-only model → goodwill may be stale. Apply a simplified DCF reasonableness test.
+6. **Watch segment reporting.** IFRS 8 is similar to ASC 280 but companies have more discretion in segment definition under IFRS.
+
+### Non-US Filing Equivalents
+
+| Country/Region | Filing Equivalent | Accounting Standard | Access |
+|---------------|-------------------|---------------------|--------|
+| **Canada** | SEDAR (sedar.com) | IFRS (public companies) | Free web |
+| **UK** | Companies House | IFRS (UK-adopted) | Free web |
+| **EU** | National registers + ESMA | IFRS (EU-adopted) | Free web (varies by country) |
+| **Japan** | EDINET | JGAAP or IFRS (choice) | Free web |
+| **China** | CSRC + SSE/SZSE | CAS (converging to IFRS) | akshare / free web |
+| **India** | BSE/NSE + MCA | Ind AS (converged IFRS) | Free web |
+| **Australia** | ASIC | IFRS (AASB) | Free web |
+| **Brazil** | CVM | IFRS (CPC) | Free web |
+| **Hong Kong** | HKEX | HKFRS (IFRS-equivalent) | Free web |
+| **Singapore** | SGX | SFRS (IFRS-equivalent) | Free web |
+| **ADR (US-listed foreign)** | SEC 20-F / 40-F | IFRS or home-country GAAP with reconciliation | SEC EDGAR |
+
 ## Report Confidence Mapping
 
 | Coverage Result | Confidence Impact |
