@@ -62,6 +62,12 @@ Before Phase 1, load `references/data_source_matrix.md` and write `./reports/scr
 - Sector-specific KPIs to apply once a top industry is selected
 - Confidence cap if the company universe, sector valuation, or macro data is stale or incomplete
 
+## Script Execution
+
+Scripts are bundled with the plugin. The path variable `${PLUGIN_SCRIPTS}` resolves per platform:
+- **Claude Code / Codex CLI**: `${CLAUDE_PLUGIN_ROOT}/scripts`
+- **Gemini CLI**: `${extensionPath}/scripts`
+
 ## Workflow
 
 ### Phase 0: Setup & Scope (orchestrator executes directly)
@@ -78,13 +84,13 @@ Before Phase 1, load `references/data_source_matrix.md` and write `./reports/scr
    - "momentum" / "this quarter" → Short-term (momentum + sentiment weighted)
    - Default → Mid-term, then ask if the user wants a different horizon
 
-3. **Fetch macro context**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output ./reports/screening/macro.json`. This establishes the macro regime backdrop for sector sensitivity analysis.
-3b. **Fetch economic surprises**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_economic_surprises.py --output ./reports/screening/economic_surprises.json` for actual-vs-consensus data. Persistent positive surprises favor cyclicals; negative surprises favor defensives.
-3c. **Compute sector relative strength**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for deterministic sector price momentum rankings vs SPY across 1M/3M/6M/12M. This provides the quantitative backbone for the Relative Strength dimension in Phase 1.
+3. **Fetch macro context**: Run `${PLUGIN_SCRIPTS}/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output ./reports/screening/macro.json`. This establishes the macro regime backdrop for sector sensitivity analysis.
+3b. **Fetch economic surprises**: Run `${PLUGIN_SCRIPTS}/fetch_economic_surprises.py --output ./reports/screening/economic_surprises.json` for actual-vs-consensus data. Persistent positive surprises favor cyclicals; negative surprises favor defensives.
+3c. **Compute sector relative strength**: Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for deterministic sector price momentum rankings vs SPY across 1M/3M/6M/12M. This provides the quantitative backbone for the Relative Strength dimension in Phase 1.
 
 4. **Create output directory**: `./reports/screening/`
 
-5. **Initialize state**: Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py init SCREEN-[TIMESTAMP] --report-type screen` to create a checkpointed screening session. Record the returned `analysis_id`.
+5. **Initialize state**: Run `${PLUGIN_SCRIPTS}/persist.py init SCREEN-[TIMESTAMP] --report-type screen` to create a checkpointed screening session. Record the returned `analysis_id`.
 
 6. **Source coverage plan**: Load `references/data_source_matrix.md`. Write `./reports/screening/source-plan.md` with classification sources, required source tiers, freshness windows, and confidence cap rules.
 
@@ -220,7 +226,7 @@ For long-term and mid-term reports, use constituent quality as a tiebreaker. For
 - [ ] Compute funnel conviction scores (Sector Selection Confidence, Industry Selection Confidence, Overall Screen Quality)
 - [ ] Run pre-delivery checklist and fact verification
 - [ ] Write report to `./reports/screening/[SECTOR]_[INDUSTRY]_[YYYY-MM-DD].md`
-- [ ] Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py complete [ANALYSIS_ID]`
+- [ ] Run `${PLUGIN_SCRIPTS}/persist.py complete [ANALYSIS_ID]`
 - [ ] Generate handoff recommendation for stock-analysis deep-dive
 
 **Validation gate:** All phase summaries loaded and internally consistent. At least 3 fact checks passed. Kill switch conditions defined.
@@ -245,7 +251,7 @@ Before delivering the screening report, verify:
 
 After every phase, execute this sequence:
 1. Write phase summary to `./reports/screening/phase[N].md`
-2. Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py save [ANALYSIS_ID] [N] ./reports/screening/phase[N].md`
+2. Run `${PLUGIN_SCRIPTS}/persist.py save [ANALYSIS_ID] [N] ./reports/screening/phase[N].md`
 3. Drop raw data from context (full search results, per-company data, raw sector reports)
 4. Load next phase
 5. If context usage exceeds ~80%, offload additional intermediate data

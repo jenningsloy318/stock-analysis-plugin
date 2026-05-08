@@ -44,7 +44,7 @@ timeout_mins: 12
     - Methodology weights stated
     - Kill switch conditions defined</step>
   <step n="6" name="Fact Verification">Select 3 random data claims from the report, trace back to phase summary source. If any claim is unverifiable, remove it and flag the gap.</step>
-  <step n="7" name="Write Report">Save to `./reports/screening/[SECTOR]_[INDUSTRY]_[YYYY-MM-DD].md`. Run `${CLAUDE_PLUGIN_ROOT}/scripts/persist.py complete [ANALYSIS_ID]`.</step>
+  <step n="7" name="Write Report">Save to `./reports/screening/[SECTOR]_[INDUSTRY]_[YYYY-MM-DD].md`. Run `${PLUGIN_SCRIPTS}/persist.py complete [ANALYSIS_ID]`.</step>
   <step n="8" name="Handoff Recommendation">Generate explicit next-step suggestion: "Top-ranked companies from this screen can be deep-dived with the stock-analysis skill. Recommended starting ticker: [TOP_TICKER] (Score: [X.X]/10). Would you like me to run a full equity research analysis?"</step>
 </process>
 

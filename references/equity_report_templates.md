@@ -225,6 +225,16 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 - Earnings Edge: Beat rate [X]% (last [N] quarters). Pre-earnings drift: [positive/negative/none]. PEAD tendency: [positive/negative/none]. Next earnings: [date] ([X] days away).
 
 ## 4. Relative Valuation
+
+**Peer Comparison Table:**
+| Company | Ticker | P/E (NTM) | EV/EBITDA | P/FCF | Rev Growth | Op Margin | ROIC |
+|---------|--------|-----------|-----------|-------|------------|-----------|------|
+| **[Subject]** | **[TICKER]** | **X** | **X** | **X** | **X%** | **X%** | **X%** |
+| [Peer 1] | [TKR] | X | X | X | X% | X% | X% |
+| [Peer 2] | [TKR] | X | X | X | X% | X% | X% |
+| [Peer 3] | [TKR] | X | X | X | X% | X% | X% |
+| *Peer Median* | — | X | X | X | X% | X% | X% |
+
 [P/E (trailing/forward/NTM) vs 5yr avg and peers. EV/EBITDA vs peers with growth justification. P/FCF yield vs risk-free rate. PEG ratio. Private market comp: LBO floor price (if market cap < $100B). Precedent transaction premium range.]
 
 ## 5. Technical Structure & Timing

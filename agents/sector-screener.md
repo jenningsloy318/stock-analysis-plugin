@@ -42,7 +42,7 @@ timeout_mins: 12
 </deep-dive-mode>
 
 <data-acquisition>
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for deterministic sector relative strength rankings.
+  Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for deterministic sector relative strength rankings.
 
   For sector and industry research, use search tools:
   1. `mcp__firecrawl__firecrawl_search` — "[SECTOR] sector performance 2025 2026 outlook", "[SECTOR] industry growth forecast CAGR"

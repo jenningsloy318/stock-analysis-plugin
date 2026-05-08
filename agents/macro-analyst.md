@@ -33,9 +33,9 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_macro.py --output ./reports/macro.json` for FRED indicators.
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_global_macro.py --output ./reports/global_macro.json` for non-US macro (ECB, PBOC, BOJ, Eurostat, World Bank).
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_economic_surprises.py --output ./reports/economic_surprises.json` for CESI proxies, nowcasts, actual-vs-consensus.
+  Run `${PLUGIN_SCRIPTS}/fetch_macro.py --output ./reports/macro.json` for FRED indicators.
+  Run `${PLUGIN_SCRIPTS}/fetch_global_macro.py --output ./reports/global_macro.json` for non-US macro (ECB, PBOC, BOJ, Eurostat, World Bank).
+  Run `${PLUGIN_SCRIPTS}/fetch_economic_surprises.py --output ./reports/economic_surprises.json` for CESI proxies, nowcasts, actual-vs-consensus.
   Reuse existing files if already fetched in Step 0.
 
   For supplementary macro data, use search tools in order:

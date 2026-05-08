@@ -34,10 +34,10 @@ timeout_mins: 15
 </reference-files>
 
 <data-acquisition>
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/fetch_capital_structure.py [TICKER] --output ./reports/[TICKER]/capital_structure.json` for shareholder return analysis.
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/calculate_earnings_quality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/earnings_quality.json` for accruals, cash conversion, and revenue quality scoring.
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json` for 10-K/10-Q redline detection (risk factor changes, MD&A tone shift, accounting policy changes, forensic flags).
-  Run `${CLAUDE_PLUGIN_ROOT}/scripts/compute_seasonality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/seasonality.json` for quarterly revenue/EPS seasonal patterns and earnings beat/miss context.
+  Run `${PLUGIN_SCRIPTS}/fetch_capital_structure.py [TICKER] --output ./reports/[TICKER]/capital_structure.json` for shareholder return analysis.
+  Run `${PLUGIN_SCRIPTS}/calculate_earnings_quality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/earnings_quality.json` for accruals, cash conversion, and revenue quality scoring.
+  Run `${PLUGIN_SCRIPTS}/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json` for 10-K/10-Q redline detection (risk factor changes, MD&A tone shift, accounting policy changes, forensic flags).
+  Run `${PLUGIN_SCRIPTS}/compute_seasonality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/seasonality.json` for quarterly revenue/EPS seasonal patterns and earnings beat/miss context.
 
   For SEC filings and fundamental data, use search tools:
   1. `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` — "[TICKER] 10-K 10-Q DEF 14A [year]"
