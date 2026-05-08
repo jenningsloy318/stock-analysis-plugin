@@ -13,7 +13,7 @@ description: >
   industries to invest," "which sectors are growing," "top-down screening,"
   "find stocks in [SECTOR]," "industry screening," or "sector rotation."
 author: Jennings Liu
-version: "1.0.42"
+version: "1.0.43"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro).
 ---
@@ -329,9 +329,16 @@ For long-term and mid-term reports, use constituent quality as a tiebreaker. For
 
 ### Phase 4: Report Generation → Spawn screening-report-writer
 
+**BEFORE spawning the report writer**, the team lead MUST pre-compute the 3 final report filenames:
+- `./reports/screening/[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
+- `./reports/screening/[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
+- `./reports/screening/[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
+
+Use the top-ranked sub-industry's 8-digit GICS code and today's date. Pass these EXACT filenames in the spawn prompt. The report writer writes ONLY these 3 files — no other output files.
+
 **Objective:** Synthesize all phase summaries into final screening reports with conviction scoring. Produce **3 separate reports** — one per investment horizon (long-term, mid-term, short-term) — each with horizon-specific composite weightings.
 
-**Spawn strategy:** Spawn 1 `screening-report-writer` agent. The orchestrator provides the analysis_id, phase summary file paths, and instructs the writer to produce all 3 horizon variants.
+**Spawn strategy:** Spawn 1 `screening-report-writer` agent. The orchestrator provides the analysis_id, phase summary file paths, the 3 target filenames, and instructs the writer to produce all 3 horizon variants.
 
 **Screening-report-writer workflow:**
 - [ ] Load all phase summaries from `./reports/screening/phase[0-3].md`

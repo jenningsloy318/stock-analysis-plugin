@@ -3,10 +3,10 @@ name: stock-analyze
 description: "Run full multi-stage equity research analysis on a stock ticker. Always produces all 3 report types (Long-term, Mid-term, Short-term) automatically."
 ---
 
-<purpose>Invoke the stock-analyst orchestrator agent team to perform full multi-stage equity research. Always produces all 3 report horizons (long/mid/short) from a single data-collection pass. The orchestrator spawns specialized analyst agents for each stage — it NEVER performs deep analysis directly.</purpose>
+<purpose>Invoke the stock-analysis-orchestrator orchestrator agent team to perform full multi-stage equity research. Always produces all 3 report horizons (long/mid/short) from a single data-collection pass. The orchestrator spawns specialized analyst agents for each stage — it NEVER performs deep analysis directly.</purpose>
 
 <agent-team>
-MANDATORY: This command operates as an agent team. You are the orchestrator (stock-analyst team lead).
+MANDATORY: This command operates as an agent team. You are the orchestrator (stock-analysis-orchestrator team lead).
 
 STEP 0 — Create team IMMEDIATELY as the FIRST action (before ANY scripts):
   Claude Code: TeamCreate({ name: "stock-analysis-[TICKER]" })

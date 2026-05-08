@@ -10,7 +10,7 @@ description: >
   "analyze AAPL," "should I buy NVDA," "deep dive on MSFT," or "what do you
   think of TSLA."
 author: Jennings Liu
-version: "1.0.42"
+version: "1.0.43"
 license: MIT
 compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl MCP, Web Search Prime, Exa MCP, exec_shell, write_file, read_file. Python 3.10+ for bundled scripts. Optional: FRED_API_KEY (macro), FINNHUB_API_KEY (sentiment/insider/earnings).
 ---
@@ -19,7 +19,7 @@ compatibility: Requires Firecrawl MCP, Tavily MCP, Tinyfish MCP (OAuth), XCrawl 
 
 ## Overview
 
-<purpose>Stock-analyst (team lead) agent team workflow. The stock-analyst orchestrates specialized analyst teammates — it NEVER performs deep analysis directly, only spawns, coordinates, and verifies. Analyst agents execute fundamentals, industry, macro, valuation, risk, alternative data, and report stages in parallel where possible.</purpose>
+<purpose>Stock-analysis-orchestrator (team lead) agent team workflow. The stock-analysis-orchestrator orchestrates specialized analyst teammates — it NEVER performs deep analysis directly, only spawns, coordinates, and verifies. Analyst agents execute fundamentals, industry, macro, valuation, risk, alternative data, and report stages in parallel where possible.</purpose>
 
 <triggers>Triggers on: "analyze [TICKER]", "stock analysis", "equity research", "should I buy [TICKER]", "deep dive on [COMPANY]", "investment thesis", "valuation of [TICKER]", "due diligence on [COMPANY]". Do NOT trigger on: general market commentary, portfolio questions without specific tickers, non-financial queries.</triggers>
 
@@ -32,7 +32,7 @@ This skill performs institutional-grade stock analysis through 11 stages, produc
 ## Agent Team Activation (MANDATORY)
 
 <agent-team-protocol>
-This skill ALWAYS operates as an agent team. You are the team lead (stock-analyst orchestrator).
+This skill ALWAYS operates as an agent team. You are the team lead (stock-analysis-orchestrator orchestrator).
 
 STEP 0 — Create the team IMMEDIATELY as the FIRST action (before ANY scripts or data fetches):
   Claude Code: TeamCreate({ name: "stock-analysis-[TICKER]" })
@@ -418,6 +418,13 @@ This produces deterministic Financial Health, Moat Quality, Management Quality, 
 
 ### Stage 11: Report Generation → Spawn equity-report-writer
 
+**BEFORE spawning the report writer**, the team lead MUST pre-compute the 3 final report filenames:
+- `./reports/[TICKER]/[TICKER]_long_[YYYY-MM-DD].md`
+- `./reports/[TICKER]/[TICKER]_mid_[YYYY-MM-DD].md`
+- `./reports/[TICKER]/[TICKER]_short_[YYYY-MM-DD].md`
+
+Pass these EXACT filenames in the spawn prompt. The report writer writes ONLY these 3 files — no other output files.
+
 **Workflow:**
 1. Read all stage summaries from `./reports/[TICKER]/stage[1-9].md`
 2. Load deterministic scores from `./reports/[TICKER]/scores.json`
@@ -520,7 +527,7 @@ When a script fails or returns partial data:
 
 ## Agent Team
 
-The stock-analyst (team lead) spawns specialist teammates for ALL analysis work — it NEVER performs deep analysis directly. Sub-agents are defined in `agents/`:
+The stock-analysis-orchestrator (team lead) spawns specialist teammates for ALL analysis work — it NEVER performs deep analysis directly. Sub-agents are defined in `agents/`:
 
 | Agent | Stages | Spawn When |
 |-------|--------|------------|
@@ -533,8 +540,8 @@ The stock-analyst (team lead) spawns specialist teammates for ALL analysis work 
 | `search-agent` | All | Financial web search when specialist agents need data |
 | `equity-report-writer` | 10 | Synthesize stage summaries into final reports |
 
-**Claude Code**: Stock-analyst spawns via the `Agent` tool with `subagent_type: "stock-analysis:<agent-name>"`.
-**Gemini CLI**: Stock-analyst auto-delegates based on agent descriptions, or user forces via `@agent-name` syntax.
+**Claude Code**: Stock-analysis-orchestrator spawns via the `Agent` tool with `subagent_type: "stock-analysis:<agent-name>"`.
+**Gemini CLI**: Stock-analysis-orchestrator auto-delegates based on agent descriptions, or user forces via `@agent-name` syntax.
 
 **Path passing**: When spawning any sub-agent, include in the spawn prompt:
 - `PLUGIN_ROOT` = the resolved plugin root path (platform-specific, resolved by orchestrator)
@@ -544,7 +551,7 @@ Agents reference scripts as `PLUGIN_SCRIPTS/script_name.py`. The orchestrator re
 
 ## Parallelism
 
-Stock-analyst (team lead) spawns sub-agents in parallel (max 3 concurrent). Since all 3 report types are always produced, ALL stages are executed. The parallel execution order uses the long-term sequence (most comprehensive) which subsumes mid-term and short-term data needs:
+Stock-analysis-orchestrator (team lead) spawns sub-agents in parallel (max 3 concurrent). Since all 3 report types are always produced, ALL stages are executed. The parallel execution order uses the long-term sequence (most comprehensive) which subsumes mid-term and short-term data needs:
 
 - Full run: [fundamental-analyst + industry-analyst] → [macro-analyst + quant-analyst] → [risk-analyst + alt-data-analyst] → Scoring → [equity-report-writer (produces 3 reports)]
 - Quick Overview: [fundamental-analyst + quant-analyst + risk-analyst] → Scoring → [equity-report-writer (produces 3 reports)]
