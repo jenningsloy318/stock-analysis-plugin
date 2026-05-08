@@ -1,6 +1,6 @@
 {
   "name": "stock-analysis",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "description": "Multi-stage institutional equity research producing long-term, mid-term, and short-term stock analysis reports synthesizing methodologies from Buffett, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, and ARK",
   "contextFileName": "GEMINI.md",
   "settings": [

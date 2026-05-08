@@ -1,6 +1,6 @@
 [project]
 name = "stock-analysis-scripts"
-version = "1.0.25"
+version = "1.0.26"
 description = "Python scripts for stock analysis plugin - deterministic calculations, data fetching, and scoring"
 requires-python = ">=3.10"
 dependencies = [
