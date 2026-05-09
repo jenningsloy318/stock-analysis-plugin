@@ -69,13 +69,13 @@ STEP 1 — Spawn data-fetch agent into the team to run all setup scripts:
 Agent({
   subagent_type: "stock-analysis:search-agent",
   team_name: "industry-screening-[TIMESTAMP]",
-  prompt: "PLUGIN_ROOT=... PLUGIN_SCRIPTS=... Run screening data fetch. Create ./reports/screening/, run fetch_macro.py, fetch_economic_surprises.py, compute_sector_rs.py --output ./reports/screening/sector_rs.json, compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json, persist.py init SCREEN-[TIMESTAMP] --report-type screen."
+  prompt: "PLUGIN_ROOT=... Run screening data fetch. Create ./reports/screening/, run fetch_macro.py, fetch_economic_surprises.py, compute_sector_rs.py --output ./reports/screening/sector_rs.json, compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json, persist.py init SCREEN-[TIMESTAMP] --report-type screen."
 })
 ```
 
 **Gemini CLI:**
 ```
-@search-agent Run screening data fetch. PLUGIN_ROOT=... PLUGIN_SCRIPTS=...
+@search-agent Run screening data fetch. PLUGIN_ROOT=...
 ```
 
 STEP 2+ — Spawn screening sub-agents into the team for ALL phases (Phases 1-4):
@@ -85,13 +85,13 @@ STEP 2+ — Spawn screening sub-agents into the team for ALL phases (Phases 1-4)
 Agent({
   subagent_type: "industry-screening:<agent-name>",
   team_name: "industry-screening-[TIMESTAMP]",
-  prompt: "PLUGIN_ROOT=... PLUGIN_SCRIPTS=... Screen [SCOPE]. Macro data at ./reports/screening/macro.json..."
+  prompt: "PLUGIN_ROOT=... Screen [SCOPE]. Macro data at ./reports/screening/macro.json..."
 })
 ```
 
 **Gemini CLI:**
 ```
-@sector-screener Screen all sectors. PLUGIN_ROOT=... PLUGIN_SCRIPTS=...
+@sector-screener Screen all sectors. PLUGIN_ROOT=...
 ```
 
 ENFORCEMENT RULE: The orchestrator MUST NOT run any scripts or perform analysis directly.
@@ -157,13 +157,12 @@ Before Phase 1, load `references/data_source_matrix.md` and write `./reports/scr
     gemini: ${extensionPath}
   PLUGIN_DATA:
     claude: ${CLAUDE_PLUGIN_DATA}
-    gemini: ${extensionPath}/.data
+    gemini: ${extensionPath}/data
 </platform-paths>
 
 Scripts are bundled with the plugin. Set `PLUGIN_ROOT` based on platform, then derive:
-- `PLUGIN_SCRIPTS` = `${PLUGIN_ROOT}/scripts`
 
-**MANDATORY**: ALL Python scripts MUST be executed with `uv run python` — never bare `python` or `python3`. Example: `uv run python ${PLUGIN_SCRIPTS}/fetch_macro.py --output ./reports/screening/macro.json`
+**MANDATORY**: ALL Python scripts MUST be executed with `uv run python` — never bare `python` or `python3`. Example: `uv run python ${PLUGIN_ROOT}/scripts/fetch_macro.py --output ./reports/screening/macro.json`
 
 ## Workflow
 
@@ -182,14 +181,14 @@ Scripts are bundled with the plugin. Set `PLUGIN_ROOT` based on platform, then d
    
    Do NOT ask the user which horizon — always produce all three. Each horizon generates a separate final report file.
 
-3. **Fetch macro context**: Run `${PLUGIN_SCRIPTS}/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output ./reports/screening/macro.json`. This establishes the macro regime backdrop for sector sensitivity analysis.
-3b. **Fetch economic surprises**: Run `${PLUGIN_SCRIPTS}/fetch_economic_surprises.py --output ./reports/screening/economic_surprises.json` for actual-vs-consensus data. Persistent positive surprises favor cyclicals; negative surprises favor defensives.
-3c. **Compute sector relative strength**: Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for deterministic sector price momentum rankings vs SPY across 1M/3M/6M/12M. This provides the quantitative backbone for the Relative Strength dimension in Phase 1.
-3d. **Compute sub-industry relative strength**: Run `${PLUGIN_SCRIPTS}/compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json` for a flat-ranked GICS Level 4 sub-industry RS leaderboard across all sectors. Uses stock baskets for differentiation where sub-industries share an ETF proxy.
+3. **Fetch macro context**: Run `${PLUGIN_ROOT}/scripts/fetch_macro.py --indicators GDPC1,CPIAUCSL,UNRATE,DFF,DGS10,T10Y2Y,NAPM --output ./reports/screening/macro.json`. This establishes the macro regime backdrop for sector sensitivity analysis.
+3b. **Fetch economic surprises**: Run `${PLUGIN_ROOT}/scripts/fetch_economic_surprises.py --output ./reports/screening/economic_surprises.json` for actual-vs-consensus data. Persistent positive surprises favor cyclicals; negative surprises favor defensives.
+3c. **Compute sector relative strength**: Run `${PLUGIN_ROOT}/scripts/compute_sector_rs.py --output ./reports/screening/sector_rs.json` for deterministic sector price momentum rankings vs SPY across 1M/3M/6M/12M. This provides the quantitative backbone for the Relative Strength dimension in Phase 1.
+3d. **Compute sub-industry relative strength**: Run `${PLUGIN_ROOT}/scripts/compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json` for a flat-ranked GICS Level 4 sub-industry RS leaderboard across all sectors. Uses stock baskets for differentiation where sub-industries share an ETF proxy.
 
 4. **Create output directory**: `./reports/screening/`
 
-5. **Initialize state**: Run `${PLUGIN_SCRIPTS}/persist.py init SCREEN-[TIMESTAMP] --report-type screen` to create a checkpointed screening session. Record the returned `analysis_id`. One session covers all 3 horizons — the horizons diverge at scoring/weighting time, not at data collection time.
+5. **Initialize state**: Run `${PLUGIN_ROOT}/scripts/persist.py init SCREEN-[TIMESTAMP] --report-type screen` to create a checkpointed screening session. Record the returned `analysis_id`. One session covers all 3 horizons — the horizons diverge at scoring/weighting time, not at data collection time.
 
 6. **Source coverage plan**: Load `references/data_source_matrix.md` and `references/gics_taxonomy.md`. Write `./reports/screening/source-plan.md` with classification sources (GICS Level 4 sub-industries), required source tiers, freshness windows, and confidence cap rules.
 
@@ -364,7 +363,7 @@ Use the top-ranked sub-industry's 8-digit GICS code and today's date. Pass these
   - `./reports/screening/[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
   - `./reports/screening/[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
   - `./reports/screening/[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
-- [ ] Run `${PLUGIN_SCRIPTS}/persist.py complete [ANALYSIS_ID]`
+- [ ] Run `${PLUGIN_ROOT}/scripts/persist.py complete [ANALYSIS_ID]`
 - [ ] Generate handoff recommendation for stock-analysis deep-dive
 
 **Note:** Rankings may differ across horizons because weighting schemes prioritize different factors (growth/moat for long-term vs momentum/flows for short-term).
@@ -393,7 +392,7 @@ Before delivering the screening report, verify:
 
 After every phase, execute this sequence:
 1. Write phase summary to `./reports/screening/phase[N].md`
-2. Run `${PLUGIN_SCRIPTS}/persist.py save [ANALYSIS_ID] [N] ./reports/screening/phase[N].md`
+2. Run `${PLUGIN_ROOT}/scripts/persist.py save [ANALYSIS_ID] [N] ./reports/screening/phase[N].md`
 3. Drop raw data from context (full search results, per-company data, raw sector reports)
 4. Load next phase
 5. If context usage exceeds ~80%, offload additional intermediate data
@@ -423,9 +422,8 @@ The industry-screening-orchestrator spawns specialist teammates for ALL screenin
 
 **Path passing**: When spawning any sub-agent, include in the spawn prompt:
 - `PLUGIN_ROOT` = the resolved plugin root path (platform-specific, resolved by orchestrator)
-- `PLUGIN_SCRIPTS` = `PLUGIN_ROOT/scripts`
 
-Agents reference scripts as `PLUGIN_SCRIPTS/script_name.py`. The orchestrator resolves the platform path and passes it; agents never resolve paths themselves. All scripts run via `uv run python`.
+Agents reference scripts as `${PLUGIN_ROOT}/scripts/script_name.py`. The orchestrator resolves the platform path and passes it; agents never resolve paths themselves. All scripts run via `uv run python`.
 
 ## Parallelism
 

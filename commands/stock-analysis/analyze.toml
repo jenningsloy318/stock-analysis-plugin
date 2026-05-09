@@ -16,7 +16,7 @@ STEP 0 — The FIRST action is to identify the ticker. Then IMMEDIATELY delegate
 Do NOT run scripts or perform any analysis yourself.
 
 STEP 1 — Spawn data-fetch agent for all triage scripts:
-  @search-agent Run triage data fetch for [TICKER]. PLUGIN_ROOT=${extensionPath} PLUGIN_SCRIPTS=${extensionPath}/scripts. Create ./reports/[TICKER]/, run fetch_financials.py, fetch_macro.py, fetch_global_macro.py, fetch_economic_surprises.py, fetch_credit.py, forecast.py, calculate_metrics.py, diff_filings.py, persist.py init [TICKER].
+  @search-agent Run triage data fetch for [TICKER]. PLUGIN_ROOT=${extensionPath}. Create ./reports/[TICKER]/, run fetch_financials.py, fetch_macro.py, fetch_global_macro.py, fetch_economic_surprises.py, fetch_credit.py, forecast.py, calculate_metrics.py, diff_filings.py, persist.py init [TICKER].
 
 STEP 2+ — Spawn analyst agents per parallel execution rules:
 

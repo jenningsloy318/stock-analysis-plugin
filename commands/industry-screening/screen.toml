@@ -17,7 +17,7 @@ STEP 0 — The FIRST action is to identify screening scope. Then IMMEDIATELY del
 Do NOT run scripts or perform any analysis yourself.
 
 STEP 1 — Spawn data-fetch agent for all setup scripts:
-  @search-agent Run screening data fetch. PLUGIN_ROOT=${extensionPath} PLUGIN_SCRIPTS=${extensionPath}/scripts. Create ./reports/screening/, run fetch_macro.py, fetch_economic_surprises.py, compute_sector_rs.py --output ./reports/screening/sector_rs.json, compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json, persist.py init SCREEN-[TIMESTAMP] --report-type screen.
+  @search-agent Run screening data fetch. PLUGIN_ROOT=${extensionPath}. Create ./reports/screening/, run fetch_macro.py, fetch_economic_surprises.py, compute_sector_rs.py --output ./reports/screening/sector_rs.json, compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json, persist.py init SCREEN-[TIMESTAMP] --report-type screen.
 
 STEP 2+ — Spawn screening agents:
 

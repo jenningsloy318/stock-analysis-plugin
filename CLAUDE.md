@@ -126,13 +126,12 @@
 - Python scripts are bundled with the plugin. `PLUGIN_ROOT` resolves per platform:
   - **Claude Code / Codex CLI**: `${CLAUDE_PLUGIN_ROOT}`
   - **Gemini CLI**: `${extensionPath}`
-- `PLUGIN_SCRIPTS` = `${PLUGIN_ROOT}/scripts` (all script references use this).
-- **ALL Python scripts MUST be run via `uv run python`** — never bare `python` or `python3`. When agents reference `${PLUGIN_SCRIPTS}/script.py`, execute as: `uv run python ${PLUGIN_SCRIPTS}/script.py [args]`. This ensures the correct virtual environment and dependencies are used.
+- **ALL Python scripts MUST be run via `uv run python`** — never bare `python` or `python3`. When agents reference `${PLUGIN_ROOT}/scripts/script.py`, execute as: `uv run python ${PLUGIN_ROOT}/scripts/script.py [args]`. This ensures the correct virtual environment and dependencies are used.
 - Persistent state (venvs, caches) goes in `${PLUGIN_DATA}`:
   - **Claude/Codex**: `${CLAUDE_PLUGIN_DATA}`
-  - **Gemini**: `${extensionPath}/.data/`
+  - **Gemini**: `${extensionPath}/data/`
 - Scripts are called via `exec_shell` / `Bash` tool.
-- Required environment: Python 3.10+, dependencies in `${PLUGIN_SCRIPTS}/requirements.txt`.
+- Required environment: Python 3.10+, dependencies in `${PLUGIN_ROOT}/scripts/requirements.txt`.
 - API keys: `FRED_API_KEY` (macro/credit) and `FINNHUB_API_KEY` (sentiment/insider/earnings) are recommended. All other keys are optional with functional fallbacks.
 - Output always goes to `./reports/` relative to the user's workspace.
 

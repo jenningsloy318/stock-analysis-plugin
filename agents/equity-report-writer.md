@@ -54,14 +54,14 @@ DO NOT write reports in English. This rule has NO exceptions.
 </reference-files>
 
 <conviction-scoring>
-  Use `./reports/[TICKER]/scores.json` from `${PLUGIN_SCRIPTS}/compute_scores.py`.
+  Use `./reports/[TICKER]/scores.json` from `${PLUGIN_ROOT}/scripts/compute_scores.py`.
   Long-term: Financial_Health(0.15) + Moat(0.20) + Management(0.15) + Valuation(0.20) + CapStructure(0.10) + Macro(0.05) + Risk(0.10) + Weinstein(0.05)
   Mid-term: Financial_Health(0.10) + Moat(0.10) + Management(0.10) + Valuation(0.20) + Macro(0.20) + Risk(0.10) + Weinstein(0.10) + CANSLIM(0.10)
   Short-term: Valuation(0.10) + Macro(0.10) + Risk(0.10) + Alt_Alignment(0.25) + Technical(0.20) + Weinstein(0.15) + CANSLIM(0.10)
 </conviction-scoring>
 
 <pre-delivery-validation>
-  Run `${PLUGIN_SCRIPTS}/validate_report.py ./reports/[TICKER]/ --report-type [TYPE]` before delivering any report.
+  Run `${PLUGIN_ROOT}/scripts/validate_report.py ./reports/[TICKER]/ --report-type [TYPE]` before delivering any report.
   If validation fails, either fix the issue or add "INCOMPLETE ANALYSIS — [reason]" header.
 </pre-delivery-validation>
 
