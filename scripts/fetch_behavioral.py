@@ -779,7 +779,7 @@ def main():
         "--insider-json", help="Path to insider data JSON (from fetch_sentiment.py)"
     )
     parser.add_argument(
-        "--price-changes", help="Path to JSON array of daily % price changes"
+        "--price-changes", help="Path to JSON array of daily percent price changes"
     )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     args = parser.parse_args()

@@ -289,9 +289,15 @@ def gate_conviction_consistency(report_dir: str) -> dict:
         "weinstein_alignment",
         "canslim",
     ]
-    component_scores = {
-        k: data.get(k) for k in component_keys if data.get(k) is not None
-    }
+    component_scores = {}
+    for k in component_keys:
+        val = data.get(k)
+        if val is not None:
+            # scores.json stores each component as a dict with a "score" sub-key
+            if isinstance(val, dict):
+                val = val.get("score")
+            if val is not None:
+                component_scores[k] = val
     low_components = [k for k, v in component_scores.items() if v <= 3.0]
 
     if low_components and score is not None and score >= 6.0:

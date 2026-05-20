@@ -677,6 +677,11 @@ def main() -> None:
         sys.stderr.write(f"Error: Invalid JSON in {args.input}: {exc}\n")
         sys.exit(1)
 
+    if "financials" not in raw_data and raw_data:
+        first_key = list(raw_data.keys())[0]
+        if isinstance(raw_data[first_key], dict) and "financials" in raw_data[first_key]:
+            raw_data = raw_data[first_key]
+
     ticker: str = raw_data.get("ticker", "UNKNOWN")
     financials: dict = raw_data.get("financials", {})
 
