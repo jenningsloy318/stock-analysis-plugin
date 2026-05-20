@@ -2,15 +2,14 @@
 
 ## Cross-Platform Support
 
-This plugin provides an agent team that works across both Claude Code and Gemini CLI:
+This plugin provides an agent team that works across both Claude Code and Codex:
 
 | Platform | Agent Location | Format | Delegation |
 |----------|---------------|--------|------------|
 | **Claude Code** | `agents/*.md` | YAML frontmatter + markdown body | `Agent` tool with `subagent_type` |
-| **Gemini CLI** | `agents/*.md` (extension root) | YAML frontmatter + markdown body | Auto-delegation or `@agent_name` |
 | **Codex** | `.codex/agents/*.toml` | TOML with `developer_instructions` | Skill-embedded orchestration |
 
-The `agents/` directory is shared between Claude and Gemini — both platforms read the same files. Gemini-specific fields (`kind`, `tools`, `max_turns`, `timeout_mins`) are ignored by Claude; Claude-specific content (XML body) is used as the system prompt by Gemini.
+The `agents/` directory is used by Claude.
 
 ## Orchestrators
 
@@ -59,10 +58,6 @@ Max concurrent agents: 3
 ### Claude Code
 
 The orchestrator (`stock-analyst` or `industry-screening-orchestrator`) uses the `Agent` tool to spawn sub-agents with `subagent_type` matching the agent names. Agents can nest (sub-agents may call search-agent).
-
-### Gemini CLI
-
-The orchestrator auto-delegates to sub-agents based on their `description` field, or users can force delegation with `@agent_name` syntax. **Important**: Gemini sub-agents cannot call other sub-agents (single-level nesting only). The search-agent must be called directly by the orchestrator on behalf of specialists.
 
 ### Codex
 

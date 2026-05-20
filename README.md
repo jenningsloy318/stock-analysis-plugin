@@ -1,6 +1,6 @@
 # Stock Analysis Plugin
 
-Multi-stage institutional equity research plugin for **Claude Code**, **OpenAI Codex**, and **Gemini CLI**. Produces long-term, mid-term, and short-term stock analysis reports synthesizing methodologies from Buffett, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, and ARK.
+Multi-stage institutional equity research plugin for **Claude Code** and **OpenAI Codex**. Produces long-term, mid-term, and short-term stock analysis reports synthesizing methodologies from Buffett, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, and ARK.
 
 ## Installation
 
@@ -17,11 +17,6 @@ claude plugin install stock-analysis@stock-analysis
 codex plugin marketplace add jenningsloy318/stock-analysis-plugin
 ```
 
-### Gemini CLI
-
-```bash
-gemini extensions install https://github.com/jenningsloy318/stock-analysis-plugin
-```
 
 ## Prerequisites
 
@@ -66,20 +61,10 @@ export FRED_API_KEY="your-key"
 export FINNHUB_API_KEY="your-key"
 ```
 
-**Gemini CLI**: API keys are configured during extension install via `gemini extensions config stock-analysis`. Keys are stored securely in the system keychain.
 
 ## Commands
 
-### Gemini CLI
 
-| Command | Description |
-|---------|-------------|
-| `/stock-analysis:analyze [TICKER]` | Full multi-stage equity research (all 3 horizons) |
-| `/stock-analysis:quick-overview [TICKER]` | Rapid 3-stage analysis (1-3 min) |
-| `/stock-analysis:compare [T1],[T2],[T3]` | Side-by-side stock comparison |
-| `/stock-analysis:valuation [TICKER]` | Standalone valuation (DCF, comps, relative) |
-| `/stock-analysis:watchlist [TICKER\|all]` | Status check on prior analyses |
-| `/industry-screening:screen [SCOPE]` | Top-down GICS Level 4 sub-industry screening |
 
 ### Claude Code
 
@@ -100,7 +85,7 @@ All commands produce **3 reports** (long-term, mid-term, short-term) automatical
 
 ## Architecture
 
-The `stock-analysis-orchestrator` acts as team lead — it spawns specialist sub-agents for all analysis work, never performing deep analysis directly. Agent definitions in `agents/` are shared by both Claude Code and Gemini CLI.
+The `stock-analysis-orchestrator` acts as team lead — it spawns specialist sub-agents for all analysis work, never performing deep analysis directly. Agent definitions in `agents/` are used by Claude Code.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -136,7 +121,6 @@ The `stock-analysis-orchestrator` acts as team lead — it spawns specialist sub
 | Platform | Agent Location | Delegation |
 |----------|---------------|------------|
 | Claude Code | `agents/*.md` | `Agent` tool with `subagent_type` |
-| Gemini CLI | `agents/*.md` (shared) | Auto-delegation or `@agent-name` |
 | Codex | `.codex/agents/*.toml` | Skill-embedded orchestration |
 
 ### Parallel Execution
@@ -156,12 +140,9 @@ stock-analysis-plugin/
 ├── .codex-plugin/           # OpenAI Codex manifest
 ├── .codex/                  # Codex agent configs (TOML)
 ├── plugin.json              # Antigravity plugin manifest
-├── gemini-extension.json    # Gemini CLI manifest
 ├── CLAUDE.md                # Plugin rules & philosophy
-├── GEMINI.md                # → symlink to CLAUDE.md
 ├── AGENTS.md                # Agent index
 ├── agents/                  # Specialist agent definitions (MD)
-├── commands/                # Gemini CLI commands (TOML)
 ├── skills/                  # Claude Code skills + orchestrators
 ├── scripts/                 # Python analysis scripts
 ├── references/              # Analysis framework docs
