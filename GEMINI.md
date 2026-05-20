@@ -5,8 +5,9 @@
   - `.claude-plugin/marketplace.json` (the plugin entry version)
   - `.codex-plugin/plugin.json`
   - `gemini-extension.json`
-- Bump the patch level (e.g., 1.0.0 → 1.0.1) and include ALL four files in the same commit
-- ALL four manifest versions MUST always match each other
+  - `plugin.json`
+- Bump the patch level (e.g., 1.0.0 → 1.0.1) and include ALL five files in the same commit
+- ALL five manifest versions MUST always match each other
 
 ## Report Language Rule (MUST follow)
 

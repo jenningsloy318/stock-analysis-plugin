@@ -155,6 +155,7 @@ stock-analysis-plugin/
 ├── .claude-plugin/          # Claude Code manifests
 ├── .codex-plugin/           # OpenAI Codex manifest
 ├── .codex/                  # Codex agent configs (TOML)
+├── plugin.json              # Antigravity plugin manifest
 ├── gemini-extension.json    # Gemini CLI manifest
 ├── CLAUDE.md                # Plugin rules & philosophy
 ├── GEMINI.md                # → symlink to CLAUDE.md
