@@ -1340,6 +1340,10 @@ def compute_capital_structure(capital_data: dict) -> dict:
     # --- Total Capital Return ---
     cap_return = capital_data.get("capital_return", {})
     total_yield = cap_return.get("total_capital_return_yield")
+    # total_capital_return_yield may be a nested dict (from fetch_capital_structure.py)
+    # with a 'total_yield' sub-key. Extract the scalar if needed.
+    if isinstance(total_yield, dict):
+        total_yield = total_yield.get("total_yield")
     score_return = None
     if total_yield is not None:
         if total_yield > 0.06:

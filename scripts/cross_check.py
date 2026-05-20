@@ -83,7 +83,7 @@ def run_cross_check(scores: dict, behavioral: dict | None = None) -> dict:
         dominant_rating = behavioral.get("analyst_herding", {}).get(
             "dominant_recommendation", ""
         )
-        if herding_score >= 8.0 and "buy" in dominant_rating.lower():
+        if herding_score is not None and herding_score >= 8.0 and "buy" in dominant_rating.lower():
             flags.append(
                 {
                     "rule": 4,
