@@ -33,24 +33,26 @@ Reference: `references/gics_taxonomy.md` for sub-industry codes and names.
 ## 2. Artifacts
 
 Final output is EXACTLY 3 report files — no individual phase files left behind:
-- `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
-- `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
-- `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
+- `./reports/screening/SCREEN_long_[YYYY-MM-DD].md`
+- `./reports/screening/SCREEN_mid_[YYYY-MM-DD].md`
+- `./reports/screening/SCREEN_short_[YYYY-MM-DD].md`
+
+Each report covers 30 sub-industries and 100 companies across all horizons.
 
 ## 3. Workflow
 
 <step n="0" name="Team Creation">Determine screening scope (all sectors / specific sector / theme). Create agent team IMMEDIATELY — this is the FIRST action before any scripts or data fetches. Claude Code: TeamCreate({ name: "industry-screening-[TIMESTAMP]" }). Gemini CLI: team is implicit. All 3 horizons (long/mid/short) are produced automatically — do NOT ask user.</step>
 <step n="1" name="Spawn Data Fetch">Spawn search-agent (team_name: "industry-screening-[TIMESTAMP]") to perform all setup data collection: create output directory, run fetch_macro.py, fetch_economic_surprises.py, compute_sector_rs.py (both sector and --level sub-industry --flat), persist.py init SCREEN-[TIMESTAMP], load references/gics_taxonomy.md. Agent writes results to ./reports/screening/. Terminate after completion.</step>
-<step n="2" name="Sector & Sub-Industry Screening">Spawn up to 3 sector-screener agents (team_name: "industry-screening-[TIMESTAMP]") in parallel, each handling a batch of GICS sectors. Agents perform two-pass analysis: Pass 1 scores sectors on 11 dimensions; Pass 2 ranks all Level 4 sub-industries within above-median sectors. Orchestrator produces both sector ranking AND unified sub-industry leaderboard (top 10-15 sub-industries across all sectors).</step>
-<step n="3" name="Sub-Industry Deep Dive">For top 2-3 sub-industries from the leaderboard, spawn sector-screener agents (team_name: "industry-screening-[TIMESTAMP]") in deep-dive mode (targeting specific GICS Level 4 codes). Each drills into: complete company universe, competitive dynamics, growth catalysts, barriers, TAM, profit pools, industry life cycle. Orchestrator selects the single best sub-industry.</step>
-<step n="4" name="Company Screening">Spawn 1-2 company-screener agents (team_name: "industry-screening-[TIMESTAMP]") for the selected sub-industry. Apply quantitative filters, score companies on growth/profitability/moat/valuation/management/risk, produce ranked watchlist of top 10-20 companies.</step>
-<step n="5" name="Report Generation & Cleanup">Pre-compute final report filenames: [SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md, [SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md, [SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md (use today's date and the top sub-industry GICS code). Pass these EXACT filenames to the report writer in the spawn prompt. Spawn screening-report-writer agent (team_name: "industry-screening-[TIMESTAMP]") with: phase summaries, scoring output, the 3 target filenames, and explicit instruction "ALL reports MUST be written in Chinese (中文)". After report delivery: (1) delete all intermediate files (./reports/screening/phase*.md, sector_rs.json, sub_industry_rs.json, economic_surprises.json, source-plan.md), (2) terminate all agents, (3) delete team: TeamDelete({ name: "industry-screening-[TIMESTAMP]" }). Only the 3 final report files remain. Offer stock-analysis deep-dives on top picks.</step>
+<step n="2" name="Full Level 4 Screening">Spawn up to 3 sector-screener agents (team_name: "industry-screening-[TIMESTAMP]") in parallel, each handling a batch of ~54 Level 4 sub-industries (no sector-level pre-filtering — score ALL 163 directly). Agents score each sub-industry on 11 dimensions: Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand. Orchestrator synthesizes into unified flat sub-industry leaderboard and selects top 30.</step>
+<step n="3" name="Top 30 Sub-Industry Deep Dive">For ALL 30 top sub-industries, spawn sector-screener agents (team_name: "industry-screening-[TIMESTAMP]") in deep-dive mode. Process in 10 batches of 3 parallel agents. Each agent targets specific GICS Level 4 codes and drills into: complete company universe, competitive dynamics, growth catalysts, barriers, TAM, profit pools, industry life cycle, supply chain positioning. Writes deepdive-[CODE]-[NAME].md. Orchestrator compiles unified 30-sub-industry deep dive summary. Stay at Level 4 granularity — never aggregate back to Level 3/2/1.</step>
+<step n="4" name="Company Screening (100 Companies)">Spawn up to 3 company-screener agents (team_name: "industry-screening-[TIMESTAMP]"), each handling ~10 sub-industries. Target: 100 total companies (~3-4 per sub-industry, flexible based on universe size). Apply filters: market cap >$500M, revenue growth >median, positive FCF, ROIC>WACC, stock price <$100 (US) / ¥100 (A-shares). Score on growth/profitability/moat/valuation/management/risk/liquidity. Orchestrator compiles unified ranked watchlist of 100 companies across all 30 sub-industries.</step>
+<step n="5" name="Report Generation & Cleanup">Pre-compute final report filenames: SCREEN_long_[YYYY-MM-DD].md, SCREEN_mid_[YYYY-MM-DD].md, SCREEN_short_[YYYY-MM-DD].md (use today's date). Pass these EXACT filenames to the report writer in the spawn prompt. Spawn screening-report-writer agent (team_name: "industry-screening-[TIMESTAMP]") with: all phase summaries, 30-sub-industry leaderboard, 30 deep dive summaries, 100-company watchlist, the 3 target filenames, and explicit instruction "ALL reports MUST be written in Chinese (中文)". Report structure: Executive Summary → Macro Environment → Top 30 Sub-Industry Leaderboard → Deep Dive Highlights → Top 100 Company Watchlist (grouped by sub-industry) → Next Actions → Risks → Appendix (full 30-industry detail). After report delivery: (1) delete all intermediate files (./reports/screening/phase*.md, ./reports/screening/deepdive-*.md, ./reports/screening/companies-*.md, sector_rs.json, sub_industry_rs.json, economic_surprises.json, source-plan.md), (2) terminate all agents, (3) delete team: TeamDelete({ name: "industry-screening-[TIMESTAMP]" }). Only the 3 final report files remain. Offer stock-analysis deep-dives on top picks.</step>
 
 ### Parallel Execution
-Phase 1: Up to 3 sector-screener agents in parallel (sector batches with sub-industry Pass 2)
-Phase 2: Up to 2 sector-screener agents in parallel (sub-industry deep-dive on top sub-industries)
-Phase 3: 1-2 company-screener agents (normal or split by market cap tier)
-Phase 4: 1 screening-report-writer agent (synthesizes phase summaries into final report)
+Phase 1: 3 sector-screener agents in parallel (batches of ~54 sub-industries, score all 163 Level 4)
+Phase 2: 3 sector-screener agents in parallel per batch, 10 sequential batches (30 sub-industry deep dives)
+Phase 3: 3 company-screener agents in parallel (each handles ~10 sub-industries, target 100 companies total)
+Phase 4: 1 screening-report-writer agent (synthesizes all phases into final reports)
 Max parallel agents: 3
 
 ## 4. Guardrails
@@ -64,11 +66,13 @@ Max parallel agents: 3
 <constraint>Data-fetch scripts are run by a search-agent teammate, NOT by the orchestrator directly</constraint>
 <constraint>Final output is EXACTLY 3 report files — no individual phase files left behind</constraint>
 <constraint>After report delivery: delete ALL intermediate files, terminate all agents, delete team</constraint>
-<constraint>Phase 1 MUST produce a sub-industry leaderboard (flat list, no sector sections)</constraint>
-<constraint>Sectors are used internally for data acquisition only — invisible in final report</constraint>
+<constraint>Phase 1 MUST produce a sub-industry leaderboard of exactly 30 sub-industries (flat list, no sector sections)</constraint>
+<constraint>Phase 2 MUST deep dive ALL 30 sub-industries — never skip any in the top 30</constraint>
+<constraint>Phase 3 MUST produce a watchlist of 100 companies across all 30 sub-industries</constraint>
+<constraint>Sectors are used internally for batch organization only — invisible in final report</constraint>
 <constraint>Use weighted composite scoring with methodology stated in report</constraint>
 <constraint>Apply source coverage confidence caps from `references/data_source_matrix.md` before report generation</constraint>
-<constraint>At least 10 companies must pass filters for a valid watchlist (flag if fewer)</constraint>
+<constraint>At least 100 companies must pass filters for a valid watchlist (flag if fewer — allow flexible per-sub-industry distribution)</constraint>
 <constraint>Enforce context eviction after each phase: write summary, drop raw data</constraint>
 <constraint>All sub-industry and company data must be within freshness windows (90 days for sub-industry, 30 days for macro)</constraint>
 <constraint>Report cannot be delivered until pre-delivery checklist passes</constraint>
