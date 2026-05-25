@@ -366,9 +366,10 @@ def forecast_naive(series: list[float], horizon: int = 5) -> dict:
     if len(series) < 2:
         return {"method": "Naive (constant CAGR)", "error": "Insufficient data"}
 
-    cagr = (
-        (series[-1] / series[0]) ** (1 / (len(series) - 1)) - 1 if series[0] > 0 else 0
-    )
+    if series[0] > 0 and series[-1] > 0:
+        cagr = (series[-1] / series[0]) ** (1 / (len(series) - 1)) - 1
+    else:
+        cagr = 0
 
     forecasts = []
     last = series[-1]
