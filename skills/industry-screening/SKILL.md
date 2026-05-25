@@ -2,7 +2,7 @@
 name: industry-screening
 description: Top-down GICS Level 4 sub-industry screening funnel. Produces ranked watchlists. Triggers on "screen sectors", "best industries", "top-down screening", "sector rotation".
 author: Jennings Liu
-version: "1.0.54"
+version: "1.0.55"
 license: MIT
 ---
 
@@ -23,35 +23,36 @@ license: MIT
   <rule name="Report Language">ALL reports MUST be written in Chinese (中文). Technical terms in English. GICS names: "Semiconductors (半导体)".</rule>
   <rule name="Price Filter">Growth-stage companies only. US < $100, China A-shares < ¥100. Filter before watchlist ranking.</rule>
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three.</rule>
-  <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/screening/`.</rule>
+  <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/YYYYMMDDHHmm/` where YYYYMMDDHHmm is the run start timestamp (e.g., 202605251430).</rule>
+  <rule name="Run Directory">Each run creates a unique subdirectory `./reports/YYYYMMDDHHmm/` under the workspace reports folder. RUN_ID is set once at run start and used for all file operations.</rule>
 </rules>
 
 <agent-team-protocol>
   This skill ALWAYS operates as an agent team. Create team IMMEDIATELY as first action.
 
-  Step 0: TeamCreate({ name: "industry-screening-[YYYYMMDD]" })
+  Step 0: TeamCreate({ name: "industry-screening-[YYYYMMDDHHmm]" }). Set RUN_ID = YYYYMMDDHHmm (current timestamp at run start). Create output directory: `./reports/[RUN_ID]/`.
   Step 1: Spawn search-agent to run setup scripts (fetch_macro, fetch_economic_surprises, compute_sector_rs, persist.py init). Terminate after completion.
-  Steps 2+: Spawn screener agents per parallel execution map. Each writes phase summaries. Terminate each after completion.
-  Cleanup: Delete intermediate files; keep only 3 final reports. Delete team.
+  Steps 2+: Spawn screener agents per parallel execution map. Each writes phase summaries to ./reports/[RUN_ID]/. Terminate each after completion.
+  Cleanup: Delete intermediate files in ./reports/[RUN_ID]/; keep only 3 final reports. Delete team.
 
   ENFORCEMENT: Orchestrator MUST NOT run scripts or analysis directly. All work delegated to sub-agents.
 </agent-team-protocol>
 
 <workflow>
   <phase n="0" name="Setup" agent="orchestrator">
-    1. Determine scope: all sectors / specific sector / theme. Default: ask user. 2. All 3 horizons auto-produced. 3. Run macro fetch + economic surprises + compute_sector_rs.py --level sub-industry --flat + persist.py init + source coverage plan. 4. Load references/gics_taxonomy.md, references/data_source_matrix.md.
+    1. Determine scope: all sectors / specific sector / theme. Default: ask user. 2. Set RUN_ID = YYYYMMDDHHmm (current timestamp). 3. Create `./reports/[RUN_ID]/`. 4. All 3 horizons auto-produced. 5. Run macro fetch + economic surprises + compute_sector_rs.py --level sub-industry --flat + persist.py init + source coverage plan. 6. Load references/gics_taxonomy.md, references/data_source_matrix.md.
   </phase>
   <phase n="1" name="Full Level 4 Screening" agent="sector-screener">
     Score ALL 163 GICS Level 4 sub-industries directly — no sector-level pre-filtering. Spawn up to 3 agents in parallel, each handling a batch of ~54 sub-industries. Score on 11 dimensions: Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand. Orchestrator synthesizes into flat sub-industry leaderboard and selects top 30 sub-industries.
   </phase>
   <phase n="2" name="Top 30 Deep Dive" agent="sector-screener">
-    Deep dive ALL 30 top sub-industries — stay at Level 4 granularity, never aggregate back to Level 3/2/1. Spawn in batches of 3 (10 batches total). Each analyzes: definition, company universe, Porter 5-Forces, growth catalysts, barriers, TAM, key players, supply chain, life cycle, profit pool, competitive positioning. Writes deepdive-[CODE]-[NAME].md per sub-industry. Orchestrator compiles unified 30-sub-industry deep dive summary.
+    Deep dive ALL 30 top sub-industries — stay at Level 4 granularity, never aggregate back to Level 3/2/1. Spawn in batches of 3 (10 batches total). Each analyzes: definition, company universe, Porter 5-Forces, growth catalysts, barriers, TAM, key players, supply chain, life cycle, profit pool, competitive positioning. Writes ./reports/[RUN_ID]/deepdive-[CODE]-[NAME].md per sub-industry. Orchestrator compiles unified 30-sub-industry deep dive summary.
   </phase>
   <phase n="3" name="Company Screening (100 Companies)" agent="company-screener">
-    Screen companies across ALL 30 sub-industries. Target: 100 total companies (~3-4 per sub-industry, flexible based on universe size). Spawn up to 3 agents in parallel, each handling ~10 sub-industries. Filter: market cap >$500M, revenue growth >median, positive FCF, ROIC>WACC, stock price <$100 (US) / ¥100 (A-shares). Score: Growth 20%, Profitability 20%, Moat 20%, Valuation 15%, Management 10%, Risk 10%, Liquidity 5%. Writes companies-[CODE].md per sub-industry. Orchestrator compiles unified watchlist of 100 companies ranked by composite score.
+    Screen companies across ALL 30 sub-industries. Target: 100 total companies (~3-4 per sub-industry, flexible based on universe size). Spawn up to 3 agents in parallel, each handling ~10 sub-industries. Filter: market cap >$500M, revenue growth >median, positive FCF, ROIC>WACC, stock price <$100 (US) / ¥100 (A-shares). Score: Growth 20%, Profitability 20%, Moat 20%, Valuation 15%, Management 10%, Risk 10%, Liquidity 5%. Writes ./reports/[RUN_ID]/companies-[CODE].md per sub-industry. Orchestrator compiles unified watchlist of 100 companies ranked by composite score.
   </phase>
   <phase n="4" name="Reports" agent="screening-report-writer">
-    Pre-compute filenames: SCREEN_long_[DATE].md, SCREEN_mid_[DATE].md, SCREEN_short_[DATE].md. Agent synthesizes ALL phases into 3 horizon reports covering 30 sub-industries and 100 companies. Structure: Executive Summary → Macro Environment → Top 30 Sub-Industry Leaderboard → Deep Dive Highlights → Top 100 Company Watchlist (grouped by sub-industry) → Next Actions → Risks → Appendix (full 30-industry detail).
+    Pre-compute filenames: ./reports/[RUN_ID]/SCREEN_long_[DATE].md, ./reports/[RUN_ID]/SCREEN_mid_[DATE].md, ./reports/[RUN_ID]/SCREEN_short_[DATE].md. Agent synthesizes ALL phases into 3 horizon reports covering 30 sub-industries and 100 companies. Structure: Executive Summary → Macro Environment → Top 30 Sub-Industry Leaderboard → Deep Dive Highlights → Top 100 Company Watchlist (grouped by sub-industry) → Next Actions → Risks → Appendix (full 30-industry detail).
   </phase>
 </workflow>
 

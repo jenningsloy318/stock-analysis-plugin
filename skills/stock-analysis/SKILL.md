@@ -2,7 +2,7 @@
 name: stock-analysis
 description: Multi-stage equity research producing long/mid/short-term reports. Triggers on "analyze [TICKER]", "deep dive", "investment thesis", "valuation".
 author: Jennings Liu
-version: "1.0.51"
+version: "1.0.55"
 license: MIT
 ---
 
@@ -24,15 +24,16 @@ license: MIT
   <rule name="Price Filter">Focus on growth-stage companies. US < $100, China A-shares < ¥100. Skip filter if user specifies ticker.</rule>
   <rule name="Stock Price Display">Every company in any table/list must include current stock price (当前股价). Format: "$XX.XX" or "¥XX.XX".</rule>
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three. "Quick" only if user explicitly says so.</rule>
-  <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/` relative to workspace.</rule>
+  <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/YYYYMMDDHHmm/` where YYYYMMDDHHmm is the run start timestamp (e.g., 202605251430).</rule>
+  <rule name="Run Directory">Each run creates a unique subdirectory `./reports/YYYYMMDDHHmm/` under the workspace reports folder. RUN_ID is set once at run start and used for all file operations.</rule>
 </rules>
 
 <agent-team-protocol>
   This skill ALWAYS operates as an agent team. Create team IMMEDIATELY as first action.
 
-  Step 0: TeamCreate({ name: "stock-analysis-[TICKER]-[YYYYMMDD]" })
+  Step 0: TeamCreate({ name: "stock-analysis-[TICKER]-[YYYYMMDDHHmm]" }). Set RUN_ID = YYYYMMDDHHmm (current timestamp at run start). Create output directory: `./reports/[RUN_ID]/`.
   Step 1: Spawn search-agent to run ALL triage scripts (fetch_financials, fetch_macro, fetch_global_macro, fetch_economic_surprises, fetch_credit, forecast, calculate_metrics, diff_filings, persist.py init). Terminate after completion.
-  Steps 2+: Spawn specialist agents per parallel execution map. Each agent writes ./reports/[TICKER]/stage[N].md. Terminate each after completion.
+  Steps 2+: Spawn specialist agents per parallel execution map. Each agent writes ./reports/[RUN_ID]/stage[N].md. Terminate each after completion.
   Cleanup: Delete intermediate files; keep only 3 final reports. Delete team.
 
   ENFORCEMENT: Orchestrator MUST NOT run scripts or analysis directly. All work delegated to sub-agents.
@@ -40,7 +41,7 @@ license: MIT
 
 <workflow>
   <stage n="0" name="Setup">
-    1. Resolve ticker. 2. Create team → spawn data-fetch agent for all triage scripts. 3. All 3 horizons auto-produced.
+    1. Resolve ticker. 2. Set RUN_ID = YYYYMMDDHHmm (current timestamp). 3. Create `./reports/[RUN_ID]/`. 4. Create team → spawn data-fetch agent for all triage scripts. 5. All 3 horizons auto-produced.
   </stage>
   <stage n="1-2" name="Fundamentals" agent="fundamental-analyst">
     Financial health, moat, forensic accounting (Beneish/Altman/Piotroski), executive profiles, capital allocation, insider activity, governance. Writes stage1.md, stage2.md.
@@ -64,7 +65,7 @@ license: MIT
     Run compute_scores.py for deterministic 1-10 scores. Run cross_check.py for contradictions. Run persist.py conviction.
   </stage>
   <stage n="11" name="Reports" agent="equity-report-writer">
-    Pre-compute 3 filenames: [TICKER]_long_[DATE].md, [TICKER]_mid_[DATE].md, [TICKER]_short_[DATE].md. Agent reads all stage summaries + scores.json, generates all 3 reports. Run validate_report.py before delivery.
+    Pre-compute 3 filenames: ./reports/[RUN_ID]/[TICKER]_long_[DATE].md, ./reports/[RUN_ID]/[TICKER]_mid_[DATE].md, ./reports/[RUN_ID]/[TICKER]_short_[DATE].md. Agent reads all stage summaries + scores.json, generates all 3 reports. Run validate_report.py before delivery.
   </stage>
 </workflow>
 

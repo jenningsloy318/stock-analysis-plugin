@@ -17,25 +17,27 @@ Triggers on: "analyze [TICKER]", "stock analysis", "equity research", "should I 
 
 ## 2. Artifacts
 
-Final output is EXACTLY 3 report files — no individual stage files left behind:
-- `./reports/[TICKER]/[TICKER]_long_[YYYY-MM-DD].md`
-- `./reports/[TICKER]/[TICKER]_mid_[YYYY-MM-DD].md`
-- `./reports/[TICKER]/[TICKER]_short_[YYYY-MM-DD].md`
+Final output is EXACTLY 3 report files in a timestamped run directory — no individual stage files left behind:
+- `./reports/[RUN_ID]/[TICKER]_long_[YYYY-MM-DD].md`
+- `./reports/[RUN_ID]/[TICKER]_mid_[YYYY-MM-DD].md`
+- `./reports/[RUN_ID]/[TICKER]_short_[YYYY-MM-DD].md`
+
+Where RUN_ID = YYYYMMDDHHmm (e.g., 202605251430), set once at run start.
 
 ## 3. Workflow
 
-<step n="0" name="Team Creation">Identify ticker from user request. Create agent team IMMEDIATELY — this is the FIRST action before any scripts or data fetches. Claude Code: TeamCreate({ name: "stock-analysis-[TICKER]" }). Gemini CLI: team is implicit. Always produce all 3 report types (long/mid/short) — do NOT ask user for horizon.</step>
-<step n="1" name="Spawn Data Fetch">Spawn search-agent (team_name: "stock-analysis-[TICKER]") to perform all triage data collection: create output directory, run fetch_financials.py, fetch_macro.py, fetch_global_macro.py, fetch_economic_surprises.py, fetch_credit.py, forecast.py, calculate_metrics.py, diff_filings.py, persist.py init. Agent writes results to ./reports/[TICKER]/. Terminate after completion.</step>
-<step n="2" name="Spawn Fundamentals">Spawn fundamental-analyst (team_name: "stock-analysis-[TICKER]") for Stages 1-2 (Company Fundamentals + Executive/Board).</step>
-<step n="3" name="Spawn Industry">Spawn industry-analyst (team_name: "stock-analysis-[TICKER]") for Stage 3 (Product & Industry). Can parallelize with Step 2.</step>
-<step n="4" name="Spawn Macro">Spawn macro-analyst (team_name: "stock-analysis-[TICKER]") for Stages 4-5 (Macro + Geopolitics).</step>
-<step n="5" name="Spawn Quant">Spawn quant-analyst (team_name: "stock-analysis-[TICKER]") for Stages 6-7 (Valuation + Market Regime).</step>
-<step n="6" name="Spawn Risk">Spawn risk-analyst (team_name: "stock-analysis-[TICKER]") for Stage 8 (Risk Assessment & Synthesis).</step>
-<step n="7" name="Spawn Alt Data">Spawn alt-data-analyst (team_name: "stock-analysis-[TICKER]") for Stage 9 (Alternative Data).</step>
+<step n="0" name="Team Creation">Identify ticker from user request. Set RUN_ID = YYYYMMDDHHmm (current timestamp at run start, e.g., 202605251430). Create output directory: `./reports/[RUN_ID]/`. Create agent team IMMEDIATELY — this is the FIRST action before any scripts or data fetches. Claude Code: TeamCreate({ name: "stock-analysis-[TICKER]-[RUN_ID]" }). Gemini CLI: team is implicit. Always produce all 3 report types (long/mid/short) — do NOT ask user for horizon.</step>
+<step n="1" name="Spawn Data Fetch">Spawn search-agent (team_name: "stock-analysis-[TICKER]-[RUN_ID]") to perform all triage data collection: ensure output directory ./reports/[RUN_ID]/ exists, run fetch_financials.py, fetch_macro.py, fetch_global_macro.py, fetch_economic_surprises.py, fetch_credit.py, forecast.py, calculate_metrics.py, diff_filings.py, persist.py init. Agent writes results to ./reports/[RUN_ID]/. Terminate after completion.</step>
+<step n="2" name="Spawn Fundamentals">Spawn fundamental-analyst (team_name: "stock-analysis-[TICKER]-[RUN_ID]") for Stages 1-2 (Company Fundamentals + Executive/Board). Output to ./reports/[RUN_ID]/.</step>
+<step n="3" name="Spawn Industry">Spawn industry-analyst (team_name: "stock-analysis-[TICKER]-[RUN_ID]") for Stage 3 (Product & Industry). Can parallelize with Step 2. Output to ./reports/[RUN_ID]/.</step>
+<step n="4" name="Spawn Macro">Spawn macro-analyst (team_name: "stock-analysis-[TICKER]-[RUN_ID]") for Stages 4-5 (Macro + Geopolitics). Output to ./reports/[RUN_ID]/.</step>
+<step n="5" name="Spawn Quant">Spawn quant-analyst (team_name: "stock-analysis-[TICKER]-[RUN_ID]") for Stages 6-7 (Valuation + Market Regime). Output to ./reports/[RUN_ID]/.</step>
+<step n="6" name="Spawn Risk">Spawn risk-analyst (team_name: "stock-analysis-[TICKER]-[RUN_ID]") for Stage 8 (Risk Assessment & Synthesis). Output to ./reports/[RUN_ID]/.</step>
+<step n="7" name="Spawn Alt Data">Spawn alt-data-analyst (team_name: "stock-analysis-[TICKER]-[RUN_ID]") for Stage 9 (Alternative Data). Output to ./reports/[RUN_ID]/.</step>
 <step n="8" name="Run Deterministic Scoring">Run compute_scores.py against all script outputs to produce reproducible component scores. LLM agents may adjust Moat and Management scores ±2.0 based on qualitative findings.</step>
 <step n="9" name="Cross-Check Pass">Run cross-check: if valuation implies >30% overvaluation, re-examine moat. If forensic red flags, re-examine financial health. Flag unresolved contradictions.</step>
-<step n="10" name="Spawn Report Writer">Pre-compute final report filenames: [TICKER]_long_[YYYY-MM-DD].md, [TICKER]_mid_[YYYY-MM-DD].md, [TICKER]_short_[YYYY-MM-DD].md (use today's date). Pass these EXACT filenames to the report writer in the spawn prompt. Spawn equity-report-writer (team_name: "stock-analysis-[TICKER]") with: stage summaries, scoring output, the 3 target filenames, and explicit instruction "ALL reports MUST be written in Chinese (中文)". Writer produces ALL 3 reports from the same data.</step>
-<step n="11" name="Quality Gate & Cleanup">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver final 3 reports to user. Then cleanup: (1) delete all intermediate stage files (./reports/[TICKER]/stage*.md, raw-data.json, metrics.json, forecast.json, credit.json, filing_diff.json, source-plan.md), (2) terminate all agents, (3) delete team: TeamDelete({ name: "stock-analysis-[TICKER]" }). Only the 3 final report files remain. Post-delivery: run event_study.py, calibrate_conviction.py, portfolio_context.py, backtest.py.</step>
+<step n="10" name="Spawn Report Writer">Pre-compute final report filenames: ./reports/[RUN_ID]/[TICKER]_long_[YYYY-MM-DD].md, ./reports/[RUN_ID]/[TICKER]_mid_[YYYY-MM-DD].md, ./reports/[RUN_ID]/[TICKER]_short_[YYYY-MM-DD].md (use today's date). Pass these EXACT filenames to the report writer in the spawn prompt. Spawn equity-report-writer (team_name: "stock-analysis-[TICKER]-[RUN_ID]") with: stage summaries, scoring output, the 3 target filenames, and explicit instruction "ALL reports MUST be written in Chinese (中文)". Writer produces ALL 3 reports from the same data.</step>
+<step n="11" name="Quality Gate & Cleanup">Run pre-delivery checklist, validate fact integrity, run validate_report.py to verify quality gates, deliver final 3 reports to user. Then cleanup: (1) delete all intermediate stage files (./reports/[RUN_ID]/stage*.md, raw-data.json, metrics.json, forecast.json, credit.json, filing_diff.json, source-plan.md), (2) terminate all agents, (3) delete team: TeamDelete({ name: "stock-analysis-[TICKER]-[RUN_ID]" }). Only the 3 final report files remain in ./reports/[RUN_ID]/. Post-delivery: run event_study.py, calibrate_conviction.py, portfolio_context.py, backtest.py.</step>
 
 ### Parallel Execution
 All 3 report types are always produced from one comprehensive data pass.

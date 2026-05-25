@@ -134,7 +134,7 @@
 - Scripts are called via `exec_shell` / `Bash` tool.
 - Required environment: Python 3.10+, dependencies in `${PLUGIN_ROOT}/scripts/requirements.txt`.
 - API keys: `FRED_API_KEY` (macro/credit) and `FINNHUB_API_KEY` (sentiment/insider/earnings) are recommended. All other keys are optional with functional fallbacks.
-- Output always goes to `./reports/` relative to the user's workspace.
+- Output always goes to `./reports/[RUN_ID]/` where RUN_ID = YYYYMMDDHHmm (e.g., 202605251430), relative to the user's workspace.
 
 ### Script Inventory
 
@@ -200,7 +200,7 @@
 
 ## Context Window Management (MUST follow)
 
-- After each stage: write stage summary to `./reports/[TICKER]/stage[N].md`
+- After each stage: write stage summary to `./reports/[RUN_ID]/stage[N].md`
 - Drop raw data from context (SEC filings, full transcripts, raw financials)
 - Retain only: key metrics table, stage scores, 3-sentence narrative per sub-section
 - Maximum active context at any point: <80% of the context window
