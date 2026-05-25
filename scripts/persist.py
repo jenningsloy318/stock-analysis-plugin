@@ -89,6 +89,82 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_analyses_status ON analyses(status);
         CREATE INDEX IF NOT EXISTS idx_stages_analysis ON stages(analysis_id);
         CREATE INDEX IF NOT EXISTS idx_conviction_analysis ON conviction_history(analysis_id);
+
+        -- Signal evolution tables (signal_evolution.py)
+        CREATE TABLE IF NOT EXISTS signals (
+            id TEXT PRIMARY KEY,
+            ticker TEXT NOT NULL,
+            dimension TEXT NOT NULL,
+            description TEXT NOT NULL,
+            lifecycle_state TEXT NOT NULL DEFAULT 'NEW',
+            isq_score REAL,
+            isq_innovation REAL,
+            isq_speed REAL,
+            isq_quality REAL,
+            isq_confidence REAL,
+            isq_counter_evidence REAL,
+            source_tier INTEGER,
+            sub_scores_json TEXT,
+            cross_check_flags_json TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS signal_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            signal_id TEXT NOT NULL,
+            from_state TEXT,
+            to_state TEXT NOT NULL,
+            trigger_reason TEXT,
+            isq_before REAL,
+            isq_after REAL,
+            sub_scores_json TEXT,
+            transitioned_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_signals_ticker ON signals(ticker);
+        CREATE INDEX IF NOT EXISTS idx_signals_state ON signals(lifecycle_state);
+        CREATE INDEX IF NOT EXISTS idx_signal_history_signal ON signal_history(signal_id);
+
+        -- Hypothesis registry tables (hypothesis_registry.py)
+        CREATE TABLE IF NOT EXISTS hypotheses (
+            id TEXT PRIMARY KEY,
+            ticker TEXT NOT NULL,
+            statement TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'neutral',
+            lifecycle_state TEXT NOT NULL DEFAULT 'PROPOSED',
+            prior_probability REAL DEFAULT 0.5,
+            posterior_probability REAL DEFAULT 0.5,
+            evidence_for_json TEXT DEFAULT '[]',
+            evidence_against_json TEXT DEFAULT '[]',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS hypothesis_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            hypothesis_id TEXT NOT NULL,
+            from_state TEXT,
+            to_state TEXT NOT NULL,
+            reason TEXT,
+            probability_before REAL,
+            probability_after REAL,
+            event_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS run_cards (
+            id TEXT PRIMARY KEY,
+            hypothesis_id TEXT NOT NULL,
+            evidence_snapshot_json TEXT NOT NULL,
+            probability_at_time REAL NOT NULL,
+            methodology TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_hypotheses_ticker ON hypotheses(ticker);
+        CREATE INDEX IF NOT EXISTS idx_hypotheses_state ON hypotheses(lifecycle_state);
+        CREATE INDEX IF NOT EXISTS idx_hypothesis_events_hyp ON hypothesis_events(hypothesis_id);
+        CREATE INDEX IF NOT EXISTS idx_run_cards_hyp ON run_cards(hypothesis_id);
     """)
     conn.commit()
     return conn

@@ -181,6 +181,11 @@
 | `compute_correlation_regime.py` | Rolling beta, tail correlation, asymmetric beta, correlation regime, stress-adjusted sizing | 8 |
 | `compute_earnings_edge.py` | Historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend | 6 |
 | `fetch_sub_industry_universe.py` | GICS Level 4 sub-industry constituent discovery via ETF holdings + market cap filter | Screening |
+| `signal_evolution.py` | ISQ 5-dimension signal tracking with lifecycle states (NEW/STRENGTHENED/WEAKENED/FALSIFIED/REALIZED/DORMANT) | 7 |
+| `hypothesis_registry.py` | Hypothesis lifecycle tracking (PROPOSED→ACTIVE→TESTING→CONFIRMED/FALSIFIED), Bayesian belief updating, run cards | 7,10 |
+| `alpha_factor_zoo.py` | Factor computation engine with 19 base operators, 4 factor zoos (Technical 35, Fundamental 33, Macro 26, Alternative 26), AST-safe expression evaluator | 7 |
+| `validate_factors.py` | AST safety validation for factor expressions, lookahead bias detection | 7 |
+| `audit_tool_calls.py` | Post-hoc report grounding verification (min tool calls, tool diversity, source attribution) | 11 |
 
 ## Report Quality Gates (MUST follow)
 

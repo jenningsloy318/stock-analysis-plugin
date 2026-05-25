@@ -610,6 +610,290 @@ def _fit_garch_numpy(returns: np.ndarray) -> dict[str, float]:
 
 
 # ---------------------------------------------------------------------------
+# Multi-model GARCH selection
+# ---------------------------------------------------------------------------
+
+
+def _try_fit_arch_model(
+    r_pct: np.ndarray,
+    vol_model: str,
+    p: int,
+    o: int,
+    q: int,
+    dist: str,
+) -> tuple[dict[str, Any] | None, Any]:
+    """Try to fit a single arch model specification; return (info_dict, fitted).
+
+    Returns (None, None) if the model fails to converge or raises an error.
+    """
+    try:
+        am = arch_model(r_pct, vol=vol_model, p=p, o=o, q=q, dist=dist, rescale=False)
+        res = am.fit(disp="off", show_warning=False)
+
+        # Build a human-readable model name
+        dist_label = {
+            "normal": "Normal",
+            "studentst": "StudentT",
+            "skewt": "SkewT",
+        }.get(dist, dist)
+        vol_label = {
+            "GARCH": "GARCH",
+            "EGARCH": "EGARCH",
+        }.get(vol_model, vol_model)
+
+        if o > 0:
+            # GJR-GARCH / TARCH variants
+            if vol_model == "GARCH" and o > 0:
+                vol_label = "GJR-GARCH"
+            name = f"{vol_label}({p},{o},{q})-{dist_label}"
+        else:
+            name = f"{vol_label}({p},{q})-{dist_label}"
+
+        info = {
+            "model": name,
+            "vol": vol_model,
+            "p": p,
+            "o": o,
+            "q": q,
+            "dist": dist,
+            "aic": round(float(res.aic), 4),
+            "bic": round(float(res.bic), 4),
+            "llf": round(float(res.loglikelihood), 4),
+        }
+        return info, res
+    except Exception:
+        return None, None
+
+
+def compute_garch_multi_model(
+    returns: list[float], forecast_horizon: int = 21
+) -> dict[str, Any]:
+    """Fit multiple GARCH variants and select the best by BIC.
+
+    Tries combinations of:
+      - Volatility models: GARCH, EGARCH, GJR-GARCH (GARCH with o=1)
+      - Orders: (1,1), (2,1), (1,2)
+      - Distributions: normal, studentst, skewt
+
+    Selects the model with the lowest BIC (more conservative than AIC).
+    Runs residual diagnostics (Ljung-Box, ARCH-LM) on the best model.
+
+    Returns the same keys as compute_garch_volatility for backward compat,
+    plus additional ``model_selection`` and ``residual_diagnostics`` keys.
+    """
+    r = np.asarray(returns, dtype=float)
+    if len(r) < 30:
+        return {
+            "error": "Insufficient data (need ≥30 daily returns)",
+            "methodology": "Multi-model GARCH",
+        }
+    if not ARCH_AVAILABLE:
+        return {
+            "error": "arch library required for multi-model GARCH",
+            "methodology": "Multi-model GARCH",
+        }
+
+    r_pct = r * 100.0  # scale to pct for numerical stability
+
+    # Build model grid
+    vol_models = ["GARCH", "EGARCH"]
+    orders = [(1, 1), (2, 1), (1, 2)]
+    distributions = ["normal", "studentst", "skewt"]
+
+    comparison_table: list[dict[str, Any]] = []
+    best_bic = float("inf")
+    best_info: dict[str, Any] | None = None
+    best_res = None
+
+    for vol in vol_models:
+        for p_val, q_val in orders:
+            for dist in distributions:
+                # GJR-GARCH: GARCH with o=1 (leverage term)
+                for o_val in [0, 1] if vol == "GARCH" else [0]:
+                    # Skip high-order EGARCH that may be unstable
+                    if vol == "EGARCH" and max(p_val, q_val) > 2:
+                        continue
+                    info, res = _try_fit_arch_model(
+                        r_pct, vol, p_val, o_val, q_val, dist
+                    )
+                    if info is None or res is None:
+                        continue
+                    comparison_table.append(info)
+                    if info["bic"] < best_bic:
+                        best_bic = info["bic"]
+                        best_info = info
+                        best_res = res
+
+    if best_res is None or best_info is None:
+        # All models failed — fall back to basic GARCH(1,1)
+        fallback_info, fallback_res = _try_fit_arch_model(
+            r_pct, "GARCH", 1, 0, 1, "normal"
+        )
+        if fallback_res is None:
+            return {
+                "error": "All GARCH model specifications failed to converge",
+                "methodology": "Multi-model GARCH",
+            }
+        best_info = fallback_info or {
+            "model": "GARCH(1,1)-Normal",
+            "bic": None,
+            "aic": None,
+            "llf": None,
+        }
+        best_res = fallback_res
+
+    # --- Extract parameters from best model ---
+    params = best_res.params
+    omega = float(params.get("omega", 0))
+    # alpha, gamma, beta keys depend on p, o, q
+    alpha = float(params.get("alpha[1]", 0))
+    beta = float(params.get("beta[1]", 0))
+    gamma = float(params.get("gamma[1]", 0)) if "gamma[1]" in params else 0.0
+
+    # Persistence approximation: sum of all ARCH + GARCH coefficients
+    # For GJR-GARCH: alpha + gamma/2 + beta
+    persistence = alpha + gamma * 0.5 + beta
+    if best_info.get("vol") == "EGARCH":
+        # EGARCH persistence is approximate; use |alpha| + |beta| as proxy
+        persistence = abs(alpha) + abs(beta)
+
+    # Current conditional variance
+    cond_vol = best_res.conditional_volatility
+    if hasattr(cond_vol, "iloc"):
+        current_var_pct2 = float(cond_vol.iloc[-1] ** 2)
+    else:
+        current_var_pct2 = float(np.asarray(cond_vol)[-1] ** 2)
+
+    # Unconditional variance (for standard GARCH-family)
+    if best_info.get("vol") == "GARCH" or (
+        best_info.get("vol") == "GARCH" and best_info.get("o", 0) > 0
+    ):
+        uncond_var_pct2 = (
+            omega / max(1.0 - persistence, 1e-9) if persistence < 1 else omega / 1e-9
+        )
+    else:
+        # EGARCH: use sample variance as proxy for unconditional level
+        uncond_var_pct2 = float(np.var(r_pct))
+
+    # Forecast — EGARCH/TARCH require simulation-based forecasts for horizon > 1
+    try:
+        fc = best_res.forecast(horizon=forecast_horizon, reindex=False)
+        daily_var_forecasts_pct2 = (fc.variance.values[-1] / 1e4).tolist()
+    except ValueError:
+        # Analytic forecasts not supported for this model/horizon combo
+        fc = best_res.forecast(
+            horizon=forecast_horizon,
+            method="simulation",
+            reindex=False,
+        )
+        fc_var = np.asarray(fc.variance.values[-1], dtype=float)
+        daily_var_forecasts_pct2 = (fc_var / 1e4).tolist()
+
+    # --- Residual diagnostics ---
+    residual_diagnostics: dict[str, Any] = {}
+    try:
+        resid_arr = np.asarray(best_res.resid, dtype=float)
+        cond_vol_arr = np.asarray(best_res.conditional_volatility, dtype=float)
+        std_resid = resid_arr / np.where(cond_vol_arr != 0, cond_vol_arr, 1.0)
+        std_resid_arr = std_resid[np.isfinite(std_resid)]
+
+        # Ljung-Box test on standardized residuals (lag 10)
+        try:
+            from statsmodels.stats.diagnostic import acorr_ljungbox as _lb
+
+            lb_result = _lb(std_resid_arr, lags=[min(10, len(std_resid_arr) // 5, 10)])
+            lb_stat = float(lb_result["lb_stat"].iloc[0])
+            lb_pvalue = float(lb_result["lb_pvalue"].iloc[0])
+            residual_diagnostics["ljung_box_stat"] = round(lb_stat, 4)
+            residual_diagnostics["ljung_box_pvalue"] = round(lb_pvalue, 4)
+            residual_diagnostics["standardized_residuals_ok"] = bool(lb_pvalue > 0.05)
+        except Exception:
+            residual_diagnostics["ljung_box_stat"] = None
+            residual_diagnostics["ljung_box_pvalue"] = None
+            residual_diagnostics["standardized_residuals_ok"] = None
+
+        # ARCH-LM test for remaining heteroskedasticity
+        try:
+            from statsmodels.stats.diagnostic import het_arch
+
+            arch_lm_stat, arch_lm_pvalue, _, _ = het_arch(
+                std_resid_arr, nlags=min(5, len(std_resid_arr) // 5, 5)
+            )
+            residual_diagnostics["arch_lm_stat"] = round(float(arch_lm_stat), 4)
+            residual_diagnostics["arch_lm_pvalue"] = round(float(arch_lm_pvalue), 4)
+        except Exception:
+            residual_diagnostics["arch_lm_stat"] = None
+            residual_diagnostics["arch_lm_pvalue"] = None
+
+        # Jarque-Bera normality test on standardized residuals
+        if SCIPY_AVAILABLE:
+            try:
+                from scipy.stats import jarque_bera
+
+                jb_stat, jb_pvalue = jarque_bera(std_resid_arr)
+                residual_diagnostics["residuals_normal"] = bool(jb_pvalue > 0.05)
+                residual_diagnostics["jarque_bera_stat"] = round(float(jb_stat), 4)
+                residual_diagnostics["jarque_bera_pvalue"] = round(float(jb_pvalue), 4)
+            except Exception:
+                residual_diagnostics["residuals_normal"] = None
+        else:
+            residual_diagnostics["residuals_normal"] = None
+
+    except Exception:
+        residual_diagnostics["note"] = "Could not compute residual diagnostics"
+
+    # --- Build output (backward compatible with compute_garch_volatility) ---
+    current_ann_vol = float(np.sqrt(current_var_pct2 * _TRADING_DAYS))
+    forecasted_ann_vols = [
+        float(math.sqrt(v * _TRADING_DAYS)) for v in daily_var_forecasts_pct2
+    ]
+    mean_forecast_vol = float(np.mean(forecasted_ann_vols))
+    uncond_ann_vol = float(math.sqrt(uncond_var_pct2 * _TRADING_DAYS))
+
+    # Realised vol from recent 21-day window (for reference)
+    realised_vol = (
+        float(np.std(r[-21:]) * math.sqrt(_TRADING_DAYS)) if len(r) >= 21 else None
+    )
+
+    methodology = f"{best_info['model']} via arch (BIC selected)"
+
+    result: dict[str, Any] = {
+        "current_annualized_vol": round(realised_vol, 4) if realised_vol else None,
+        "garch_annualized_vol_now": round(current_ann_vol, 4),
+        "forecasted_annualized_vol": round(mean_forecast_vol, 4),
+        "unconditional_vol": round(uncond_ann_vol, 4),
+        "vol_term_structure": [round(v, 4) for v in forecasted_ann_vols],
+        "persistence": round(persistence, 4),
+        "mean_reverting": persistence < 0.95,
+        "parameters": {
+            "omega": round(omega, 8),
+            "alpha": round(alpha, 4),
+            "beta": round(beta, 4),
+        },
+        "forecast_horizon_days": forecast_horizon,
+        "methodology": methodology,
+        # New multi-model keys
+        "model_selection": {
+            "best_model": best_info.get("model", "unknown"),
+            "best_bic": best_info.get("bic"),
+            "best_aic": best_info.get("aic"),
+            "best_llf": best_info.get("llf"),
+            "models_compared": len(comparison_table),
+            "comparison_table": sorted(
+                comparison_table, key=lambda x: x.get("bic", float("inf"))
+            ),
+        },
+        "residual_diagnostics": residual_diagnostics,
+    }
+
+    # Include gamma in parameters if present (GJR-GARCH)
+    if gamma != 0.0:
+        result["parameters"]["gamma"] = round(gamma, 4)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # GARCH(1,1) volatility forecast
 # ---------------------------------------------------------------------------
 
@@ -617,10 +901,15 @@ def _fit_garch_numpy(returns: np.ndarray) -> dict[str, float]:
 def compute_garch_volatility(
     returns: list[float], forecast_horizon: int = 21
 ) -> dict[str, Any]:
-    """Fit a GARCH(1,1) model to daily returns and forecast volatility.
+    """Fit a GARCH model to daily returns and forecast volatility.
 
-    Uses the `arch` library when available; otherwise falls back to a
-    numpy-only maximum-likelihood estimator.
+    When the ``arch`` library is available, delegates to
+    :func:`compute_garch_multi_model` which tries multiple GARCH variants
+    (GARCH, EGARCH, GJR-GARCH across several orders and distributions) and
+    selects the best model by BIC.
+
+    When ``arch`` is not available, falls back to a numpy-only
+    maximum-likelihood GARCH(1,1) estimator.
 
     Args:
         returns: Daily log returns (e.g. np.log(price_t / price_{t-1})).
@@ -638,6 +927,8 @@ def compute_garch_volatility(
           - unconditional_vol: long-run GARCH vol (annualised)
           - parameters: {omega, alpha, beta}
           - methodology: description string
+          - model_selection: (arch only) model comparison table and best model info
+          - residual_diagnostics: (arch only) Ljung-Box, ARCH-LM, normality tests
     """
     r = np.asarray(returns, dtype=float)
     if len(r) < 30:
@@ -648,20 +939,8 @@ def compute_garch_volatility(
 
     try:
         if ARCH_AVAILABLE:
-            # Scale returns to percentage for numerical stability (arch convention)
-            r_pct = r * 100.0
-            am = arch_model(r_pct, vol="GARCH", p=1, q=1, dist="normal", rescale=False)
-            res = am.fit(disp="off", show_warning=False)
-            omega = float(res.params["omega"])
-            alpha = float(res.params["alpha[1]"])
-            beta = float(res.params["beta[1]"])
-            # Current conditional variance (in pct^2 units)
-            current_var_pct2 = float(res.conditional_volatility.iloc[-1] ** 2)
-            # Forecast
-            fc = res.forecast(horizon=forecast_horizon, reindex=False)
-            # variance in pct^2 → convert back to decimal^2
-            daily_var_forecasts = (fc.variance.values[-1] / 1e4).tolist()
-            methodology = "GARCH(1,1) via arch library (MLE)"
+            # Delegate to multi-model selection
+            return compute_garch_multi_model(returns, forecast_horizon)
         else:
             # Numpy-only path
             params = _fit_garch_numpy(r)

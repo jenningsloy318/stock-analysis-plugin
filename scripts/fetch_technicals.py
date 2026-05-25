@@ -44,6 +44,19 @@ except ImportError:
     sys.stderr.write("Error: 'numpy' required. Run: pip install numpy\n")
     sys.exit(1)
 
+try:
+    import pandas as pd
+except ImportError:
+    sys.stderr.write("Error: 'pandas' required. Run: pip install pandas\n")
+    sys.exit(1)
+
+try:
+    import pandas_ta as ta
+
+    _PANDAS_TA_AVAILABLE = True
+except ImportError:
+    _PANDAS_TA_AVAILABLE = False
+
 
 # ---------------------------------------------------------------------------
 # Indicator computation functions
@@ -694,6 +707,376 @@ def volume_profile(
 
 
 # ---------------------------------------------------------------------------
+# pandas-ta extended indicators (130+ indicators)
+# ---------------------------------------------------------------------------
+
+
+def _safe_latest(series) -> float | int | None:
+    """Extract the latest non-NaN value from a pandas Series."""
+    if series is None:
+        return None
+    try:
+        if isinstance(series, pd.Series):
+            valid = series.dropna()
+            if len(valid) == 0:
+                return None
+            val = valid.iloc[-1]
+            if isinstance(val, (float, int)):
+                return round(float(val), 6)
+            return float(val)
+        elif isinstance(series, pd.DataFrame):
+            # Return dict of column -> latest value
+            return {col: _safe_latest(series[col]) for col in series.columns}
+    except Exception:
+        pass
+    return None
+
+
+def compute_pandas_ta_indicators(
+    closes: list[float],
+    highs: list[float],
+    lows: list[float],
+    opens: list[float],
+    volumes: list[float],
+) -> dict:
+    """Compute 130+ indicators via pandas-ta, organized by category.
+
+    Returns a flat dict of indicator_name -> latest_value, plus category
+    metadata. Falls back gracefully if pandas-ta is unavailable.
+    """
+    if not _PANDAS_TA_AVAILABLE:
+        return {
+            "status": "pandas-ta not available",
+            "fallback": "using hand-coded indicators only",
+        }
+
+    try:
+        df = pd.DataFrame(
+            {
+                "open": opens,
+                "high": highs,
+                "low": lows,
+                "close": closes,
+                "volume": volumes,
+            }
+        )
+        # Remove any rows with NaN in OHLCV columns
+        df = df.dropna(subset=["open", "high", "low", "close", "volume"])
+
+        if len(df) < 50:
+            return {"status": "insufficient_data", "data_points": len(df)}
+
+        # ---- Strategy: compute all indicators at once via ta.Strategy ----
+        # Build a custom strategy covering all categories
+        custom_strategy = ta.Strategy(
+            name="stock-analysis-extended",
+            description="130+ indicators for stock analysis",
+            ta=[
+                # === Trend (~30) ===
+                {"kind": "sma", "length": 10},
+                {"kind": "sma", "length": 20},
+                {"kind": "sma", "length": 50},
+                {"kind": "sma", "length": 100},
+                {"kind": "sma", "length": 200},
+                {"kind": "ema", "length": 5},
+                {"kind": "ema", "length": 10},
+                {"kind": "ema", "length": 20},
+                {"kind": "ema", "length": 50},
+                {"kind": "ema", "length": 100},
+                {"kind": "ema", "length": 200},
+                {"kind": "dema", "length": 10},
+                {"kind": "dema", "length": 20},
+                {"kind": "dema", "length": 50},
+                {"kind": "tema", "length": 10},
+                {"kind": "tema", "length": 20},
+                {"kind": "tema", "length": 50},
+                {"kind": "kama", "length": 10},
+                {"kind": "kama", "length": 20},
+                {"kind": "kama", "length": 50},
+                {"kind": "zlma", "length": 10},
+                {"kind": "zlma", "length": 20},
+                {"kind": "trix", "length": 30},
+                {"kind": "vortex", "length": 14},
+                {"kind": "tsi"},
+                {"kind": "supertrend", "length": 10, "multiplier": 3.0},
+                {"kind": "ttm_trend"},
+                {"kind": "fwma", "length": 20},
+                {"kind": "hwma"},
+                {"kind": "long_run", "length": 50},
+                {"kind": "short_run", "length": 50},
+                {"kind": "decycler", "length": 125},
+                {"kind": "linear_decay", "length": 14},
+                # === Momentum (~30) ===
+                {"kind": "rsi", "length": 14},
+                {"kind": "rsi", "length": 7},
+                {"kind": "rsi", "length": 21},
+                {"kind": "stoch", "k": 14, "d": 3, "smooth_k": 3},
+                {"kind": "cci", "length": 20},
+                {"kind": "willr", "length": 14},
+                {"kind": "roc", "length": 10},
+                {"kind": "roc", "length": 20},
+                {"kind": "mom", "length": 10},
+                {"kind": "mom", "length": 20},
+                {"kind": "ppo"},
+                {"kind": "aroon", "length": 25},
+                {"kind": "macd", "fast": 12, "slow": 26, "signal": 9},
+                {"kind": "stochrsi", "length": 14},
+                {"kind": "ao"},
+                {"kind": "apg"},
+                {"kind": "bias", "length": 26},
+                {"kind": "brar"},
+                {"kind": "cg", "length": 10},
+                {"kind": "fisher", "length": 9},
+                {"kind": "inertia", "length": 20},
+                {"kind": "kst"},
+                {"kind": "psl"},
+                {"kind": "pvo"},
+                {"kind": "rvi"},
+                {"kind": "slope", "length": 20},
+                {"kind": "td_seq"},
+                {"kind": "uo"},
+                {"kind": "cfo", "length": 9},
+                {"kind": "cwi"},
+                {"kind": "er", "length": 10},
+                # === Volatility (~20) ===
+                {"kind": "bbands", "length": 20, "std": 2.0},
+                {"kind": "bbands", "length": 20, "std": 1.0},
+                {"kind": "atr", "length": 14},
+                {"kind": "atr", "length": 7},
+                {"kind": "kc", "length": 20, "scalar": 2},
+                {"kind": "dc", "length": 20},
+                {"kind": "ui", "length": 14},
+                {"kind": "massi", "length": 25},
+                {"kind": "abi", "length": 10},
+                {"kind": "accbands", "length": 20},
+                {"kind": "bbands", "length": 40, "std": 2.0},
+                {"kind": "true_range"},
+                {"kind": "thermo", "length": 20},
+                {"kind": "p volatility", "length": 12},
+                {"kind": "pvol"},
+                # === Volume (~15) ===
+                {"kind": "obv"},
+                {"kind": "mfi", "length": 14},
+                {"kind": "cmf", "length": 20},
+                {"kind": "emv", "length": 14},
+                {"kind": "eom", "length": 14},
+                {"kind": "fi", "length": 13},
+                {"kind": "nvi", "length": 255},
+                {"kind": "pvi", "length": 255},
+                {"kind": "vwap"},
+                {"kind": "ad"},
+                {"kind": "adosc", "fast": 3, "slow": 10},
+                {"kind": "vol_sma", "length": 20},
+                {"kind": "vp", "length": 14},
+                {"kind": "kvo"},
+                # === Overlap (~20) ===
+                {"kind": "hl2"},
+                {"kind": "hlc3"},
+                {"kind": "ohlc4"},
+                {"kind": "midpoint", "length": 14},
+                {"kind": "midprice", "length": 14},
+                {"kind": "ichimoku"},
+                {"kind": "mcgd", "length": 10},
+                {"kind": "alma", "length": 10},
+                {"kind": "swma", "length": 10},
+                {"kind": "sinwma", "length": 14},
+                {"kind": "ssf", "length": 10},
+                {"kind": "trendflex", "length": 20},
+                {"kind": "wcp"},
+                {"kind": "vidya", "length": 14},
+                {"kind": "mama"},
+                # === Statistics (~15) ===
+                {"kind": "linreg", "length": 14},
+                {"kind": "linreg", "length": 50},
+                {"kind": "stderr", "length": 14},
+                {"kind": "stdev", "length": 14},
+                {"kind": "zscore", "length": 14},
+                {"kind": "variance", "length": 14},
+                {"kind": "entropy", "length": 10},
+                {"kind": "kurtosis", "length": 20},
+                {"kind": "mad", "length": 14},
+                {"kind": "median", "length": 14},
+                {"kind": "quantile", "length": 14},
+                {"kind": "skew", "length": 20},
+                {"kind": "tsf", "length": 14},
+                # === Performance (~5) ===
+                {"kind": "log_return", "length": 1},
+                {"kind": "log_return", "length": 5},
+                {"kind": "pct_return", "length": 1},
+                {"kind": "pct_return", "length": 5},
+                {"kind": "pct_rank", "length": 14},
+            ],
+        )
+
+        df.ta.strategy(custom_strategy)
+
+        # Extract latest values from all generated columns
+        indicators = {}
+        for col in df.columns:
+            if col in ("open", "high", "low", "close", "volume"):
+                continue
+            val = _safe_latest(df[col])
+            if val is not None:
+                if isinstance(val, dict):
+                    for sub_key, sub_val in val.items():
+                        indicators[sub_key] = sub_val
+                else:
+                    indicators[col] = val
+
+        # Categorize for metadata
+        categories = {
+            "trend": [
+                "SMA_",
+                "EMA_",
+                "DEMA_",
+                "TEMA_",
+                "KAMA_",
+                "ZLMA_",
+                "TRIX_",
+                "VTXP_",
+                "VTXM_",
+                "TSI",
+                "SUPERT_",
+                "TTM_TRND",
+                "FWMA_",
+                "HWMA",
+                "LR_",
+                "SR_",
+                "DECYCLER",
+                "LD_",
+                "LINREG_",
+            ],
+            "momentum": [
+                "RSI_",
+                "STOCH_",
+                "CCI_",
+                "WILLR_",
+                "ROC_",
+                "MOM_",
+                "PPO_",
+                "AROON_",
+                "MACD_",
+                "STOCHRSI_",
+                "AO_",
+                "APG_",
+                "BIAS_",
+                "BRAR_",
+                "CG_",
+                "FISHER_",
+                "INERTIA_",
+                "KST_",
+                "PSL_",
+                "PVO_",
+                "RVI_",
+                "SLOPE_",
+                "TD_SEQ_",
+                "UO_",
+                "CFO_",
+                "CWI_",
+                "ER_",
+            ],
+            "volatility": [
+                "BBU_",
+                "BBL_",
+                "BBM_",
+                "BBB_",
+                "BBP_",
+                "ATR_",
+                "KCU_",
+                "KCL_",
+                "KCM_",
+                "DCU_",
+                "DCL_",
+                "UI_",
+                "MASSI_",
+                "ABI_",
+                "ACC_",
+                "THERMO_",
+                "P VOLATILITY_",
+                "PVOL",
+                "TRUERANGE",
+            ],
+            "volume": [
+                "OBV",
+                "MFI_",
+                "CMF_",
+                "EMV_",
+                "EOM_",
+                "FI_",
+                "NVI_",
+                "PVI_",
+                "VWAP",
+                "AD_",
+                "ADOSC_",
+                "VS_",
+                "VP_",
+                "KVO_",
+                "PVO_",
+            ],
+            "overlap": [
+                "HL2",
+                "HLC3",
+                "OHLC4",
+                "MIDP_",
+                "MIDPR_",
+                "ISA_",
+                "ISB_",
+                "ITS_",
+                "ITX_",
+                "IKS_",
+                "MCGD_",
+                "ALMA_",
+                "SWMA_",
+                "SINWMA_",
+                "SSF_",
+                "TRENDFLEX_",
+                "WCP_",
+                "VIDYA_",
+                "MAMA_",
+                "FAMA_",
+            ],
+            "statistics": [
+                "LINREG_",
+                "STDER_",
+                "STDEV_",
+                "ZS_",
+                "VAR_",
+                "ENTP_",
+                "KURT_",
+                "MAD_",
+                "MEDIAN_",
+                "QTL_",
+                "SKEW_",
+                "TSF_",
+            ],
+            "performance": ["LOGRET_", "PCTRET_", "PCTR_"],
+        }
+
+        category_counts = {}
+        for cat, prefixes in categories.items():
+            count = sum(
+                1
+                for key in indicators
+                if any(key.upper().startswith(p.upper()) for p in prefixes)
+            )
+            category_counts[cat] = count
+
+        return {
+            "status": "ok",
+            "indicator_count": len(indicators),
+            "categories": category_counts,
+            "indicators": indicators,
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "fallback": "using hand-coded indicators only",
+        }
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -823,6 +1206,23 @@ def compute_all(
     # Volume profile (POC, Value Area)
     vol_profile = volume_profile(closes, highs, lows, volumes)
 
+    # pandas-ta extended indicators (130+ indicators superset)
+    extended = compute_pandas_ta_indicators(closes, highs, lows, opens, volumes)
+    ext_count = 0
+    if extended.get("status") == "ok":
+        ext_count = extended.get("indicator_count", 0)
+        # Flatten indicators to top-level key, keep metadata separate
+        extended_indicators = extended.get("indicators", {})
+        extended_categories = extended.get("categories", {})
+    else:
+        extended_indicators = extended
+        extended_categories = {}
+
+    # Hand-coded indicator count (from latest dict + composite sections)
+    hand_coded_count = (
+        len(latest) + 4
+    )  # +4 for trend_strength, momentum, volume, volume_profile
+
     return {
         "latest": latest,
         "support_resistance": sr_levels,
@@ -839,6 +1239,13 @@ def compute_all(
         },
         "volume_profile": vol_profile,
         "setup_quality": setup_quality,
+        "extended_indicators": extended_indicators,
+        "extended_categories": extended_categories,
+        "indicator_count": {
+            "hand_coded": hand_coded_count,
+            "pandas_ta": ext_count,
+            "total": hand_coded_count + ext_count,
+        },
     }
 
 
