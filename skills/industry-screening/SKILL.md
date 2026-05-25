@@ -2,7 +2,7 @@
 name: industry-screening
 description: Top-down GICS Level 4 sub-industry screening funnel. Produces ranked watchlists. Triggers on "screen sectors", "best industries", "top-down screening", "sector rotation".
 author: Jennings Liu
-version: "1.0.55"
+version: "1.0.56"
 license: MIT
 ---
 
@@ -25,12 +25,13 @@ license: MIT
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three.</rule>
   <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/YYYYMMDDHHmm/` where YYYYMMDDHHmm is the run start timestamp (e.g., 202605251430).</rule>
   <rule name="Run Directory">Each run creates a unique subdirectory `./reports/YYYYMMDDHHmm/` under the workspace reports folder. RUN_ID is set once at run start and used for all file operations.</rule>
+  <rule name="Tracking JSON">Each run creates `./reports/[RUN_ID]/SCREENING-tracking.json` in Phase 0. The orchestrator MUST update phase status in this file BEFORE advancing to the next phase. Set current phase to "completed" with timestamp, then set next phase to "in_progress" with timestamp.</rule>
 </rules>
 
 <agent-team-protocol>
   This skill ALWAYS operates as an agent team. Create team IMMEDIATELY as first action.
 
-  Step 0: TeamCreate({ name: "industry-screening-[YYYYMMDDHHmm]" }). Set RUN_ID = YYYYMMDDHHmm (current timestamp at run start). Create output directory: `./reports/[RUN_ID]/`.
+  Step 0: RUN_ID = $(date +%Y%m%d%H%M). TeamCreate({ name: "industry-screening-[RUN_ID]" }). Create output directory: `./reports/[RUN_ID]/`. Create `./reports/[RUN_ID]/SCREENING-tracking.json` with all phases initialized as "pending".
   Step 1: Spawn search-agent to run setup scripts (fetch_macro, fetch_economic_surprises, compute_sector_rs, persist.py init). Terminate after completion.
   Steps 2+: Spawn screener agents per parallel execution map. Each writes phase summaries to ./reports/[RUN_ID]/. Terminate each after completion.
   Cleanup: Delete intermediate files in ./reports/[RUN_ID]/; keep only 3 final reports. Delete team.
@@ -40,7 +41,7 @@ license: MIT
 
 <workflow>
   <phase n="0" name="Setup" agent="orchestrator">
-    1. Determine scope: all sectors / specific sector / theme. Default: ask user. 2. Set RUN_ID = YYYYMMDDHHmm (current timestamp). 3. Create `./reports/[RUN_ID]/`. 4. All 3 horizons auto-produced. 5. Run macro fetch + economic surprises + compute_sector_rs.py --level sub-industry --flat + persist.py init + source coverage plan. 6. Load references/gics_taxonomy.md, references/data_source_matrix.md.
+    1. Determine scope: all sectors / specific sector / theme. Default: ask user. 2. RUN_ID = $(date +%Y%m%d%H%M). 3. Create `./reports/[RUN_ID]/`. 4. Create `./reports/[RUN_ID]/SCREENING-tracking.json` with all phases initialized as "pending", phase 0 set to "in_progress". 5. All 3 horizons auto-produced. 6. Run macro fetch + economic surprises + compute_sector_rs.py --level sub-industry --flat + persist.py init + source coverage plan. 7. Load references/gics_taxonomy.md, references/data_source_matrix.md. 8. Update SCREENING-tracking.json: phase 0 → "completed", phase 1 → "in_progress".
   </phase>
   <phase n="1" name="Full Level 4 Screening" agent="sector-screener">
     Score ALL 163 GICS Level 4 sub-industries directly — no sector-level pre-filtering. Spawn up to 3 agents in parallel, each handling a batch of ~54 sub-industries. Score on 11 dimensions: Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand. Orchestrator synthesizes into flat sub-industry leaderboard and selects top 30 sub-industries.
@@ -55,6 +56,28 @@ license: MIT
     Pre-compute filenames: ./reports/[RUN_ID]/SCREEN_long_[DATE].md, ./reports/[RUN_ID]/SCREEN_mid_[DATE].md, ./reports/[RUN_ID]/SCREEN_short_[DATE].md. Agent synthesizes ALL phases into 3 horizon reports covering 30 sub-industries and 100 companies. Structure: Executive Summary → Macro Environment → Top 30 Sub-Industry Leaderboard → Deep Dive Highlights → Top 100 Company Watchlist (grouped by sub-industry) → Next Actions → Risks → Appendix (full 30-industry detail).
   </phase>
 </workflow>
+
+<tracking-json-schema>
+File: `./reports/[RUN_ID]/SCREENING-tracking.json`
+```json
+{
+  "run_id": "202605251430",
+  "scope": "all",
+  "team_name": "industry-screening-202605251430",
+  "output_dir": "./reports/202605251430/",
+  "created_at": "2026-05-25T14:30:00",
+  "current_phase": 0,
+  "phases": {
+    "0": { "name": "Setup", "status": "in_progress", "started_at": "2026-05-25T14:30:00", "completed_at": null },
+    "1": { "name": "Full Level 4 Screening", "status": "pending", "started_at": null, "completed_at": null },
+    "2": { "name": "Top 30 Deep Dive", "status": "pending", "started_at": null, "completed_at": null },
+    "3": { "name": "Company Screening (100 Companies)", "status": "pending", "started_at": null, "completed_at": null },
+    "4": { "name": "Reports", "status": "pending", "started_at": null, "completed_at": null }
+  }
+}
+```
+Status values: "pending" | "in_progress" | "completed" | "failed" | "skipped"
+</tracking-json-schema>
 
 <composite-weights>
   | Dimension | Long-term | Mid-term | Short-term |

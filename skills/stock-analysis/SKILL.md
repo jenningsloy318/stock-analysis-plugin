@@ -2,7 +2,7 @@
 name: stock-analysis
 description: Multi-stage equity research producing long/mid/short-term reports. Triggers on "analyze [TICKER]", "deep dive", "investment thesis", "valuation".
 author: Jennings Liu
-version: "1.0.55"
+version: "1.0.56"
 license: MIT
 ---
 
@@ -26,12 +26,13 @@ license: MIT
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three. "Quick" only if user explicitly says so.</rule>
   <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/YYYYMMDDHHmm/` where YYYYMMDDHHmm is the run start timestamp (e.g., 202605251430).</rule>
   <rule name="Run Directory">Each run creates a unique subdirectory `./reports/YYYYMMDDHHmm/` under the workspace reports folder. RUN_ID is set once at run start and used for all file operations.</rule>
+  <rule name="Tracking JSON">Each run creates `./reports/[RUN_ID]/[TICKER]-tracking.json` in Stage 0. The orchestrator MUST update stage status in this file BEFORE advancing to the next stage. Set current stage to "completed" with timestamp, then set next stage to "in_progress" with timestamp.</rule>
 </rules>
 
 <agent-team-protocol>
   This skill ALWAYS operates as an agent team. Create team IMMEDIATELY as first action.
 
-  Step 0: TeamCreate({ name: "stock-analysis-[TICKER]-[YYYYMMDDHHmm]" }). Set RUN_ID = YYYYMMDDHHmm (current timestamp at run start). Create output directory: `./reports/[RUN_ID]/`.
+  Step 0: RUN_ID = $(date +%Y%m%d%H%M). TeamCreate({ name: "stock-analysis-[TICKER]-[RUN_ID]" }). Create output directory: `./reports/[RUN_ID]/`. Create `./reports/[RUN_ID]/[TICKER]-tracking.json` with all stages initialized as "pending".
   Step 1: Spawn search-agent to run ALL triage scripts (fetch_financials, fetch_macro, fetch_global_macro, fetch_economic_surprises, fetch_credit, forecast, calculate_metrics, diff_filings, persist.py init). Terminate after completion.
   Steps 2+: Spawn specialist agents per parallel execution map. Each agent writes ./reports/[RUN_ID]/stage[N].md. Terminate each after completion.
   Cleanup: Delete intermediate files; keep only 3 final reports. Delete team.
@@ -41,7 +42,8 @@ license: MIT
 
 <workflow>
   <stage n="0" name="Setup">
-    1. Resolve ticker. 2. Set RUN_ID = YYYYMMDDHHmm (current timestamp). 3. Create `./reports/[RUN_ID]/`. 4. Create team → spawn data-fetch agent for all triage scripts. 5. All 3 horizons auto-produced.
+    1. Resolve ticker. 2. RUN_ID = $(date +%Y%m%d%H%M). 3. Create `./reports/[RUN_ID]/`. 4. Create `./reports/[RUN_ID]/[TICKER]-tracking.json` with all stages initialized as "pending", stage 0 set to "in_progress". 5. Create team → spawn data-fetch agent for all triage scripts. 6. All 3 horizons auto-produced. 7. Update [TICKER]-tracking.json: stage 0 → "completed", stage 1 → "in_progress".
+  </stage>
   </stage>
   <stage n="1-2" name="Fundamentals" agent="fundamental-analyst">
     Financial health, moat, forensic accounting (Beneish/Altman/Piotroski), executive profiles, capital allocation, insider activity, governance. Writes stage1.md, stage2.md.
@@ -68,6 +70,35 @@ license: MIT
     Pre-compute 3 filenames: ./reports/[RUN_ID]/[TICKER]_long_[DATE].md, ./reports/[RUN_ID]/[TICKER]_mid_[DATE].md, ./reports/[RUN_ID]/[TICKER]_short_[DATE].md. Agent reads all stage summaries + scores.json, generates all 3 reports. Run validate_report.py before delivery.
   </stage>
 </workflow>
+
+<tracking-json-schema>
+File: `./reports/[RUN_ID]/[TICKER]-tracking.json`
+```json
+{
+  "run_id": "202605251430",
+  "ticker": "AAPL",
+  "team_name": "stock-analysis-AAPL-202605251430",
+  "output_dir": "./reports/202605251430/",
+  "created_at": "2026-05-25T14:30:00",
+  "current_stage": 0,
+  "stages": {
+    "0": { "name": "Setup", "status": "in_progress", "started_at": "2026-05-25T14:30:00", "completed_at": null },
+    "1": { "name": "Fundamentals", "status": "pending", "started_at": null, "completed_at": null },
+    "2": { "name": "Executive", "status": "pending", "started_at": null, "completed_at": null },
+    "3": { "name": "Industry", "status": "pending", "started_at": null, "completed_at": null },
+    "4": { "name": "Macro", "status": "pending", "started_at": null, "completed_at": null },
+    "5": { "name": "Geopolitics", "status": "pending", "started_at": null, "completed_at": null },
+    "6": { "name": "Valuation", "status": "pending", "started_at": null, "completed_at": null },
+    "7": { "name": "Market Regime", "status": "pending", "started_at": null, "completed_at": null },
+    "8": { "name": "Risk", "status": "pending", "started_at": null, "completed_at": null },
+    "9": { "name": "Alt Data", "status": "pending", "started_at": null, "completed_at": null },
+    "10": { "name": "Scoring", "status": "pending", "started_at": null, "completed_at": null },
+    "11": { "name": "Reports", "status": "pending", "started_at": null, "completed_at": null }
+  }
+}
+```
+Status values: "pending" | "in_progress" | "completed" | "failed" | "skipped"
+</tracking-json-schema>
 
 <parallel-execution>
   Long-term:  [1+2+3] → [4+5] → [6+7] → [8] → [9] → Scoring → [11]
