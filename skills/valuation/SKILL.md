@@ -14,7 +14,7 @@ STEP 2 — Spawn @quant-analyst for valuation analysis.
 
 | Agent | Task |
 |-------|------|
-| @search-agent | Data fetch: fetch_financials.py, calculate_metrics.py, forecast.py, fetch_peer_universe.py |
+| @search-agent | Data fetch: fetch_financials.py, calculate_metrics.py, forecast.py, fetch_peer_universe.py, fetch_theme_performance.py |
 | @quant-analyst | Full valuation: DCF, trading comps, relative value, technicals |
 </agent-team>
 
@@ -22,7 +22,7 @@ STEP 2 — Spawn @quant-analyst for valuation analysis.
 
 <process>
   <step n="0" name="Team Setup">Identify ticker. Create team. This is the only step you do directly.</step>
-  <step n="1" name="Data Fetch">Spawn @search-agent for fetch_financials.py, calculate_metrics.py, forecast.py, fetch_peer_universe.py. Wait for completion.</step>
+  <step n="1" name="Data Fetch">Spawn @search-agent for fetch_financials.py, calculate_metrics.py, forecast.py, fetch_peer_universe.py, fetch_theme_performance.py. Theme data provides sector context for comps justification. Wait for completion.</step>
   <step n="2" name="Spawn Agent">Spawn @quant-analyst for full valuation analysis</step>
   <step n="3" name="Summary">Present valuation verdict (in Chinese): intrinsic value range, margin of safety, fair value</step>
 </process>

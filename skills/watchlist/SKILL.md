@@ -23,8 +23,8 @@ Orchestrator reads existing reports, delegates data fetch, then compiles status.
 
 <process>
   <step n="1" name="Scan Reports (orchestrator direct)">Read ./reports/ directory for all existing analysis reports</step>
-  <step n="2" name="Spawn Agent">Spawn @search-agent for current price, news, and catalyst data</step>
-  <step n="3" name="Status Check (orchestrator direct)">Compare current data to bull/base/bear targets, check kill switches</step>
+  <step n="2" name="Spawn Agent">Spawn @search-agent for current price, news, catalyst data, PLUS fetch_theme_performance.py and fetch_market_breadth.py --skip-constituents for market context. Market data enables factor attribution: distinguish company-specific moves from sector/market moves.</step>
+  <step n="3" name="Status Check (orchestrator direct)">Compare current data to bull/base/bear targets, check kill switches. For each ticker, attribute price movement: company-specific factor vs sector rotation vs broad market. Flag when sector underperformance explains deviation from targets (thesis may still be intact).</step>
   <step n="4" name="Summary (orchestrator direct)">Output watchlist table with status indicators</step>
 </process>
 

@@ -33,12 +33,12 @@ Write stage summaries to `./reports/[TICKER]/stage6.md` and `./reports/[TICKER]/
 <step n="5c" name="CANSLIM Score">Score on 7 dimensions: C (current EPS growth >25%), A (annual growth 5yr), N (new catalyst/high), S (supply/demand float analysis), L (leader RS rank top 20%), I (institutional sponsorship trend), M (market direction). Composite pass/fail.</step>
 <step n="6" name="Sentiment">Put/call ratio, VIX term structure, short interest, options flow, dark pool prints</step>
 <step n="7" name="Institutional Flow">13F analysis, activist 13D, Form 4 clusters, ownership concentration</step>
-<step n="8" name="Risk-Off Indicators">VIX level + term structure, credit spreads (IG/HY/TED), gold/USD/Treasury flows, Fear & Greed Index</step>
+<step n="8" name="Risk-Off Indicators">Load breadth_data.json for VIX level + term structure (contango/backwardation), credit spreads (HYG/TLT signal). Load theme_data.json macro section for gold/USD/Treasury flows. Supplement with web search for Fear & Greed Index.</step>
 <step n="9" name="Liquidity & Correlation">Fed balance sheet, M2, repo rates, bank lending, cross-asset correlation regime</step>
-<step n="10" name="Speculative Positioning">Margin debt, 0DTE options volume, retail call/put skew, meme momentum</step>
+<step n="10" name="Speculative Positioning">Use breadth_data.json: advance/decline ratio, new highs/lows, McClellan Oscillator. Supplement with web search for margin debt, 0DTE options volume, retail call/put skew, meme momentum.</step>
 <step n="11" name="Short Squeeze Metrics">SI% float, cost to borrow, days to cover, FTD data, utilization</step>
-<step n="12" name="Fund Flows & Rotation">ETF flows by sector, COT positioning, sector rotation signals</step>
-<step n="13" name="Regime Classification">Synthesize → Risk-Off Defensive | Neutral | Risk-On Speculative. Impact on [TICKER].</step>
+<step n="12" name="Fund Flows & Rotation">Load theme_data.json for sector ETF returns (1D/5D/1M), theme group performance, style factor rotation (growth vs value, large vs small), regime_summary signals. Supplement with web search for COT positioning, ETF flow data.</step>
+<step n="13" name="Regime Classification">Synthesize breadth_data.json signals (breadth health, A/D ratio, VIX regime) + theme_data.json regime_summary (sector leaders/laggards, growth/value bias) → Risk-Off Defensive | Neutral | Risk-On Speculative. Note breadth deterioration/improvement trend. Impact on [TICKER].</step>
 
 ## 4. Guardrails
 
@@ -104,7 +104,10 @@ For peer comparison data:
 2. `mcp__tavily-remote-mcp__tavily_extract` — Extract structured peer data from known financial URLs
 3. `mcp__xcrawl-mcp__xcrawl_search` — "[PEER_TICKER] EV/EBITDA P/E financial ratios"
 
-For market regime & positioning data (Stage 7):
+For market regime & positioning data (Stage 7), FIRST load pre-fetched data from the orchestrator's data fetch phase:
+- `./reports/[RUN_ID]/breadth_data.json` — VIX spot/term structure, credit spreads (HYG/TLT), % stocks above 20/50/200-day MAs, advance/decline, new highs/lows, McClellan Oscillator, breadth signal
+- `./reports/[RUN_ID]/theme_data.json` — 11 sector ETF returns (1D/5D/1M), 7 theme groups, 5 style factors, macro ETFs, regime summary (growth vs value, tech vs broad, sector leaders/laggards, VIX level)
+Use these for Steps 8, 10, 12, 13 below. Supplement gaps with web search:
 1. `mcp__firecrawl__firecrawl_search` — "VIX term structure contango backwardation [month] [year]", "NYSE margin debt FINRA [year]"
 2. `mcp__tavily-remote-mcp__tavily_search` with `time_range: "week"` — "credit spreads HY IG TED spread current [year]"
 3. `mcp__tavily-remote-mcp__tavily_research` with `model: "mini"` — "Current market regime: VIX, credit spreads, margin debt levels, retail speculation indicators, fund flow rotation"
