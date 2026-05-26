@@ -186,6 +186,8 @@
 | `alpha_factor_zoo.py` | Factor computation engine with 19 base operators, 4 factor zoos (Technical 35, Fundamental 33, Macro 26, Alternative 26), AST-safe expression evaluator | 7 |
 | `validate_factors.py` | AST safety validation for factor expressions, lookahead bias detection | 7 |
 | `audit_tool_calls.py` | Post-hoc report grounding verification (min tool calls, tool diversity, source attribution) | 11 |
+| `fetch_market_breadth.py` | Market breadth indicators: % above MAs, A/D line, new highs/lows, McClellan Oscillator, VIX term structure, credit spreads | Daily |
+| `fetch_theme_performance.py` | Theme/style ETF performance: 11 sectors, 7 themes, 5 style factors, macro ETFs, specialty ETFs, regime summary | Daily |
 
 ## Report Quality Gates (MUST follow)
 
