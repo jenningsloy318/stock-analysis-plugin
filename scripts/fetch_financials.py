@@ -7,7 +7,7 @@ Usage:
     fetch_financials.py BRK.B --output ./reports/BRK.B/raw-data.json
 
 Market-aware fallback chain:
-  China/HK tickers (.SZ, .SH, .HK, 6-digit codes) → akshare → yfinance → FMP
+  China/HK tickers (.SZ, .SH, .HK, 6-digit codes) → baostock → akshare → yfinance → FMP
   US/Global tickers → yfinance → SEC EDGAR → akshare (global indices) → FMP
 
 Output: JSON to stdout or --output file.
@@ -311,7 +311,289 @@ def _parse_hk_financials(df, out: dict, years: int):
 
 
 # ---------------------------------------------------------------------------
-# Tier 1 fallback: yfinance (free, no API key, wraps Yahoo Finance)
+# Tier 1 fallback (China): baostock — official securities data, free, stable
+# ---------------------------------------------------------------------------
+
+
+def fetch_from_baostock(ticker: str, years: int) -> dict | None:
+    """Fetch Chinese A-share data from baostock. Free, no API key, reliable."""
+    try:
+        import baostock as bs
+    except ImportError:
+        return None
+
+    import io as _io
+
+    market = detect_market(ticker)
+    if market not in ("china", "hongkong"):
+        return None
+
+    # Suppress baostock's stdout login message
+    _old_stdout = sys.stdout
+    sys.stdout = _io.StringIO()
+    lg = bs.login()
+    sys.stdout = _old_stdout
+    if lg.error_code != "0":
+        sys.stderr.write(f"baostock login failed: {lg.error_msg}\n")
+        return None
+
+    bs_code = _get_baostock_code(ticker)
+    if not bs_code:
+        _safe_bs_logout(bs)
+        return None
+
+    result: dict = {
+        "ticker": ticker,
+        "source": "baostock",
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "entity_name": "",
+        "profile": {},
+        "financials": {
+            "income_statement": {
+                "revenue": [],
+                "net_income": [],
+                "operating_income": [],
+            },
+            "balance_sheet": {
+                "total_assets": [],
+                "total_liabilities": [],
+                "stockholders_equity": [],
+                "total_debt": [],
+                "cash": [],
+            },
+            "cash_flow": {
+                "operating_cash_flow": [],
+                "capex": [],
+                "free_cash_flow": [],
+            },
+        },
+        "insider_transactions": [],
+        "institutional_holdings": [],
+        "segments": [],
+        "years_requested": years,
+    }
+
+    try:
+        # -- Company basic info --
+        try:
+            rs = bs.query_stock_basic(code=bs_code)
+            if rs.error_code == "0":
+                while rs.next():
+                    row = rs.get_row_data()
+                    result["entity_name"] = row[1]
+                    result["profile"]["listing_date"] = row[2]
+        except Exception:
+            pass
+
+        # -- Industry classification --
+        try:
+            rs = bs.query_stock_industry(code=bs_code)
+            if rs.error_code == "0":
+                while rs.next():
+                    row = rs.get_row_data()
+                    result["profile"]["industry"] = row[3]
+        except Exception:
+            pass
+
+        # -- Daily K-line with PE/PB/PS --
+        try:
+            import pandas as pd
+
+            from datetime import date
+
+            start = f"{date.today().year - years}-01-01"
+            end = date.today().strftime("%Y-%m-%d")
+
+            rs = bs.query_history_k_data_plus(
+                bs_code,
+                "date,open,high,low,close,volume,amount,peTTM,pbMRQ,psTTM",
+                start_date=start,
+                end_date=end,
+                frequency="d",
+                adjustflag="2",
+            )
+            if rs.error_code == "0":
+                rows = []
+                while rs.next():
+                    rows.append(rs.get_row_data())
+                if rows:
+                    cols = [
+                        "date",
+                        "open",
+                        "high",
+                        "low",
+                        "close",
+                        "volume",
+                        "amount",
+                        "peTTM",
+                        "pbMRQ",
+                        "psTTM",
+                    ]
+                    hist = pd.DataFrame(rows, columns=cols)
+                    for c in [
+                        "open",
+                        "high",
+                        "low",
+                        "close",
+                        "peTTM",
+                        "pbMRQ",
+                        "psTTM",
+                    ]:
+                        hist[c] = pd.to_numeric(hist[c], errors="coerce")
+
+                    last = hist.iloc[-1]
+                    result["profile"]["current_price"] = (
+                        float(last["close"]) if pd.notna(last["close"]) else None
+                    )
+                    result["profile"]["pe_ratio"] = (
+                        float(last["peTTM"]) if pd.notna(last["peTTM"]) else None
+                    )
+                    result["profile"]["pb_ratio"] = (
+                        float(last["pbMRQ"]) if pd.notna(last["pbMRQ"]) else None
+                    )
+                    result["profile"]["52w_high"] = (
+                        float(hist["high"].tail(252).max()) if len(hist) > 0 else None
+                    )
+                    result["profile"]["52w_low"] = (
+                        float(hist["low"].tail(252).min()) if len(hist) > 0 else None
+                    )
+        except Exception:
+            pass
+
+        # -- Financial statements --
+        try:
+            _parse_baostock_financials(bs_code, result["financials"], years)
+        except Exception:
+            pass
+
+    except Exception as e:
+        sys.stderr.write(f"baostock data fetch error for {ticker}: {e}\n")
+
+    _safe_bs_logout(bs)
+
+    if not result.get("entity_name") and not result["profile"].get("current_price"):
+        return None
+    return result
+
+
+def _get_baostock_code(ticker: str) -> str | None:
+    """Convert ticker to baostock exchange-prefixed format."""
+    t = ticker.upper()
+    code = t.replace(".SZ", "").replace(".SH", "").replace(".BJ", "").replace(".HK", "")
+    if ".SZ" in t:
+        return f"sz.{code}"
+    elif ".SH" in t:
+        return f"sh.{code}"
+    elif ".BJ" in t:
+        return f"bj.{code}"
+    num = int(code) if code.isdigit() else None
+    if num:
+        if 600000 <= num <= 609999 or 688000 <= num <= 689999:
+            return f"sh.{code}"
+        return f"sz.{code}"
+    return None
+
+
+def _safe_bs_logout(bs) -> None:
+    """Logout from baostock suppressing stdout noise."""
+    import io as _io
+
+    _old = sys.stdout
+    sys.stdout = _io.StringIO()
+    try:
+        bs.logout()
+    except Exception:
+        pass
+    sys.stdout = _old
+
+
+def _parse_baostock_financials(bs_code: str, out: dict, years: int):
+    """Parse baostock financial statements into standard JSON format.
+
+    baostock provides:
+      - Profit: netProfit (idx 6), MBRevenue/operating revenue (idx 8), ROE (idx 3), epsTTM (idx 7)
+      - Balance: ratios only (currentRatio, liabilityToAsset, assetToEquity) — no absolute values
+      - Cash flow: ratios only (CFOToNP idx 7, CFOToOR idx 6) — no absolute values
+
+    For absolute BS/CF values, akshare's stock_financial_abstract is the primary source.
+    """
+    import baostock as bs
+    from datetime import date
+
+    current_year = date.today().year
+
+    for year_offset in range(years):
+        y = current_year - year_offset
+        # Profit data: net profit + operating revenue
+        rs = bs.query_profit_data(code=bs_code, year=y, quarter=4)
+        if rs.error_code == "0":
+            while rs.next():
+                row = rs.get_row_data()
+                period = row[2][:4] if row[2] else str(y)
+                # netProfit at index 6
+                if row[6]:
+                    out["income_statement"]["net_income"].append(
+                        {"period": period, "value": float(row[6])}
+                    )
+                # MBRevenue (operating revenue) at index 8
+                if row[8]:
+                    out["income_statement"]["revenue"].append(
+                        {"period": period, "value": float(row[8])}
+                    )
+                # ROE at index 3
+                if row[3]:
+                    out["income_statement"]["operating_income"].append(
+                        {
+                            "period": period,
+                            "value": float(row[3]),
+                            "metric": "roe_avg",
+                        }
+                    )
+
+        # Balance sheet: only ratios available, extract assetToEquity for leverage proxy
+        rs = bs.query_balance_data(code=bs_code, year=y, quarter=4)
+        if rs.error_code == "0":
+            while rs.next():
+                row = rs.get_row_data()
+                period = row[2][:4] if row[2] else str(y)
+                # assetToEquity at index 8 (equity multiplier proxy)
+                if row[8]:
+                    out["balance_sheet"]["stockholders_equity"].append(
+                        {
+                            "period": period,
+                            "value": float(row[8]),
+                            "metric": "asset_to_equity",
+                        }
+                    )
+                # liabilityToAsset at index 7
+                if row[7]:
+                    out["balance_sheet"]["total_liabilities"].append(
+                        {
+                            "period": period,
+                            "value": float(row[7]),
+                            "metric": "liability_to_asset",
+                        }
+                    )
+
+        # Cash flow ratios
+        rs = bs.query_cash_flow_data(code=bs_code, year=y, quarter=4)
+        if rs.error_code == "0":
+            while rs.next():
+                row = rs.get_row_data()
+                period = row[2][:4] if row[2] else str(y)
+                # CFOToNP at index 7
+                if row[7]:
+                    out["cash_flow"]["operating_cash_flow"].append(
+                        {
+                            "period": period,
+                            "value": float(row[7]),
+                            "metric": "cfo_to_net_profit",
+                        }
+                    )
+
+
+# ---------------------------------------------------------------------------
+# Tier 2 fallback: yfinance (free, no API key, wraps Yahoo Finance)
 # ---------------------------------------------------------------------------
 
 
@@ -836,8 +1118,12 @@ def main():
         # Market-aware fallback chain
         market = detect_market(ticker)
         if market in ("china", "hongkong"):
-            # China/HK: akshare first, then yfinance, then FMP
-            data = fetch_from_akshare(ticker, args.years)
+            # China/HK: baostock → akshare → yfinance → FMP
+            # baostock preferred as primary: more reliable (official exchange data)
+            # akshare as fallback: broadest coverage but web-scraping based
+            data = fetch_from_baostock(ticker, args.years)
+            if data is None:
+                data = fetch_from_akshare(ticker, args.years)
             if data is None:
                 data = fetch_from_yfinance(ticker, args.years)
             if data is None:

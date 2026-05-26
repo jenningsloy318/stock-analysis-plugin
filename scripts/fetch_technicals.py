@@ -59,6 +59,119 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
+# Market detection (shared with other scripts)
+# ---------------------------------------------------------------------------
+
+
+def _detect_a_share(ticker: str) -> bool:
+    """Check if ticker is a China A-share."""
+    import re
+
+    t = ticker.strip().upper()
+    return bool(re.match(r"^\d{6}\.(SZ|SH|BJ)$", t) or re.match(r"^\d{6}$", t))
+
+
+def _fetch_a_share_ohlcv(ticker: str, period: str, interval: str) -> tuple | None:
+    """Fetch OHLCV data for A-share ticker using akshare or baostock.
+
+    Returns (dates, opens, highs, lows, closes, volumes) tuple or None.
+    """
+
+    code = ticker.upper().replace(".SZ", "").replace(".SH", "").replace(".BJ", "")
+    days_map = {"1mo": 22, "3mo": 66, "6mo": 132, "1y": 252, "2y": 504, "5y": 1260}
+    days = days_map.get(period, 252)
+
+    from datetime import date
+
+    end = date.today().strftime("%Y%m%d")
+    start = f"{date.today().year - max(1, days // 252)}0101"
+
+    # Try akshare first
+    try:
+        import akshare as ak
+
+        df = ak.stock_zh_a_hist(
+            symbol=code,
+            period="daily",
+            start_date=start,
+            end_date=end,
+            adjust="qfq",
+        )
+        if df is not None and not df.empty:
+            dates = pd.to_datetime(df["日期"]).tolist()
+            opens = df["开盘"].astype(float).tolist()
+            closes = df["收盘"].astype(float).tolist()
+            highs = df["最高"].astype(float).tolist()
+            lows = df["最低"].astype(float).tolist()
+            volumes = df["成交量"].astype(float).tolist()
+            return dates, opens, highs, lows, closes, volumes
+    except Exception:
+        pass
+
+    # Try baostock as fallback
+    try:
+        import baostock as bs
+
+        bs_code = _to_baostock_code(ticker)
+        if not bs_code:
+            return None
+
+        lg = bs.login()
+        if lg.error_code != "0":
+            return None
+
+        rs = bs.query_history_k_data_plus(
+            bs_code,
+            "date,open,high,low,close,volume",
+            start_date=f"{date.today().year - max(1, days // 252)}-01-01",
+            end_date=date.today().strftime("%Y-%m-%d"),
+            frequency="d",
+            adjustflag="2",
+        )
+        if rs.error_code == "0":
+            rows = []
+            while rs.next():
+                rows.append(rs.get_row_data())
+            bs.logout()
+            if rows:
+                df = pd.DataFrame(
+                    rows, columns=["date", "open", "high", "low", "close", "volume"]
+                )
+                for c in ["open", "high", "low", "close", "volume"]:
+                    df[c] = pd.to_numeric(df[c], errors="coerce")
+                dates = pd.to_datetime(df["date"]).tolist()
+                opens = df["open"].tolist()
+                highs = df["high"].tolist()
+                lows = df["low"].tolist()
+                closes = df["close"].tolist()
+                volumes = df["volume"].tolist()
+                return dates, opens, highs, lows, closes, volumes
+        bs.logout()
+    except Exception:
+        pass
+
+    return None
+
+
+def _to_baostock_code(ticker: str) -> str | None:
+    """Convert A-share ticker to baostock format."""
+    t = ticker.upper()
+    code = t.replace(".SZ", "").replace(".SH", "").replace(".BJ", "")
+    if ".SZ" in t:
+        return f"sz.{code}"
+    elif ".SH" in t:
+        return f"sh.{code}"
+    elif ".BJ" in t:
+        return f"bj.{code}"
+    num = int(code) if code.isdigit() else None
+    if num:
+        if 600000 <= num <= 609999 or 688000 <= num <= 689999:
+            return f"sh.{code}"
+        return f"sz.{code}"
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Indicator computation functions
 # ---------------------------------------------------------------------------
 
@@ -1312,26 +1425,44 @@ def main():
     for raw_ticker in args.tickers:
         ticker = raw_ticker.strip().upper()
         try:
-            stock = yf.Ticker(ticker)
-            hist = stock.history(period=args.period, interval=args.interval)
+            is_a_share = _detect_a_share(ticker)
 
-            if hist.empty:
-                results[ticker] = {"error": f"No price data for {ticker}"}
-                continue
+            if is_a_share:
+                # A-share path: use akshare/baostock for OHLCV
+                ohlcv = _fetch_a_share_ohlcv(ticker, args.period, args.interval)
+                if ohlcv is None:
+                    results[ticker] = {"error": f"No A-share price data for {ticker}"}
+                    continue
+                dates, opens, highs, lows, closes, volumes = ohlcv
+                source_label = "akshare_baostock"
+            else:
+                # US/global path: yfinance
+                stock = yf.Ticker(ticker)
+                hist = stock.history(period=args.period, interval=args.interval)
 
-            closes = hist["Close"].tolist()
-            highs = hist["High"].tolist()
-            lows = hist["Low"].tolist()
-            opens = hist["Open"].tolist()
-            volumes = hist["Volume"].tolist()
-            dates = hist.index.tolist()
+                if hist.empty:
+                    results[ticker] = {"error": f"No price data for {ticker}"}
+                    continue
+
+                dates = hist.index.tolist()
+                closes_raw = hist["Close"]
+                highs_raw = hist["High"]
+                lows_raw = hist["Low"]
+                opens_raw = hist["Open"]
+                volumes_raw = hist["Volume"]
+                closes = closes_raw.tolist()
+                highs = highs_raw.tolist()
+                lows = lows_raw.tolist()
+                opens = opens_raw.tolist()
+                volumes = volumes_raw.tolist()
+                source_label = "yfinance_local"
 
             tech_data = compute_all(closes, highs, lows, opens, volumes)
             tech_data["latest"]["date"] = (
                 str(dates[-1].date()) if len(dates) > 0 else None
             )
             tech_data["ticker"] = ticker
-            tech_data["source"] = "yfinance_local"
+            tech_data["source"] = source_label
             tech_data["retrieved_at"] = datetime.now(timezone.utc).isoformat()
             tech_data["data_points"] = len(closes)
             tech_data["period"] = args.period
@@ -1345,35 +1476,82 @@ def main():
                     tech_data["alpha_vantage_fallback"] = av
 
             # Weinstein Stage (requires weekly data — fetch separately)
-            try:
-                weekly_hist = stock.history(period="2y", interval="1wk")
-                if not weekly_hist.empty and len(weekly_hist) >= 35:
-                    weekly_closes = weekly_hist["Close"].tolist()
-                    weekly_volumes = weekly_hist["Volume"].tolist()
-                    tech_data["weinstein_stage"] = weinstein_stage(
-                        weekly_closes, weekly_volumes
-                    )
-                else:
-                    tech_data["weinstein_stage"] = {
-                        "stage": None,
-                        "evidence": "Insufficient weekly data",
-                    }
-            except Exception as e:
-                tech_data["weinstein_stage"] = {"stage": None, "error": str(e)}
+            if is_a_share:
+                # For A-shares, resample daily to weekly from fetched data
+                try:
+                    if len(closes) >= 175:  # ~35 weeks
+                        df = pd.DataFrame({"close": closes, "volume": volumes})
+                        df.index = pd.to_datetime(dates)
+                        weekly = (
+                            df.resample("W")
+                            .agg({"close": "last", "volume": "sum"})
+                            .dropna()
+                        )
+                        if len(weekly) >= 35:
+                            tech_data["weinstein_stage"] = weinstein_stage(
+                                weekly["close"].tolist(),
+                                weekly["volume"].tolist(),
+                            )
+                        else:
+                            tech_data["weinstein_stage"] = {
+                                "stage": None,
+                                "evidence": "Insufficient weekly data for A-share",
+                            }
+                    else:
+                        tech_data["weinstein_stage"] = {
+                            "stage": None,
+                            "evidence": "Insufficient daily data for weekly resample",
+                        }
+                except Exception as e:
+                    tech_data["weinstein_stage"] = {"stage": None, "error": str(e)}
+            else:
+                try:
+                    weekly_hist = stock.history(period="2y", interval="1wk")
+                    if not weekly_hist.empty and len(weekly_hist) >= 35:
+                        weekly_closes = weekly_hist["Close"].tolist()
+                        weekly_volumes = weekly_hist["Volume"].tolist()
+                        tech_data["weinstein_stage"] = weinstein_stage(
+                            weekly_closes, weekly_volumes
+                        )
+                    else:
+                        tech_data["weinstein_stage"] = {
+                            "stage": None,
+                            "evidence": "Insufficient weekly data",
+                        }
+                except Exception as e:
+                    tech_data["weinstein_stage"] = {"stage": None, "error": str(e)}
 
-            # Relative Strength vs SPY
+            # Relative Strength vs benchmark (CSI 300 for A-shares, SPY for US)
             try:
-                spy_hist = yf.Ticker("SPY").history(period="2y", interval="1d")
-                if not spy_hist.empty:
-                    spy_closes = spy_hist["Close"].tolist()
-                    tech_data["relative_strength"] = compute_relative_strength(
-                        closes, spy_closes
-                    )
+                if is_a_share:
+                    # Use CSI 300 via akshare
+                    import akshare as ak
+
+                    benchmark_df = ak.stock_zh_index_daily(symbol="sh000300")
+                    if benchmark_df is not None and not benchmark_df.empty:
+                        benchmark_closes = benchmark_df["close"].astype(float).tolist()
+                        tech_data["relative_strength"] = compute_relative_strength(
+                            closes, benchmark_closes
+                        )
+                        tech_data["benchmark"] = "CSI300"
+                    else:
+                        tech_data["relative_strength"] = {
+                            "composite_rs": None,
+                            "error": "CSI 300 data unavailable",
+                        }
                 else:
-                    tech_data["relative_strength"] = {
-                        "composite_rs": None,
-                        "error": "SPY data unavailable",
-                    }
+                    spy_hist = yf.Ticker("SPY").history(period="2y", interval="1d")
+                    if not spy_hist.empty:
+                        spy_closes = spy_hist["Close"].tolist()
+                        tech_data["relative_strength"] = compute_relative_strength(
+                            closes, spy_closes
+                        )
+                        tech_data["benchmark"] = "SPY"
+                    else:
+                        tech_data["relative_strength"] = {
+                            "composite_rs": None,
+                            "error": "SPY data unavailable",
+                        }
             except Exception as e:
                 tech_data["relative_strength"] = {"composite_rs": None, "error": str(e)}
 
