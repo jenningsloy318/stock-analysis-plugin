@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare. Triggers on 'find best stocks', 'screen sectors', 'analyze [TICKER]', 'compare T1,T2'."
 author: Jennings Liu
-version: "1.05.05"
+version: "1.05.06"
 license: MIT
 ---
 
@@ -32,9 +32,12 @@ Do NOT trigger on: general market commentary, non-financial queries.
 <workflow>
   <stage n="0" name="Setup">Detect mode. Extract parameters (--top-n, --total-m, or tickers). Create RUN_ID (YYYYMMDDHHmm), output directory (./reports/[RUN_ID]/), tracking.json. Create agent team via TeamCreate with name `stock-analysis-[RUN_ID]`. MUST complete before any data fetch or agent spawning.</stage>
   <stage n="1" name="Data Collection" agent="data-collector">Fetch shared data ONCE: macro indicators, economic surprises, sector/sub-industry RS, market breadth, theme performance. Load references/gics_taxonomy.md and references/data_source_matrix.md. All downstream stages reuse this data.</stage>
+  <stage n="1.5" name="Data Validation" agent="report-validator" modes="pipeline,screen,analyze,compare">Validate Stage 1 shared data: freshness check, source coverage, required files present. Blocks downstream stages if shared data is stale or incomplete. MUST PASS before Stages 2+.</stage>
+
   <stage n="2" name="Sub-Industry Screening" agent="sector-screener" modes="pipeline,screen">Score ALL 163 GICS Level 4 sub-industries on 11 dimensions (Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand). Process in 3 parallel batches of ~54. Select top N sub-industries.</stage>
   <stage n="3" name="Sub-Industry Deep-Dive" agent="sector-screener" modes="pipeline,screen">Deep-dive top N sub-industries: Porter, TAM, catalysts, barriers, company universe, competitive dynamics, growth catalysts, profit pools. Process in parallel waves of max 4 agents.</stage>
   <stage n="4" name="Company Screening" agent="company-screener" modes="pipeline,screen">Screen companies across ALL top N sub-industries. Apply filters (market cap, growth, FCF, ROIC, price <$100/¥100). Score on growth/profitability/moat/valuation/management/risk/liquidity. Select top M by score across ALL sub-industries — NOT quota per sub-industry.</stage>
+  <stage n="4.5" name="Screening Validation" agent="report-validator" modes="pipeline,screen">Validate screening outputs: sub-industry leaderboard has 10+ entries with valid GICS codes, company watchlist has 10+ companies, price filter applied, 推荐标的排名 format correct. Blocks report generation if screening is incomplete.</stage>
 
   <stage n="5" name="Financial Health" agent="fundamental-analyst" modes="pipeline,analyze,compare" per-company="true">DuPont 5-factor decomposition, Piotroski F-Score, Lynch categories, key ratio analysis. Scripts: fetch_financials.py, calculate_metrics.py.</stage>
   <stage n="6" name="Earnings Quality" agent="fundamental-analyst" modes="pipeline,analyze,compare" per-company="true" depends="5">Beneish M-Score, Montier C-Score, accruals quality, cash conversion, revenue recognition, capital allocation history (Buffett retention test, buyback ROI, M&A track record). Scripts: fetch_capital_structure.py, calculate_earnings_quality.py, diff_filings.py.</stage>
@@ -49,8 +52,11 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <stage n="15" name="A-Share Analysis" agent="china-market-analyst" modes="pipeline,analyze,compare" per-company="true" condition="ticker ends with .SH or .SZ" depends="5-14">政策敏感性矩阵, 产业政策周期, 北向资金, 融资融券, 龙虎榜, 游资追踪. MANDATORY for .SH/.SZ tickers. SKIP for all others.</stage>
 
   <stage n="16" name="Scoring & Cross-Check" agent="scorer">Deterministic scoring (compute_scores.py) for each company. Cross-check contradictions (cross_check.py). Bayesian conviction calibration (calibrate_conviction.py). LLM agents may adjust Moat and Management ±2.0 based on qualitative findings. Rank companies by composite score.</stage>
-  <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer">Pipeline: screening overview (3 horizons) + per-company deep-dives (3 horizons each). Screen: screening reports only. Analyze: per-company reports only. Compare: comparison reports with ranked table. All validated by validate_report.py before delivery.</stage>
-  <stage n="18" name="Best Picks Highlight" agent="equity-report-writer">After ALL reports are generated and validated, write HIGHLIGHTS_BEST_PICKS.md to ./reports/[RUN_ID]/. Single-file summary of the top-ranked companies with: rank, ticker, company name, current price, composite score, conviction, 2-sentence thesis, kill switch, key catalyst. This file serves as the quick-reference entry point for all reports in the run.</stage>
+  <stage n="16.5" name="Score Validation" agent="report-validator" modes="pipeline,analyze,compare">Validate Stage 16 scoring: all 11 components present in 1-10 range, composite matches weighted sum, rating bracket consistent, no unresolved contradictions, ranking sorted correctly. Blocks report generation if scoring is invalid.</stage>
+  <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer">Pipeline: screening overview (3 horizons) + per-company deep-dives (3 horizons each). Screen: screening reports only. Analyze: per-company reports only. Compare: comparison reports with ranked table.</stage>
+  <stage n="17.5" name="Report Validation" agent="report-validator">Independent validation of all generated reports: run validate_report.py (8 gates) for each report, verify Chinese content, verify required sections, verify stock price display. MUST PASS before Best Picks.</stage>
+  <stage n="18" name="Best Picks Highlight" agent="equity-report-writer">After ALL reports pass validation, write HIGHLIGHTS_BEST_PICKS.md to ./reports/[RUN_ID]/. Single-file summary of the top-ranked companies with: rank, ticker, company name, current price, composite score, conviction, 2-sentence thesis, kill switch, key catalyst.</stage>
+  <stage n="18.5" name="Best Picks Validation" agent="report-validator">Validate HIGHLIGHTS_BEST_PICKS.md: ranked table with required columns, kill switch for each company, 当前股价 present. MUST PASS before cleanup.</stage>
   <stage n="19" name="Cleanup" agent="team-lead">Final cleanup: terminate all remaining agents, delete agent team via TeamDelete, remove intermediate files (stage*.md, raw-data.json, phase*.md), keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage — no work after this.</stage>
 </workflow>
 
@@ -72,7 +78,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
       <parameter name="top-n" default="5" range="1-30">Number of top sub-industries after screening all 163.</parameter>
       <parameter name="total-m" default="10" range="1-100">Total companies to deep-dive. Selected by score across ALL top-n sub-industries — NOT quota per sub-industry.</parameter>
     </parameters>
-    <stages>0→1→2→3→4→5-15(waves)→16→17→18→19</stages>
+    <stages>0→1→1.5→2→3→4→4.5→5-15(waves)→16→16.5→17→17.5→18→18.5→19</stages>
   </mode>
 
   <mode name="screen">
@@ -80,7 +86,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="top-n" default="30" range="1-163">Number of top sub-industries to deep-dive.</parameter>
     </parameters>
-    <stages>0→1→2→3→4→17→18→19(screening reports + best picks + cleanup)</stages>
+    <stages>0→1→1.5→2→3→4→4.5→17→17.5→18→18.5→19(screening reports + validation + best picks + cleanup)</stages>
   </mode>
 
   <mode name="analyze">
@@ -88,7 +94,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="tickers" required="true">One or more ticker symbols from user prompt.</parameter>
     </parameters>
-    <stages>0→1→5-15(waves)→16→17→18→19(best picks + cleanup)</stages>
+    <stages>0→1→1.5→5-15(waves)→16→16.5→17→17.5→18→18.5→19(best picks + validation + cleanup)</stages>
   </mode>
 
   <mode name="compare">
@@ -96,7 +102,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="tickers" required="true">2-5 ticker symbols from user prompt.</parameter>
     </parameters>
-    <stages>0→1→5-15(waves)→16(rank+merge)→17→18→19(comparison + best picks + cleanup)</stages>
+    <stages>0→1→1.5→5-15(waves)→16(rank+merge)→16.5→17→17.5→18→18.5→19(comparison + validation + best picks + cleanup)</stages>
     <constraints>Max 5 stocks. Identical valuation methodology across all.</constraints>
   </mode>
 </modes>
@@ -131,10 +137,13 @@ Do NOT trigger on: general market commentary, non-financial queries.
 
 <criteria name="Skip Conditions">
   Stage 2-4 (Screening): SKIP for analyze/compare modes.
+  Stage 4.5 (Screening Validation): SKIP for analyze/compare modes.
   Stage 3 (Deep-Dive): SKIP if top-n = 1 (single sub-industry).
   Stage 15 (A-Share): SKIP for non-.SH/.SZ tickers.
+  Stage 16.5 (Score Validation): SKIP for screen mode (no scoring).
   Stage 17 screening reports: SKIP for analyze/compare modes.
   Stage 17 company reports: SKIP for screen mode.
+  Stage 18.5 (Best Picks Validation): NEVER skip if Stage 18 ran.
   Stage 19 (Cleanup): NEVER skip — always runs as the final stage.
 </criteria>
 

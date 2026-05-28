@@ -123,13 +123,15 @@ timeout_mins: 40
   <phase n="1" name="Setup & Data">
     Stage 0: Detect mode, extract parameters, generate RUN_ID (YYYYMMDDHHmm), create output directory (./reports/[RUN_ID]/), create tracking.json, create agent team via TeamCreate with name `stock-analysis-[RUN_ID]`. Store team name in tracking.json. MUST complete before any agent spawning.
     Stage 1: Spawn data-collector for shared data (macro, RS, breadth, themes)
+    Stage 1.5: Spawn report-validator (data-freshness). WAIT for VALIDATED: PASS before proceeding. On FAIL: fix data and re-validate (max 3 loops).
   </phase>
 
   <phase n="2" name="Screening" modes="pipeline,screen">
     Stage 2: Spawn sector-screener agents (3 parallel batches of ~54 sub-industries)
     Stage 3: Spawn sector-screener agents (deep-dive top N, max 4 parallel)
     Stage 4: Spawn company-screener agents (3 parallel batches)
-    After Stage 4: screen mode → jump to Stage 17→18 (screening reports + best picks)
+    Stage 4.5: Spawn report-validator (screening-completeness). WAIT for VALIDATED: PASS. On FAIL: fix screening gaps and re-validate.
+    After Stage 4.5: screen mode → jump to Stage 17→17.5→18→18.5→19 (screening reports + validation + best picks + cleanup)
   </phase>
 
   <phase n="3" name="Analysis Waves" modes="pipeline,analyze,compare">
@@ -146,8 +148,11 @@ timeout_mins: 40
 
   <phase n="4" name="Scoring & Reports">
     Stage 16: Spawn scorer agent. Deterministic scoring + cross-check + calibration.
+    Stage 16.5: Spawn report-validator (score-consistency). WAIT for VALIDATED: PASS. On FAIL: fix scoring and re-validate.
     Stage 17: Spawn report writer agents. Pipeline: screening + company reports. Screen: screening only. Analyze: company reports. Compare: comparison reports.
+    Stage 17.5: Spawn report-validator (report-quality). WAIT for VALIDATED: PASS. On FAIL: send fix instructions to report writers and re-validate (max 3 loops).
     Stage 18: Spawn equity-report-writer to write HIGHLIGHTS_BEST_PICKS.md — single-file quick-reference of top-ranked companies.
+    Stage 18.5: Spawn report-validator (best-picks-completeness). WAIT for VALIDATED: PASS. On FAIL: fix and re-validate.
   </phase>
 
   <phase n="5" name="Cleanup">
@@ -208,7 +213,7 @@ timeout_mins: 40
     <field name="plugin_root" note="MANDATORY for all agents">Resolved from platform-paths.</field>
     <field name="run_id" note="MANDATORY for all agents">YYYYMMDDHHmm set at Stage 0.</field>
     <field name="output_dir" note="MANDATORY for all agents">./reports/[RUN_ID]/</field>
-    <field name="stage_number" note="MANDATORY for all agents">Current stage number (0-19).</field>
+    <field name="stage_number" note="MANDATORY for all agents">Current stage number (0-19, including 0.5-step validation stages).</field>
   </common>
 
   <phase name="Setup & Data">
@@ -216,6 +221,12 @@ timeout_mins: 40
       <field>plugin_root</field>
       <field>output_dir</field>
       <field>mode</field>
+    </agent>
+    <agent name="report-validator" stage="1.5" note="Data Freshness Validation">
+      <field>plugin_root</field>
+      <field>run_id</field>
+      <field>output_dir</field>
+      <field name="validation_type">data-freshness</field>
     </agent>
   </phase>
 
@@ -238,6 +249,12 @@ timeout_mins: 40
       <field>sub_industry_codes</field>
       <field>total_m</field>
       <field>shared_data_path</field>
+    </agent>
+    <agent name="report-validator" stage="4.5" note="Screening Completeness Validation">
+      <field>plugin_root</field>
+      <field>run_id</field>
+      <field>output_dir</field>
+      <field name="validation_type">screening-completeness</field>
     </agent>
   </phase>
 
@@ -299,6 +316,13 @@ timeout_mins: 40
       <field>company_dirs" note="List of all NNN-[TICKER]/ dirs"</field>
       <field>mode</field>
     </agent>
+    <agent name="report-validator" stage="16.5" note="Score Validation">
+      <field>plugin_root</field>
+      <field>run_id</field>
+      <field>output_dir</field>
+      <field name="validation_type">score-consistency</field>
+      <field>company_dirs</field>
+    </agent>
     <agent name="screening-report-writer" stage="17" modes="pipeline,screen">
       <field>plugin_root</field>
       <field>output_dir</field>
@@ -317,6 +341,20 @@ timeout_mins: 40
       <field>ranking_json" note="./reports/[RUN_ID]/ranking.json"</field>
       <field>company_dirs</field>
     </agent>
+    <agent name="report-validator" stage="17.5" note="Report Quality Validation">
+      <field>plugin_root</field>
+      <field>run_id</field>
+      <field>output_dir</field>
+      <field name="validation_type">report-quality</field>
+      <field>company_dirs</field>
+      <field>report_type</field>
+    </agent>
+    <agent name="report-validator" stage="18.5" note="Best Picks Validation">
+      <field>plugin_root</field>
+      <field>run_id</field>
+      <field>output_dir</field>
+      <field name="validation_type">best-picks-completeness</field>
+    </agent>
   </phase>
 </agent-spawn-fields>
 
@@ -333,6 +371,8 @@ timeout_mins: 40
   <gate>Tracking JSON up to date</gate>
   <gate>No idle teammates running</gate>
   <gate>Stage 19 cleanup completed: team deleted, temp files removed</gate>
+  <gate>All validation stages (1.5, 4.5, 16.5, 17.5, 18.5) passed VALIDATED: PASS</gate>
+  <gate>Report validator independence: team-lead NEVER skips validation stages</gate>
 </quality-gates>
 
 <tools>

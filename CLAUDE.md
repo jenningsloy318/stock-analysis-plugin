@@ -68,14 +68,17 @@
 
 - The `stock-analysis` skill (unified pipeline) acts as the team lead — it NEVER analyzes directly, only spawns, coordinates, and quality-gates.
 - Modes: pipeline (default: screen → analyze), screen, analyze, compare.
-- 20 stages (0-19), each handled by a dedicated specialist agent.
+- 25 stages (20 work stages + 5 validation gates), each handled by a dedicated specialist agent.
 - Stage 0: TeamCreate with name `stock-analysis-[RUN_ID]` before any agent spawning.
+- Stage 1.5, 4.5, 16.5, 17.5, 18.5: Independent validation by report-validator agent.
 - Stage 19: TeamDelete + remove temp files — ALWAYS the last stage.
+- Validation gates are BLOCKING — team-lead WAITS for VALIDATED: PASS before advancing.
 - Screening agents: `data-collector`, `sector-screener`, `company-screener`, `scorer`.
 - Analysis agents (per-company): `fundamental-analyst`, `industry-analyst`, `supply-chain-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `catalyst-analyst`, `china-market-analyst`.
+- Validation agent: `report-validator` — independent, runs validate_report.py, signals PASS/FAIL.
 - Report agents: `screening-report-writer`, `equity-report-writer`.
 - Support agents: `search-agent`, `market-daily-orchestrator`.
-- Pipeline: [0] → [1] → [2: 3× parallel] → [3: 4× parallel] → [4: 3× parallel] → [5-15: wave scheduling ×M max 4] → [16] → [17] → [18] → [19]
+- Pipeline: [0] → [1] → [1.5✓] → [2: 3×] → [3: 4×] → [4: 3×] → [4.5✓] → [5-15: waves ×M max 4] → [16] → [16.5✓] → [17] → [17.5✓] → [18] → [18.5✓] → [19]
 - Per-company wave pattern: Wave1[5+7+9+13] → Wave2[6+8+10+14] → Wave3[11+12] → Wave4[15]
 - Cross-company: different companies can be at different stages simultaneously
 - A-share (SH/SZ): Stage 15 is MANDATORY, SKIP for all others

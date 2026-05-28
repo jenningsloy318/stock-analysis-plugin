@@ -87,23 +87,29 @@ Company distribution: top M companies are selected by score across ALL top-N sub
 ### How the Pipeline Works
 
 ```
-Stage 0:  Setup — TeamCreate stock-analysis-[RUN_ID] + tracking
-Stage 1:  Data Collection (shared data fetched ONCE)
-Stage 2:  Screen all 163 GICS Level 4 → top N sub-industries
-Stage 3:  Deep-dive sub-industries + screen companies → top M
-Stage 4:  Analysis branches (max 4 parallel)
+Stage 0:    Setup — TeamCreate stock-analysis-[RUN_ID] + tracking
+Stage 1:    Data Collection (shared data fetched ONCE)
+Stage 1.5:  Data Validation ✓
+Stage 2:    Screen all 163 GICS Level 4 → top N sub-industries
+Stage 3:    Deep-dive sub-industries + screen companies → top M
+Stage 4:    Company Screening
+Stage 4.5:  Screening Validation ✓
+Stage 5-15: Analysis branches (max 4 parallel)
   For each company: fundamentals → industry → macro → valuation → risk → alt-data
-Stage 16: Scoring & cross-check
-Stage 17: Report generation (3 horizons × each output)
-Stage 18: Best Picks highlight summary
-Stage 19: Cleanup — TeamDelete + remove temp files
+Stage 16:   Scoring & cross-check
+Stage 16.5: Score Validation ✓
+Stage 17:   Report generation (3 horizons × each output)
+Stage 17.5: Report Validation ✓
+Stage 18:   Best Picks highlight summary
+Stage 18.5: Best Picks Validation ✓
+Stage 19:   Cleanup — TeamDelete + remove temp files
 ```
 
 All reports produced in **Chinese (中文)**. 3 horizons always generated.
 
 ## Architecture
 
-One orchestrator manages 17 specialist agents across 20 pipeline stages. All work is delegated — the orchestrator never performs analysis directly. Team is created in Stage 0 and deleted in Stage 19.
+One orchestrator manages 18 specialist agents across 25 pipeline stages (20 work + 5 independent validation gates). All work is delegated — the orchestrator never performs analysis directly. The `report-validator` agent independently validates data freshness, screening completeness, scoring consistency, and report quality at 5 checkpoints.
 
 ```
 stock-analysis (4 modes: pipeline / screen / analyze / compare)

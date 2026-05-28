@@ -14,7 +14,7 @@
 - NEVER analyzes directly — only spawns, coordinates, and quality-gates
 - Manages 19 stages with dependency-aware wave scheduling across companies
 
-## Specialist Agents (17 agents, 20 stages)
+## Specialist Agents (18 agents, 25 stages)
 
 | Agent | Stage(s) | Purpose | Per-Company |
 |-------|----------|---------|-------------|
@@ -31,6 +31,7 @@
 | **catalyst-analyst** | 14 | Catalyst calendar, PEAD, event study | Yes |
 | **china-market-analyst** | 15 | A-share policy, northbound, margin | Yes (conditional) |
 | **scorer** | 16 | Deterministic scoring + cross-check | No |
+| **report-validator** | 1.5, 4.5, 16.5, 17.5, 18.5 | Independent validation at 5 checkpoints | No |
 | **screening-report-writer** | 17 | Screening overview reports | No |
 | **equity-report-writer** | 17, 18 | Per-company deep-dive + best picks | No |
 | **search-agent** | all | Multi-source financial web search | No |
@@ -38,29 +39,34 @@
 
 ## Stage Map
 
-### 20-Stage Pipeline
+### 25-Stage Pipeline (20 work stages + 5 validation gates)
 
 ```
-Stage 0:  Setup (team-lead) — TeamCreate stock-analysis-[RUN_ID]
-Stage 1:  Data Collection (data-collector)
-Stage 2:  Sub-Industry Screening (sector-screener ×3 parallel)
-Stage 3:  Sub-Industry Deep-Dive (sector-screener ×4 parallel waves)
-Stage 4:  Company Screening (company-screener ×3 parallel)
-Stage 5:  Financial Health (fundamental-analyst)          ← per-company
-Stage 6:  Earnings Quality (fundamental-analyst)          ← per-company, depends 5
-Stage 7:  Industry & Competitive (industry-analyst)       ← per-company
-Stage 8:  Supply Chain (supply-chain-analyst)             ← per-company, depends 7
-Stage 9:  Macro & Geopolitics (macro-analyst)             ← per-company
-Stage 10: Valuation (quant-analyst)                       ← per-company, depends 5+7
-Stage 11: Market Regime (quant-analyst)                   ← per-company, depends 10
-Stage 12: Risk Assessment (risk-analyst)                  ← per-company, depends 10
-Stage 13: Alt Data (alt-data-analyst)                     ← per-company
-Stage 14: Catalyst (catalyst-analyst)                     ← per-company, depends 13
-Stage 15: A-Share (china-market-analyst)                  ← per-company, conditional .SH/.SZ
-Stage 16: Scoring & Cross-Check (scorer)
-Stage 17: Report Generation (report writers ×parallel)
-Stage 18: Best Picks Highlight (equity-report-writer)
-Stage 19: Cleanup (team-lead) — TeamDelete + remove temp files
+Stage 0:    Setup (team-lead) — TeamCreate stock-analysis-[RUN_ID]
+Stage 1:    Data Collection (data-collector)
+Stage 1.5:  Data Validation (report-validator) — data-freshness
+Stage 2:    Sub-Industry Screening (sector-screener ×3 parallel)
+Stage 3:    Sub-Industry Deep-Dive (sector-screener ×4 parallel waves)
+Stage 4:    Company Screening (company-screener ×3 parallel)
+Stage 4.5:  Screening Validation (report-validator) — screening-completeness
+Stage 5:    Financial Health (fundamental-analyst)          ← per-company
+Stage 6:    Earnings Quality (fundamental-analyst)          ← per-company, depends 5
+Stage 7:    Industry & Competitive (industry-analyst)       ← per-company
+Stage 8:    Supply Chain (supply-chain-analyst)             ← per-company, depends 7
+Stage 9:    Macro & Geopolitics (macro-analyst)             ← per-company
+Stage 10:   Valuation (quant-analyst)                       ← per-company, depends 5+7
+Stage 11:   Market Regime (quant-analyst)                   ← per-company, depends 10
+Stage 12:   Risk Assessment (risk-analyst)                  ← per-company, depends 10
+Stage 13:   Alt Data (alt-data-analyst)                     ← per-company
+Stage 14:   Catalyst (catalyst-analyst)                     ← per-company, depends 13
+Stage 15:   A-Share (china-market-analyst)                  ← per-company, conditional .SH/.SZ
+Stage 16:   Scoring & Cross-Check (scorer)
+Stage 16.5: Score Validation (report-validator) — score-consistency
+Stage 17:   Report Generation (report writers ×parallel)
+Stage 17.5: Report Validation (report-validator) — report-quality
+Stage 18:   Best Picks Highlight (equity-report-writer)
+Stage 18.5: Best Picks Validation (report-validator) — best-picks-completeness
+Stage 19:   Cleanup (team-lead) — TeamDelete + remove temp files
 ```
 
 ### Dependency DAG (Per-Company Stages 5-15)
@@ -76,10 +82,10 @@ Wave 4: [15]              ← all deps, A-share only
 
 | Mode | Stages Run | Skip |
 |------|-----------|------|
-| **pipeline** (default) | 0→1→2→3→4→5-15→16→17→18→19 | — |
-| **screen** | 0→1→2→3→4→17→18→19 | 5-16 |
-| **analyze** | 0→1→5-15→16→17→18→19 | 2-4 |
-| **compare** | 0→1→5-15→16(rank)→17→18→19 | 2-4 |
+| **pipeline** (default) | 0→1→1.5→2→3→4→4.5→5-15→16→16.5→17→17.5→18→18.5→19 | — |
+| **screen** | 0→1→1.5→2→3→4→4.5→17→17.5→18→18.5→19 | 5-16.5 |
+| **analyze** | 0→1→1.5→5-15→16→16.5→17→17.5→18→18.5→19 | 2-4.5 |
+| **compare** | 0→1→1.5→5-15→16(rank)→16.5→17→17.5→18→18.5→19 | 2-4.5 |
 
 ### Cross-Company Wave Scheduling
 
