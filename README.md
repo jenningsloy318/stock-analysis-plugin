@@ -1,6 +1,6 @@
 # Stock Analysis Plugin
 
-Multi-stage institutional equity research plugin for **Claude Code** and **OpenAI Codex**. Two unified skills — `stock-analysis` (5 modes) and `industry-screening` (6 modes) — produce long/mid/short-term reports synthesizing methodologies from 14 investment frameworks (Buffett, Munger, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, ARK, Mauboussin, Damodaran, Taleb, Graham).
+Multi-stage institutional equity research plugin for **Claude Code** and **OpenAI Codex**. A single unified skill — `stock-analysis` — produces long/mid/short-term reports synthesizing methodologies from 14 investment frameworks (Buffett, Munger, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, ARK, Mauboussin, Damodaran, Taleb, Graham).
 
 ## Installation
 
@@ -64,59 +64,65 @@ export FINNHUB_API_KEY="your-key"
 
 ## Commands
 
-Two skills cover all functionality. Each mode is triggered by natural language — no flags needed.
+One unified skill with 4 modes, triggered by natural language.
 
-### stock-analysis (5 modes)
-
-| Mode | Trigger phrases | What it does |
-|------|----------------|-------------|
-| **full** (default) | "analyze AAPL", "deep dive on TSLA", "investment thesis NVDA" | 19-stage deep-dive, all agents, 3 full reports |
-| **quick** | "quick overview BABA", "fast check NIO" | 4-stage triage, 3 condensed reports, ~2-5 min |
-| **compare** | "compare AAPL,MSFT,GOOGL", "which is better TSLA or BYD" | Side-by-side 2-5 stocks, ranked by composite score |
-| **valuation-only** | "what's NVDA worth", "DCF AMD", "price target INTC" | Standalone DCF + comps + reverse DCF + margin of safety |
-| **watchlist** | "watchlist", "check my stocks", "how are my positions" | Scans prior reports, checks kill switches, flags stale/at-risk |
-
-### industry-screening (6 modes)
+### stock-analysis (4 modes)
 
 | Mode | Trigger phrases | What it does |
 |------|----------------|-------------|
-| **Broad** (default) | "screen sectors", "best industries", "top-down screening" | All 163 GICS Level 4 → top 30 deep-dived → 100 companies |
-| **Thematic** | "AI supply chain screen", "green energy stocks", "aging population healthcare" | 8 predefined themes → theme-aligned candidates |
-| **Short-Candidate** | "short candidates", "what to avoid", "overvalued sectors" | Vulnerability scan → bear cases → 50 short candidates |
-| **Pair-Trade** | "pair trade ideas", "long short pairs", "sector dispersion" | Long/short pairs within sectors with widest RS spread |
-| **QARP** | "magic formula screen", "quality at reasonable price" | Greenblatt Magic Formula → 50 QARP candidates |
-| **macro** | "market daily", "美股日报", "daily report" | Daily market breadth, sector rotation, fund flows report |
+| **pipeline** (default) | "find best stocks", "top stocks", "全面筛选" | Screen 163 sub-industries → pick top M companies → deep-dive each. Parameters: `--top-n 5 --total-m 10` |
+| **screen** | "screen sectors", "筛选行业", "best industries" | Sub-industry screening + company watchlist, no deep-dive |
+| **analyze** | "analyze AAPL", "deep dive TSLA", "investment thesis NVDA", "DCF AMD" | Full deep-dive on specific tickers |
+| **compare** | "compare AAPL,MSFT,GOOGL", "NVDA vs AMD" | Side-by-side 2-5 stocks, ranked by composite score |
 
-### Cross-skill integration
+### Pipeline Parameters
 
-- After **industry-screening**: top-ranked companies are offered for `stock-analysis` deep-dive
-- After **stock-analysis**: run is auto-registered for `watchlist` tracking
-- **macro** mode data is automatically reused by subsequent same-day screening or analysis runs
+| Parameter | Default | Range | Description |
+|-----------|---------|-------|-------------|
+| `--top-n` | 5 (pipeline) / 30 (screen) | 1-163 | Number of top sub-industries to deep-dive |
+| `--total-m` | 10 | 1-100 | Total companies to deep-dive, selected by score across ALL sub-industries |
+
+Company distribution: top M companies are selected by score across ALL top-N sub-industries — not equally distributed. Higher-scoring sub-industries naturally contribute more companies.
+
+### How the Pipeline Works
+
+```
+Stage 0: Setup & Shared Data (fetched ONCE)
+Stage 1: Screen all 163 GICS Level 4 → top N sub-industries
+Stage 2: Deep-dive sub-industries + screen companies → top M
+Stage 3: Analysis branches (max 4 parallel)
+  For each company: fundamentals → industry → macro → valuation → risk → alt-data
+Stage 4: Scoring & cross-check
+Stage 5: Report generation (3 horizons × each output)
+```
 
 All reports produced in **Chinese (中文)**. 3 horizons always generated.
 
 ## Architecture
 
-Two orchestrators manage 14 specialist agents across 19 analysis stages. All work is delegated — orchestrators never perform analysis directly.
+One orchestrator manages 15 specialist agents across 6 pipeline stages. All work is delegated — the orchestrator never performs analysis directly.
 
 ```
-stock-analysis (5 modes)              industry-screening (6 modes)
-┌──────────────────────┐              ┌──────────────────────┐
-│  stock-analysis-orch │              │ industry-screening-  │
-│  (team lead)         │              │ orchestrator (lead)  │
-│  Spawns 11 agents    │              │ Spawns 3 agents      │
-└──────────┬───────────┘              └──────────┬───────────┘
-           │                                     │
-    ┌──────▼──────┬──────┬──────┬──────┐   ┌─────▼─────┬──────┐
-    │ fundamental │quant │macro │risk  │   │ sector-   │company│
-    │  (1a-2)     │(6-7) │(4-5) │(8,8b)│   │ screener  │screen │
-    ├─────────────┼──────┼──────┼──────┤   │  (S1,S2)  │(S3)   │
-    │ supply-chain│indus │alt   │catal │   └───────────┴───────┘
-    │   (3b)      │(3a)  │(9)   │(9b)  │
-    ├─────────────┼──────┼──────┼──────┤
-    │ china-mkt   │equity│search│      │
-    │  (CN1,CN2)  │(11)  │(all) │      │
-    └─────────────┴──────┴──────┴──────┘
+stock-analysis (4 modes: pipeline / screen / analyze / compare)
+┌────────────────────────────────────────────────────────────┐
+│  stock-analysis-orchestrator (unified team lead)           │
+│  Routes mode → delegates to specialist agents              │
+└──────────┬─────────────────────────────────────────────────┘
+           │
+    ┌──────▼──────┬──────────┬──────────┬──────────┐
+    │ Screening   │ Analysis Branches (max 4 parallel)       │
+    │             │          │          │          │
+    │ sector-     │fundament │ industry │ quant-   │
+    │ screener    │analyst   │ analyst  │ analyst  │
+    │ company-    │macro-    │ supply-  │ risk-    │
+    │ screener    │analyst   │ chain    │ analyst  │
+    │ screening-  │ alt-data-│ analyst  │ catalyst-│
+    │ report-     │analyst   │          │ analyst  │
+    │ writer      │          │ china-   │          │
+    │             │          │ market   │          │
+    └─────────────┴──────────┴──────────┴──────────┘
+           │
+    equity-report-writer + search-agent (shared)
 ```
 
 ### Output Convention
@@ -125,12 +131,14 @@ All runs use timestamped directories with ranked prefixes:
 ```
 reports/
 ├── 202605281430/              ← RUN_ID = YYYYMMDDHHmm
-│   ├── 001-AAPL/              ← top-ranked (highest conviction)
+│   ├── SCREEN_long_2026-05-28.md    ← screening overview
+│   ├── SCREEN_mid_2026-05-28.md
+│   ├── SCREEN_short_2026-05-28.md
+│   ├── 001-AAPL/              ← top-ranked company
 │   │   ├── 001-AAPL_long_2026-05-28.md
 │   │   ├── 001-AAPL_mid_2026-05-28.md
 │   │   └── 001-AAPL_short_2026-05-28.md
-│   ├── 002-TSLA/              ← second-ranked
-│   └── market-daily_2026-05-28.md
+│   └── 002-TSLA/              ← second-ranked company
 ```
 
 ## Directory Structure
@@ -144,7 +152,7 @@ stock-analysis-plugin/
 ├── CLAUDE.md                # Plugin rules & philosophy
 ├── AGENTS.md                # Agent index
 ├── agents/                  # Specialist agent definitions (MD)
-├── skills/                  # Claude Code skills + orchestrators
+├── skills/                  # Unified skill
 ├── scripts/                 # Python analysis scripts
 ├── references/              # Analysis framework docs
 ├── rules/                   # Modular quality guidelines

@@ -119,7 +119,7 @@ Company_Score = (Growth × 0.20) + (Profitability/Health × 0.20) + (Moat × 0.2
 **Header**
 - Screen Type: Broad Market (all 163 GICS Level 4 Sub-Industries)
 - Investment Horizon: [Long-term / Mid-term / Short-term]
-- Report Date: YYYY-MM-DD | Analyst: AI Stock Research Skill (industry-screening)
+- Report Date: YYYY-MM-DD | Analyst: AI Stock Research Skill (stock-analysis)
 - Macro Regime: [Regime classification from Phase 0]
 
 ---

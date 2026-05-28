@@ -1,6 +1,6 @@
 # Data Source Matrix
 
-Use this matrix before running stock-analysis or industry-screening. The goal is coverage by dimension, source quality, and freshness, not volume of citations.
+Use this matrix before running the stock-analysis skill. The goal is coverage by dimension, source quality, and freshness, not volume of citations.
 
 ## Source Tiers
 
