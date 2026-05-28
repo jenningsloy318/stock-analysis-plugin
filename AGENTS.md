@@ -14,7 +14,7 @@
 - NEVER analyzes directly — only spawns, coordinates, and quality-gates
 - Manages 19 stages with dependency-aware wave scheduling across companies
 
-## Specialist Agents (17 agents, 19 stages)
+## Specialist Agents (17 agents, 20 stages)
 
 | Agent | Stage(s) | Purpose | Per-Company |
 |-------|----------|---------|-------------|
@@ -32,16 +32,16 @@
 | **china-market-analyst** | 15 | A-share policy, northbound, margin | Yes (conditional) |
 | **scorer** | 16 | Deterministic scoring + cross-check | No |
 | **screening-report-writer** | 17 | Screening overview reports | No |
-| **equity-report-writer** | 17 | Per-company deep-dive reports | No |
+| **equity-report-writer** | 17, 18 | Per-company deep-dive + best picks | No |
 | **search-agent** | all | Multi-source financial web search | No |
 | **market-daily-orchestrator** | daily | Daily market macro report | No |
 
 ## Stage Map
 
-### 18-Stage Pipeline
+### 20-Stage Pipeline
 
 ```
-Stage 0:  Setup (orchestrator)
+Stage 0:  Setup (team-lead) — TeamCreate stock-analysis-[RUN_ID]
 Stage 1:  Data Collection (data-collector)
 Stage 2:  Sub-Industry Screening (sector-screener ×3 parallel)
 Stage 3:  Sub-Industry Deep-Dive (sector-screener ×4 parallel waves)
@@ -59,7 +59,8 @@ Stage 14: Catalyst (catalyst-analyst)                     ← per-company, depen
 Stage 15: A-Share (china-market-analyst)                  ← per-company, conditional .SH/.SZ
 Stage 16: Scoring & Cross-Check (scorer)
 Stage 17: Report Generation (report writers ×parallel)
-Stage 18: Best Picks Highlight (equity-report-writer) (report writers ×parallel)
+Stage 18: Best Picks Highlight (equity-report-writer)
+Stage 19: Cleanup (team-lead) — TeamDelete + remove temp files
 ```
 
 ### Dependency DAG (Per-Company Stages 5-15)
@@ -75,10 +76,10 @@ Wave 4: [15]              ← all deps, A-share only
 
 | Mode | Stages Run | Skip |
 |------|-----------|------|
-| **pipeline** (default) | 0→1→2→3→4→5-15→16→17 | — |
-| **screen** | 0→1→2→3→4→17(screening) | 5-16 |
-| **analyze** | 0→1→5-15→16→17 | 2-4 |
-| **compare** | 0→1→5-15→16(rank)→17(compare) | 2-4 |
+| **pipeline** (default) | 0→1→2→3→4→5-15→16→17→18→19 | — |
+| **screen** | 0→1→2→3→4→17→18→19 | 5-16 |
+| **analyze** | 0→1→5-15→16→17→18→19 | 2-4 |
+| **compare** | 0→1→5-15→16(rank)→17→18→19 | 2-4 |
 
 ### Cross-Company Wave Scheduling
 

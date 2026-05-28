@@ -78,7 +78,7 @@ timeout_mins: 40
   <!-- ===== DELEGATION ===== -->
   <constraint-group name="Delegation">
     <constraint name="PRIME DIRECTIVE">Spawn teammates for ALL analysis work. Never run scripts, fetch data, or analyze directly. Only coordinate, spawn, and quality-gate.</constraint>
-    <constraint name="Team Membership">EVERY Agent tool call MUST include team_name. Spawning a teammate without team_name is a CRITICAL violation.</constraint>
+    <constraint name="Team Membership">EVERY Agent tool call MUST include `team_name` set to the team created in Stage 0 (`stock-analysis-[RUN_ID]`). Spawning a teammate without team_name is a CRITICAL violation — the agent escapes coordination, peer messaging, and team termination. If team has not been created yet, ABORT spawn and complete Stage 0 first.</constraint>
     <constraint name="Spawn Field Compliance">Before spawning ANY sub-agent, pass: team_name, plugin_root, run_id, output_dir, stage_number, company_ticker (for per-company stages), shared_data_path.</constraint>
     <constraint name="Pass PLUGIN_ROOT">Every spawn prompt MUST include `plugin_root` set to the resolved absolute path from &lt;platform-paths&gt;. Agents reference scripts as `{plugin_root}/scripts/` — this variable is their ONLY way to find scripts. Resolve at Stage 0, store in tracking.json, pass to every agent.</constraint>
   </constraint-group>
@@ -110,7 +110,7 @@ timeout_mins: 40
   <constraint-group name="Data Management">
     <constraint name="Shared Data Once">Macro, RS, breadth, theme data fetched ONCE in Stage 1. All downstream stages reuse. Never re-fetch shared data.</constraint>
     <constraint name="Context Eviction">After each stage: write summary, drop raw data. If context >80%, offload via persist.py.</constraint>
-    <constraint name="Cleanup">After report delivery: delete intermediate files (stage*.md, raw-data.json), terminate all agents, delete team. Keep only tracking.json + final reports.</constraint>
+    <constraint name="Cleanup">Stage 19 cleanup: delete intermediate files (stage*.md, raw-data.json, phase*.md), terminate all remaining agents, delete team via TeamDelete. Keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage.</constraint>
   </constraint-group>
 
   <!-- ===== LIFECYCLE ===== -->
@@ -121,7 +121,7 @@ timeout_mins: 40
 
 <process name="Stage Flow">
   <phase n="1" name="Setup & Data">
-    Stage 0: Detect mode, parameters, create team + tracking + RUN_ID
+    Stage 0: Detect mode, extract parameters, generate RUN_ID (YYYYMMDDHHmm), create output directory (./reports/[RUN_ID]/), create tracking.json, create agent team via TeamCreate with name `stock-analysis-[RUN_ID]`. Store team name in tracking.json. MUST complete before any agent spawning.
     Stage 1: Spawn data-collector for shared data (macro, RS, breadth, themes)
   </phase>
 
@@ -147,7 +147,11 @@ timeout_mins: 40
   <phase n="4" name="Scoring & Reports">
     Stage 16: Spawn scorer agent. Deterministic scoring + cross-check + calibration.
     Stage 17: Spawn report writer agents. Pipeline: screening + company reports. Screen: screening only. Analyze: company reports. Compare: comparison reports.
-    Stage 18: Spawn equity-report-writer to write HIGHLIGHTS_BEST_PICKS.md — single-file quick-reference of top-ranked companies. Must be LAST stage after all reports are generated and validated.
+    Stage 18: Spawn equity-report-writer to write HIGHLIGHTS_BEST_PICKS.md — single-file quick-reference of top-ranked companies.
+  </phase>
+
+  <phase n="5" name="Cleanup">
+    Stage 19: Terminate all remaining agents. Delete agent team via TeamDelete. Remove intermediate files (stage*.md, raw-data.json, phase*.md). Keep only: tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage — no work after this.
   </phase>
 </process>
 
@@ -200,11 +204,11 @@ timeout_mins: 40
 
 <agent-spawn-fields>
   <common>
-    <field name="team_name" note="MANDATORY for all agents">From TeamCreate at Stage 0.</field>
+    <field name="team_name" note="MANDATORY for all agents">Read from tracking.json `team.name` (e.g., `stock-analysis-202605281430`). Set by TeamCreate at Stage 0. Pass as team_name argument to Agent tool. If missing/empty, ABORT spawn and complete Stage 0 first.</field>
     <field name="plugin_root" note="MANDATORY for all agents">Resolved from platform-paths.</field>
     <field name="run_id" note="MANDATORY for all agents">YYYYMMDDHHmm set at Stage 0.</field>
     <field name="output_dir" note="MANDATORY for all agents">./reports/[RUN_ID]/</field>
-    <field name="stage_number" note="MANDATORY for all agents">Current stage number (0-17).</field>
+    <field name="stage_number" note="MANDATORY for all agents">Current stage number (0-19).</field>
   </common>
 
   <phase name="Setup & Data">
@@ -328,6 +332,7 @@ timeout_mins: 40
   <gate>All teammates terminated after stage completion</gate>
   <gate>Tracking JSON up to date</gate>
   <gate>No idle teammates running</gate>
+  <gate>Stage 19 cleanup completed: team deleted, temp files removed</gate>
 </quality-gates>
 
 <tools>

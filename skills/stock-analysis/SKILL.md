@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare. Triggers on 'find best stocks', 'screen sectors', 'analyze [TICKER]', 'compare T1,T2'."
 author: Jennings Liu
-version: "1.05.03"
+version: "1.05.04"
 license: MIT
 ---
 
@@ -30,7 +30,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
 <note>Detailed agent protocols live in `agents/*.md` — the team-lead orchestrator loads stage-specific instructions at spawn time. Reference files in `references/*.md` are loaded lazily per-stage.</note>
 
 <workflow>
-  <stage n="0" name="Setup">Detect mode. Extract parameters (--top-n, --total-m, or tickers). Create RUN_ID, output directory, tracking.json, agent team. MUST complete before any data fetch or agent spawning.</stage>
+  <stage n="0" name="Setup">Detect mode. Extract parameters (--top-n, --total-m, or tickers). Create RUN_ID (YYYYMMDDHHmm), output directory (./reports/[RUN_ID]/), tracking.json. Create agent team via TeamCreate with name `stock-analysis-[RUN_ID]`. MUST complete before any data fetch or agent spawning.</stage>
   <stage n="1" name="Data Collection" agent="data-collector">Fetch shared data ONCE: macro indicators, economic surprises, sector/sub-industry RS, market breadth, theme performance. Load references/gics_taxonomy.md and references/data_source_matrix.md. All downstream stages reuse this data.</stage>
   <stage n="2" name="Sub-Industry Screening" agent="sector-screener" modes="pipeline,screen">Score ALL 163 GICS Level 4 sub-industries on 11 dimensions (Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand). Process in 3 parallel batches of ~54. Select top N sub-industries.</stage>
   <stage n="3" name="Sub-Industry Deep-Dive" agent="sector-screener" modes="pipeline,screen">Deep-dive top N sub-industries: Porter, TAM, catalysts, barriers, company universe, competitive dynamics, growth catalysts, profit pools. Process in parallel waves of max 4 agents.</stage>
@@ -50,7 +50,8 @@ Do NOT trigger on: general market commentary, non-financial queries.
 
   <stage n="16" name="Scoring & Cross-Check" agent="scorer">Deterministic scoring (compute_scores.py) for each company. Cross-check contradictions (cross_check.py). Bayesian conviction calibration (calibrate_conviction.py). LLM agents may adjust Moat and Management ±2.0 based on qualitative findings. Rank companies by composite score.</stage>
   <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer">Pipeline: screening overview (3 horizons) + per-company deep-dives (3 horizons each). Screen: screening reports only. Analyze: per-company reports only. Compare: comparison reports with ranked table. All validated by validate_report.py before delivery.</stage>
-  <stage n="18" name="Best Picks Highlight" agent="equity-report-writer">After ALL reports are generated and validated, write HIGHLIGHTS_BEST_PICKS.md to ./reports/[RUN_ID]/. Single-file summary of the top-ranked companies with: rank, ticker, company name, current price, composite score, conviction, 2-sentence thesis, kill switch, key catalyst. This file serves as the quick-reference entry point for all reports in the run. Must be the final stage so it can reference completed reports.</stage>
+  <stage n="18" name="Best Picks Highlight" agent="equity-report-writer">After ALL reports are generated and validated, write HIGHLIGHTS_BEST_PICKS.md to ./reports/[RUN_ID]/. Single-file summary of the top-ranked companies with: rank, ticker, company name, current price, composite score, conviction, 2-sentence thesis, kill switch, key catalyst. This file serves as the quick-reference entry point for all reports in the run.</stage>
+  <stage n="19" name="Cleanup" agent="team-lead">Final cleanup: terminate all remaining agents, delete agent team via TeamDelete, remove intermediate files (stage*.md, raw-data.json, phase*.md), keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage — no work after this.</stage>
 </workflow>
 
 <dependencies>
@@ -71,7 +72,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
       <parameter name="top-n" default="5" range="1-30">Number of top sub-industries after screening all 163.</parameter>
       <parameter name="total-m" default="10" range="1-100">Total companies to deep-dive. Selected by score across ALL top-n sub-industries — NOT quota per sub-industry.</parameter>
     </parameters>
-    <stages>0→1→2→3→4→5-15(waves)→16→17→18</stages>
+    <stages>0→1→2→3→4→5-15(waves)→16→17→18→19</stages>
   </mode>
 
   <mode name="screen">
@@ -79,7 +80,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="top-n" default="30" range="1-163">Number of top sub-industries to deep-dive.</parameter>
     </parameters>
-    <stages>0→1→2→3→4→17→18(screening reports + best picks)</stages>
+    <stages>0→1→2→3→4→17→18→19(screening reports + best picks + cleanup)</stages>
   </mode>
 
   <mode name="analyze">
@@ -87,7 +88,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="tickers" required="true">One or more ticker symbols from user prompt.</parameter>
     </parameters>
-    <stages>0→1→5-15(waves)→16→17→18(best picks)</stages>
+    <stages>0→1→5-15(waves)→16→17→18→19(best picks + cleanup)</stages>
   </mode>
 
   <mode name="compare">
@@ -95,7 +96,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="tickers" required="true">2-5 ticker symbols from user prompt.</parameter>
     </parameters>
-    <stages>0→1→5-15(waves)→16(rank+merge)→17→18(comparison + best picks)</stages>
+    <stages>0→1→5-15(waves)→16(rank+merge)→17→18→19(comparison + best picks + cleanup)</stages>
     <constraints>Max 5 stocks. Identical valuation methodology across all.</constraints>
   </mode>
 </modes>
@@ -111,7 +112,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="Numbered Stock Index">Every report includes 推荐标的排名 with 001, 002, 003 format. Top-ranked MUST be 001.</rule>
   <rule name="Company Selection">Top M companies selected by score across ALL top-N sub-industries — NOT equally distributed.</rule>
   <rule name="A-Share Mandatory">Stage 15 is MANDATORY for .SH/.SZ tickers. SKIP for all others.</rule>
-  <rule name="agent-team" mandatory="true">ALL work MUST use agent team. Create team via TeamCreate before spawning any agents.</rule>
+  <rule name="agent-team" mandatory="true">ALL work MUST use agent team. Create team via TeamCreate with name `stock-analysis-[RUN_ID]` in Stage 0, before spawning any agents. Delete team via TeamDelete in Stage 19 cleanup.</rule>
   <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER analyzes directly. Only spawns agents, coordinates, and quality-gates.</rule>
   <rule name="shared-data-once" mandatory="true">Macro, RS, breadth, theme data fetched ONCE in Stage 1. All downstream stages reuse — never re-fetch.</rule>
   <rule name="context-eviction" mandatory="true">After each stage: write summary → drop raw data. If context >80%, offload via persist.py.</rule>
@@ -125,7 +126,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <constraint name="Max 4 Concurrent">Cap parallel agents at 4 to manage context window.</constraint>
   <constraint name="Quality Gate">Report cannot be delivered until pre-delivery checklist passes. If any gate fails: "INCOMPLETE ANALYSIS — [reason]".</constraint>
   <constraint name="Level 4 Structure">Sub-Industry is the structural unit in reports — Level 1/2/3 appear only as context within Level 4 entries.</constraint>
-  <constraint name="Cleanup">After report delivery: delete intermediate files, terminate all agents, delete team.</constraint>
+  <constraint name="Cleanup">Stage 19 cleanup: delete intermediate files (stage*.md, raw-data.json, phase*.md), terminate all remaining agents, delete team via TeamDelete. Keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage.</constraint>
 </constraints>
 
 <criteria name="Skip Conditions">
@@ -134,6 +135,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   Stage 15 (A-Share): SKIP for non-.SH/.SZ tickers.
   Stage 17 screening reports: SKIP for analyze/compare modes.
   Stage 17 company reports: SKIP for screen mode.
+  Stage 19 (Cleanup): NEVER skip — always runs as the final stage.
 </criteria>
 
 <composite-weights>

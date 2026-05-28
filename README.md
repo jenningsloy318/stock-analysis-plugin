@@ -87,20 +87,23 @@ Company distribution: top M companies are selected by score across ALL top-N sub
 ### How the Pipeline Works
 
 ```
-Stage 0: Setup & Shared Data (fetched ONCE)
-Stage 1: Screen all 163 GICS Level 4 → top N sub-industries
-Stage 2: Deep-dive sub-industries + screen companies → top M
-Stage 3: Analysis branches (max 4 parallel)
+Stage 0:  Setup — TeamCreate stock-analysis-[RUN_ID] + tracking
+Stage 1:  Data Collection (shared data fetched ONCE)
+Stage 2:  Screen all 163 GICS Level 4 → top N sub-industries
+Stage 3:  Deep-dive sub-industries + screen companies → top M
+Stage 4:  Analysis branches (max 4 parallel)
   For each company: fundamentals → industry → macro → valuation → risk → alt-data
-Stage 4: Scoring & cross-check
-Stage 5: Report generation (3 horizons × each output)
+Stage 16: Scoring & cross-check
+Stage 17: Report generation (3 horizons × each output)
+Stage 18: Best Picks highlight summary
+Stage 19: Cleanup — TeamDelete + remove temp files
 ```
 
 All reports produced in **Chinese (中文)**. 3 horizons always generated.
 
 ## Architecture
 
-One orchestrator manages 15 specialist agents across 6 pipeline stages. All work is delegated — the orchestrator never performs analysis directly.
+One orchestrator manages 17 specialist agents across 20 pipeline stages. All work is delegated — the orchestrator never performs analysis directly. Team is created in Stage 0 and deleted in Stage 19.
 
 ```
 stock-analysis (4 modes: pipeline / screen / analyze / compare)
