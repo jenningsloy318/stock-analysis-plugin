@@ -2,7 +2,7 @@
 name: stock-analysis
 description: Multi-stage equity research producing long/mid/short-term reports. Supports full deep-dive, quick overview, multi-stock comparison, standalone valuation, and watchlist monitoring. Triggers on "analyze [TICKER]", "deep dive", "investment thesis", "valuation", "compare", "quick overview", "watchlist".
 author: Jennings Liu
-version: "1.01.01"
+version: "1.02.01"
 license: MIT
 ---
 

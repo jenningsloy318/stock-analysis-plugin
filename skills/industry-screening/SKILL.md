@@ -2,7 +2,7 @@
 name: industry-screening
 description: Top-down GICS Level 4 sub-industry screening funnel. Produces ranked watchlists. Also supports daily macro report mode (market breadth, sector rotation, fund flows). Triggers on "screen sectors", "best industries", "top-down screening", "sector rotation", "market daily", "美股日报".
 author: Jennings Liu
-version: "1.01.01"
+version: "1.02.01"
 license: MIT
 ---
 
