@@ -28,7 +28,7 @@ The screening workflow uses Level 4 as the atomic classification for company dis
 
 ## 2. Artifacts
 
-Write phase summary to `./reports/screening/sector-[BATCH].md` (Phase 1) or `./reports/screening/deepdive-[SUB_INDUSTRY_CODE]-[NAME].md` (Phase 2). Format: sector scores table, sub-industry leaderboard (top 5 per sector), 3-sentence narrative per sector, and for deep-dive: full competitive analysis at GICS Level 4.
+Write phase summary to `./reports/[RUN_ID]/sector-[BATCH].md` (Phase 1) or `./reports/[RUN_ID]/deepdive-[SUB_INDUSTRY_CODE]-[NAME].md` (Phase 2). Format: sector scores table, sub-industry leaderboard (top 5 per sector), 3-sentence narrative per sector, and for deep-dive: full competitive analysis at GICS Level 4.
 
   DIMENSION TRANSPARENCY REQUIREMENTS:
   - Phase 1 output MUST include a full dimension breakdown table for EVERY scored sector: Growth | Profitability | Valuation | Macro Fit | Innovation | Regulation | Capital Flows | RS | Cyclicality | Constituent Quality | Supply/Demand | Composite (all numeric X.X/10)
@@ -51,7 +51,7 @@ Write phase summary to `./reports/screening/sector-[BATCH].md` (Phase 1) or `./r
 <step n="11" name="Constituent Quality">Load `./reports/[RUN_ID]/breadth_data.json` for % stocks above 50/200-day MAs, advance/decline ratio, new highs/lows, McClellan Oscillator. Measure breadth: share of market cap with positive FCF, ROIC > WACC, low leverage, and positive estimate revisions. Cross-reference with breadth data: is sector performance broad-based or concentrated in a few mega-caps? Flag concentration-driven sector scores. A sector with strong RS but weak constituent breadth (low % above MAs) receives a quality downgrade.</step>
 <step n="12" name="Supply/Demand Cycle">For cycle-sensitive sectors, assess inventory, backlog, utilization, pricing, capacity, and input costs.</step>
 <step n="13" name="Scoring">Score each sector 1-10 on each dimension with evidence. Produce composite weighted score.</step>
-<step n="14" name="Sub-Industry Ranking (Pass 2)">For sectors scoring above median in Pass 1, load `./reports/screening/sub_industry_rs.json` and `references/gics_taxonomy.md`. Rank all Level 4 sub-industries within each above-median sector by:
+<step n="14" name="Sub-Industry Ranking (Pass 2)">For sectors scoring above median in Pass 1, load `./reports/[RUN_ID]/sub_industry_rs.json` and `references/gics_taxonomy.md`. Rank all Level 4 sub-industries within each above-median sector by:
   - Sub-Industry RS (from pre-computed data)
   - Growth attractiveness (fastest-growing constituents)
   - Structural tailwinds (secular vs cyclical)
@@ -82,7 +82,7 @@ When invoked for Phase 2 (sub-industry deep-dive), the target is a specific GICS
 <gate>Sub-industry RS data must be loaded from pre-computed output (Phase 0 step 3d)</gate>
 <gate>Sub-industry ranking must cover all Level 4 sub-industries in above-median sectors</gate>
 <gate>For deep-dive: at least 5 companies identified in the sub-industry; TAM estimate with stated source and bottom-up sanity check</gate>
-<gate>Source coverage gaps from `./reports/screening/source-plan.md` must be listed</gate>
+<gate>Source coverage gaps from `./reports/[RUN_ID]/source-plan.md` must be listed</gate>
 
 ### Constraints
 <constraint>Use GICS 4-level classification from `references/gics_taxonomy.md` for all sector and sub-industry definitions</constraint>
@@ -101,8 +101,8 @@ When invoked for Phase 2 (sub-industry deep-dive), the target is a specific GICS
 - references/data_source_matrix.md (source tiers, sector add-ons, confidence caps)
 
 ### Data Acquisition & Scripts
-Run `${PLUGIN_ROOT}/scripts/compute_sector_rs.py --level sub-industry --flat --output ./reports/screening/sub_industry_rs.json` for flat sub-industry RS leaderboard.
-Run `${PLUGIN_ROOT}/scripts/fetch_sub_industry_universe.py --code [GICS_CODE] --output ./reports/screening/universe_[CODE].json` for constituent discovery.
+Run `${PLUGIN_ROOT}/scripts/compute_sector_rs.py --level sub-industry --flat --output ./reports/[RUN_ID]/sub_industry_rs.json` for flat sub-industry RS leaderboard.
+Run `${PLUGIN_ROOT}/scripts/fetch_sub_industry_universe.py --code [GICS_CODE] --output ./reports/[RUN_ID]/universe_[CODE].json` for constituent discovery.
 
 IMPORTANT: ALL search queries should target GICS Level 4 sub-industry names directly.
 Do NOT search for broad sector terms (e.g., "Technology sector"). Instead search for the

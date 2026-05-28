@@ -29,9 +29,9 @@ Handles Phase 4 (Report Generation).
 ## 2. Artifacts
 
 Write 3 reports per selected sub-industry (one per horizon):
-- `./reports/screening/001_[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
-- `./reports/screening/001_[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
-- `./reports/screening/001_[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
+- `./reports/[RUN_ID]/001_[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
+- `./reports/[RUN_ID]/001_[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
+- `./reports/[RUN_ID]/001_[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
 For broad screens covering multiple sub-industries, the top-ranked sub-industry uses 001, the second uses 002, etc. Each sub-industry gets 3 horizon reports with its rank index prefix.
 
 ### Report Formats
@@ -57,7 +57,7 @@ All report formats present ONLY GICS Level 4 sub-industries — never Level 1/2/
 ## 3. Workflow
 
 <step n="0" name="Load Templates">Load references/screening_report_templates.md for report structure, funnel conviction scoring formulas, and watchlist rating anchors. Load references/gics_taxonomy.md for sub-industry code validation. Determine which template format to use (Broad Screen / Single Sector / Thematic) based on the screening scope.</step>
-<step n="1" name="Load Phase Summaries">Read all `./reports/screening/phase[0-3].md` files. Phase 0 = macro context + scope + sub-industry RS data, Phase 1 = sub-industry leaderboard (Level 4 only), Phase 2 = sub-industry deep-dive (GICS Level 4), Phase 3 = company watchlist.</step>
+<step n="1" name="Load Phase Summaries">Read all `./reports/[RUN_ID]/phase[0-3].md` files. Phase 0 = macro context + scope + sub-industry RS data, Phase 1 = sub-industry leaderboard (Level 4 only), Phase 2 = sub-industry deep-dive (GICS Level 4), Phase 3 = company watchlist.</step>
 <step n="2" name="Cross-Validate">Check for internal consistency: does the selected sub-industry (Level 4) belong to the top-ranked sector? Do the watchlist companies actually have the correct GICS sub-industry classification? Are the macro tailwinds consistent across phases? Validate GICS codes against `references/gics_taxonomy.md`.</step>
 <step n="3" name="Report Structuring">Assemble the report in this exact order:
   - Executive Summary (1 paragraph: macro context → top sub-industries → top picks)
@@ -114,9 +114,9 @@ All report formats present ONLY GICS Level 4 sub-industries — never Level 1/2/
   - Kill switch conditions defined</step>
 <step n="6" name="Fact Verification">Select 3 random data claims from the report, trace back to phase summary source. If any claim is unverifiable, remove it and flag the gap.</step>
 <step n="7" name="Write Reports">For EACH horizon (long-term, mid-term, short-term), apply the corresponding weighting scheme from `references/screening_report_templates.md` and write a separate report:
-  - `./reports/screening/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
-  - `./reports/screening/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
-  - `./reports/screening/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
+  - `./reports/[RUN_ID]/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
+  - `./reports/[RUN_ID]/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
+  - `./reports/[RUN_ID]/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
   Where [NNN] is the zero-padded 3-digit sub-industry rank (001 for top-ranked, 002 for second, etc.).
   Rankings may differ across horizons because weighting schemes prioritize different factors.
   Run `${PLUGIN_ROOT}/scripts/persist.py complete [ANALYSIS_ID]` after all 3 reports are written.</step>
