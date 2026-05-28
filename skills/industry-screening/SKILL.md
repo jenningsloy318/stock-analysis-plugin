@@ -2,7 +2,7 @@
 name: industry-screening
 description: Top-down GICS Level 4 sub-industry screening funnel. Produces ranked watchlists. Triggers on "screen sectors", "best industries", "top-down screening", "sector rotation".
 author: Jennings Liu
-version: "1.00.60"
+version: "1.01.01"
 license: MIT
 ---
 
@@ -15,70 +15,102 @@ license: MIT
     gemini: ${extensionPath}/data
 </platform-paths>
 
-<purpose>Industry-screening-orchestrator (team lead) spawns specialist screener agents in parallel. NEVER performs analysis directly. Uses GICS Level 4 (Sub-Industry, 163) as the ONLY screening unit. Reports present flat sub-industry leaderboards — no Level 1/2/3 grouping as standalone sections.</purpose>
+<purpose>Industry-screening-orchestrator (team lead) spawns specialist screener agents in parallel. NEVER performs analysis directly. Uses GICS Level 4 (Sub-Industry, 163) as the ONLY screening unit. Supports 5 screening modes: Broad, Thematic, Short-Candidate, Pair-Trade, QARP.</purpose>
 
-<triggers>Triggers on: "screen sectors", "best industries", "top-down screening", "find stocks in [SECTOR]", "industry screening", "sector rotation". Do NOT trigger on: single-stock analysis (use stock-analysis), non-screening queries.</triggers>
+<triggers>Triggers on: "screen sectors", "best industries", "top-down screening", "find stocks in [SECTOR]", "industry screening", "sector rotation", "short candidates", "pair trade ideas", "magic formula screen". Do NOT trigger on: single-stock analysis (use stock-analysis), non-screening queries.</triggers>
 
 <rules>
   <rule name="Report Language">ALL reports MUST be written in Chinese (中文). Technical terms in English. GICS names: "Semiconductors (半导体)".</rule>
   <rule name="Price Filter">Growth-stage companies only. US < $100, China A-shares < ¥100. Filter before watchlist ranking.</rule>
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three.</rule>
-  <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/YYYYMMDDHHmm/` where YYYYMMDDHHmm is the run start timestamp (e.g., 202605251430).</rule>
-  <rule name="Run Directory">Each run creates a unique subdirectory `./reports/YYYYMMDDHHmm/` under the workspace reports folder. RUN_ID is set once at run start and used for all file operations.</rule>
-  <rule name="Tracking JSON">Each run creates `./reports/[RUN_ID]/SCREENING-tracking.json` in Phase 0. The orchestrator MUST update phase status in this file BEFORE advancing to the next phase. Set current phase to "completed" with timestamp, then set next phase to "in_progress" with timestamp.</rule>
-  <rule name="Numbered Stock Index">Every report MUST include a "推荐标的排名" (Recommended Stock Ranking) section with zero-padded 3-digit indices (001, 002, 003...). The top-ranked stock MUST be 001, descending by composite score. This applies to ALL 3 horizon reports. Sub-industry leaderboard also uses 001, 002, 003 format. Report filenames include the rank index prefix: [NNN]_[SECTOR]_[CODE]_[horizon]_[DATE].md.</rule>
+  <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/YYYYMMDDHHmm/`.</rule>
+  <rule name="Run Directory">Each run creates `./reports/YYYYMMDDHHmm/`. RUN_ID set once at run start.</rule>
+  <rule name="Tracking JSON">Creates `./reports/[RUN_ID]/SCREENING-tracking.json`. Update phase status BEFORE advancing.</rule>
+  <rule name="Numbered Stock Index">Every report includes "推荐标的排名" with 001, 002, 003 format. Top-ranked MUST be 001. Report filenames: [NNN]_[SECTOR]_[CODE]_[horizon]_[DATE].md.</rule>
 </rules>
 
 <agent-team-protocol>
   This skill ALWAYS operates as an agent team. Create team IMMEDIATELY as first action.
 
-  Step 0: RUN_ID = $(date +%Y%m%d%H%M). TeamCreate({ name: "industry-screening-[RUN_ID]" }). Create output directory: `./reports/[RUN_ID]/`. Create `./reports/[RUN_ID]/SCREENING-tracking.json` with all phases initialized as "pending".
-  Step 1: Spawn search-agent to run setup scripts (fetch_macro, fetch_economic_surprises, compute_sector_rs, persist.py init). Terminate after completion.
-  Steps 2+: Spawn screener agents per parallel execution map. Each writes phase summaries to ./reports/[RUN_ID]/. Terminate each after completion.
-  Cleanup: Delete intermediate files in ./reports/[RUN_ID]/; keep only 3 final reports. Delete team.
+  Step 0: RUN_ID = $(date +%Y%m%d%H%M). TeamCreate({ name: "industry-screening-[RUN_ID]" }). Create `./reports/[RUN_ID]/`. Create `./reports/[RUN_ID]/SCREENING-tracking.json`.
+  Step 1: Spawn search-agent for setup scripts (fetch_macro, fetch_economic_surprises, compute_sector_rs, persist.py init, source coverage plan).
+  Steps 2+: Spawn screener agents per parallel execution map. Each writes to ./reports/[RUN_ID]/.
+  Cleanup: Delete intermediate files; keep only 3 final reports. Delete team.
 
-  ENFORCEMENT: Orchestrator MUST NOT run scripts or analysis directly. All work delegated to sub-agents.
+  ENFORCEMENT: Orchestrator MUST NOT run scripts or analysis directly.
 </agent-team-protocol>
 
 <workflow>
   <phase n="0" name="Setup" agent="orchestrator">
-    1. Determine scope: all sectors / specific sector / theme. Default: ask user. 2. RUN_ID = $(date +%Y%m%d%H%M). 3. Create `./reports/[RUN_ID]/`. 4. Create `./reports/[RUN_ID]/SCREENING-tracking.json` with all phases initialized as "pending", phase 0 set to "in_progress". 5. All 3 horizons auto-produced. 6. Run macro fetch + economic surprises + compute_sector_rs.py --level sub-industry --flat + persist.py init + source coverage plan. 7. Load references/gics_taxonomy.md, references/data_source_matrix.md. 8. Update SCREENING-tracking.json: phase 0 → "completed", phase 1 → "in_progress".
+    1. Determine SCOPE and MODE. Modes: Broad (all 163), Thematic (theme-focused), Short-Candidate (vulnerability scan), Pair-Trade (RS dispersion), QARP (Magic Formula). 2. RUN_ID = $(date +%Y%m%d%H%M). 3. Create output directory. 4. Create tracking.json. 5. Run macro fetch + compute_sector_rs + persist.py init. 6. Load references/gics_taxonomy.md, references/data_source_matrix.md.
   </phase>
+
   <phase n="1" name="Full Level 4 Screening" agent="sector-screener">
-    Score ALL 163 GICS Level 4 sub-industries directly — no sector-level pre-filtering. Spawn up to 3 agents in parallel, each handling a batch of ~54 sub-industries. Score on 11 dimensions: Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand. Orchestrator synthesizes into flat sub-industry leaderboard and selects top 30 sub-industries.
+    Scope depends on MODE:
+    - **Broad**: Score ALL 163 GICS Level 4 sub-industries (3 batches × ~54)
+    - **Thematic**: Score theme-relevant sub-industries (e.g., AI supply chain, green energy, aging population healthcare, cybersecurity)
+    - **Short-Candidate**: Vulnerability scan — score sub-industries on: high leverage, declining RS, peak margins, negative estimate revisions, supply chain exposure
+    - **Pair-Trade**: Score all 163 on RS dispersion — identify sectors with widest performance spread
+    - **QARP**: Score all 163 on Greenblatt Magic Formula (Earnings Yield + ROC combined rank)
+
+    Score on 11 dimensions: Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand. Select top sub-industries based on mode.
   </phase>
-  <phase n="2" name="Top 30 Deep Dive" agent="sector-screener">
-    Deep dive ALL 30 top sub-industries — stay at Level 4 granularity, never aggregate back to Level 3/2/1. Spawn in batches of 3 (10 batches total). Each analyzes: definition, company universe, Porter 5-Forces, growth catalysts, barriers, TAM, key players, supply chain, life cycle, profit pool, competitive positioning. Writes ./reports/[RUN_ID]/deepdive-[CODE]-[NAME].md per sub-industry. Orchestrator compiles unified 30-sub-industry deep dive summary.
+
+  <phase n="2" name="Deep Dive" agent="sector-screener">
+    Depth depends on MODE:
+    - **Broad**: Top 30 sub-industries — Porter, TAM, catalysts, barriers, supply chain
+    - **Thematic**: All theme-relevant sub-industries
+    - **Short-Candidate**: Top 20 most vulnerable — deep dive into bear cases, structural deterioration
+    - **Pair-Trade**: Top 5 sectors with widest dispersion — long/short pair fundamentals
+    - **QARP**: Top 30 by combined rank — deep dive into competitive advantages
   </phase>
-  <phase n="3" name="Company Screening (100 Companies)" agent="company-screener">
-    Screen companies across ALL 30 sub-industries. Target: 100 total companies (~3-4 per sub-industry, flexible based on universe size). Spawn up to 3 agents in parallel, each handling ~10 sub-industries. Filter: market cap >$500M, revenue growth >median, positive FCF, ROIC>WACC, stock price <$100 (US) / ¥100 (A-shares). Score: Growth 20%, Profitability 20%, Moat 20%, Valuation 15%, Management 10%, Risk 10%, Liquidity 5%. Writes ./reports/[RUN_ID]/companies-[CODE].md per sub-industry. Orchestrator compiles unified watchlist of 100 companies ranked by composite score.
+
+  <phase n="3" name="Company Screening" agent="company-screener">
+    Target depends on MODE:
+    - **Broad**: 100 long candidates (~3-4 per sub-industry)
+    - **Thematic**: 50 theme-aligned candidates
+    - **Short-Candidate**: 50 short candidates with specific bear theses
+    - **Pair-Trade**: Long/short pairs within sectors (typically 5-10 pairs)
+    - **QARP**: 50 quality-at-reasonable-price candidates
   </phase>
+
   <phase n="4" name="Reports" agent="screening-report-writer">
-    Pre-compute filenames: ./reports/[RUN_ID]/001_SCREEN_long_[DATE].md, ./reports/[RUN_ID]/001_SCREEN_mid_[DATE].md, ./reports/[RUN_ID]/001_SCREEN_short_[DATE].md. Agent synthesizes ALL phases into 3 horizon reports covering 30 sub-industries and 100 companies. Structure: Executive Summary → Macro Environment → Top 30 Sub-Industry Leaderboard → Deep Dive Highlights → Top 100 Company Watchlist (grouped by sub-industry) → Next Actions → Risks → Appendix (full 30-industry detail).
+    Synthesize ALL phases into 3 horizon reports. Structure: Executive Summary → Macro Environment → Leaderboard → Deep Dive Highlights → Watchlist → Next Actions → Risks → Appendix.
   </phase>
 </workflow>
 
-<tracking-json-schema>
-File: `./reports/[RUN_ID]/SCREENING-tracking.json`
-```json
-{
-  "run_id": "202605251430",
-  "scope": "all",
-  "team_name": "industry-screening-202605251430",
-  "output_dir": "./reports/202605251430/",
-  "created_at": "2026-05-25T14:30:00",
-  "current_phase": 0,
-  "phases": {
-    "0": { "name": "Setup", "status": "in_progress", "started_at": "2026-05-25T14:30:00", "completed_at": null },
-    "1": { "name": "Full Level 4 Screening", "status": "pending", "started_at": null, "completed_at": null },
-    "2": { "name": "Top 30 Deep Dive", "status": "pending", "started_at": null, "completed_at": null },
-    "3": { "name": "Company Screening (100 Companies)", "status": "pending", "started_at": null, "completed_at": null },
-    "4": { "name": "Reports", "status": "pending", "started_at": null, "completed_at": null }
-  }
-}
-```
-Status values: "pending" | "in_progress" | "completed" | "failed" | "skipped"
-</tracking-json-schema>
+<screening-modes>
+  <mode name="Broad" icon="🌐">
+    <description>Full GICS Level 4 coverage. 163 sub-industries scored → top 30 deep-dived → 100 companies. Best for comprehensive market mapping and new idea generation.</description>
+    <trigger>Default mode. "screen sectors", "best industries", "top-down"</trigger>
+  </mode>
+  <mode name="Thematic" icon="🎯">
+    <description>Theme-focused screening. Select sub-industries aligned with a specific theme (AI, green energy, aging population, cybersecurity, space economy, fintech). Scores all theme-relevant sub-industries → deep dives → 50 candidates.</description>
+    <trigger>"AI supply chain", "green energy transition", "aging population stocks", "cybersecurity companies", "space economy", "[THEME] theme screen"</trigger>
+    <themes>
+      <theme name="AI Supply Chain">Semiconductors, Semiconductor Equipment, Data Centers, Electronic Components, Application Software, Systems Software, IT Consulting</theme>
+      <theme name="Green Energy Transition">Renewable Electricity, Solar, Wind, Electrical Components, Electric Utilities, Energy Storage, Lithium, Rare Earth</theme>
+      <theme name="Aging Population Healthcare">Biotechnology, Health Care Equipment, Managed Health Care, Life Sciences Tools, Health Care Facilities, Pharmaceuticals</theme>
+      <theme name="Cybersecurity">Systems Software, IT Consulting, Communications Equipment, Application Software</theme>
+      <theme name="Space Economy">Aerospace & Defense, Communications Equipment, Semiconductors, Industrial Machinery</theme>
+      <theme name="Fintech Disruption">Consumer Finance, Transaction Processing, Application Software, Regional Banks, Diversified Banks</theme>
+      <theme name="Robotics & Automation">Industrial Machinery, Electrical Components, Semiconductors, Electronic Components, Application Software</theme>
+      <theme name="Water Infrastructure">Water Utilities, Construction & Engineering, Industrial Machinery, Life Sciences Tools</theme>
+    </themes>
+  </mode>
+  <mode name="Short-Candidate" icon="🔻">
+    <description>Vulnerability scan. Score sub-industries on: high leverage (Net Debt/EBITDA > 4x), declining RS (bottom quartile over 6M), peak margins (margins >90th percentile of 10yr range), negative estimate revisions (3M), supply chain exposure (Taiwan/China HHI). Top 20 most vulnerable → bear case deep dives → 50 short candidates.</description>
+    <trigger>"short candidates", "vulnerability screen", "what to avoid", "overvalued sectors", "bear case screening"</trigger>
+  </mode>
+  <mode name="Pair-Trade" icon="⚖️">
+    <description>Sector RS leaderboard → identify sectors with widest dispersion between top and bottom performers → deep dive fundamentals for long/short pairs → pair-level comparative analysis. Produces long/short trade ideas within the same sector.</description>
+    <trigger>"pair trade ideas", "long short pairs", "sector dispersion", "relative value pairs", "market neutral ideas"</trigger>
+  </mode>
+  <mode name="QARP" icon="📊">
+    <description>Quality-At-Reasonable-Price using Greenblatt's Magic Formula methodology: rank all sub-industries by combined Earnings Yield (EBIT/EV) + Return on Capital (EBIT/(NWC+NFA)). Top 30 by combined rank → deep dive → 50 high-quality companies at reasonable prices.</description>
+    <trigger>"magic formula", "quality at reasonable price", "QARP screen", "value quality screen", "Greenblatt screen"</trigger>
+  </mode>
+</screening-modes>
 
 <composite-weights>
   | Dimension | Long-term | Mid-term | Short-term |
@@ -97,28 +129,20 @@ Status values: "pending" | "in_progress" | "completed" | "failed" | "skipped"
 </composite-weights>
 
 <parallel-execution>
-  Phase 1: [Batch A (~54) + Batch B (~54) + Batch C (~55)] — score all 163 Level 4 sub-industries → top 30
-  Phase 2: [DD 1-3] → [DD 4-6] → ... → [DD 28-30] — 10 sequential batches, 3 parallel per batch
-  Phase 3: [Companies 1-10] + [Companies 11-20] + [Companies 21-30] — 3 parallel batches
-  Phase 4: Report
-  Max 3 concurrent agents.
+  Broad:  [S1 batch A + S1 batch B + S1 batch C] → [S2 top sectors A-F] → [S3 batches 1-3] → Report
+  Theme:  [S1 themed batches 1-2] → [S2 all themed] → [S3 single batch] → Report
+  Short:  [S1 vulnerability scan] → [S2 bear cases batches 1-2] → [S3 short candidates] → Report
+  Pair:   [S1 sector RS + S2 long batch + S2 short batch] → [S3 pair analysis] → Report
+  QARP:   [S1 Magic Formula screen] → [S2 top 30 deep dive] → [S3 quality candidates] → Report
+  Max 4 concurrent agents.
 </parallel-execution>
 
-<phase-depth>
-  | Phase | Scope | Detail |
-  |-------|-------|--------|
-  | 1: Full Level 4 Screening | ALL 163 sub-industries (3 batches × ~54) | Score 11 dimensions → top 30 |
-  | 2: Top 30 Deep Dive | 30 sub-industries (10 batches × 3 parallel) | Porter, TAM, catalysts, barriers |
-  | 3: Company Screening | 30 sub-industries (3 batches × 10) | 100 companies total, ~3-4 per sub-industry |
-  | 4: Report | 3 horizon reports | Full 30-industry + 100-company coverage |
-</phase-depth>
-
 <context-eviction>
-  After each phase: write phase summary → persist.py save → drop raw data from context. If context >80%, offload more.
+  After each phase: write phase summary → persist.py save → drop raw data. If context >80%, offload.
 </context-eviction>
 
 <pre-delivery>
-  Verify: macro ≤30d fresh, sub-industry data ≤90d fresh, leaderboard = 30 sub-industries, deep dives = 30 sub-industries, watchlist = 100 companies, NO Level 1/2/3 standalone sections, each sub-industry has structural thesis with GICS code, all metrics cited with source+date, Chinese report, no invented data.
+  Verify: macro ≤30d fresh, sub-industry data ≤90d fresh, leaderboard matches mode, screen-specific gates met, all metrics cited with source+date, Chinese report, no invented data.
 </pre-delivery>
 
 <agent-team>
@@ -131,5 +155,5 @@ Status values: "pending" | "in_progress" | "completed" | "failed" | "skipped"
 </agent-team>
 
 <integration>
-  After screening: "Top-ranked companies can be deep-dived with the stock-analysis skill. Run full equity research on any ticker?" Macro context and industry thesis feed directly into stock-analysis Stages 4 and 3.
+  After screening: top-ranked companies can be deep-dived with stock-analysis. Macro context and industry thesis feed directly into stock-analysis Stages 4 and 3.
 </integration>

@@ -30,7 +30,7 @@
   - Short-term (momentum + flows weighted)
 - Do NOT ask the user which horizon — always produce all three automatically
 - One shared data-collection pass feeds all 3 report types; reports diverge at scoring/synthesis
-- Output filenames: `[ID]_long_[DATE].md`, `[ID]_mid_[DATE].md`, `[ID]_short_[DATE].md`
+- Output filenames: `NNN-[TICKER]_long_[DATE].md`, `NNN-[TICKER]_mid_[DATE].md`, `NNN-[TICKER]_short_[DATE].md` where NNN is the zero-padded rank index (001 = top pick). Directory: `./reports/[RUN_ID]/NNN-[TICKER]/`.
 
 ## Stock Price Filter Rule (MUST follow)
 
@@ -58,7 +58,7 @@
 ## Analysis Philosophy (MUST follow)
 
 - **Data integrity first**: Never invent financial figures. If data is unavailable, state "Data not available" — never guess.
-- **Methodology transparency**: Every conclusion must be traceable to a specific analytical framework (Buffett, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, or ARK).
+- **Methodology transparency**: Every conclusion must be traceable to a specific analytical framework (Buffett, Munger, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, ARK, Mauboussin, Damodaran, Taleb, or Graham).
 - **Second-level thinking**: Always ask "what's priced in?" not just "what's happening?"
 - **Multi-dimensional analysis**: Cover all critical factors that move stock prices (fundamentals + macro + technicals + alternative data).
 - **Dimension transparency (data-driven)**: Every final report MUST decompose the conviction score into ALL individual dimensions with numeric scores AND the raw data behind each score. Never present only the composite — always show the dimension breakdown table with per-dimension rationale, key data points, and sources. Explain WHICH dimensions most influenced the ranking/rating and WHY (with figures). Include dimension discrimination analysis (standard deviation, correlation with rank) to show what truly drove the selection.
@@ -68,13 +68,12 @@
 ## Agent Orchestration (MUST follow)
 
 - The main `stock-analysis` skill acts as the coordinator — it spawns specialized agents for parallel stage execution.
-- Agents: `fundamental-analyst`, `industry-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `equity-report-writer`.
+- Agents: `fundamental-analyst`, `industry-analyst`, `supply-chain-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `catalyst-analyst`, `china-market-analyst` (A-share only), `equity-report-writer`.
 - The coordinator NEVER performs deep analysis directly — it delegates to specialist agents and synthesizes results.
-- Parallel execution rules:
-  - Long-term: Stages 1-3 can run in parallel
-  - Mid-term: Stages 4-6 can run in parallel
-  - Short-term: Stages 6+8 can pair
-- Cap parallel sub-agents at 3.
+- Parallel execution rules (see AGENTS.md for full map):
+  - Standard: [1a+1b+3a] → [1c+2+3b+CN*] → [4+5+8b] → [6+7] → [8] → [9+9b] → Scoring → [11]
+  - A-share (SH/SZ): CN1+CN2 stages are MANDATORY, spawned in parallel with fundamentals
+- Cap parallel sub-agents at 4.
 
 ## Web Search & Data Acquisition (MUST follow)
 

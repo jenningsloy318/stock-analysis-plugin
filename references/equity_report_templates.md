@@ -4,23 +4,29 @@
 
 ### Long-term Report Conviction
 ```
-Conviction = (Financial_Health × 0.15) + (Moat_Quality × 0.20) + (Management_Quality × 0.15) +
-             (Valuation_Attractiveness × 0.20) + (Capital_Structure × 0.10) +
-             (Macro_Tailwind × 0.05) + (Risk_Profile × 0.10) + (Weinstein_Alignment × 0.05)
+Conviction = (Financial_Health × 0.10) + (Capital_Allocation × 0.10) +
+             (Earnings_Quality × 0.05) + (Moat_Quality × 0.15) +
+             (Management_Quality × 0.10) + (Supply_Chain_Resilience × 0.05) +
+             (Valuation_Attractiveness × 0.15) + (Macro_Tailwind × 0.05) +
+             (Risk_Profile × 0.10) + (ESG_Sustainability × 0.05) +
+             (Catalyst_Alignment × 0.05) + (Weinstein_Alignment × 0.05)
 ```
 
 ### Mid-term Report Conviction
 ```
-Conviction = (Financial_Health × 0.10) + (Moat_Quality × 0.10) + (Management_Quality × 0.10) +
-             (Valuation_Attractiveness × 0.20) + (Macro_Tailwind × 0.20) +
-             (Risk_Profile × 0.10) + (Weinstein_Alignment × 0.10) + (CANSLIM × 0.10)
+Conviction = (Financial_Health × 0.05) + (Capital_Allocation × 0.05) +
+             (Moat_Quality × 0.10) + (Valuation_Attractiveness × 0.15) +
+             (Macro_Tailwind × 0.15) + (Supply_Chain_Resilience × 0.05) +
+             (Risk_Profile × 0.10) + (ESG_Sustainability × 0.05) +
+             (Catalyst_Alignment × 0.10) + (Weinstein_Alignment × 0.10) + (CANSLIM × 0.10)
 ```
 
 ### Short-term Report Conviction
 ```
 Conviction = (Valuation_Attractiveness × 0.10) + (Macro_Tailwind × 0.10) +
-             (Risk_Profile × 0.10) + (Alternative_Alignment × 0.25) +
-             (Technical_Setup × 0.20) + (Weinstein_Alignment × 0.15) + (CANSLIM × 0.10)
+             (Risk_Profile × 0.10) + (Alternative_Alignment × 0.15) +
+             (Catalyst_Alignment × 0.15) + (Technical_Setup × 0.15) +
+             (Weinstein_Alignment × 0.15) + (CANSLIM × 0.10)
 ```
 
 ## Component Scoring (1-10 Scale)
@@ -38,6 +44,15 @@ Conviction = (Valuation_Attractiveness × 0.10) + (Macro_Tailwind × 0.10) +
 | Technical Setup | Broken trend, distribution, below support | Mixed, range-bound | Strong trend, accumulation, above support |
 | Weinstein Alignment | Stage 4 (Declining), RS < 0.9 | Stage 1/3 (Basing/Topping) | Stage 2 (Advancing), RS > 1.1 |
 | CANSLIM | <3/7 factors passing, EPS declining | 3-4/7 factors, mixed signals | 5+/7 factors passing, strong EPS + RS |
+| Capital Allocation | Retention ratio <0.5x, value-destructive buybacks, SBC >10% | Retention ratio 0.5-1.0x, neutral buybacks, moderate SBC | Retention ratio >1.5x, buybacks at discount, SBC <5% |
+| Earnings Quality | Beneish > -1.78, OCF/NI <0.5, aggressive revenue recognition | Beneish -2.22 to -1.78, OCF/NI 0.5-0.9 | Beneish < -2.22, OCF/NI >0.9, clean accruals |
+| Supply Chain Resilience | HHI >5,000, single-source critical inputs, no contingency plan | HHI 2,500-5,000, dual-source, some buffer | HHI <2,500, multi-source, documented contingency plans |
+| ESG & Sustainability | MSCI red-flag controversy, <25% TCFD aligned, high carbon intensity | No controversies, partially TCFD aligned, moderate carbon | Leader in ESG, fully TCFD aligned, net-zero pathway |
+| Catalyst Alignment | No positive catalysts, 1+ negative binary event upcoming | Mixed catalysts, uncertain timing | 2+ positive catalysts, at least 1 hard catalyst with timeline |
+| China Policy Alignment* | Regulatory headwinds, policy tightening, no 专精特新 designation | Neutral policy, stable regulation | Strong policy support, 专精特新, 国产替代 beneficiary |
+| China Capital Flows* | Northbound net selling, margin balance spiking, 游资 selling | Mixed flows, stable margin | Northbound net buying, institutional 龙虎榜 buying, 国家队 adding |
+
+*China-specific dimensions apply to A-share tickers only (SH/SZ suffix).
 
 ## Rating Anchors
 
@@ -196,6 +211,21 @@ Example: "本次评级主要由Moat(8.5)和Valuation(8.0)驱动——公司拥�
 ## 7b. Tail Risk & Portfolio Context (if portfolio specified)
 [VaR/CVaR at 95% and 99% confidence. Max drawdown and drawdown duration. Calmar ratio. Correlation regime (normal/elevated/crisis) from `correlation.json`. Tail correlation spike (does diversification fail under stress?). Asymmetric beta: upside capture vs downside capture ratio. Stress-adjusted beta for position sizing. Drawdown recovery history (mean/median recovery days). Current drawdown status.]
 
+## 8. Capital Allocation Deep-Dive (Long-term reports)
+[Mauboussin Capital Allocation Scorecard: score each of 5 levers (Organic Reinvestment, M&A, Buybacks, Dividends, Debt Mgmt). Buffett Retention Test: 5yr market cap change / cumulative retained earnings. Score: >1.5x (Excellent), 1.0-1.5x (Good), 0.5-1.0x (Poor), <0.5x (Destructive). SBC dilution analysis: % of revenue, net share count trajectory, SBC/FCF ratio. Buyback ROI: average repurchase price vs current intrinsic value. M&A track record: ROIC on acquisitions 3yr post-close. Capital allocation verdict: Value Creator / Neutral / Value Destroyer.]
+
+## 9. Supply Chain Resilience (Long-term & Mid-term)
+[GICS-industry-specific supply chain mapping: Tier 1 suppliers (direct), Tier 2 (suppliers' suppliers), Tier 3 (raw materials). Geographic HHI: supplier country concentration. Chokepoints identified: single-source components, geographic bottlenecks, regulatory risks. Disruption scenarios modeled: trade war, blockade, natural disaster, supplier failure, logistics crisis. Resilience score (1-10) with component breakdown. Buffer inventory adequacy. Nearshoring/Friendshoring progress.]
+
+## 10. ESG & Sustainability Assessment (Long-term)
+[TCFD/ISSB alignment score. Carbon pricing scenario: EBITDA impact at $50/$100/$150/tCO2. Physical risk: asset-level exposure to flood/fire/hurricane/sea-level rise. Transition risk: stranded asset potential. Social license: labor practices, community relations, supply chain human rights. Governance: board independence, dual-class shares, shareholder rights. ESG verdict: Leader / Neutral / Laggard with material risk.]
+
+## 11. Catalyst Calendar (All horizons)
+[Forward-looking catalyst table covering 3-12 months. Columns: Date/Window, Event Type (Earnings/Regulatory/Product/Corporate/Macro), Expected Impact (1-5), Probability, Direction. Key binary event scenario: P(positive)×Upside% - P(negative)×Downside% = Expected value. Pre/post-event drift analysis. Options market implied move vs assessed expected move. Top 3 high-conviction catalysts where assessed probability differs from market-implied.]
+
+## 12. China-Specific Analysis (A-Share Only — Mandatory for SH/SZ)
+[政策敏感性矩阵: 5-dimension policy sensitivity score. Industrial policy cycle position. 专精特新/国产替代 designation status. Regulatory risk score. 北向资金 flow trend: direction + momentum. 融资融券: margin balance as % free float, margin concentration. 龙虎榜: institutional vs 游资 seat analysis. 行业轮动: sector rotation position. 国家队 positioning: 证金/汇金/社保基金 activity. Concept board membership and speculative risk flag. China Policy Score (1-10) and Capital Flow Score (1-10).]
+
 ## 推荐标的排名 (Recommended Stock Ranking)
 
 | # | 代码 | 名称 | 当前股价 | 评分 | 推荐理由 (一句话) |
@@ -322,6 +352,21 @@ Example: "中期评级由Macro(8.0)和CANSLIM(7.5)主导——当前周期中期
 
 [If material: state whether current USD cycle is headwind or tailwind, and whether consensus EPS estimates already reflect FX guidance.]
 
+## 8. Capital Allocation Deep-Dive (Long-term reports)
+[Mauboussin Capital Allocation Scorecard: score each of 5 levers (Organic Reinvestment, M&A, Buybacks, Dividends, Debt Mgmt). Buffett Retention Test: 5yr market cap change / cumulative retained earnings. Score: >1.5x (Excellent), 1.0-1.5x (Good), 0.5-1.0x (Poor), <0.5x (Destructive). SBC dilution analysis: % of revenue, net share count trajectory, SBC/FCF ratio. Buyback ROI: average repurchase price vs current intrinsic value. M&A track record: ROIC on acquisitions 3yr post-close. Capital allocation verdict: Value Creator / Neutral / Value Destroyer.]
+
+## 9. Supply Chain Resilience (Long-term & Mid-term)
+[GICS-industry-specific supply chain mapping: Tier 1 suppliers (direct), Tier 2 (suppliers' suppliers), Tier 3 (raw materials). Geographic HHI: supplier country concentration. Chokepoints identified: single-source components, geographic bottlenecks, regulatory risks. Disruption scenarios modeled: trade war, blockade, natural disaster, supplier failure, logistics crisis. Resilience score (1-10) with component breakdown. Buffer inventory adequacy. Nearshoring/Friendshoring progress.]
+
+## 10. ESG & Sustainability Assessment (Long-term)
+[TCFD/ISSB alignment score. Carbon pricing scenario: EBITDA impact at $50/$100/$150/tCO2. Physical risk: asset-level exposure to flood/fire/hurricane/sea-level rise. Transition risk: stranded asset potential. Social license: labor practices, community relations, supply chain human rights. Governance: board independence, dual-class shares, shareholder rights. ESG verdict: Leader / Neutral / Laggard with material risk.]
+
+## 11. Catalyst Calendar (All horizons)
+[Forward-looking catalyst table covering 3-12 months. Columns: Date/Window, Event Type (Earnings/Regulatory/Product/Corporate/Macro), Expected Impact (1-5), Probability, Direction. Key binary event scenario: P(positive)×Upside% - P(negative)×Downside% = Expected value. Pre/post-event drift analysis. Options market implied move vs assessed expected move. Top 3 high-conviction catalysts where assessed probability differs from market-implied.]
+
+## 12. China-Specific Analysis (A-Share Only — Mandatory for SH/SZ)
+[政策敏感性矩阵: 5-dimension policy sensitivity score. Industrial policy cycle position. 专精特新/国产替代 designation status. Regulatory risk score. 北向资金 flow trend: direction + momentum. 融资融券: margin balance as % free float, margin concentration. 龙虎榜: institutional vs 游资 seat analysis. 行业轮动: sector rotation position. 国家队 positioning: 证金/汇金/社保基金 activity. Concept board membership and speculative risk flag. China Policy Score (1-10) and Capital Flow Score (1-10).]
+
 ## 推荐标的排名 (Recommended Stock Ranking)
 
 | # | 代码 | 名称 | 当前股价 | 评分 | 推荐理由 (一句话) |
@@ -414,6 +459,21 @@ Example: "短期交易信号主要由Alt Alignment(9.0)和Technical(8.5)驱动�
 
 ## 3. Alternative Data Readings
 [Digital signals: web traffic, app engagement, social sentiment. Composite score. Real-time divergences.]
+
+## 8. Capital Allocation Deep-Dive (Long-term reports)
+[Mauboussin Capital Allocation Scorecard: score each of 5 levers (Organic Reinvestment, M&A, Buybacks, Dividends, Debt Mgmt). Buffett Retention Test: 5yr market cap change / cumulative retained earnings. Score: >1.5x (Excellent), 1.0-1.5x (Good), 0.5-1.0x (Poor), <0.5x (Destructive). SBC dilution analysis: % of revenue, net share count trajectory, SBC/FCF ratio. Buyback ROI: average repurchase price vs current intrinsic value. M&A track record: ROIC on acquisitions 3yr post-close. Capital allocation verdict: Value Creator / Neutral / Value Destroyer.]
+
+## 9. Supply Chain Resilience (Long-term & Mid-term)
+[GICS-industry-specific supply chain mapping: Tier 1 suppliers (direct), Tier 2 (suppliers' suppliers), Tier 3 (raw materials). Geographic HHI: supplier country concentration. Chokepoints identified: single-source components, geographic bottlenecks, regulatory risks. Disruption scenarios modeled: trade war, blockade, natural disaster, supplier failure, logistics crisis. Resilience score (1-10) with component breakdown. Buffer inventory adequacy. Nearshoring/Friendshoring progress.]
+
+## 10. ESG & Sustainability Assessment (Long-term)
+[TCFD/ISSB alignment score. Carbon pricing scenario: EBITDA impact at $50/$100/$150/tCO2. Physical risk: asset-level exposure to flood/fire/hurricane/sea-level rise. Transition risk: stranded asset potential. Social license: labor practices, community relations, supply chain human rights. Governance: board independence, dual-class shares, shareholder rights. ESG verdict: Leader / Neutral / Laggard with material risk.]
+
+## 11. Catalyst Calendar (All horizons)
+[Forward-looking catalyst table covering 3-12 months. Columns: Date/Window, Event Type (Earnings/Regulatory/Product/Corporate/Macro), Expected Impact (1-5), Probability, Direction. Key binary event scenario: P(positive)×Upside% - P(negative)×Downside% = Expected value. Pre/post-event drift analysis. Options market implied move vs assessed expected move. Top 3 high-conviction catalysts where assessed probability differs from market-implied.]
+
+## 12. China-Specific Analysis (A-Share Only — Mandatory for SH/SZ)
+[政策敏感性矩阵: 5-dimension policy sensitivity score. Industrial policy cycle position. 专精特新/国产替代 designation status. Regulatory risk score. 北向资金 flow trend: direction + momentum. 融资融券: margin balance as % free float, margin concentration. 龙虎榜: institutional vs 游资 seat analysis. 行业轮动: sector rotation position. 国家队 positioning: 证金/汇金/社保基金 activity. Concept board membership and speculative risk flag. China Policy Score (1-10) and Capital Flow Score (1-10).]
 
 ## 推荐标的排名 (Recommended Stock Ranking)
 

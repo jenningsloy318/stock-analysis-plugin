@@ -132,6 +132,78 @@ When comparing IFRS and US GAAP companies:
 | **Singapore** | SGX | SFRS (IFRS-equivalent) | Free web |
 | **ADR (US-listed foreign)** | SEC 20-F / 40-F | IFRS or home-country GAAP with reconciliation | SEC EDGAR |
 
+## Coverage Add-Ons for New Analysis Dimensions
+
+### Capital Allocation (Stage 1b)
+
+| Source | Tier | What It Provides | Access |
+|--------|------|-----------------|--------|
+| 10-K Cash Flow Statement | 1 | Buyback spending, dividend payments, debt issuance/repayment | SEC EDGAR |
+| DEF 14A (Proxy) | 1 | SBC grants, compensation structure, equity plan | SEC EDGAR |
+| yfinance | 0 | Shares outstanding history (5yr), buyback yield, dividend yield | Free |
+| Company IR presentations | 2 | Capital allocation policy, ROIC targets, M&A strategy | Company website |
+| SEC Form S-3 / S-4 | 1 | Share issuance, M&A registration | SEC EDGAR |
+| Seeking Alpha / Bloomberg | 2 | M&A deal terms, synergy estimates, integration progress | Web search |
+
+### Supply Chain Resilience (Stage 3b)
+
+| Source | Tier | What It Provides | Access |
+|--------|------|-----------------|--------|
+| 10-K Item 1 (Business) | 1 | Major suppliers, raw material sources, manufacturing locations | SEC EDGAR |
+| 10-K Risk Factors | 1 | Supply chain risk disclosure, concentration warnings | SEC EDGAR |
+| ImportYeti / Panjiva | 2 | US import/export bills of lading, supplier shipment data | Web (free tier) |
+| Supplier annual reports (public) | 1 | Financial health of critical Tier 1 suppliers | SEC EDGAR / exchange filings |
+| Freightos Baltic Index (FBX) | 2 | Container shipping rates by route | Web |
+| BEA / Census trade data | 1 | Aggregate import/export by country and commodity | Free |
+| Company sustainability reports | 2 | Supplier diversity, geographic sourcing, audit results | Company website |
+| US BIS Entity List / OFAC SDN | 1 | Export controls, sanctions affecting suppliers | US Government |
+
+### ESG & Sustainability (Stage 8b)
+
+| Source | Tier | What It Provides | Access |
+|--------|------|-----------------|--------|
+| MSCI ESG Ratings | 2 | ESG rating, controversy flags, industry ranking | Paywalled (search for summaries) |
+| Sustainalytics | 2 | ESG risk rating, material ESG issues | Paywalled (search for summaries) |
+| CDP (Carbon Disclosure Project) | 1 | Company-reported carbon emissions, climate strategy | Free (if company reports) |
+| TCFD / ISSB disclosures | 1 | Climate risk governance, scenario analysis, metrics | Company filings |
+| EPA GHG Reporting | 1 | Facility-level emissions (US) | Free |
+| SASB Materiality Map | 1 | Industry-specific material ESG issues | Free |
+| Carbon pricing databases | 2 | Regional carbon prices (EU ETS, UK ETS, RGGI, California) | Web |
+| EIA energy data | 1 | Sector-level energy consumption, emissions intensity | Free |
+| Company CSR/sustainability reports | 2 | Self-reported ESG metrics, targets, progress | Company website |
+
+### Catalyst Intelligence (Stage 9b)
+
+| Source | Tier | What It Provides | Access |
+|--------|------|-----------------|--------|
+| FDA (fda.gov) | 1 | PDUFA dates, advisory committee meetings, approval actions | Free |
+| ClinicalTrials.gov | 1 | Trial status, phase, enrollment, primary completion dates | Free |
+| Company IR calendar | 1 | Earnings dates, investor days, conference presentations | Company website |
+| SEC Form 8-K | 1 | Material events, earnings releases, guidance changes | SEC EDGAR |
+| Earnings whisper / Estimize | 2 | Crowdsourced earnings estimates vs consensus | Web |
+| CBOE options data | 0 | Implied volatility around event dates, unusual options activity | yfinance / Polygon |
+| Wall Street Horizon | 2 | Corporate event dates (earnings, investor days, ex-dividend) | Paywalled (search alternatives) |
+| Congress.gov / EU Parliament | 1 | Pending legislation timelines | Free |
+| FTC / DOJ Antitrust | 1 | Merger review timelines, antitrust decisions | Free |
+
+### China A-Share Specific (Stages CN1, CN2)
+
+| Source | Tier | What It Provides | Access |
+|--------|------|-----------------|--------|
+| 东方财富 (East Money) | 2 | 北向资金 flows, 融资融券数据, 龙虎榜, sector performance | Free web |
+| 同花顺 (10jqka) | 2 | Sector rotation data, fund flows, concept board tracking | Free web |
+| 雪球 (Xueqiu) | 3 | Retail investor sentiment, discussion analysis, portfolio disclosures | Free web |
+| 沪深交易所 (SSE/SZSE) | 1 | Official margin data, 龙虎榜, IPO calendar | Free |
+| 国务院 (State Council) | 1 | Policy documents, 产业规划, 中央经济工作会议 readout | Free (gov.cn) |
+| 国家统计局 (NBS) | 1 | China GDP, PMI, industrial production, retail sales | Free |
+| PBOC (人民银行) | 1 | Monetary policy, LPR, RRR, open market operations | Free |
+| Wind (万得) | 2 | Comprehensive A-share financial data, consensus estimates | Paywalled (search alternatives) |
+| CSRC (证监会) | 1 | IPO approvals, regulatory actions, policy statements | Free |
+| 集思录 (Jisilu) | 2 | Convertible bond data, structured products, arbitrage signals | Free web |
+| 中国证券报 / 上海证券报 | 2 | Official financial news, policy interpretation | Free web |
+| 东方财富Choice / iFinD | 2 | Comprehensive financial terminal data | Paywalled |
+| Stock Connect (沪深港通) | 1 | Daily northbound/southbound flow data | HKEX / SSE / SZSE |
+
 ## Report Confidence Mapping
 
 | Coverage Result | Confidence Impact |

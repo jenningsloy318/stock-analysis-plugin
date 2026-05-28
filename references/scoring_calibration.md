@@ -44,16 +44,31 @@ This reference defines what each conviction score should mean in terms of expect
 | Component | Score = 7 Benchmark |
 |-----------|---------------------|
 | Financial Health | Top-quartile margins for sector, expanding trajectory, 10-15% ROE, incremental ROIC > 20%, D/E < 1.5x (sector-adjusted), current ratio > 1.5, CCC improving or negative, positive FCF growth |
-| Moat Quality | Clear competitive advantage, stable/gaining share, 5yr ROIC > WACC |
-| Management Quality | 3+ consecutive earnings beats, net insider buying, competent capital allocation |
-| Valuation | 10-20% below DCF fair value, PEG 1.0-1.3, FCF yield > 4% |
-| Capital Structure | Buybacks creating value (above-market ROI), SBC < 5% revenue, near-optimal leverage |
-| Macro Tailwind | Goldilocks or reflation regime, no yield curve inversion, PMI > 52 |
-| Risk Profile | Altman Z safe, Beneish clean, manageable leverage, stable earnings |
-| Alternative Alignment | 3+ alt signals confirming (web traffic rising, social positive, patents growing) |
+| Capital Allocation | Buffett retention ratio > 1.0x over 5yr, buyback ROI positive (bought below intrinsic value), M&A ROIC > WACC 3yr post-close, SBC < 5% revenue, net share count flat or declining, payout ratio < 80% FCF |
+| Quality of Earnings | Beneish M-Score < -2.22 (clean), OCF/NI ratio > 0.9 over 5yr (strong cash conversion), accruals < 5% of assets, no revenue recognition red flags, expense capitalization within industry norms |
+| Moat Quality | Clear competitive advantage, stable/gaining share, 5yr ROIC > WACC, CAP (Competitive Advantage Period) estimated > 10 years |
+| Management Quality | 3+ consecutive earnings beats, net insider buying, competent capital allocation, candid communication, skin in the game (insider ownership > 5%) |
+| Valuation | 10-20% below DCF fair value, PEG 1.0-1.3, FCF yield > 4%, EV/EBIT < sector median, reverse DCF implied growth < analyst consensus |
+| Capital Structure | Buybacks creating value (above-market ROI), SBC < 5% revenue, near-optimal leverage, debt maturity well-laddered, interest coverage > 5x |
+| Supply Chain Resilience | Geographic HHI < 2,500 (supplier), < 20% COGS from single-source, at least dual-source for critical components, DIO adequate vs lead times, documented contingency plans |
+| Macro Tailwind | Goldilocks or reflation regime, no yield curve inversion, PMI > 52, central bank neutral-to-easing, economic surprises positive |
+| Regulatory / Policy | Stable regulatory framework, no pending adverse legislation, government policy neutral-to-supportive, trade policy steady |
+| Market Regime | Weinstein Stage 2, RS composite > 1.0, institutional flows net positive, VIX < 25, credit spreads within normal range |
+| Risk Profile | Altman Z safe (>2.99), Beneish clean (< -2.22), manageable leverage, stable earnings, Taleb fragility score > 40 (robust-to-antifragile) |
+| ESG & Sustainability | TCFD aligned, carbon pricing NPV impact < 5% of market cap, no MSCI/Sustainalytics red-flag controversies, SASB material issues managed, board > 30% independent |
+| Alternative Alignment | 3+ alt signals confirming (web traffic rising, social positive, patents growing), NLP candor index > 0.6, channel check convergence > 60% |
+| Catalyst | 2+ positive catalysts within 6 months, at least 1 hard catalyst with specific timeline, PEAD pattern favorable, options market not overpricing event risk |
 | Technical Setup | Stage 2 advancing OR above rising 200-day MA with positive RSI |
 | Weinstein Alignment | Stage 2 with 30WMA slope positive, RS composite > 1.0 |
 | CANSLIM | 5+/7 factors passing, EPS growth > 25%, near 52-week high, above-avg volume |
+
+### China-Specific Dimensions (A-Share Only)
+
+| Component | Score = 7 Benchmark |
+|-----------|---------------------|
+| Policy Alignment (政策契合度) | Industry in 十四五规划 key priorities, company designated 专精特新 or similar, no recent regulatory headwinds, government procurement exposure > 10% revenue |
+| Capital Flow Signal (资金流向) | Northbound net buying over 3M, institutional seat net buying on 龙虎榜, margin balance stable (not rapidly expanding), 国家队 holding steady or adding |
+| A-Share Sentiment | No 游资 speculative frenzy in stock, 龙虎榜 appearances infrequent and institutional-driven, 换手率 within normal range, concept board membership but not concept-hype driven |
 
 ### Score Inflation Warnings
 
@@ -70,10 +85,15 @@ Avoid these common biases that inflate scores:
 |-----------|----------|-----------|
 | Any component ≤ 3.0 | Max rating = Hold (5.9) | Single catastrophic weakness dominates |
 | 3+ red flags (Beneish + Altman + poor OCF) | Max rating = Sell (3.9) | Forensic evidence of distress |
+| Capital Allocation Score ≤ 3.0 (destructive) | Max rating = Hold (5.9) | Poor capital allocation destroys long-term value regardless of other strengths |
+| Supply Chain Resilience ≤ 3.0 (critical risk) | Max rating = Hold (5.9) | Single-source dependency or geographic concentration that could impair operations |
 | Weinstein Stage 4 | Max rating for short-term = Sell | Never buy into a declining trend |
 | 3+ components missing | Confidence = Low | Insufficient data to have conviction |
 | Lollapalooza (3+ components ≥ 7.5) | +1.5 bonus | Multiple force convergence (Munger) |
 | Carbon breakeven < current carbon price trajectory | Flag as stranded asset risk | For energy/materials only |
+| China Policy Score ≤ 3.0 (A-share only) | Max rating = Hold (5.9) | Regulatory headwinds override fundamentals in A-shares |
+| Margin balance % of free float > 8% (A-share) | Flag as speculative risk; reduce confidence 1 level | High margin concentration = forced liquidation risk |
+| Taleb Fragility Score < 25 | Max rating for long-term = Hold (5.9) | Fragile companies are unsuitable for long-term buy-and-hold |
 
 ## Historical Calibration Benchmarks
 

@@ -55,8 +55,9 @@ Write stage summary to `./reports/[TICKER]/stage8.md`
 ## 5. Skills
 
 ### Reference Files
-- references/frameworks_risk_alt.md (Marks's risk framework, forensic red flags)
+- references/frameworks_risk_alt.md (Marks's risk framework, forensic red flags, Burry SEC deep-dive, ARK disruption)
 - references/frameworks_narrative_structure.md (Klarman Margin of Safety, M&A probability, activist investor scoring)
+- references/frameworks_taleb_graham.md (Taleb antifragility framework, fragility scoring, Via Negativa, Skin in the Game, Graham deep value — for kill switch and thesis falsifiability)
 - references/institutional_odd.md (Operational Due Diligence checklists)
 
 ### Data Acquisition & Scripts
