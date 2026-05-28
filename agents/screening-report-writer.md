@@ -43,9 +43,24 @@ Handles Phase 4 (Report Generation).
 
 <workflow>
 
-<step n="0" name="Load Templates">Load references/screening_report_templates.md for report structure, funnel conviction scoring formulas, and watchlist rating anchors. Load references/gics_taxonomy.md for sub-industry code validation. Determine which template format to use (Broad Screen / Single Sector / Thematic) based on the screening scope.</step>
+<step n="0" name="Load and Validate Template">Read {plugin_root}/references/screening_report_templates.md in FULL before writing anything. Identify which template applies (Broad / Focused / Thematic). Extract the REQUIRED SECTIONS list below and verify each will be present in the output. If any required section cannot be populated from available data, flag it as [MISSING DATA] in the report — never skip a section.
+
+REQUIRED SECTIONS (every screening report must have ALL of these):
+1. Header (screen type, horizon, date, macro regime)
+2. Executive Summary (max 150 words, overall screen quality score)
+3. Macro Context (GDP, CPI, Fed, yield, PMI table with sub-industry implications)
+4. Sub-Industry Leaderboard (top 15-20, flat ranked, GICS Level 4 codes, RS, Growth, Structural, Score)
+5. Sub-Industry Selection Rationale (dimension breakdown table for top 10, discrimination analysis, rank-difference explanation)
+6. Sub-Industry Deep Dive (thesis, catalysts, Porter, TAM, profit pool, life cycle, key players)
+7. Company Watchlist (screening summary, ranked table with 当前股价, dimension breakdown, raw data per top-5, rank-difference explanation)
+8. Recommended Stock Ranking (推荐标的排名 table with 001/002/003 format)
+9. Next Actions (deep-dive recommendations with tickers)
+10. Risks to Thesis (sub-industry + parent-level risks, kill switch conditions)
+11. Methodology Appendix (scope, horizon, filters, freshness, sources, coverage gaps)
+
+Also load {plugin_root}/references/gics_taxonomy.md for code validation and {plugin_root}/references/data_source_matrix.md for confidence caps.</step>
 <step n="1" name="Load Phase Summaries">Read all `./reports/[RUN_ID]/phase[0-3].md` files. Phase 0 = macro context + scope + sub-industry RS data, Phase 1 = sub-industry leaderboard (Level 4 only), Phase 2 = sub-industry deep-dive (GICS Level 4), Phase 3 = company watchlist.</step>
-<step n="2" name="Cross-Validate">Check for internal consistency: does the selected sub-industry (Level 4) belong to the top-ranked sector? Do the watchlist companies actually have the correct GICS sub-industry classification? Are the macro tailwinds consistent across phases? Validate GICS codes against `references/gics_taxonomy.md`.</step>
+<step n="2" name="Cross-Validate">Check for internal consistency: does the selected sub-industry (Level 4) belong to the top-ranked sector? Do the watchlist companies actually have the correct GICS sub-industry classification? Are the macro tailwinds consistent across phases? Validate GICS codes against `{plugin_root}/references/gics_taxonomy.md`.</step>
 <step n="3" name="Report Structuring">Assemble the report in this exact order:
   - Executive Summary (1 paragraph: macro context → top sub-industries → top picks)
   - Macro Context (current regime, key indicators, implications for sub-industry selection)
@@ -100,7 +115,7 @@ Handles Phase 4 (Report Generation).
   - Methodology weights stated
   - Kill switch conditions defined</step>
 <step n="6" name="Fact Verification">Select 3 random data claims from the report, trace back to phase summary source. If any claim is unverifiable, remove it and flag the gap.</step>
-<step n="7" name="Write Reports">For EACH horizon (long-term, mid-term, short-term), apply the corresponding weighting scheme from `references/screening_report_templates.md` and write a separate report:
+<step n="7" name="Write Reports">For EACH horizon (long-term, mid-term, short-term), apply the corresponding weighting scheme from `{plugin_root}/references/screening_report_templates.md` and write a separate report:
   - `./reports/[RUN_ID]/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
   - `./reports/[RUN_ID]/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
   - `./reports/[RUN_ID]/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
@@ -141,8 +156,8 @@ Handles Phase 4 (Report Generation).
 <tools>
 
 ### Reference Files
-- references/screening_report_templates.md (Broad/Single Sector/Thematic report formats, funnel scoring formulas, watchlist rating anchors)
-- references/gics_taxonomy.md (complete GICS 4-level hierarchy, sub-industry codes, ETF proxies)
-- references/data_source_matrix.md (source tiers, sector add-ons, confidence caps)
+- {plugin_root}/references/screening_report_templates.md (Broad/Single Sector/Thematic report formats, funnel scoring formulas, watchlist rating anchors)
+- {plugin_root}/references/gics_taxonomy.md (complete GICS 4-level hierarchy, sub-industry codes, ETF proxies)
+- {plugin_root}/references/data_source_matrix.md (source tiers, sector add-ons, confidence caps)
 
 </tools>
