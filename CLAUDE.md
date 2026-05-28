@@ -1,12 +1,15 @@
 ## Plugin versioning rule (MUST follow)
 - Version bumps happen ONLY at commit time — one bump per commit, not per modification
-- Every commit MUST include a patch version bump in ALL platform manifests simultaneously:
+- Every commit MUST include a version bump in ALL platform manifests simultaneously:
   - `.claude-plugin/plugin.json`
   - `.claude-plugin/marketplace.json` (the plugin entry version)
   - `.codex-plugin/plugin.json`
   - `gemini-extension.json`
   - `plugin.json`
-- Bump the patch level (e.g., 1.0.0 → 1.0.1) and include ALL five files in the same commit
+- Version format: `MAJOR.MINOR.PATCH` where MINOR and PATCH are always 2-digit zero-padded (01–99)
+  - **Patch bump** (default): bug fixes, small tweaks → e.g., 1.00 → 1.01, 1.09 → 1.10
+  - **Minor bump**: new features, new skills, significant changes → e.g., 1.01 → 2.01. When MINOR rolls over, reset PATCH to 01
+  - Patch rolls over at 99 → trigger a MINOR bump (e.g., 1.99 → 2.01)
 - ALL five manifest versions MUST always match each other
 
 ## Report Language Rule (MUST follow)
