@@ -83,6 +83,7 @@
 - Cross-company: different companies can be at different stages simultaneously
 - A-share (SH/SZ): Stage 15 is MANDATORY, SKIP for all others
 - Cap parallel agents at 4.
+- **NEVER pause for user confirmation** between stages. Pipeline runs 0→19 continuously. No "Continue?" prompts.
 
 ## Web Search & Data Acquisition (MUST follow)
 

@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare. Triggers on 'find best stocks', 'screen sectors', 'analyze [TICKER]', 'compare T1,T2'."
 author: Jennings Liu
-version: "1.05.06"
+version: "1.05.07"
 license: MIT
 ---
 
@@ -120,6 +120,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="A-Share Mandatory">Stage 15 is MANDATORY for .SH/.SZ tickers. SKIP for all others.</rule>
   <rule name="agent-team" mandatory="true">ALL work MUST use agent team. Create team via TeamCreate with name `stock-analysis-[RUN_ID]` in Stage 0, before spawning any agents. Delete team via TeamDelete in Stage 19 cleanup.</rule>
   <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER analyzes directly. Only spawns agents, coordinates, and quality-gates.</rule>
+  <rule name="no-pause" mandatory="true">NEVER pause between stages to ask user for confirmation. The pipeline runs Stage 0 → 19 continuously. No "Continue?" prompts. Only stop if user explicitly asks a question.</rule>
   <rule name="shared-data-once" mandatory="true">Macro, RS, breadth, theme data fetched ONCE in Stage 1. All downstream stages reuse — never re-fetch.</rule>
   <rule name="context-eviction" mandatory="true">After each stage: write summary → drop raw data. If context >80%, offload via persist.py.</rule>
 </rules>

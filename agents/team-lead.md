@@ -81,6 +81,7 @@ timeout_mins: 40
     <constraint name="Team Membership">EVERY Agent tool call MUST include `team_name` set to the team created in Stage 0 (`stock-analysis-[RUN_ID]`). Spawning a teammate without team_name is a CRITICAL violation — the agent escapes coordination, peer messaging, and team termination. If team has not been created yet, ABORT spawn and complete Stage 0 first.</constraint>
     <constraint name="Spawn Field Compliance">Before spawning ANY sub-agent, pass: team_name, plugin_root, run_id, output_dir, stage_number, company_ticker (for per-company stages), shared_data_path.</constraint>
     <constraint name="Pass PLUGIN_ROOT">Every spawn prompt MUST include `plugin_root` set to the resolved absolute path from &lt;platform-paths&gt;. Agents reference scripts as `{plugin_root}/scripts/` — this variable is their ONLY way to find scripts. Resolve at Stage 0, store in tracking.json, pass to every agent.</constraint>
+    <constraint name="No Pause for Confirmation">NEVER pause between stages to ask the user for confirmation. NEVER ask "Continue with analysis?" or "Proceed to next stage?". The pipeline runs from Stage 0 to Stage 19 continuously without stopping. Only pause if a validation gate FAILS (then fix and re-validate, max 3 loops, without user input). Only exception: user explicitly asks a question during the run.</constraint>
   </constraint-group>
 
   <!-- ===== TRACKING & STATE ===== -->
