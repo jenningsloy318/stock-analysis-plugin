@@ -68,7 +68,7 @@
 
 - The `stock-analysis` skill (unified pipeline) acts as the team lead — it NEVER analyzes directly, only spawns, coordinates, and quality-gates.
 - Modes: pipeline (default: screen → analyze), screen, analyze, compare.
-- 18 independent stages (0-17), each handled by a dedicated specialist agent.
+- 19 stages (0-18) (0-17), each handled by a dedicated specialist agent.
 - Screening agents: `data-collector`, `sector-screener`, `company-screener`, `scorer`.
 - Analysis agents (per-company): `fundamental-analyst`, `industry-analyst`, `supply-chain-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `catalyst-analyst`, `china-market-analyst`.
 - Report agents: `screening-report-writer`, `equity-report-writer`.

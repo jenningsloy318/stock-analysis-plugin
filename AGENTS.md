@@ -12,9 +12,9 @@
 **team-lead** — Unified pipeline coordinator following super-dev team-lead pattern:
 - XML-tagged: `<constraints>` with `<constraint-group>`, `<process>`, `<agent-spawn-fields>`, `<quality-gates>`
 - NEVER analyzes directly — only spawns, coordinates, and quality-gates
-- Manages 18 stages with dependency-aware wave scheduling across companies
+- Manages 19 stages with dependency-aware wave scheduling across companies
 
-## Specialist Agents (17 agents, 18 stages)
+## Specialist Agents (17 agents, 19 stages)
 
 | Agent | Stage(s) | Purpose | Per-Company |
 |-------|----------|---------|-------------|
@@ -59,6 +59,7 @@ Stage 14: Catalyst (catalyst-analyst)                     ← per-company, depen
 Stage 15: A-Share (china-market-analyst)                  ← per-company, conditional .SH/.SZ
 Stage 16: Scoring & Cross-Check (scorer)
 Stage 17: Report Generation (report writers ×parallel)
+Stage 18: Best Picks Highlight (equity-report-writer) (report writers ×parallel)
 ```
 
 ### Dependency DAG (Per-Company Stages 5-15)

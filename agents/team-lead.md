@@ -129,7 +129,7 @@ timeout_mins: 40
     Stage 2: Spawn sector-screener agents (3 parallel batches of ~54 sub-industries)
     Stage 3: Spawn sector-screener agents (deep-dive top N, max 4 parallel)
     Stage 4: Spawn company-screener agents (3 parallel batches)
-    After Stage 4: screen mode → jump to Stage 17 (screening reports only)
+    After Stage 4: screen mode → jump to Stage 17→18 (screening reports + best picks)
   </phase>
 
   <phase n="3" name="Analysis Waves" modes="pipeline,analyze,compare">
@@ -147,6 +147,7 @@ timeout_mins: 40
   <phase n="4" name="Scoring & Reports">
     Stage 16: Spawn scorer agent. Deterministic scoring + cross-check + calibration.
     Stage 17: Spawn report writer agents. Pipeline: screening + company reports. Screen: screening only. Analyze: company reports. Compare: comparison reports.
+    Stage 18: Spawn equity-report-writer to write HIGHLIGHTS_BEST_PICKS.md — single-file quick-reference of top-ranked companies. Must be LAST stage after all reports are generated and validated.
   </phase>
 </process>
 
@@ -300,11 +301,17 @@ timeout_mins: 40
       <field>screening_data_path" note="./reports/[RUN_ID]/stage2.md + stage4.md"</field>
       <field>report_filenames" note="pre-computed exact paths"</field>
     </agent>
-    <agent name="equity-report-writer" stage="17" modes="pipeline,analyze,compare">
+    <agent name="equity-report-writer" stage="17,18" modes="pipeline,analyze,compare">
       <field>plugin_root</field>
       <field>company_dirs</field>
       <field>mode</field>
-      <field>report_filenames" note="pre-computed exact paths"</field>
+      <field>report_filenames</field>
+    </agent>
+    <agent name="equity-report-writer" stage="18" note="Best Picks Highlight">
+      <field>plugin_root</field>
+      <field>output_dir</field>
+      <field>ranking_json" note="./reports/[RUN_ID]/ranking.json"</field>
+      <field>company_dirs</field>
     </agent>
   </phase>
 </agent-spawn-fields>

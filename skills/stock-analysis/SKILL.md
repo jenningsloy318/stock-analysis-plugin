@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare. Triggers on 'find best stocks', 'screen sectors', 'analyze [TICKER]', 'compare T1,T2'."
 author: Jennings Liu
-version: "1.05.01"
+version: "1.05.02"
 license: MIT
 ---
 
@@ -50,6 +50,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
 
   <stage n="16" name="Scoring & Cross-Check" agent="scorer">Deterministic scoring (compute_scores.py) for each company. Cross-check contradictions (cross_check.py). Bayesian conviction calibration (calibrate_conviction.py). LLM agents may adjust Moat and Management ±2.0 based on qualitative findings. Rank companies by composite score.</stage>
   <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer">Pipeline: screening overview (3 horizons) + per-company deep-dives (3 horizons each). Screen: screening reports only. Analyze: per-company reports only. Compare: comparison reports with ranked table. All validated by validate_report.py before delivery.</stage>
+  <stage n="18" name="Best Picks Highlight" agent="equity-report-writer">After ALL reports are generated and validated, write HIGHLIGHTS_BEST_PICKS.md to ./reports/[RUN_ID]/. Single-file summary of the top-ranked companies with: rank, ticker, company name, current price, composite score, conviction, 2-sentence thesis, kill switch, key catalyst. This file serves as the quick-reference entry point for all reports in the run. Must be the final stage so it can reference completed reports.</stage>
 </workflow>
 
 <dependencies>
@@ -70,7 +71,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
       <parameter name="top-n" default="5" range="1-30">Number of top sub-industries after screening all 163.</parameter>
       <parameter name="total-m" default="10" range="1-100">Total companies to deep-dive. Selected by score across ALL top-n sub-industries — NOT quota per sub-industry.</parameter>
     </parameters>
-    <stages>0→1→2→3→4→5-15(waves)→16→17</stages>
+    <stages>0→1→2→3→4→5-15(waves)→16→17→18</stages>
   </mode>
 
   <mode name="screen">
@@ -78,7 +79,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="top-n" default="30" range="1-163">Number of top sub-industries to deep-dive.</parameter>
     </parameters>
-    <stages>0→1→2→3→4→17(screening reports only)</stages>
+    <stages>0→1→2→3→4→17→18(screening reports + best picks)</stages>
   </mode>
 
   <mode name="analyze">
@@ -86,7 +87,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="tickers" required="true">One or more ticker symbols from user prompt.</parameter>
     </parameters>
-    <stages>0→1→5-15(waves)→16→17</stages>
+    <stages>0→1→5-15(waves)→16→17→18(best picks)</stages>
   </mode>
 
   <mode name="compare">
@@ -94,7 +95,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="tickers" required="true">2-5 ticker symbols from user prompt.</parameter>
     </parameters>
-    <stages>0→1→5-15(waves)→16(rank+merge)→17(comparison reports)</stages>
+    <stages>0→1→5-15(waves)→16(rank+merge)→17→18(comparison + best picks)</stages>
     <constraints>Max 5 stocks. Identical valuation methodology across all.</constraints>
   </mode>
 </modes>
