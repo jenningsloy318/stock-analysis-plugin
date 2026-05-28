@@ -47,16 +47,18 @@ Handles Phase 4 (Report Generation).
 
 REQUIRED SECTIONS (every screening report must have ALL of these):
 1. Header (screen type, horizon, date, macro regime)
-2. Executive Summary (max 150 words, overall screen quality score)
-3. Macro Context (GDP, CPI, Fed, yield, PMI table with sub-industry implications)
+2. Executive Summary (max 150 words, overall screen quality score, funnel conviction)
+3. Macro Context (GDP, CPI, Fed, yield, PMI table with sub-industry implications, economic surprises)
 4. Sub-Industry Leaderboard (top 15-20, flat ranked, GICS Level 4 codes, RS, Growth, Structural, Score)
 5. Sub-Industry Selection Rationale (dimension breakdown table for top 10, discrimination analysis, rank-difference explanation)
-6. Sub-Industry Deep Dive (thesis, catalysts, Porter, TAM, profit pool, life cycle, key players)
+6. Sub-Industry Deep Dive (thesis, catalysts, Porter, TAM, profit pool, life cycle, key players, supply chain resilience)
 7. Company Watchlist (screening summary, ranked table with 当前股价, dimension breakdown, raw data per top-5, rank-difference explanation)
-8. Recommended Stock Ranking (推荐标的排名 table with 001/002/003 format)
-9. Next Actions (deep-dive recommendations with tickers)
-10. Risks to Thesis (sub-industry + parent-level risks, kill switch conditions)
-11. Methodology Appendix (scope, horizon, filters, freshness, sources, coverage gaps)
+8. Dimension Impact Analysis (维度影响分析: variance per dimension, correlation with rank, discrimination power)
+9. Recommended Stock Ranking (推荐标的排名 table with 001/002/003 format, 当前股价 column)
+10. Next Actions (deep-dive recommendations with tickers and suggested report horizon)
+11. Risks to Thesis (sub-industry + parent-level risks, kill switch conditions)
+12. Methodology Appendix (scope, horizon, filters, freshness, sources, coverage gaps, funnel scoring formulas)
+13. Handoff Recommendation (explicit next-step with top ticker and suggested command)
 
 Also load {plugin_root}/references/gics_taxonomy.md for code validation and {plugin_root}/references/data_source_matrix.md for confidence caps.</step>
 <step n="1" name="Load Phase Summaries">Read all `./reports/[RUN_ID]/phase[0-3].md` files. Phase 0 = macro context + scope + sub-industry RS data, Phase 1 = sub-industry leaderboard (Level 4 only), Phase 2 = sub-industry deep-dive (GICS Level 4), Phase 3 = company watchlist.</step>

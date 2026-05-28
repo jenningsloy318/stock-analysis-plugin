@@ -6,14 +6,16 @@ Usage:
     validate_report.py ./reports/TSLA/ --report-type short --strict
     validate_report.py ./reports/MSFT/ --report-type mid --output ./reports/MSFT/validation.json
 
-Validates all JSON outputs in a report directory against the six pre-delivery
+Validates all JSON outputs in a report directory against the eight pre-delivery
 quality gates defined in the analysis philosophy:
-  1. Data Freshness   — timestamps within allowed staleness window
-  2. Source Coverage  — required and optional files present
+  1. Data Freshness       — timestamps within allowed staleness window
+  2. Source Coverage      — required and optional files present
   3. Conviction Consistency — score/rating bracket coherence and override rules
-  4. Forensic Checks  — Beneish, Altman, Piotroski computed and flagged
-  5. Kill Switch      — stage8.md risk section contains required keywords
-  6. Fact Check       — 5 cross-reference checks across raw-data and metrics
+  4. Forensic Checks      — Beneish, Altman, Piotroski computed and flagged
+  5. Kill Switch          — stage12.md risk section contains required keywords
+  6. Fact Check           — 5 cross-reference checks across raw-data and metrics
+  7. Chinese Language     — report files contain Chinese (中文) content
+  8. Stock Price Display  — ranking tables include 当前股价 column
 
 In --strict mode any gate failure sets overall_pass = false.
 In default mode only the three blocking gates (freshness, coverage,
@@ -78,6 +80,25 @@ SOURCE_FILES: dict[str, tuple[set[str] | None, str]] = {
     "realtime.json": (None, "Real-time quotes/options (fetch_realtime)"),
     "candor.json": (None, "Management candor NLP (calculate_candor)"),
     "currency_exposure.json": (None, "FX/ADR exposure (fetch_currency_exposure)"),
+    "market_breadth.json": (
+        {"mid", "long"},
+        "Market breadth data (fetch_market_breadth)",
+    ),
+    "theme_performance.json": (
+        {"mid", "long"},
+        "Theme/style ETF performance (fetch_theme_performance)",
+    ),
+    "economic_surprises.json": (
+        {"mid", "long"},
+        "Economic surprise indices (fetch_economic_surprises)",
+    ),
+    "sub_industry_universe.json": (
+        {"long"},
+        "GICS Level 4 universe (fetch_sub_industry_universe)",
+    ),
+    "hypothesis_registry.json": (None, "Hypothesis tracking (hypothesis_registry)"),
+    "signal_evolution.json": (None, "Signal lifecycle (signal_evolution)"),
+    "alpha_factors.json": (None, "Factor zoo output (alpha_factor_zoo)"),
 }
 
 REQUIRED_FILES = {
@@ -402,38 +423,41 @@ def gate_forensic_checks(report_dir: str) -> dict:
 
 
 def gate_kill_switch(report_dir: str, rating: str | None) -> dict:
-    stage8_path = os.path.join(report_dir, "stage8.md")
+    # Stage 12 = Risk Assessment (was stage 8 in earlier versions)
+    risk_path = os.path.join(report_dir, "stage12.md")
+    if not os.path.exists(risk_path):
+        risk_path = os.path.join(report_dir, "stage8.md")  # fallback for legacy runs
     issues: list[str] = []
 
-    if not os.path.exists(stage8_path):
+    if not os.path.exists(risk_path):
         return {
             "pass": False,
             "has_kill_switch": False,
             "has_catalyst": False,
-            "issues": ["stage8.md not found — risk assessment missing"],
-            "details": "stage8.md absent",
+            "issues": ["stage12.md (risk assessment) not found"],
+            "details": "stage12.md absent",
         }
 
     try:
-        with open(stage8_path) as fh:
+        with open(risk_path) as fh:
             text = fh.read().lower()
     except OSError as exc:
         return {
             "pass": False,
             "has_kill_switch": False,
             "has_catalyst": False,
-            "issues": [f"Cannot read stage8.md: {exc}"],
-            "details": "stage8.md unreadable",
+            "issues": [f"Cannot read stage12.md: {exc}"],
+            "details": "stage12.md unreadable",
         }
 
     has_kill_switch = any(kw in text for kw in KILL_SWITCH_KEYWORDS)
     if not has_kill_switch:
-        issues.append("stage8.md missing 'kill switch' or 'falsification' keyword")
+        issues.append("stage12.md missing 'kill switch' or 'falsification' keyword")
 
     is_buy = rating and any(b in (rating or "") for b in ("Buy", "Strong Buy"))
     has_catalyst = any(kw in text for kw in CATALYST_KEYWORDS)
     if is_buy and not has_catalyst:
-        issues.append("Buy rating issued without 'hard catalyst' in stage8.md")
+        issues.append("Buy rating issued without 'hard catalyst' in stage12.md")
 
     return {
         "pass": len(issues) == 0,
@@ -579,6 +603,119 @@ def gate_fact_check(report_dir: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Gate 7 — Chinese Language Check
+# ---------------------------------------------------------------------------
+
+
+def gate_chinese_language(report_dir: str) -> dict:
+    """Verify report files contain Chinese content (not English-only)."""
+    issues: list[str] = []
+    checked = 0
+    passed = 0
+
+    # Common CJK Unified Ideographs range + common Chinese punctuation
+    chinese_chars = set(
+        "一丁七万上下不东严乖"
+        "个中为主义之乐了五交"
+        "产人什介从以们会但位"
+        "何使依便保信元先先克"
+        "关其内再写冲决准出分"
+        "分分到削力功加务动动"
+        "化印及可同向否和品市"
+        "应开当得影怎性总情意"
+        "成戴户手手技放政效数"
+        "文方无时明星有本来正"
+        "民治活物特理生用由白"
+        "看码社神经统者能自艰"
+        "要見见边运送通道重问"
+        "限阶需面风验验验高"
+    )
+
+    for fname in sorted(os.listdir(report_dir)):
+        if not fname.endswith(".md"):
+            continue
+        fpath = os.path.join(report_dir, fname)
+        try:
+            with open(fpath) as fh:
+                content = fh.read()
+        except OSError:
+            continue
+
+        checked += 1
+        # Check if content has meaningful Chinese characters (>10 chars)
+        zh_count = sum(1 for ch in content if "一" <= ch <= "鿿")
+        if zh_count > 10:
+            passed += 1
+        else:
+            issues.append(
+                f"{fname}: appears to lack Chinese content ({zh_count} CJK chars)"
+            )
+
+    passed_gate = checked == 0 or len(issues) == 0
+    return {
+        "pass": passed_gate,
+        "files_checked": checked,
+        "files_passed": passed,
+        "issues": issues,
+        "details": (
+            f"{passed}/{checked} report files contain Chinese content"
+            if checked
+            else "No markdown report files found"
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Gate 8 — Stock Price Display
+# ---------------------------------------------------------------------------
+
+
+def gate_stock_price_display(report_dir: str) -> dict:
+    """Verify company tables include 当前股价 column."""
+    issues: list[str] = []
+    checked = 0
+    passed = 0
+
+    price_keywords = {"当前股价", "current price", "当前价格"}
+
+    for fname in sorted(os.listdir(report_dir)):
+        if not fname.endswith(".md"):
+            continue
+        fpath = os.path.join(report_dir, fname)
+        try:
+            with open(fpath) as fh:
+                content = fh.read()
+        except OSError:
+            continue
+
+        # Only check files that have tables with stock tickers
+        has_ticker_table = any(
+            kw in content for kw in ["| 001 |", "| 002 |", "推荐标的排名"]
+        )
+        if not has_ticker_table:
+            continue
+
+        checked += 1
+        if any(kw in content for kw in price_keywords):
+            passed += 1
+        else:
+            issues.append(f"{fname}: stock ranking table missing 当前股价 column")
+
+    passed_gate = checked == 0 or len(issues) == 0
+    return {
+        "pass": passed_gate,
+        "files_checked": checked,
+        "files_passed": passed,
+        "issues": issues,
+        "details": (
+            f"{passed}/{checked} ranking tables include 当前股价"
+            if checked
+            else "No ranking tables found"
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Confidence level
 # ---------------------------------------------------------------------------
 
@@ -644,6 +781,8 @@ def main() -> None:
     forensic = gate_forensic_checks(report_dir)
     kill_switch = gate_kill_switch(report_dir, conviction.get("rating"))
     fact_check = gate_fact_check(report_dir)
+    chinese = gate_chinese_language(report_dir)
+    stock_price = gate_stock_price_display(report_dir)
 
     gates = {
         "data_freshness": freshness,
@@ -652,10 +791,16 @@ def main() -> None:
         "forensic_checks": forensic,
         "kill_switch": kill_switch,
         "fact_check": fact_check,
+        "chinese_language": chinese,
+        "stock_price_display": stock_price,
     }
 
     # Determine overall pass
-    blocking_gates = {"data_freshness", "source_coverage", "conviction_consistency"}
+    blocking_gates = {
+        "data_freshness",
+        "source_coverage",
+        "conviction_consistency",
+    }
     if args.strict:
         overall_pass = all(g["pass"] for g in gates.values())
     else:
@@ -686,7 +831,8 @@ def main() -> None:
         "methodology": (
             "Pre-delivery quality gates per CLAUDE.md analysis philosophy. "
             "Blocking gates: data_freshness, source_coverage, conviction_consistency. "
-            "Non-blocking (warn only unless --strict): forensic_checks, kill_switch, fact_check."
+            "Non-blocking (warn only unless --strict): forensic_checks, kill_switch, "
+            "fact_check, chinese_language, stock_price_display."
         ),
     }
 

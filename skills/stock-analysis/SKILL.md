@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare. Triggers on 'find best stocks', 'screen sectors', 'analyze [TICKER]', 'compare T1,T2'."
 author: Jennings Liu
-version: "1.05.04"
+version: "1.05.05"
 license: MIT
 ---
 

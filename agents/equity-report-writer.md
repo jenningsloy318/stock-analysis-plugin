@@ -49,22 +49,29 @@ Handles Stage 17 (Report Generation). Stage 10 deterministic scoring and cross-c
 
 REQUIRED SECTIONS (every equity report must have ALL of these):
 1. Header (company, ticker, price, market cap, report type, date)
-2. Executive Summary (max 150 words, conviction rating, confidence)
+2. Executive Summary (max 150 words, conviction rating, confidence, Management Candor Index)
 3. Conviction Score Decomposition (dimension table with weight/score/weighted/key data/rationale)
 4. Key Decisive Dimensions (which 2-3 dimensions drove the rating and WHY with figures)
 5. Investment Thesis (5 bullet points, max 2 sentences each)
 6. Rating + Target Price + Margin of Safety + LBO Floor
 7. Moat Assessment (Morningstar framework, trajectory)
-8. Management Quality (score/10, capital allocation, insider activity)
+8. Management Quality (score/10, capital allocation, insider activity, candor index)
 9. Intrinsic Value (DCF + comps + reverse DCF + sensitivity table + EVA + ROIC vs WACC)
 10. Capital Structure (buyback ROI, SBC dilution, debt maturity, cash conversion)
-11. Narrative and Growth Runway (Damodaran narrative-to-numbers, TAM, secular trends)
-12. Key Risks (top 3-5 permanent capital loss risks, mitigants, ESG if applicable)
-13. Catalyst Calendar (forward-looking events, probability, expected value)
-14. Supply Chain (if long/mid-term, tier mapping, HHI, disruption scenarios)
-15. Recommended Stock Ranking (推荐标的排名 table with 001/002/003 format)
-16. Recommendation (rating, target, margin of safety, entry criteria, position size, kill switch)
-17. Data Quality Appendix (sources checked, missing/stale dimensions, conflicts, confidence cap)
+11. Earnings Quality & Forensic (Beneish M-Score, accruals, cash conversion, filing diff flags)
+12. Narrative and Growth Runway (Damodaran narrative-to-numbers, TAM, secular trends)
+13. Supply Chain Resilience (long/mid-term: tier mapping, HHI, disruption scenarios, resilience score)
+14. Macro & Geopolitics (Dalio cycle, Four-Box, Fed stance, FX exposure, country risk)
+15. Factor Attribution & Liquidity (Fama-French 5-factor, position sizing, short interest, activist exposure)
+16. Risk Assessment & Scenario Analysis (bull/base/bear with regime-adjusted probabilities, tail risk, behavioral signals, kill switch)
+17. ESG & Sustainability (long-term: TCFD, carbon pricing scenarios, stranded assets, governance)
+18. Alt Data & Digital Signals (web traffic, app rankings, NLP sentiment, management candor, channel checks)
+19. Catalyst Calendar (forward-looking events, probability, expected value, PEAD analysis)
+20. China-Specific Analysis (MANDATORY for .SH/.SZ tickers, SKIP for all others: 政策敏感性, 北向资金, 龙虎榜, 游资追踪)
+21. Recommended Stock Ranking (推荐标的排名 table with 001/002/003 format, 当前股价 column)
+22. Recommendation (rating, target, margin of safety, entry criteria, position size, kill switch)
+23. Data Quality Appendix (sources checked, missing/stale dimensions, conflicts, confidence cap)
+24. Disclaimer (AI-generated, not financial advice — use exact text from equity_report_templates.md)
 
 Also load {plugin_root}/references/data_source_matrix.md for coverage caps and {plugin_root}/references/scoring_calibration.md for calibration targets.</step>
 <step n="3" name="Load Deterministic Scores">Load scores and cross-check output from the designated directory (typically `./reports/[RUN_ID]/NNN-[TICKER]/scores.json` and `cross_check.json`); use its conviction/rating without inventing a new number. Incorporate any cross-check flags and adjustments into the report narrative.</step>
