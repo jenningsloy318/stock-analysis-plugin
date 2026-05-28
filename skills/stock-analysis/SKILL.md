@@ -1,6 +1,6 @@
 ---
 name: stock-analysis
-description: Multi-stage equity research producing long/mid/short-term reports. Triggers on "analyze [TICKER]", "deep dive", "investment thesis", "valuation".
+description: Multi-stage equity research producing long/mid/short-term reports. Supports full deep-dive, quick overview, multi-stock comparison, standalone valuation, and watchlist monitoring. Triggers on "analyze [TICKER]", "deep dive", "investment thesis", "valuation", "compare", "quick overview", "watchlist".
 author: Jennings Liu
 version: "1.01.01"
 license: MIT
@@ -15,157 +15,130 @@ license: MIT
     gemini: ${extensionPath}/data
 </platform-paths>
 
-<purpose>Stock-analysis-orchestrator (team lead) spawns specialist analyst agents in parallel. NEVER performs analysis directly — only spawns, coordinates, scores, and quality-gates. Produces 3 reports per ticker (long/mid/short-term).</purpose>
+<purpose>Stock-analysis-orchestrator (team lead) spawns specialist analyst agents in parallel. NEVER performs analysis directly — only spawns, coordinates, scores, and quality-gates. Produces 3 reports per ticker (long/mid/short-term). Supports 5 modes: full, quick, compare, valuation-only, watchlist.</purpose>
 
-<triggers>Triggers on: "analyze [TICKER]", "stock analysis", "deep dive", "investment thesis", "valuation of [TICKER]", "due diligence on [COMPANY]". Do NOT trigger on: general market commentary, non-financial queries.</triggers>
+<triggers>Triggers on: "analyze [TICKER]", "stock analysis", "deep dive", "investment thesis", "valuation of [TICKER]", "due diligence on [COMPANY]", "compare [T1],[T2]", "quick overview [TICKER]", "watchlist", "check my stocks". Do NOT trigger on: general market commentary, industry screening requests (use industry-screening).</triggers>
+
+<modes>
+  <mode name="full" default="true">
+    <description>Complete 19-stage deep-dive analysis. All specialist agents, all frameworks. 3 full horizon reports. ~15-30 min.</description>
+    <trigger>"analyze [TICKER]", "deep dive", "stock analysis", "investment thesis", "due diligence"</trigger>
+    <stages>0→1a+1b+3a→1c+2+3b+CN*→4+5+8b→6+7→8→9+9b→10→11</stages>
+    <max-agents>4</max-agents>
+  </mode>
+
+  <mode name="quick">
+    <description>Rapid triage: fundamental-analyst + quant-analyst + risk-analyst in parallel. 4 dimensions only (Financial Health, Moat, Valuation, Risk). 3 condensed reports with lower confidence ceiling. ~2-5 min.</description>
+    <trigger>"quick overview [TICKER]", "quick analysis", "fast check"</trigger>
+    <stages>0→1a+6+7+8→10→11</stages>
+    <max-agents>3</max-agents>
+    <confidence-cap>Medium (skipped stages: capital allocation, supply chain, ESG, catalyst, China, industry deep-dive)</confidence-cap>
+  </mode>
+
+  <mode name="compare">
+    <description>Side-by-side comparison of 2-5 stocks. Spawns quant-analyst + fundamental-analyst per ticker in parallel. Merges scores into ranked comparison table. ~5-10 min.</description>
+    <trigger>"compare [T1],[T2],[T3]", "which is better [T1] or [T2]", "stock comparison"</trigger>
+    <process>
+      1. Validate tickers (all should share GICS sector alignment)
+      2. Spawn search-agent for data fetch (financials, metrics, theme performance for each ticker)
+      3. Spawn quant-analyst + fundamental-analyst per ticker in parallel (max 4 concurrent)
+      4. Merge scores into side-by-side comparison table ranked by composite
+      5. Top-ranked stock is offered for full deep-dive
+    </process>
+    <constraints>
+      - Max 5 stocks per comparison
+      - Identical valuation methodology across all stocks
+      - ALL output in Chinese (中文)
+      - Include 当前股价 column for every stock
+    </constraints>
+  </mode>
+
+  <mode name="valuation-only">
+    <description>Standalone valuation: DCF + comps + reverse DCF + margin of safety. Spawns quant-analyst only. ~2-3 min.</description>
+    <trigger>"valuation of [TICKER]", "what's [TICKER] worth", "price target [TICKER]", "DCF [TICKER]"</trigger>
+    <process>
+      1. Spawn search-agent for fetch_financials, calculate_metrics, forecast, fetch_peer_universe, fetch_theme_performance
+      2. Spawn quant-analyst for full valuation (DCF, comps, SOTP, LBO floor, reverse DCF)
+      3. Present: intrinsic value range, margin of safety, fair value verdict
+    </process>
+    <quick-revaluation>
+      When a prior full analysis exists (30-90 days old):
+      1. Reuse last DCF assumptions from scores.json
+      2. Update only: current price, market cap, peer multiples
+      3. Recompute margin of safety and flag conviction changes
+    </quick-revaluation>
+  </mode>
+
+  <mode name="watchlist">
+    <description>Check status of previously analyzed stocks. Auto-discovers prior reports from ranked directories. Compares current price to targets, checks kill switches, flags stale reports. ~1-3 min.</description>
+    <trigger>"watchlist", "check my stocks", "portfolio status", "how are my stocks doing"</trigger>
+    <auto-discovery>
+      Scans `./reports/*/NNN-[TICKER]/` to find all prior analyses.
+      For each: reads long-term report → extracts conviction, targets, kill switches, catalyst dates.
+    </auto-discovery>
+    <status-categories>
+      - ON TRACK: Price within base-bull range → no action
+      - TARGET REACHED: Price at/above bull case → offer profit-taking or target update
+      - KILL SWITCH APPROACHING: Trigger condition nearing → flag with specific values
+      - THESIS AT RISK: Price below bear case → offer full re-analysis
+      - STALE (>90 days): Report expired → offer re-analysis
+    </status-categories>
+  </mode>
+</modes>
 
 <rules>
   <rule name="Report Language">ALL reports MUST be written in Chinese (中文). Technical terms in English. Source citations in original language.</rule>
   <rule name="Price Filter">Focus on growth-stage companies. US < $100, China A-shares < ¥100. Skip filter if user specifies ticker.</rule>
   <rule name="Stock Price Display">Every company in any table/list must include current stock price (当前股价). Format: "$XX.XX" or "¥XX.XX".</rule>
-  <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three. "Quick" only if user explicitly says so.</rule>
-  <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/YYYYMMDDHHmm/` where YYYYMMDDHHmm is the run start timestamp.</rule>
-  <rule name="Ranked Directory Naming">ALL output directories and report files MUST use rank-prefixed names. Format: `NNN-TICKER` where NNN is the zero-padded rank index (001, 002, 003...). Single stock: always `001-[TICKER]`. Multi-stock batch: after all stocks are scored, assign ranks by conviction score descending, then rename directories to `NNN-[TICKER]`. This ensures the folder listing itself shows which stock to buy first — no need to open files to see the ranking.</rule>
-  <rule name="Run Directory">Each run creates a unique subdirectory `./reports/YYYYMMDDHHmm/` under the workspace reports folder. Within it, each stock gets `./reports/[RUN_ID]/NNN-[TICKER]/` where NNN is its rank. RUN_ID is set once at run start and used for all file operations.</rule>
-  <rule name="Numbered Stock Index">Every report MUST include a "推荐标的排名" section with zero-padded 3-digit indices (001, 002, 003...). The analyzed stock is ALWAYS 001. Peer/alternative stocks follow, ranked by conviction/score descending. The rank index MUST match the directory prefix.</rule>
-  <rule name="Tracking JSON">Each run creates `./reports/[RUN_ID]/NNN-[TICKER]/tracking.json` in Stage 0 (NNN = rank, single stock = 001). Orchestrator updates stage status BEFORE advancing. Set current stage to "completed" with timestamp, then next stage to "in_progress".</rule>
-  <rule name="A-Share Detection">If ticker ends with .SH or .SZ, CN1+CN2 stages are MANDATORY. Spawn china-market-analyst in parallel with fundamentals.</rule>
+  <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three.</rule>
+  <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`.</rule>
+  <rule name="Ranked Directory Naming">ALL output directories and report files MUST use rank-prefixed names. Format: `NNN-TICKER`. Single stock: `001-[TICKER]`. Compare mode: rank after scoring.</rule>
+  <rule name="Run Directory">Each run creates `./reports/YYYYMMDDHHmm/`. Within it: `NNN-[TICKER]/` per stock.</rule>
+  <rule name="Numbered Stock Index">Every report MUST include "推荐标的排名" with 001, 002, 003 indices matching directory prefix.</rule>
+  <rule name="Tracking JSON">Each run creates `./reports/[RUN_ID]/NNN-[TICKER]/tracking.json`. Update BEFORE advancing stages.</rule>
+  <rule name="A-Share Detection">If ticker ends with .SH or .SZ, CN1+CN2 stages are MANDATORY (full mode only).</rule>
 </rules>
 
 <agent-team-protocol>
   This skill ALWAYS operates as an agent team. Create team IMMEDIATELY as first action.
-
-  Step 0: RUN_ID = $(date +%Y%m%d%H%M). TeamCreate({ name: "stock-analysis-[TICKER]-[RUN_ID]" }). Create output directory: `./reports/[RUN_ID]/001-[TICKER]/` (single stock: rank is always 001). Create `./reports/[RUN_ID]/001-[TICKER]/tracking.json`. For multi-stock batch: create temp dirs first, then rename with rank prefix after scoring.
-  Step 1: Spawn search-agent to run triage scripts (fetch_financials, fetch_macro, fetch_global_macro, fetch_economic_surprises, fetch_credit, forecast, calculate_metrics, diff_filings, persist.py init, fetch_market_breadth, fetch_theme_performance).
-  Steps 2+: Spawn specialist agents per parallel execution map. Each agent writes ./reports/[RUN_ID]/stage[N].md.
-  Cleanup: Delete intermediate files; keep only 3 final reports. Delete team.
-
-  ENFORCEMENT: Orchestrator MUST NOT run scripts or analysis directly. All work delegated to sub-agents.
+  Modes affect which agents are spawned and how many stages run. Full mode uses all 11 specialist agents.
+  Quick mode uses fundamental-analyst + quant-analyst + risk-analyst.
+  Compare mode uses fundamental-analyst + quant-analyst per ticker.
+  Valuation-only mode uses quant-analyst.
+  Watchlist mode uses search-agent only.
+  ENFORCEMENT: Orchestrator MUST NOT run scripts or analysis directly.
 </agent-team-protocol>
 
 <workflow>
-  <stage n="0" name="Setup">RUN_ID, tracking.json, team creation, data fetch agent spawn.</stage>
-
-  <stage n="1a" name="Financial Health & DuPont" agent="fundamental-analyst">
-    Revenue trends, margins (gross/operating/net), FCF generation, leverage, working capital (CCC), ROIC/ROE/ROA with 5-factor DuPont decomposition. Piotroski F-Score. Lynch category classification. Business model quality, customer economics (LTV/CAC, churn, NDR). Segment-level analysis. Writes stage1a.md.
-  </stage>
-
-  <stage n="1b" name="Capital Allocation" agent="fundamental-analyst">
-    Buffett retention test (market value per $1 retained), Mauboussin capital allocation framework, buyback ROI analysis, M&A track record (ROIC on acquisitions), dividend policy sustainability, SBC dilution analysis, capital structure optimization. Writes stage1b.md.
-  </stage>
-
-  <stage n="1c" name="Quality of Earnings" agent="fundamental-analyst">
-    Beneish M-Score, Montier C-Score, accruals quality (total accruals / assets), cash conversion (OCF/NI ratio trend), revenue recognition policy audit, expense capitalization analysis, goodwill/intangibles impairment risk. Writes stage1c.md.
-  </stage>
-
-  <stage n="2" name="Executive & Board" agent="fundamental-analyst">
-    Fisher's 15 Points (management), executive profiles and track records, insider ownership patterns, insider transaction cluster detection, compensation alignment (pay-for-performance), board independence and expertise, governance red flags. Writes stage2.md.
-  </stage>
-
-  <stage n="3a" name="Industry & Competitive" agent="industry-analyst">
-    Product portfolio mapping (life cycle), Porter's Five Forces, competitive landscape (market share, positioning), TAM/SAM/SOM (top-down + bottom-up), Morningstar moat assessment, BCG matrix for multi-segment, ecosystem mapping. Writes stage3a.md.
-  </stage>
-
-  <stage n="3b" name="Supply Chain Resilience" agent="supply-chain-analyst">
-    Tier 1-3 supplier mapping, geographic HHI concentration, chokepoint identification (single-source, infrastructure, regulatory), disruption scenario modeling (trade war, blockade, natural disaster, supplier failure, logistics crisis), inventory health, logistics vulnerability. Writes stage3b.md.
-  </stage>
-
-  <stage n="4" name="Macro Economics" agent="macro-analyst">
-    Dalio Economic Machine cycle position, Four-Box Framework regime, Fed/ECB/PBoC stance, yield curve, inflation dynamics, sector-specific macro drivers, Druckenmiller liquidity assessment. Writes stage4.md.
-  </stage>
-
-  <stage n="5" name="Geopolitics & Regulation" agent="macro-analyst">
-    CRP country risk, sanctions exposure, trade policy dependency, regulatory framework, currency exposure (revenue mix, DXY correlation, FX EPS impact), government policy (subsidies, procurement). Writes stage5.md.
-  </stage>
-
-  <stage n="6" name="Valuation" agent="quant-analyst">
-    DCF with Monte Carlo, trading comps, SOTP, Greenblatt Magic Formula, LBO affordability floor, reverse DCF, private market comps, relative value analysis. Writes stage6.md.
-  </stage>
-
-  <stage n="7" name="Market Regime & Positioning" agent="quant-analyst">
-    Weinstein stage classification, CANSLIM scoring, technicals (trend, momentum, volume), sentiment (put/call, VIX, short interest), institutional flow (13F, 13D, Form 4), market regime (risk-off/speculative), options signals, factor attribution. Writes stage7.md.
-  </stage>
-
-  <stage n="8" name="Risk Assessment" agent="risk-analyst">
-    Risk identification & quantification (probability × impact), scenario analysis (bull/base/bear), Marks 2nd-level thinking, Soros reflexivity phase, Klarman permanent-vs-temporary impairment, Burry forensic red flags, Taleb antifragility assessment, ODD, kill switch. Writes stage8.md.
-  </stage>
-
-  <stage n="8b" name="ESG & Sustainability" agent="risk-analyst">
-    TCFD/ISSB alignment, carbon pricing scenarios ($50/$100/$150/tCO2), physical risk (flood, fire, hurricane, sea-level), transition risk (stranded assets), SASB materiality map, social license, governance deep-dive. Writes stage8b.md.
-  </stage>
-
-  <stage n="9" name="Alt Data & Digital Signals" agent="alt-data-analyst">
-    Digital footprint (web traffic, app rankings, social media, hiring, patents), NLP earnings call (tone, uncertainty, deception), transaction data, Fisher scuttlebutt, primary research (expert networks, channel checks), ARK disruption framework. Writes stage9.md.
-  </stage>
-
-  <stage n="9b" name="Catalyst Intelligence" agent="catalyst-analyst">
-    Catalyst calendar (earnings, FDA, product, regulatory, M&A), event-driven probability, pre/post-event drift (PEAD), binary event scenario modeling, catalyst sequencing & dependencies, options market signals. Writes stage9b.md.
-  </stage>
-
-  <stage n="CN1" name="China Policy & Regulatory" agent="china-market-analyst">
-    Policy sensitivity matrix (政策敏感性), industrial policy cycle (产业政策周期), regulatory risk scoring, 专精特新/国产替代 positioning, policy impact quantification. Writes stageCN1.md. MANDATORY for A-shares.
-  </stage>
-
-  <stage n="CN2" name="China Capital Flows" agent="china-market-analyst">
-    北向资金 flows, 融资融券 margin activity, 龙虎榜 seat analysis, 行业轮动 sector rotation, 游资 hot money tracking, 国家队 national team positioning. Writes stageCN2.md. MANDATORY for A-shares.
-  </stage>
-
-  <stage n="10" name="Scoring & Cross-Check" agent="orchestrator">
-    Run compute_scores.py for deterministic 1-10 scores (including new dimensions: Capital Allocation, Earnings Quality, Supply Chain Resilience, ESG, Catalyst, China-Specific). Run cross_check.py for contradiction detection. Run calibrate_conviction.py for Bayesian adjustment.
-  </stage>
-
-  <stage n="11" name="Report Generation" agent="equity-report-writer">
-    3 final reports in `./reports/[RUN_ID]/NNN-[TICKER]/`: NNN-[TICKER]_long_[DATE].md, NNN-[TICKER]_mid_[DATE].md, NNN-[TICKER]_short_[DATE].md. For single stock, NNN = 001. For multi-stock batch, NNN is assigned from the composite ranking after Stage 10 scoring. Run validate_report.py before delivery.
-  </stage>
+  <stage n="0" name="Setup">RUN_ID, tracking.json, team creation. Mode determines stage set.</stage>
+  <stage n="1a" name="Financial Health & DuPont" agent="fundamental-analyst">DuPont 5-factor, Piotroski, Lynch categories. Writes stage1a.md.</stage>
+  <stage n="1b" name="Capital Allocation" agent="fundamental-analyst">Buffett retention test, Mauboussin scorecard, SBC dilution. Writes stage1b.md. (full mode only)</stage>
+  <stage n="1c" name="Quality of Earnings" agent="fundamental-analyst">Beneish M-Score, Montier C-Score, OCF/NI ratio. Writes stage1c.md. (full mode only)</stage>
+  <stage n="2" name="Executive & Board" agent="fundamental-analyst">Fisher's 15 Points, insider clusters, compensation. Writes stage2.md.</stage>
+  <stage n="3a" name="Industry & Competitive" agent="industry-analyst">Porter's Five Forces, TAM/SAM/SOM, moat. Writes stage3a.md.</stage>
+  <stage n="3b" name="Supply Chain Resilience" agent="supply-chain-analyst">Tier 1-3 mapping, HHI, disruption scenarios. Writes stage3b.md. (full mode only)</stage>
+  <stage n="4" name="Macro Economics" agent="macro-analyst">Dalio cycle, Four-Box, Fed stance. Writes stage4.md.</stage>
+  <stage n="5" name="Geopolitics & Regulation" agent="macro-analyst">CRP risk, sanctions, currency exposure. Writes stage5.md.</stage>
+  <stage n="6" name="Valuation" agent="quant-analyst">DCF+Monte Carlo, comps, SOTP, reverse DCF. Writes stage6.md.</stage>
+  <stage n="7" name="Market Regime & Positioning" agent="quant-analyst">Weinstein, CANSLIM, sentiment, options. Writes stage7.md.</stage>
+  <stage n="8" name="Risk Assessment" agent="risk-analyst">Scenario analysis, Marks, Burry, kill switch. Writes stage8.md.</stage>
+  <stage n="8b" name="ESG & Sustainability" agent="risk-analyst">TCFD, carbon pricing, physical/transition risk. Writes stage8b.md. (full mode only)</stage>
+  <stage n="9" name="Alt Data & Digital" agent="alt-data-analyst">Web traffic, NLP earnings, channel checks. Writes stage9.md.</stage>
+  <stage n="9b" name="Catalyst Intelligence" agent="catalyst-analyst">Catalyst calendar, binary events, PEAD. Writes stage9b.md. (full mode only)</stage>
+  <stage n="CN1" name="China Policy" agent="china-market-analyst">Policy sensitivity, 产业政策周期. Writes stageCN1.md. (A-share full mode only)</stage>
+  <stage n="CN2" name="China Capital Flows" agent="china-market-analyst">北向资金, 融资融券, 龙虎榜. Writes stageCN2.md. (A-share full mode only)</stage>
+  <stage n="10" name="Scoring & Cross-Check" agent="orchestrator">compute_scores.py, cross_check.py, calibrate_conviction.py.</stage>
+  <stage n="11" name="Report Generation" agent="equity-report-writer">3 reports in `./reports/[RUN_ID]/NNN-[TICKER]/`. validate_report.py before delivery.</stage>
 </workflow>
 
-<tracking-json-schema>
-File: `./reports/[RUN_ID]/NNN-[TICKER]/tracking.json` (NNN = rank index, e.g., 001 for top pick)
-Status values: "pending" | "in_progress" | "completed" | "failed" | "skipped"
-</tracking-json-schema>
-
 <parallel-execution>
-  Standard:    [1a+1b+3a] → [1c+2+3b+CN*] → [4+5+8b] → [6+7] → [8] → [9+9b] → Scoring → [11]
-  Long-term:   [1a+1b+1c+3a] → [2+3b+CN*] → [4+5+8b] → [6+7] → [8] → [9] → [9b] → Scoring → [11]
-  Mid-term:    [4+5+6] → [1a+7] → [2+8] → [9+9b] → Scoring → [11]
-  Short-term:  [6+7+9+9b] → Scoring → [11]
+  Full:        [1a+1b+3a] → [1c+2+3b+CN*] → [4+5+8b] → [6+7] → [8] → [9+9b] → Scoring → [11]
   Quick:       [1a+6+7+8] → Scoring → [11]
-  Max 4 concurrent agents. CN* mandatory for SH/SZ tickers.
+  Compare:     [quant-analyst + fundamental-analyst per ticker] → merge → rank
+  Valuation:   [data fetch] → [quant-analyst] → verdict
+  Watchlist:   [scan reports] → [fetch current data] → [status table]
+  Max 4 concurrent agents.
 </parallel-execution>
-
-<stage-depth>
-  | Stage | Long-term | Mid-term | Short-term |
-  |-------|-----------|----------|------------|
-  | 1a: Financial Health | Deep | Standard | Light |
-  | 1b: Capital Allocation | Deep | Standard | Skip |
-  | 1c: Earnings Quality | Deep | Light | Skip |
-  | 2: Executive & Board | Deep | Standard | Skip (unless insider flags) |
-  | 3a: Industry | Deep | Standard | Light |
-  | 3b: Supply Chain | Deep | Standard | Light |
-  | 4: Macro | Standard | Deep | Standard |
-  | 5: Geopolitics | Standard | Deep | Light |
-  | 6: Valuation | Deep | Deep | Deep |
-  | 7: Market Regime | Light | Deep | Deep |
-  | 8: Risk | Deep | Standard | Light |
-  | 8b: ESG | Standard | Light | Skip |
-  | 9: Alt Data | Light | Standard | Deep |
-  | 9b: Catalyst | Standard | Standard | Deep |
-  | CN1: China Policy | Deep | Deep | Standard |
-  | CN2: China Flows | Deep | Standard | Deep |
-</stage-depth>
-
-<context-eviction>
-  After each stage: write stage summary → persist.py save → drop raw data from context. If context >80%, offload more.
-</context-eviction>
-
-<script-failures>
-  | Failure | Action |
-  |---------|--------|
-  | Script exits non-zero | Retry once. If still failing, mark "Data not available" |
-  | API key missing | Use fallback (yfinance, web search) |
-  | Hard failure (no revenue data, scores fail, validation fails) | Block delivery |
-  | Soft failure (optional scripts, search returns empty) | Reduce confidence, proceed |
-</script-failures>
 
 <agent-team>
   | Agent | Stages | Purpose |
@@ -182,3 +155,19 @@ Status values: "pending" | "in_progress" | "completed" | "failed" | "skipped"
   | equity-report-writer | 11 | Synthesize stage summaries into final reports |
   | search-agent | All | Multi-source financial web search, script execution |
 </agent-team>
+
+<integration>
+  <produces>
+    - 3 horizon reports → `./reports/[RUN_ID]/NNN-[TICKER]/NNN-[TICKER]_[horizon]_[DATE].md`
+    - Stage summaries, scores, calibration, peers, kill switches
+  </produces>
+  <consumes-from-industry-screening>
+    If invoked after screening, load: industry thesis → Stage 3a, macro context → Stage 4, supply chain → Stage 3b.
+  </consumes-from-industry-screening>
+  <consumes-from-market-daily>
+    If market-daily report exists within 24h (via industry-screening --macro), reuse macro/breadth data.
+  </consumes-from-market-daily>
+  <handoff-to-watchlist>
+    After reports delivered, run auto-registered for watchlist. Kill switch conditions are primary triggers.
+  </handoff-to-watchlist>
+</integration>

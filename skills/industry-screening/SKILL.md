@@ -1,6 +1,6 @@
 ---
 name: industry-screening
-description: Top-down GICS Level 4 sub-industry screening funnel. Produces ranked watchlists. Triggers on "screen sectors", "best industries", "top-down screening", "sector rotation".
+description: Top-down GICS Level 4 sub-industry screening funnel. Produces ranked watchlists. Also supports daily macro report mode (market breadth, sector rotation, fund flows). Triggers on "screen sectors", "best industries", "top-down screening", "sector rotation", "market daily", "美股日报".
 author: Jennings Liu
 version: "1.01.01"
 license: MIT
@@ -15,9 +15,34 @@ license: MIT
     gemini: ${extensionPath}/data
 </platform-paths>
 
-<purpose>Industry-screening-orchestrator (team lead) spawns specialist screener agents in parallel. NEVER performs analysis directly. Uses GICS Level 4 (Sub-Industry, 163) as the ONLY screening unit. Supports 5 screening modes: Broad, Thematic, Short-Candidate, Pair-Trade, QARP.</purpose>
+<purpose>Industry-screening-orchestrator (team lead) spawns specialist screener agents in parallel. NEVER performs analysis directly. Uses GICS Level 4 (Sub-Industry, 163) as the ONLY screening unit. Supports 6 modes: Broad, Thematic, Short-Candidate, Pair-Trade, QARP, and Macro (daily market report).</purpose>
 
-<triggers>Triggers on: "screen sectors", "best industries", "top-down screening", "find stocks in [SECTOR]", "industry screening", "sector rotation", "short candidates", "pair trade ideas", "magic formula screen". Do NOT trigger on: single-stock analysis (use stock-analysis), non-screening queries.</triggers>
+<modes>
+  <mode name="Broad" default="true">Full 163 sub-industries → top 30 deep-dived → 100 companies.</mode>
+  <mode name="Thematic">Theme-focused (AI, green energy, aging, cybersecurity, space, fintech, robotics, water).</mode>
+  <mode name="Short-Candidate">Vulnerability scan → bear case deep-dives → 50 short candidates.</mode>
+  <mode name="Pair-Trade">Sector RS dispersion → long/short pair generation.</mode>
+  <mode name="QARP">Magic Formula: EBIT/EV + ROC combined rank → 50 QARP candidates.</mode>
+  <mode name="macro">
+    <description>Daily US stock market macro report. Fetches market breadth, sector/theme ETF performance, macro indicators, and fund flows. Synthesizes into structured Chinese-language daily report. ~1-2 min. Feeds macro context into subsequent screening or stock-analysis runs.</description>
+    <trigger>"market daily", "daily report", "美股日报", "market breadth", "market overview", "daily market", "今日市场"</trigger>
+    <process>
+      1. Spawn market-daily-orchestrator agent
+      2. Run fetch_theme_performance.py (11 sectors, 7 themes, 5 styles, macro ETFs, indices)
+      3. Run fetch_market_breadth.py (VIX, credit spreads, % above MAs, A/D, new highs/lows, McClellan)
+      4. Run fetch_macro.py (Treasury yields, Fed funds, CPI, employment, GDP, ISM, LEI)
+      5. Synthesize into Chinese daily report with 10 sections
+    </process>
+    <report-sections>
+      0. 今日一句话总结 | 1. 大盘表现总览 | 2. 板块与主题表现 | 3. 市场宽度 | 4. 宏观环境
+      5. 资金流与情绪 | 6. 技术面 | 7. 板块轮动判断 | 8. 风险提示 | 9. 明日观察清单
+    </report-sections>
+    <output>./reports/[RUN_ID]/market-daily_[DATE].md</output>
+    <reuse>Subsequent same-day stock-analysis or screening runs automatically detect and reuse this data, avoiding redundant API calls.</reuse>
+  </mode>
+</modes>
+
+<triggers>Triggers on: "screen sectors", "best industries", "top-down screening", "find stocks in [SECTOR]", "industry screening", "sector rotation", "short candidates", "pair trade ideas", "magic formula screen", "market daily", "daily report", "美股日报", "market breadth". Do NOT trigger on: single-stock analysis (use stock-analysis), non-financial queries.</triggers>
 
 <rules>
   <rule name="Report Language">ALL reports MUST be written in Chinese (中文). Technical terms in English. GICS names: "Semiconductors (半导体)".</rule>
@@ -155,5 +180,24 @@ license: MIT
 </agent-team>
 
 <integration>
-  After screening: top-ranked companies can be deep-dived with stock-analysis. Macro context and industry thesis feed directly into stock-analysis Stages 4 and 3.
+  <produces>
+    - Watchlist with ranked tickers and conviction scores → `./reports/[RUN_ID]/watchlist.json`
+    - 30 sub-industry deep dives with Porter/TAM/catalysts → `./reports/[RUN_ID]/deepdive-*.md`
+    - Macro context (Dalio regime, sector RS, breadth) → `./reports/[RUN_ID]/macro.json`
+    - Industry thesis per sub-industry → `./reports/[RUN_ID]/industry_thesis.json`
+    - 3 horizon screening reports → `./reports/[RUN_ID]/001_SCREEN_[horizon]_[DATE].md`
+  </produces>
+  <handoff-to-stock-analysis>
+    After screening completes, the orchestrator MUST offer to deep-dive the top-ranked companies:
+    - Present top 5 ranked tickers with scores: "筛选完成。排名前5的标的适合深度分析。是否对 [TICKER] 运行 stock-analysis？"
+    - If user accepts, invoke stock-analysis skill with the ticker AND pass these pre-loaded artifacts:
+      - Industry thesis from the deep-dive → feeds Stage 3a (Industry & Competitive)
+      - Macro context → feeds Stage 4 (Macro Economics)
+      - Supply chain data → feeds Stage 3b (Supply Chain Resilience)
+    - This avoids redundant data-fetching and ensures consistency between screening thesis and deep-dive analysis.
+  </handoff-to-stock-analysis>
+  <consumes-from-market-daily>
+    If a market-daily report exists within 24 hours, load it for macro context instead of re-fetching.
+    Look for: `./reports/[RUN_ID]/market-daily_[DATE].md` with today's or yesterday's date.
+  </consumes-from-market-daily>
 </integration>

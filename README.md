@@ -1,6 +1,6 @@
 # Stock Analysis Plugin
 
-Multi-stage institutional equity research plugin for **Claude Code** and **OpenAI Codex**. Produces long-term, mid-term, and short-term stock analysis reports synthesizing methodologies from Buffett, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, and ARK.
+Multi-stage institutional equity research plugin for **Claude Code** and **OpenAI Codex**. Two unified skills — `stock-analysis` (5 modes) and `industry-screening` (6 modes) — produce long/mid/short-term reports synthesizing methodologies from 14 investment frameworks (Buffett, Munger, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, ARK, Mauboussin, Damodaran, Taleb, Graham).
 
 ## Installation
 
@@ -64,73 +64,74 @@ export FINNHUB_API_KEY="your-key"
 
 ## Commands
 
+Two skills cover all functionality. Each mode is triggered by natural language — no flags needed.
 
+### stock-analysis (5 modes)
 
-### Claude Code
+| Mode | Trigger phrases | What it does |
+|------|----------------|-------------|
+| **full** (default) | "analyze AAPL", "deep dive on TSLA", "investment thesis NVDA" | 19-stage deep-dive, all agents, 3 full reports |
+| **quick** | "quick overview BABA", "fast check NIO" | 4-stage triage, 3 condensed reports, ~2-5 min |
+| **compare** | "compare AAPL,MSFT,GOOGL", "which is better TSLA or BYD" | Side-by-side 2-5 stocks, ranked by composite score |
+| **valuation-only** | "what's NVDA worth", "DCF AMD", "price target INTC" | Standalone DCF + comps + reverse DCF + margin of safety |
+| **watchlist** | "watchlist", "check my stocks", "how are my positions" | Scans prior reports, checks kill switches, flags stale/at-risk |
 
-| Command | Description |
-|---------|-------------|
-| `/stock-analysis [TICKER]` | Full multi-stage equity research (all 3 horizons) |
-| `/quick-overview [TICKER]` | Rapid 3-stage analysis (1-3 min) |
-| `/compare [T1],[T2],[T3]` | Side-by-side stock comparison |
-| `/valuation [TICKER]` | Standalone valuation (DCF, comps, relative) |
-| `/watchlist [TICKER\|all]` | Status check on prior analyses |
-| `/industry-screening [SCOPE]` | Top-down GICS Level 4 sub-industry screening |
+### industry-screening (6 modes)
 
-### OpenAI Codex
+| Mode | Trigger phrases | What it does |
+|------|----------------|-------------|
+| **Broad** (default) | "screen sectors", "best industries", "top-down screening" | All 163 GICS Level 4 → top 30 deep-dived → 100 companies |
+| **Thematic** | "AI supply chain screen", "green energy stocks", "aging population healthcare" | 8 predefined themes → theme-aligned candidates |
+| **Short-Candidate** | "short candidates", "what to avoid", "overvalued sectors" | Vulnerability scan → bear cases → 50 short candidates |
+| **Pair-Trade** | "pair trade ideas", "long short pairs", "sector dispersion" | Long/short pairs within sectors with widest RS spread |
+| **QARP** | "magic formula screen", "quality at reasonable price" | Greenblatt Magic Formula → 50 QARP candidates |
+| **macro** | "market daily", "美股日报", "daily report" | Daily market breadth, sector rotation, fund flows report |
 
-Codex uses the same commands as Claude Code via skill-embedded orchestration.
+### Cross-skill integration
 
-All commands produce **3 reports** (long-term, mid-term, short-term) automatically — no need to specify horizon. Reports are written in **Chinese (中文)**.
+- After **industry-screening**: top-ranked companies are offered for `stock-analysis` deep-dive
+- After **stock-analysis**: run is auto-registered for `watchlist` tracking
+- **macro** mode data is automatically reused by subsequent same-day screening or analysis runs
+
+All reports produced in **Chinese (中文)**. 3 horizons always generated.
 
 ## Architecture
 
-The `stock-analysis-orchestrator` acts as team lead — it spawns specialist sub-agents for all analysis work, never performing deep analysis directly. Agent definitions in `agents/` are used by Claude Code.
+Two orchestrators manage 14 specialist agents across 19 analysis stages. All work is delegated — orchestrators never perform analysis directly.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│               stock-analysis-orchestrator                     │
-│                  (Team Lead / Orchestrator)                   │
-│         Spawns specialists, manages parallel execution        │
-└─────────────┬───────────────────────────────┬───────────────┘
-              │                               │
-    ┌─────────▼─────────┐          ┌─────────▼─────────┐
-    │ fundamental-analyst│          │  industry-analyst  │
-    │  Stages 1-2       │          │  Stage 3           │
-    └───────────────────┘          └────────────────────┘
-              │                               │
-    ┌─────────▼─────────┐          ┌─────────▼─────────┐
-    │   macro-analyst    │          │   quant-analyst    │
-    │  Stages 4-5       │          │  Stages 6-7        │
-    └───────────────────┘          └────────────────────┘
-              │                               │
-    ┌─────────▼─────────┐          ┌─────────▼─────────┐
-    │   risk-analyst     │          │  alt-data-analyst  │
-    │  Stage 8           │          │  Stage 9           │
-    └───────────────────┘          └────────────────────┘
-              │                               │
-              └───────────────┬───────────────┘
-                    ┌─────────▼─────────┐
-                    │ equity-report-writer│
-                    │   Stage 10-11     │
-                    └───────────────────┘
+stock-analysis (5 modes)              industry-screening (6 modes)
+┌──────────────────────┐              ┌──────────────────────┐
+│  stock-analysis-orch │              │ industry-screening-  │
+│  (team lead)         │              │ orchestrator (lead)  │
+│  Spawns 11 agents    │              │ Spawns 3 agents      │
+└──────────┬───────────┘              └──────────┬───────────┘
+           │                                     │
+    ┌──────▼──────┬──────┬──────┬──────┐   ┌─────▼─────┬──────┐
+    │ fundamental │quant │macro │risk  │   │ sector-   │company│
+    │  (1a-2)     │(6-7) │(4-5) │(8,8b)│   │ screener  │screen │
+    ├─────────────┼──────┼──────┼──────┤   │  (S1,S2)  │(S3)   │
+    │ supply-chain│indus │alt   │catal │   └───────────┴───────┘
+    │   (3b)      │(3a)  │(9)   │(9b)  │
+    ├─────────────┼──────┼──────┼──────┤
+    │ china-mkt   │equity│search│      │
+    │  (CN1,CN2)  │(11)  │(all) │      │
+    └─────────────┴──────┴──────┴──────┘
 ```
 
-### Cross-Platform Agent Team
+### Output Convention
 
-| Platform | Agent Location | Delegation |
-|----------|---------------|------------|
-| Claude Code | `agents/*.md` | `Agent` tool with `subagent_type` |
-| Codex | `.codex/agents/*.toml` | Skill-embedded orchestration |
-
-### Parallel Execution
-
-| Report Type | Parallel Groups | Est. Time |
-|-------------|-----------------|-----------|
-| Long-term | [1+2+3] → [4+5] → [6+7] → [8] → [9] → Scoring → [10-11] | 8-15 min |
-| Mid-term | [4+5+6] → [1+7] → [2+8] → [9] → Scoring → [10-11] | 5-10 min |
-| Short-term | [6+7+9] → Scoring → [10-11] | 2-5 min |
-| Quick | [1+6+7+8] → Scoring → [10-11] | 1-3 min |
+All runs use timestamped directories with ranked prefixes:
+```
+reports/
+├── 202605281430/              ← RUN_ID = YYYYMMDDHHmm
+│   ├── 001-AAPL/              ← top-ranked (highest conviction)
+│   │   ├── 001-AAPL_long_2026-05-28.md
+│   │   ├── 001-AAPL_mid_2026-05-28.md
+│   │   └── 001-AAPL_short_2026-05-28.md
+│   ├── 002-TSLA/              ← second-ranked
+│   └── market-daily_2026-05-28.md
+```
 
 ## Directory Structure
 
@@ -150,10 +151,10 @@ stock-analysis-plugin/
 └── docs/                    # Requirements & design docs
 ```
 
-## Analyst Methodologies
+## Analyst Methodologies (14 Frameworks)
 
-| Framework | Trader | Applied To |
-|-----------|--------|------------|
+| Framework | Thinker | Applied To |
+|-----------|---------|------------|
 | Four Filters + Margin of Safety | Buffett/Munger | Long-term moat & value |
 | 15 Points + Scuttlebutt | Fisher | Growth quality assessment |
 | Six Categories + PEG | Lynch | Stock classification |
@@ -164,6 +165,10 @@ stock-analysis-plugin/
 | SEC Deep-Dive + Forensics | Burry | Accounting red flags |
 | Second-Level Thinking | Marks | Risk assessment & cycle |
 | Disruption + Wright's Law | ARK | Technology S-curve |
+| Expectations Investing + CAP | Mauboussin | Reverse DCF, capital allocation |
+| Narrative-to-Numbers | Damodaran | Story → model translation |
+| Antifragility + Via Negativa | Taleb | Optionality, fragility scoring |
+| Deep Value + Net-Nets | Graham | Margin of safety, acquirer's multiple |
 
 ## Report Types
 
