@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare. Triggers on 'find best stocks', 'screen sectors', 'analyze [TICKER]', 'compare T1,T2'."
 author: Jennings Liu
-version: "1.03.01"
+version: "1.04.01"
 license: MIT
 ---
 
@@ -13,225 +13,127 @@ license: MIT
   PLUGIN_DATA:
     claude: ${CLAUDE_PLUGIN_DATA}
     gemini: ${extensionPath}/data
+  Use whichever value resolved to an actual path (not a literal variable name).
 </platform-paths>
 
-<purpose>Unified equity research pipeline. The orchestrator (team lead) coordinates the full funnel: screen GICS Level 4 sub-industries → pick top M companies across top N sub-industries → deep-dive each company in parallel branches → unified reports. Three modes: pipeline (default), screen, analyze, compare. NEVER performs analysis directly — only spawns, coordinates, scores, and quality-gates.</purpose>
+<purpose>Team Lead orchestrates specialized analyst agents — it NEVER analyzes directly, only spawns, coordinates, and quality-gates. Agents execute data collection, screening, multi-dimensional analysis, scoring, and report generation in parallel where possible. Unified equity research pipeline: screen GICS Level 4 sub-industries → pick top M companies across top N sub-industries → deep-dive each in parallel waves → unified scoring → reports.</purpose>
 
 <triggers>
 Triggers on ALL of the following (mode detected from phrasing):
 - **pipeline** (default): "find best stocks", "top stocks", "全面筛选", "best companies", "screen and analyze", "top picks"
 - **screen**: "screen sectors", "筛选行业", "best industries", "industry screening", "sector rotation"
-- **analyze**: "analyze [TICKER]", "deep dive [TICKER]", "investment thesis [TICKER]", "valuation of [TICKER]", "due diligence [COMPANY]", "DCF [TICKER]", "quick overview [TICKER]"
+- **analyze**: "analyze [TICKER]", "deep dive [TICKER]", "investment thesis [TICKER]", "valuation of [TICKER]", "due diligence [COMPANY]", "DCF [TICKER]"
 - **compare**: "compare [T1],[T2]", "T1 vs T2", "which is better T1 or T2", "stock comparison"
 Do NOT trigger on: general market commentary, non-financial queries.
 </triggers>
 
+<note>Detailed agent protocols live in `agents/*.md` — the team-lead orchestrator loads stage-specific instructions at spawn time. Reference files in `references/*.md` are loaded lazily per-stage.</note>
+
+<workflow>
+  <stage n="0" name="Setup">Detect mode. Extract parameters (--top-n, --total-m, or tickers). Create RUN_ID, output directory, tracking.json, agent team. MUST complete before any data fetch or agent spawning.</stage>
+  <stage n="1" name="Data Collection" agent="data-collector">Fetch shared data ONCE: macro indicators, economic surprises, sector/sub-industry RS, market breadth, theme performance. Load references/gics_taxonomy.md and references/data_source_matrix.md. All downstream stages reuse this data.</stage>
+  <stage n="2" name="Sub-Industry Screening" agent="sector-screener" modes="pipeline,screen">Score ALL 163 GICS Level 4 sub-industries on 11 dimensions (Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand). Process in 3 parallel batches of ~54. Select top N sub-industries.</stage>
+  <stage n="3" name="Sub-Industry Deep-Dive" agent="sector-screener" modes="pipeline,screen">Deep-dive top N sub-industries: Porter, TAM, catalysts, barriers, company universe, competitive dynamics, growth catalysts, profit pools. Process in parallel waves of max 4 agents.</stage>
+  <stage n="4" name="Company Screening" agent="company-screener" modes="pipeline,screen">Screen companies across ALL top N sub-industries. Apply filters (market cap, growth, FCF, ROIC, price <$100/¥100). Score on growth/profitability/moat/valuation/management/risk/liquidity. Select top M by score across ALL sub-industries — NOT quota per sub-industry.</stage>
+
+  <stage n="5" name="Financial Health" agent="fundamental-analyst" modes="pipeline,analyze,compare" per-company="true">DuPont 5-factor decomposition, Piotroski F-Score, Lynch categories, key ratio analysis. Scripts: fetch_financials.py, calculate_metrics.py.</stage>
+  <stage n="6" name="Earnings Quality" agent="fundamental-analyst" modes="pipeline,analyze,compare" per-company="true" depends="5">Beneish M-Score, Montier C-Score, accruals quality, cash conversion, revenue recognition, capital allocation history (Buffett retention test, buyback ROI, M&A track record). Scripts: fetch_capital_structure.py, calculate_earnings_quality.py, diff_filings.py.</stage>
+  <stage n="7" name="Industry & Competitive" agent="industry-analyst" modes="pipeline,analyze,compare" per-company="true">Porter's Five Forces, TAM/SAM/SOM, Morningstar moat assessment, BCG matrix, ecosystem mapping. REUSES industry thesis from Stage 3 if available. Scripts: fetch_peer_universe.py.</stage>
+  <stage n="8" name="Supply Chain" agent="supply-chain-analyst" modes="pipeline,analyze,compare" per-company="true" depends="7">Tier 1-3 supplier mapping, geographic concentration (HHI), chokepoint identification, disruption scenario modeling, inventory-to-sales analysis. Scripts: fetch_supply_chain.py.</stage>
+  <stage n="9" name="Macro & Geopolitics" agent="macro-analyst" modes="pipeline,analyze,compare" per-company="true">Dalio economic cycle, Druckenmiller liquidity, Four-Box Framework, Fed stance, CRP country risk, sanctions exposure, currency exposure. REUSES macro data from Stage 1. Scripts: fetch_global_macro.py, fetch_currency_exposure.py.</stage>
+  <stage n="10" name="Valuation" agent="quant-analyst" modes="pipeline,analyze,compare" per-company="true" depends="5,7">DCF+Monte Carlo, comps, SOTP, LBO floor, reverse DCF, margin of safety. Scripts: calculate_metrics.py, forecast.py, fetch_private_comps.py.</stage>
+  <stage n="11" name="Market Regime" agent="quant-analyst" modes="pipeline,analyze,compare" per-company="true" depends="10">Weinstein stage classification, CANSLIM, Soros reflexivity, factor attribution (Fama-French 5-factor), options signals, sentiment, institutional positioning. Scripts: fetch_technicals.py, compute_factors.py, fetch_cot.py, calculate_options.py, fetch_sentiment.py, fetch_short_interest.py, fetch_activist_exposure.py, compute_liquidity.py, compute_seasonality.py, compute_earnings_edge.py.</stage>
+  <stage n="12" name="Risk Assessment" agent="risk-analyst" modes="pipeline,analyze,compare" per-company="true" depends="10">Scenario analysis (bull/base/bear), Marks 2nd-level thinking, Burry forensic, Klarman permanent-vs-temporary, kill switch definition, correlation regime. Scripts: fetch_credit.py, fetch_behavioral.py, compute_correlation_regime.py.</stage>
+  <stage n="13" name="Alt Data & Digital" agent="alt-data-analyst" modes="pipeline,analyze,compare" per-company="true">Digital footprint (web traffic, app rankings), NLP earnings call analysis, channel checks, transaction data. Scripts: fetch_alternatives.py, fetch_news_nlp.py, calculate_candor.py.</stage>
+  <stage n="14" name="Catalyst Intelligence" agent="catalyst-analyst" modes="pipeline,analyze,compare" per-company="true" depends="13">Catalyst calendar (FDA, earnings, product launches, regulatory), event-driven probability, pre/post-event drift (PEAD), catalyst sequencing. Scripts: compute_earnings_edge.py, event_study.py.</stage>
+  <stage n="15" name="A-Share Analysis" agent="china-market-analyst" modes="pipeline,analyze,compare" per-company="true" condition="ticker ends with .SH or .SZ" depends="5-14">政策敏感性矩阵, 产业政策周期, 北向资金, 融资融券, 龙虎榜, 游资追踪. MANDATORY for .SH/.SZ tickers. SKIP for all others.</stage>
+
+  <stage n="16" name="Scoring & Cross-Check" agent="scorer">Deterministic scoring (compute_scores.py) for each company. Cross-check contradictions (cross_check.py). Bayesian conviction calibration (calibrate_conviction.py). LLM agents may adjust Moat and Management ±2.0 based on qualitative findings. Rank companies by composite score.</stage>
+  <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer">Pipeline: screening overview (3 horizons) + per-company deep-dives (3 horizons each). Screen: screening reports only. Analyze: per-company reports only. Compare: comparison reports with ranked table. All validated by validate_report.py before delivery.</stage>
+</workflow>
+
+<dependencies>
+  Per-company analysis stages (5-15) have a dependency DAG enabling pipeline-wave parallelism across companies:
+
+  <wave n="1" agents="4" stages="5,7,9,13" note="All independent — maximum parallelism" />
+  <wave n="2" agents="4" stages="6,8,10,14" note="6←5, 8←7, 10←5+7, 14←13" />
+  <wave n="3" agents="2" stages="11,12" note="11←10, 12←10" />
+  <wave n="4" agents="1" stages="15" note="15←all, A-share only" />
+
+  Scheduling rule: across M companies, stages execute as soon as their dependencies are met and an agent slot is free (max 4 concurrent). This creates a pipeline wave where different companies can be at different stages simultaneously.
+</dependencies>
+
 <modes>
   <mode name="pipeline" default="true">
-    <description>Full funnel: screen → pick → deep-dive. Screen all 163 GICS Level 4 sub-industries, select top N, screen companies across them, pick top M, then deep-dive each company in parallel branches. Produces screening overview + per-company reports.</description>
     <trigger>"find best stocks", "top stocks", "全面筛选", "screen and analyze", "top picks"</trigger>
     <parameters>
-      <parameter name="top-n" default="5" range="1-30">Number of top sub-industries to deep-dive after screening all 163.</parameter>
-      <parameter name="total-m" default="10" range="1-100">Total companies to deep-dive. Selected by score across ALL top-n sub-industries — not quota per sub-industry. Sub-industry A may contribute 4 companies while B contributes 1.</parameter>
+      <parameter name="top-n" default="5" range="1-30">Number of top sub-industries after screening all 163.</parameter>
+      <parameter name="total-m" default="10" range="1-100">Total companies to deep-dive. Selected by score across ALL top-n sub-industries — NOT quota per sub-industry.</parameter>
     </parameters>
-    <stages>0→1→2→3(parallel branches)→4→5</stages>
-    <max-agents>4</max-agents>
+    <stages>0→1→2→3→4→5-15(waves)→16→17</stages>
   </mode>
 
   <mode name="screen">
-    <description>Industry screening only. Screen all 163 GICS Level 4 sub-industries → deep-dive top N → produce company watchlist. NO deep-dive analysis on individual companies. Produces screening reports only.</description>
-    <trigger>"screen sectors", "筛选行业", "best industries", "industry screening", "sector rotation", "best sectors"</trigger>
+    <trigger>"screen sectors", "筛选行业", "best industries", "industry screening"</trigger>
     <parameters>
       <parameter name="top-n" default="30" range="1-163">Number of top sub-industries to deep-dive.</parameter>
     </parameters>
-    <stages>0→1→2→5(screening reports only)</stages>
-    <max-agents>4</max-agents>
+    <stages>0→1→2→3→4→17(screening reports only)</stages>
   </mode>
 
   <mode name="analyze">
-    <description>Deep-dive analysis on one or more specific tickers. Skips screening entirely. Runs full analysis stages per ticker in parallel branches.</description>
-    <trigger>"analyze [TICKER]", "deep dive [TICKER]", "investment thesis", "valuation of [TICKER]", "due diligence", "quick overview [TICKER]", "DCF [TICKER]"</trigger>
+    <trigger>"analyze [TICKER]", "deep dive [TICKER]", "investment thesis", "valuation of", "DCF"</trigger>
     <parameters>
-      <parameter name="tickers" required="true">One or more ticker symbols extracted from user prompt.</parameter>
+      <parameter name="tickers" required="true">One or more ticker symbols from user prompt.</parameter>
     </parameters>
-    <stages>0→3(parallel branches per ticker)→4→5</stages>
-    <max-agents>4</max-agents>
+    <stages>0→1→5-15(waves)→16→17</stages>
   </mode>
 
   <mode name="compare">
-    <description>Side-by-side comparison of 2-5 stocks. Skips screening. Runs analysis on all tickers in parallel, then produces ranked comparison table.</description>
     <trigger>"compare [T1],[T2]", "T1 vs T2", "which is better", "stock comparison"</trigger>
     <parameters>
-      <parameter name="tickers" required="true">2-5 ticker symbols extracted from user prompt.</parameter>
+      <parameter name="tickers" required="true">2-5 ticker symbols from user prompt.</parameter>
     </parameters>
-    <stages>0→3(parallel branches per ticker)→4(comparison merge)→5</stages>
-    <max-agents>4</max-agents>
-    <constraints>
-      - Max 5 stocks per comparison
-      - Identical valuation methodology across all stocks
-    </constraints>
+    <stages>0→1→5-15(waves)→16(rank+merge)→17(comparison reports)</stages>
+    <constraints>Max 5 stocks. Identical valuation methodology across all.</constraints>
   </mode>
 </modes>
 
 <rules>
   <rule name="Report Language">ALL reports MUST be written in Chinese (中文). Technical terms in English. GICS names: "Semiconductors (半导体)". Source citations in original language.</rule>
   <rule name="Price Filter">Growth-stage companies only. US < $100, China A-shares < ¥100. Skip filter if user specifies ticker. Filter BEFORE watchlist ranking.</rule>
-  <rule name="Stock Price Display">Every company in any table/list must include 当前股价. Format: "$XX.XX" or "¥XX.XX". Fetched at analysis time.</rule>
+  <rule name="Stock Price Display">Every company in any table/list must include 当前股价. Format: "$XX.XX" or "¥XX.XX".</rule>
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three.</rule>
   <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`.</rule>
-  <rule name="Run Directory">Each run creates `./reports/[RUN_ID]/` where RUN_ID = YYYYMMDDHHmm. Within it: `NNN-[TICKER]/` per stock.</rule>
-  <rule name="Ranked Directory Naming">Output directories use rank-prefixed names: `NNN-[TICKER]`. Pipeline/compare: rank after scoring. Single analyze: always 001.</rule>
+  <rule name="Run Directory">Each run creates `./reports/[RUN_ID]/` where RUN_ID = YYYYMMDDHHmm.</rule>
+  <rule name="Ranked Directories">Output directories use rank-prefixed names: `NNN-[TICKER]`. Pipeline/compare: rank after Stage 16. Single analyze: always 001.</rule>
   <rule name="Numbered Stock Index">Every report includes 推荐标的排名 with 001, 002, 003 format. Top-ranked MUST be 001.</rule>
-  <rule name="Tracking JSON">Each run creates `./reports/[RUN_ID]/tracking.json` (pipeline/screen) or `./reports/[RUN_ID]/NNN-[TICKER]/tracking.json` (analyze/compare). Update BEFORE advancing stages.</rule>
-  <rule name="A-Share Detection">If ticker ends with .SH or .SZ, CN1+CN2 stages are MANDATORY in analysis branches.</rule>
-  <rule name="Company Selection">In pipeline mode, top M companies are selected by score across ALL top-N sub-industries — NOT equally distributed. Higher-scoring sub-industries naturally contribute more companies.</rule>
+  <rule name="Company Selection">Top M companies selected by score across ALL top-N sub-industries — NOT equally distributed.</rule>
+  <rule name="A-Share Mandatory">Stage 15 is MANDATORY for .SH/.SZ tickers. SKIP for all others.</rule>
+  <rule name="agent-team" mandatory="true">ALL work MUST use agent team. Create team via TeamCreate before spawning any agents.</rule>
+  <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER analyzes directly. Only spawns agents, coordinates, and quality-gates.</rule>
+  <rule name="shared-data-once" mandatory="true">Macro, RS, breadth, theme data fetched ONCE in Stage 1. All downstream stages reuse — never re-fetch.</rule>
+  <rule name="context-eviction" mandatory="true">After each stage: write summary → drop raw data. If context >80%, offload via persist.py.</rule>
 </rules>
 
-<agent-team-protocol>
-This skill ALWAYS operates as an agent team. Create team IMMEDIATELY as first action.
+<constraints>
+  <constraint name="NEVER Analyze Directly">Team Lead NEVER runs scripts, fetches data, or performs analysis. ALL work delegated to specialist agents.</constraint>
+  <constraint name="Tracking JSON Updated">Tracking JSON MUST be updated BEFORE advancing to the next stage. Both status changes (previous complete, next in_progress) in a single write.</constraint>
+  <constraint name="Team First">Team creation (TeamCreate) is the FIRST action — before any scripts or data fetches.</constraint>
+  <constraint name="Data via Agents">Data-fetch scripts are run by data-collector or search-agent teammates, NOT by the team lead directly.</constraint>
+  <constraint name="Max 4 Concurrent">Cap parallel agents at 4 to manage context window.</constraint>
+  <constraint name="Quality Gate">Report cannot be delivered until pre-delivery checklist passes. If any gate fails: "INCOMPLETE ANALYSIS — [reason]".</constraint>
+  <constraint name="Level 4 Structure">Sub-Industry is the structural unit in reports — Level 1/2/3 appear only as context within Level 4 entries.</constraint>
+  <constraint name="Cleanup">After report delivery: delete intermediate files, terminate all agents, delete team.</constraint>
+</constraints>
 
-Pipeline mode: orchestrator runs stages 0→1→2 sequentially, then spawns parallel analysis branches in stage 3 (max 4 concurrent), then stage 4 scoring, then stage 5 reports.
-Screen mode: orchestrator runs stages 0→1→2, then stage 5 (screening reports only).
-Analyze mode: orchestrator runs stage 0, then stage 3 branches for each specified ticker.
-Compare mode: same as analyze, but stage 4 merges into ranked comparison.
-
-ENFORCEMENT: Orchestrator MUST NOT run scripts or analysis directly — always delegate to specialist agents.
-</agent-team-protocol>
-
-<workflow>
-  <!-- Pipeline mode (default): 0→1→2→3→4→5 -->
-  <!-- Screen mode: 0→1→2→5(screening) -->
-  <!-- Analyze mode: 0→3→4→5 -->
-  <!-- Compare mode: 0→3→4(comparison)→5 -->
-
-  <stage n="0" name="Setup & Shared Data">
-    1. Detect mode from user prompt (pipeline/screen/analyze/compare). 2. Extract parameters: --top-n, --total-m, or tickers. 3. RUN_ID = $(date +%Y%m%d%H%M). 4. Create output directory. 5. Create tracking.json. 6. Create agent team: TeamCreate({ name: "stock-analysis-[RUN_ID]" }). 7. Spawn search-agent for shared data: fetch_macro.py, fetch_economic_surprises.py, compute_sector_rs.py (--level sub-industry --flat), fetch_market_breadth.py (--skip-constituents), fetch_theme_performance.py, persist.py init. 8. Load references/gics_taxonomy.md, references/data_source_matrix.md. MACRO/RS/BREADTH DATA FETCHED ONCE — reused by all subsequent stages.
-  </stage>
-
-  <!-- SCREENING STAGES (pipeline + screen only) -->
-
-  <stage n="1" name="Sub-Industry Screening" agent="sector-screener" modes="pipeline,screen">
-    Score ALL 163 GICS Level 4 sub-industries on 11 dimensions: Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand. Process in 3 parallel batches of ~54. Select top N sub-industries (default: 5 for pipeline, 30 for screen). Write screening summary to ./reports/[RUN_ID]/stage1.md.
-  </stage>
-
-  <stage n="2" name="Deep-Dive + Company Screening" agent="sector-screener,company-screener" modes="pipeline,screen">
-    Phase A — Sub-Industry Deep Dive: Deep-dive top N sub-industries (Porter, TAM, catalysts, barriers, supply chain). Process in batches of 3 parallel agents.
-    Phase B — Company Screening: Screen companies across ALL top N sub-industries. Apply filters: market cap >$500M, revenue growth >median, positive FCF, ROIC>WACC, stock price <$100/$100. Score on growth/profitability/moat/valuation/management/risk/liquidity. Select top M companies by score ACROSS ALL sub-industries (not quota per sub-industry). Write to ./reports/[RUN_ID]/stage2.md.
-  </stage>
-
-  <!-- ANALYSIS BRANCHES (pipeline + analyze + compare) -->
-
-  <stage n="3" name="Analysis Branches" agent="parallel branches" modes="pipeline,analyze,compare">
-    For each company/ticker, spawn an analysis branch. Max 4 concurrent branches. Each branch runs sub-stages sequentially:
-
-    3a. Financial Health & DuPont (fundamental-analyst): DuPont 5-factor, Piotroski, Lynch categories. Writes stage3a.md.
-    3b. Capital Allocation & Earnings Quality (fundamental-analyst): Buffett retention, Mauboussin, Beneish, cash conversion. Writes stage3b.md.
-    3c. Industry & Supply Chain (industry-analyst, supply-chain-analyst): Porter's Five Forces, TAM/SAM/SOM, moat, supply chain mapping. REUSES industry thesis from Stage 2 if available. Writes stage3c.md.
-    3d. Macro & Geopolitics (macro-analyst): Dalio cycle, Four-Box, Fed stance, CRP risk, sanctions, currency. REUSES macro data from Stage 0. Writes stage3d.md.
-    3e. Valuation & Market Regime (quant-analyst): DCF+Monte Carlo, comps, SOTP, reverse DCF, Weinstein, CANSLIM, sentiment, options. Writes stage3e.md.
-    3f. Risk & Alt-Data (risk-analyst, alt-data-analyst): Scenario analysis, Marks, Burry, kill switch, ESG, web traffic, NLP, channel checks, catalysts. Writes stage3f.md.
-    3g. A-Share Specific (china-market-analyst): CN1 policy + CN2 capital flows. MANDATORY for .SH/.SZ tickers. Writes stage3g.md.
-
-    Pipeline mode: branches receive pre-loaded artifacts from Stage 0-2 (macro, industry thesis, supply chain, sector RS). Avoids redundant fetching.
-    Analyze/Compare mode: branches fetch their own data (no prior screening).
-  </stage>
-
-  <!-- SCORING & REPORTING -->
-
-  <stage n="4" name="Scoring & Cross-Check" agent="orchestrator">
-    Run compute_scores.py for each company → deterministic 1-10 component scores + conviction. Run cross_check.py: if valuation implies >30% overvaluation, re-examine moat. If forensic red flags >=3, re-examine financial health. Flag contradictions.
-    Compare mode: merge scores into ranked comparison table.
-  </stage>
-
-  <stage n="5" name="Report Generation" agent="screening-report-writer,equity-report-writer">
-    Pipeline mode: screening-report-writer produces 3 screening overview reports. equity-report-writer produces 3 reports per company (NNN-[TICKER]_long/mid/short_[DATE].md). Total: 3 screening + (M × 3) company reports.
-    Screen mode: screening-report-writer produces 3 screening reports with watchlist.
-    Analyze mode: equity-report-writer produces 3 reports per ticker.
-    Compare mode: equity-report-writer produces 3 comparison reports with ranked table.
-    All reports validated by validate_report.py before delivery.
-  </stage>
-</workflow>
-
-<parallel-execution>
-  Pipeline: [0] → [1: 3 batches × sector-screener] → [2A: deep-dive batches + 2B: company-screener] → [3: branches max 4] → [4] → [5]
-  Screen:   [0] → [1: 3 batches × sector-screener] → [2A+2B] → [5: screening reports]
-  Analyze:  [0] → [3: branches max 4] → [4] → [5]
-  Compare:  [0] → [3: branches max 4] → [4: merge+rank] → [5]
-  Max concurrent agents: 4
-</parallel-execution>
-
-<agent-team>
-  | Agent | Stages | Purpose |
-  |-------|--------|---------|
-  | sector-screener | 1, 2A | Sub-industry scoring and deep-dive |
-  | company-screener | 2B | Company filtering, scoring, ranking across sub-industries |
-  | screening-report-writer | 5 | Screening overview reports |
-  | fundamental-analyst | 3a, 3b | Financial health, capital allocation, earnings quality |
-  | industry-analyst | 3c | Competitive landscape, TAM, moat |
-  | supply-chain-analyst | 3c | Supply chain resilience, concentration |
-  | macro-analyst | 3d | Economic cycle, monetary, geopolitical |
-  | quant-analyst | 3e | Valuation, technicals, sentiment, regime |
-  | risk-analyst | 3f | Risk assessment, kill switch, ESG |
-  | alt-data-analyst | 3f | Digital footprint, NLP, channel checks |
-  | catalyst-analyst | 3f | Catalyst calendar, event probability |
-  | china-market-analyst | 3g | A-share policy, northbound flows, margin trading |
-  | equity-report-writer | 5 | Per-company deep-dive reports |
-  | search-agent | All | Multi-source financial web search, script execution |
-</agent-team>
-
-<integration>
-  <shared-data>
-    Stage 0 fetches macro, sector RS, market breadth, theme performance ONCE. All subsequent stages reuse this data:
-    - Stage 1: RS + breadth feed Capital Flows, RS, Constituent Quality scoring dimensions
-    - Stage 2: macro context feeds company screening
-    - Stage 3 branches: macro → sub-stage 3d, industry thesis → sub-stage 3c, supply chain → sub-stage 3c
-  </shared-data>
-  <output-structure>
-    Pipeline: ./reports/[RUN_ID]/
-    ├── tracking.json
-    ├── SCREEN_long_[DATE].md
-    ├── SCREEN_mid_[DATE].md
-    ├── SCREEN_short_[DATE].md
-    ├── 001-[TICKER]/
-    │   ├── 001-[TICKER]_long_[DATE].md
-    │   ├── 001-[TICKER]_mid_[DATE].md
-    │   └── 001-[TICKER]_short_[DATE].md
-    ├── 002-[TICKER]/
-    │   └── ...
-    └── [M]-[TICKER]/
-        └── ...
-
-    Screen: ./reports/[RUN_ID]/
-    ├── tracking.json
-    ├── SCREEN_long_[DATE].md
-    ├── SCREEN_mid_[DATE].md
-    └── SCREEN_short_[DATE].md
-
-    Analyze: ./reports/[RUN_ID]/
-    ├── 001-[TICKER]/
-    │   ├── tracking.json
-    │   ├── 001-[TICKER]_long_[DATE].md
-    │   ├── 001-[TICKER]_mid_[DATE].md
-    │   └── 001-[TICKER]_short_[DATE].md
-
-    Compare: ./reports/[RUN_ID]/
-    ├── 001-[TICKER]/... (ranked by score)
-    ├── 002-[TICKER]/...
-    └── COMPARE_[DATE].md (3 horizon comparison reports)
-  </output-structure>
-  <consumes-from-market-daily>
-    If market-daily report exists within 24 hours, reuse macro/breadth data.
-  </consumes-from-market-daily>
-</integration>
-
-<context-eviction>
-After each stage: write stage summary → persist.py save → drop raw data. If context >80%, offload.
-</context-eviction>
-
-<pre-delivery>
-Verify: macro ≤30d fresh, sub-industry data ≤90d fresh, all metrics cited with source+date, Chinese report, no invented data, kill switches defined, methodology attribution present, 5 random fact checks passed.
-If any gate fails: "INCOMPLETE ANALYSIS — [reason]"
-</pre-delivery>
+<criteria name="Skip Conditions">
+  Stage 2-4 (Screening): SKIP for analyze/compare modes.
+  Stage 3 (Deep-Dive): SKIP if top-n = 1 (single sub-industry).
+  Stage 15 (A-Share): SKIP for non-.SH/.SZ tickers.
+  Stage 17 screening reports: SKIP for analyze/compare modes.
+  Stage 17 company reports: SKIP for screen mode.
+</criteria>
 
 <composite-weights>
   | Dimension | Long-term | Mid-term | Short-term |
@@ -248,3 +150,13 @@ If any gate fails: "INCOMPLETE ANALYSIS — [reason]"
   | Constituent Quality | 0% | 0% | 10% |
   | Supply/Demand Cycle | 0% | 0% | 0% |
 </composite-weights>
+
+<references>
+  <ref>Plugin root: `${PLUGIN_ROOT}` — agents, scripts, skills, references, rules</ref>
+  <ref>Plugin data: `${PLUGIN_DATA}` — caches, venv, persisted state</ref>
+  <ref>GICS taxonomy: `references/gics_taxonomy.md` — full 4-level hierarchy with codes and ETF proxies</ref>
+  <ref>Data source matrix: `references/data_source_matrix.md` — source tiers, confidence caps</ref>
+  <ref>Screening templates: `references/screening_report_templates.md` — report formats, scoring formulas</ref>
+  <ref>Equity templates: `references/equity_report_templates.md` — deep-dive report formats</ref>
+  <ref>Scoring calibration: `references/scoring_calibration.md` — calibration targets</ref>
+</references>

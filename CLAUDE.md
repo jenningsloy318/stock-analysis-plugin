@@ -66,16 +66,18 @@
 
 ## Agent Orchestration (MUST follow)
 
-- The `stock-analysis` skill (unified pipeline) acts as the coordinator — it spawns specialized agents for parallel stage execution.
+- The `stock-analysis` skill (unified pipeline) acts as the team lead — it NEVER analyzes directly, only spawns, coordinates, and quality-gates.
 - Modes: pipeline (default: screen → analyze), screen, analyze, compare.
-- Screening agents: `sector-screener`, `company-screener`, `screening-report-writer`.
-- Analysis agents: `fundamental-analyst`, `industry-analyst`, `supply-chain-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `catalyst-analyst`, `china-market-analyst` (A-share only), `equity-report-writer`.
+- 18 independent stages (0-17), each handled by a dedicated specialist agent.
+- Screening agents: `data-collector`, `sector-screener`, `company-screener`, `scorer`.
+- Analysis agents (per-company): `fundamental-analyst`, `industry-analyst`, `supply-chain-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `catalyst-analyst`, `china-market-analyst`.
+- Report agents: `screening-report-writer`, `equity-report-writer`.
 - Support agents: `search-agent`, `market-daily-orchestrator`.
-- The coordinator NEVER performs deep analysis directly — it delegates to specialist agents and synthesizes results.
-- Pipeline mode: [0] → [1: 3× sector-screener] → [2: deep-dive + company screen] → [3: branches ×M max 4] → [4] → [5]
-- Within each analysis branch: [3a+3c] → [3b+3d] → [3e] → [3f+3g*]
-- A-share (SH/SZ): stage 3g (CN) is MANDATORY in each branch
-- Cap parallel sub-agents at 4.
+- Pipeline: [0] → [1] → [2: 3× parallel] → [3: 4× parallel] → [4: 3× parallel] → [5-15: wave scheduling ×M max 4] → [16] → [17]
+- Per-company wave pattern: Wave1[5+7+9+13] → Wave2[6+8+10+14] → Wave3[11+12] → Wave4[15]
+- Cross-company: different companies can be at different stages simultaneously
+- A-share (SH/SZ): Stage 15 is MANDATORY, SKIP for all others
+- Cap parallel agents at 4.
 
 ## Web Search & Data Acquisition (MUST follow)
 
@@ -144,54 +146,54 @@
 
 | Script | Purpose | Stage |
 |--------|---------|-------|
-| `fetch_financials.py` | Financial data (yfinance → SEC EDGAR → akshare) | 0, 3a |
-| `fetch_macro.py` | FRED macro indicators (incl. ISM Services, JOLTS, LEI) + Dalio regime classification | 0 |
-| `fetch_global_macro.py` | Global macro: ECB, PBOC, BOJ, Eurostat, World Bank (non-US coverage) | 3d |
-| `fetch_technicals.py` | Technical indicators (SMA, RSI, MACD, BB, ADX, etc.) | 3e |
-| `fetch_sentiment.py` | Finnhub sentiment, insider, earnings, analyst, estimate revisions | 3e |
-| `fetch_alternatives.py` | Alt data (Google Trends, Similarweb, App Store, Glassdoor, LinkedIn, Reddit, USPTO) | 3f |
-| `fetch_credit.py` | Credit spreads, ratings, debt maturity (FRED + SEC EDGAR) | 3f |
-| `fetch_behavioral.py` | Narrative economics, analyst herding, overreaction, anchoring bias, reflexivity | 3f |
-| `fetch_cot.py` | CFTC Commitments of Traders — institutional futures positioning | 3e |
-| `fetch_realtime.py` | Real-time quotes, options chain, pre/post market | 3e |
-| `fetch_economic_surprises.py` | Economic surprise indices (CESI proxies, FRED nowcasts, actual vs consensus) | 0 |
-| `fetch_peer_universe.py` | Automated peer identification via GICS + ETF holdings + description match | 3c |
-| `fetch_news_nlp.py` | News sentiment, narrative theme tracking, coverage spike detection | 3f |
-| `fetch_capital_structure.py` | Buyback ROI, SBC dilution, capital return yield, debt maturity, optimal leverage | 3b |
-| `fetch_private_comps.py` | M&A target probability, LBO floor, activist probability, precedent transactions | 3e |
-| `fetch_esg_carbon.py` | ESG materiality, carbon pricing scenarios, stranded assets, transition risk | 3f |
-| `fetch_supply_chain.py` | Supply chain concentration, geographic HHI, sector chokepoints, resilience score | 2, 3c |
-| `fetch_currency_exposure.py` | ADR detection, geographic revenue mix, DXY correlation, FX EPS impact | 3d |
-| `calculate_metrics.py` | Ratios, DCF, RIM, DDM, Piotroski F-Score, Beneish, Altman Z, peer comparison, Monte Carlo | 3a, 3e |
-| `calculate_earnings_quality.py` | Accruals quality, cash conversion, revenue quality, expense signals, persistence | 3b |
-| `calculate_candor.py` | Management candor NLP (hedging, certainty, Q&A delta) | 3f |
-| `calculate_options.py` | Options signals: IV surface, max pain, put/call ratios, unusual activity | 3e |
-| `forecast.py` | ARIMA/ETS ensemble + GARCH volatility + fat-tail Monte Carlo + regime detection | 3e |
-| `compute_scores.py` | Deterministic 1-11 component scoring (incl. capital structure, Weinstein, CANSLIM) + conviction | 4 |
-| `cross_check.py` | Automated contradiction detection between scoring dimensions (valuation vs moat, red flags, alt data divergence) | 4 |
-| `compute_sector_rs.py` | Sector AND sub-industry relative strength rankings vs SPY (supports `--level sub-industry --flat` for GICS Level 4 flat leaderboard) | 0, 1 |
-| `compute_factors.py` | Fama-French 5-factor regression + factor attribution (Kenneth French data) | 3e |
-| `compute_liquidity.py` | Market microstructure, Amihud illiquidity, position sizing constraints | 3e |
-| `validate_report.py` | Pre-delivery quality gate enforcement (freshness, coverage, consistency, forensics) | 5 |
-| `event_study.py` | Cumulative abnormal return (CAR) around corporate events | 3f |
-| `diff_filings.py` | 10-K/10-Q redline detection: risk factor changes, MD&A tone shift, forensic flags | 3b |
-| `backtest.py` | Validate past reports against actual outcomes | 5 (post-delivery) |
+| `fetch_financials.py` | Financial data (yfinance → SEC EDGAR → akshare) | 1, 5 |
+| `fetch_macro.py` | FRED macro indicators (incl. ISM Services, JOLTS, LEI) + Dalio regime | 1 |
+| `fetch_global_macro.py` | Global macro: ECB, PBOC, BOJ, Eurostat, World Bank | 9 |
+| `fetch_technicals.py` | Technical indicators (SMA, RSI, MACD, BB, ADX, etc.) | 11 |
+| `fetch_sentiment.py` | Finnhub sentiment, insider, earnings, analyst, estimate revisions | 11 |
+| `fetch_alternatives.py` | Alt data (Google Trends, Similarweb, App Store, Glassdoor, LinkedIn, Reddit, USPTO) | 13 |
+| `fetch_credit.py` | Credit spreads, ratings, debt maturity (FRED + SEC EDGAR) | 12 |
+| `fetch_behavioral.py` | Narrative economics, analyst herding, overreaction, anchoring bias, reflexivity | 12 |
+| `fetch_cot.py` | CFTC Commitments of Traders — institutional futures positioning | 11 |
+| `fetch_realtime.py` | Real-time quotes, options chain, pre/post market | 11 |
+| `fetch_economic_surprises.py` | Economic surprise indices (CESI proxies, FRED nowcasts, actual vs consensus) | 1 |
+| `fetch_peer_universe.py` | Automated peer identification via GICS + ETF holdings + description match | 7 |
+| `fetch_news_nlp.py` | News sentiment, narrative theme tracking, coverage spike detection | 13 |
+| `fetch_capital_structure.py` | Buyback ROI, SBC dilution, capital return yield, debt maturity, optimal leverage | 6 |
+| `fetch_private_comps.py` | M&A target probability, LBO floor, activist probability, precedent transactions | 10 |
+| `fetch_esg_carbon.py` | ESG materiality, carbon pricing scenarios, stranded assets, transition risk | 12 |
+| `fetch_supply_chain.py` | Supply chain concentration, geographic HHI, sector chokepoints, resilience score | 3, 8 |
+| `fetch_currency_exposure.py` | ADR detection, geographic revenue mix, DXY correlation, FX EPS impact | 9 |
+| `calculate_metrics.py` | Ratios, DCF, RIM, DDM, Piotroski F-Score, Beneish, Altman Z, peer comparison, Monte Carlo | 5, 10 |
+| `calculate_earnings_quality.py` | Accruals quality, cash conversion, revenue quality, expense signals, persistence | 6 |
+| `calculate_candor.py` | Management candor NLP (hedging, certainty, Q&A delta) | 13 |
+| `calculate_options.py` | Options signals: IV surface, max pain, put/call ratios, unusual activity | 11 |
+| `forecast.py` | ARIMA/ETS ensemble + GARCH volatility + fat-tail Monte Carlo + regime detection | 10 |
+| `compute_scores.py` | Deterministic 1-11 component scoring (incl. capital structure, Weinstein, CANSLIM) + conviction | 16 |
+| `cross_check.py` | Automated contradiction detection between scoring dimensions | 16 |
+| `compute_sector_rs.py` | Sector AND sub-industry RS vs SPY (supports `--level sub-industry --flat`) | 1 |
+| `compute_factors.py` | Fama-French 5-factor regression + factor attribution (Kenneth French data) | 11 |
+| `compute_liquidity.py` | Market microstructure, Amihud illiquidity, position sizing constraints | 11 |
+| `validate_report.py` | Pre-delivery quality gate enforcement | 17 |
+| `event_study.py` | Cumulative abnormal return (CAR) around corporate events | 14 |
+| `diff_filings.py` | 10-K/10-Q redline detection: risk factor changes, MD&A tone shift, forensic flags | 6 |
+| `backtest.py` | Validate past reports against actual outcomes | post-delivery |
 | `persist.py` | SQLite state persistence, checkpointing, resume, kill switch monitor | All |
-| `portfolio_context.py` | Portfolio correlation, position sizing, factor exposure, tail risk (VaR/CVaR), drawdown recovery | 4 |
-| `fetch_short_interest.py` | Short interest dynamics, squeeze scoring, positioning divergence | 3e |
-| `fetch_activist_exposure.py` | Activist 13D tracking, proxy fight probability, insider cluster detection | 3e |
-| `calibrate_conviction.py` | Bayesian conviction calibration, historical accuracy, Brier score | 4 |
-| `compute_seasonality.py` | Quarterly seasonality indices, YoY decomposition, seasonal expectation assessment | 3e |
-| `compute_correlation_regime.py` | Rolling beta, tail correlation, asymmetric beta, correlation regime, stress-adjusted sizing | 3f |
-| `compute_earnings_edge.py` | Historical beat/miss rate, pre/post-earnings drift (PEAD), earnings quality trend | 3e |
-| `fetch_sub_industry_universe.py` | GICS Level 4 sub-industry constituent discovery via ETF holdings + market cap filter | 1, 2 |
-| `signal_evolution.py` | ISQ 5-dimension signal tracking with lifecycle states (NEW/STRENGTHENED/WEAKENED/FALSIFIED/REALIZED/DORMANT) | 3e |
-| `hypothesis_registry.py` | Hypothesis lifecycle tracking (PROPOSED→ACTIVE→TESTING→CONFIRMED/FALSIFIED), Bayesian belief updating, run cards | 3e, 4 |
-| `alpha_factor_zoo.py` | Factor computation engine with 19 base operators, 4 factor zoos (Technical 35, Fundamental 33, Macro 26, Alternative 26), AST-safe expression evaluator | 3e |
-| `validate_factors.py` | AST safety validation for factor expressions, lookahead bias detection | 3e |
-| `audit_tool_calls.py` | Post-hoc report grounding verification (min tool calls, tool diversity, source attribution) | 5 |
-| `fetch_market_breadth.py` | Market breadth indicators: % above MAs, A/D line, new highs/lows, McClellan Oscillator, VIX term structure, credit spreads | 0 |
-| `fetch_theme_performance.py` | Theme/style ETF performance: 11 sectors, 7 themes, 5 style factors, macro ETFs, specialty ETFs, regime summary | 0 |
+| `portfolio_context.py` | Portfolio correlation, position sizing, factor exposure, tail risk (VaR/CVaR) | 16 |
+| `fetch_short_interest.py` | Short interest dynamics, squeeze scoring, positioning divergence | 11 |
+| `fetch_activist_exposure.py` | Activist 13D tracking, proxy fight probability, insider cluster detection | 11 |
+| `calibrate_conviction.py` | Bayesian conviction calibration, historical accuracy, Brier score | 16 |
+| `compute_seasonality.py` | Quarterly seasonality indices, YoY decomposition, seasonal expectation assessment | 11 |
+| `compute_correlation_regime.py` | Rolling beta, tail correlation, asymmetric beta, correlation regime | 12 |
+| `compute_earnings_edge.py` | Historical beat/miss rate, pre/post-earnings drift (PEAD) | 14 |
+| `fetch_sub_industry_universe.py` | GICS Level 4 sub-industry constituent discovery via ETF holdings + market cap filter | 2, 4 |
+| `signal_evolution.py` | ISQ 5-dimension signal tracking with lifecycle states | 11 |
+| `hypothesis_registry.py` | Hypothesis lifecycle tracking, Bayesian belief updating, run cards | 11, 16 |
+| `alpha_factor_zoo.py` | Factor computation engine with 19 base operators, 4 factor zoos | 11 |
+| `validate_factors.py` | AST safety validation for factor expressions, lookahead bias detection | 11 |
+| `audit_tool_calls.py` | Post-hoc report grounding verification | 17 |
+| `fetch_market_breadth.py` | Market breadth: % above MAs, A/D, McClellan, VIX term structure, credit spreads | 1 |
+| `fetch_theme_performance.py` | Theme/style ETF performance, sector RS, regime summary | 1 |
 
 ## Report Quality Gates (MUST follow)
 
