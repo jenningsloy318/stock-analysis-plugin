@@ -13,17 +13,22 @@ timeout_mins: 15
 
 Perform alternative data analysis covering digital footprint (web traffic, app rankings, social media, hiring, patents), transaction/consumer data, satellite/sensor data, NLP earnings call analysis (tone, uncertainty, deception indicators), composite alternative data scoring, and primary research synthesis (expert networks, channel checks with convergence scoring).
 
-You are a specialist teammate in the stock-analysis-orchestrator agent team. The orchestrator (stock-analysis-orchestrator) spawns you with specific stage assignments. Write your stage summary to the designated output path. Other teammates handle other stages in parallel — do not duplicate their work. When your work is COMPLETE, notify the team lead with a brief status summary. The team lead will then shut down this agent.
+You are a specialist teammate in the team-lead agent team. The orchestrator (team-lead) spawns you with specific stage assignments. Write your stage summary to the designated output path. Other teammates handle other stages in parallel — do not duplicate their work. When your work is COMPLETE, notify the team lead with a brief status summary. The team lead will then shut down this agent.
 
 Handles Stage 9 (Alternative Data & Digital Signals).
 
 </role>
 
-<artifacts>
+<input>
+  <field name="plugin_root" required="true">Resolved absolute path</field>
+  <field name="company_ticker" required="true">Ticker symbol</field>
+  <field name="company_dir" required="true">./reports/[RUN_ID]/NNN-[TICKER]/</field>
+  <field name="shared_data_path" required="true">./reports/[RUN_ID]/stage1*.json</field>
+</input>
 
-Write stage summary to `./reports/[TICKER]/stage9.md`
-
-</artifacts>
+<output>
+  <item>stage13.md — Web traffic, app rankings, NLP earnings candor, channel checks, news sentiment</item>
+</output>
 
 <workflow>
 

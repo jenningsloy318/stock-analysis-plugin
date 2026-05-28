@@ -11,15 +11,21 @@ timeout_mins: 8
 
 <role>Fetch all shared data for the stock-analysis pipeline in a single pass. Run data-fetching scripts in parallel for maximum throughput. Write results to the run output directory. Every downstream stage reuses this data — never re-fetch. When your work is COMPLETE, notify the team lead with a brief status summary including: scripts run, success/fail status, file paths written.</role>
 
-<artifacts>
-  <output path="./reports/[RUN_ID]/stage1_macro.json">Macro indicators from fetch_macro.py</output>
-  <output path="./reports/[RUN_ID]/stage1_surprises.json">Economic surprise indices from fetch_economic_surprises.py</output>
-  <output path="./reports/[RUN_ID]/stage1_sector_rs.json">Sector relative strength from compute_sector_rs.py</output>
-  <output path="./reports/[RUN_ID]/stage1_sub_industry_rs.json">Sub-industry relative strength from compute_sector_rs.py --level sub-industry --flat</output>
-  <output path="./reports/[RUN_ID]/stage1_breadth.json">Market breadth from fetch_market_breadth.py</output>
-  <output path="./reports/[RUN_ID]/stage1_themes.json">Theme/style ETF performance from fetch_theme_performance.py</output>
-  <output path="./reports/[RUN_ID]/stage1_gics.json">GICS taxonomy summary from references/gics_taxonomy.md</output>
-</artifacts>
+<input>
+  <field name="plugin_root" required="true">Resolved absolute path from platform-paths</field>
+  <field name="output_dir" required="true">./reports/[RUN_ID]/</field>
+  <field name="run_id" required="true">YYYYMMDDHHmm timestamp</field>
+</input>
+
+<output>
+  <item>stage1_macro.json — FRED macro indicators + Dalio regime</item>
+  <item>stage1_surprises.json — Economic surprise indices</item>
+  <item>stage1_sector_rs.json — Sector relative strength rankings</item>
+  <item>stage1_sub_industry_rs.json — Sub-industry RS (GICS Level 4 flat)</item>
+  <item>stage1_breadth.json — Market breadth indicators</item>
+  <item>stage1_themes.json — Theme/style ETF performance</item>
+  <item>stage1.md — Data availability summary with freshness timestamps</item>
+</output>
 
 <workflow>
   <step n="1" name="Run Parallel Scripts">

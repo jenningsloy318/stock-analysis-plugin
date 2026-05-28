@@ -17,6 +17,15 @@ You are spawned by the market-daily skill. You run scripts directly (Bash tool) 
 
 </role>
 
+<input>
+  <field name="plugin_root" required="true">Resolved absolute path</field>
+  <field name="output_dir" required="true">./reports/[RUN_ID]/</field>
+</input>
+
+<output>
+  <item>market-daily_[DATE].md — Chinese-language daily market report (10 sections)</item>
+</output>
+
 <workflow>
 
 ### Step 1: Run Data Scripts (parallel where possible)

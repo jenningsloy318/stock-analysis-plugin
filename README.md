@@ -105,7 +105,7 @@ One orchestrator manages 15 specialist agents across 6 pipeline stages. All work
 ```
 stock-analysis (4 modes: pipeline / screen / analyze / compare)
 ┌────────────────────────────────────────────────────────────┐
-│  stock-analysis-orchestrator (unified team lead)           │
+│  team-lead (unified team lead)           │
 │  Routes mode → delegates to specialist agents              │
 └──────────┬─────────────────────────────────────────────────┘
            │

@@ -11,13 +11,20 @@ timeout_mins: 10
 
 <role>Execute deterministic scoring and cross-checking for all analyzed companies. Run compute_scores.py to produce reproducible 1-10 component scores + conviction rating for each company. Run cross_check.py to detect contradictions between scoring dimensions. Run calibrate_conviction.py for Bayesian conviction adjustment. When your work is COMPLETE, notify the team lead with: ranked company list, any cross-check flags, conviction scores.</role>
 
-<artifacts>
-  <output path="./reports/[RUN_ID]/NNN-[TICKER]/scores.json">Per-company component scores (11 dimensions) + composite + conviction</output>
-  <output path="./reports/[RUN_ID]/cross_check.json">Contradiction flags across dimensions and companies</output>
-  <output path="./reports/[RUN_ID]/calibration.json">Bayesian calibration results per company</output>
-  <output path="./reports/[RUN_ID]/ranking.json">Final ranked list with scores, conviction, kill switches</output>
-  <output path="./reports/[RUN_ID]/stage16.md">Stage summary with dimension discrimination analysis</output>
-</artifacts>
+<input>
+  <field name="plugin_root" required="true">Resolved absolute path</field>
+  <field name="output_dir" required="true">./reports/[RUN_ID]/</field>
+  <field name="company_dirs" required="true">List of all NNN-[TICKER]/ directories</field>
+  <field name="mode" required="true">pipeline, screen, analyze, or compare</field>
+</input>
+
+<output>
+  <item>NNN-[TICKER]/scores.json — Per-company 1-10 component scores + conviction</item>
+  <item>cross_check.json — Contradiction flags across dimensions</item>
+  <item>calibration.json — Bayesian conviction calibration</item>
+  <item>ranking.json — Final ranked list with scores, conviction, kill switches</item>
+  <item>stage16.md — Dimension discrimination analysis summary</item>
+</output>
 
 <workflow>
   <step n="1" name="Compute Scores Per Company">

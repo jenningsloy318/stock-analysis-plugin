@@ -9,7 +9,7 @@
 
 ## Orchestrator (Team Lead)
 
-**stock-analysis-orchestrator** — Unified pipeline coordinator following super-dev team-lead pattern:
+**team-lead** — Unified pipeline coordinator following super-dev team-lead pattern:
 - XML-tagged: `<constraints>` with `<constraint-group>`, `<process>`, `<agent-spawn-fields>`, `<quality-gates>`
 - NEVER analyzes directly — only spawns, coordinates, and quality-gates
 - Manages 18 stages with dependency-aware wave scheduling across companies
