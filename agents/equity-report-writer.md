@@ -28,9 +28,11 @@ Handles Stage 11 (Report Generation). Stage 10 deterministic scoring and cross-c
 ## 2. Artifacts
 
 Always write 3 reports:
-- `./reports/[TICKER]/[TICKER]_long_[YYYY-MM-DD].md`
-- `./reports/[TICKER]/[TICKER]_mid_[YYYY-MM-DD].md`
-- `./reports/[TICKER]/[TICKER]_short_[YYYY-MM-DD].md`
+- `./reports/[TICKER]/001_[TICKER]_long_[YYYY-MM-DD].md`
+- `./reports/[TICKER]/001_[TICKER]_mid_[YYYY-MM-DD].md`
+- `./reports/[TICKER]/001_[TICKER]_short_[YYYY-MM-DD].md`
+
+The analyzed stock ALWAYS uses index 001 in filenames. Peer/alternative stock files (if generated) use 002, 003, etc.
 
 ## 3. Workflow
 
@@ -52,9 +54,9 @@ Always write 3 reports:
 <step n="6" name="Fact Verification">Select 5 random numeric claims, trace back to source, remove unverifiable claims</step>
 <step n="7" name="Pre-Delivery Checklist">Verify all gates pass before delivery</step>
 <step n="8" name="Write Reports">Save 3 reports:
-  - `./reports/[TICKER]/[TICKER]_long_[YYYY-MM-DD].md`
-  - `./reports/[TICKER]/[TICKER]_mid_[YYYY-MM-DD].md`
-  - `./reports/[TICKER]/[TICKER]_short_[YYYY-MM-DD].md`</step>
+  - `./reports/[TICKER]/001_[TICKER]_long_[YYYY-MM-DD].md`
+  - `./reports/[TICKER]/001_[TICKER]_mid_[YYYY-MM-DD].md`
+  - `./reports/[TICKER]/001_[TICKER]_short_[YYYY-MM-DD].md`</step>
 
 ### Conviction Scoring
 Use `./reports/[TICKER]/scores.json` from `${PLUGIN_ROOT}/scripts/compute_scores.py`.
@@ -117,6 +119,21 @@ For each high-impact report section (Investment Thesis, Conviction Score Decompo
 ### Constraints
 <constraint>ALL report content MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. Source citations remain in original language. This is NON-NEGOTIABLE — never produce English reports.</constraint>
 <constraint>Every table/list mentioning a company MUST include a "当前股价" (current price) column. Format: "$XX.XX" or "¥XX.XX".</constraint>
+<constraint>Every report MUST include a "推荐标的排名" (Recommended Stock Ranking) section with zero-padded 3-digit indices (001, 002, 003...). The analyzed stock is ALWAYS 001 (top recommendation). Format:
+    ```
+    | # | 代码 | 名称 | 当前股价 | 评分 | 推荐理由 (一句话) |
+    |---|------|------|----------|------|-------------------|
+    | 001 | TICK | 公司 | $XX.XX | X.X/10 | 一句话推荐理由 |
+    | 002 | ... | ... | ... | ... | ... |
+    ```
+    Rules:
+    - Index starts from 001, zero-padded to 3 digits
+    - The analyzed stock MUST be 001
+    - Peer/alternative stocks follow as 002, 003, etc., ranked by score descending
+    - This table appears BEFORE the detailed Recommendation section
+    - Add a "首选标的" (Top Pick) callout: "001 [TICKER] 是本分析的首选标的，因为..."
+    - For each horizon (long/mid/short), the ranking order MAY differ due to different weighting schemes
+    </constraint>
 <constraint>If any single component scores ≤3, rating cannot exceed "Hold" regardless of composite</constraint>
 <constraint>If 3+ components excluded due to missing data, confidence automatically "Low"</constraint>
 <constraint>If source coverage caps confidence lower than the model output, use the lower confidence and state why</constraint>

@@ -26,6 +26,7 @@ license: MIT
   <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/YYYYMMDDHHmm/` where YYYYMMDDHHmm is the run start timestamp (e.g., 202605251430).</rule>
   <rule name="Run Directory">Each run creates a unique subdirectory `./reports/YYYYMMDDHHmm/` under the workspace reports folder. RUN_ID is set once at run start and used for all file operations.</rule>
   <rule name="Tracking JSON">Each run creates `./reports/[RUN_ID]/SCREENING-tracking.json` in Phase 0. The orchestrator MUST update phase status in this file BEFORE advancing to the next phase. Set current phase to "completed" with timestamp, then set next phase to "in_progress" with timestamp.</rule>
+  <rule name="Numbered Stock Index">Every report MUST include a "推荐标的排名" (Recommended Stock Ranking) section with zero-padded 3-digit indices (001, 002, 003...). The top-ranked stock MUST be 001, descending by composite score. This applies to ALL 3 horizon reports. Sub-industry leaderboard also uses 001, 002, 003 format. Report filenames include the rank index prefix: [NNN]_[SECTOR]_[CODE]_[horizon]_[DATE].md.</rule>
 </rules>
 
 <agent-team-protocol>
@@ -53,7 +54,7 @@ license: MIT
     Screen companies across ALL 30 sub-industries. Target: 100 total companies (~3-4 per sub-industry, flexible based on universe size). Spawn up to 3 agents in parallel, each handling ~10 sub-industries. Filter: market cap >$500M, revenue growth >median, positive FCF, ROIC>WACC, stock price <$100 (US) / ¥100 (A-shares). Score: Growth 20%, Profitability 20%, Moat 20%, Valuation 15%, Management 10%, Risk 10%, Liquidity 5%. Writes ./reports/[RUN_ID]/companies-[CODE].md per sub-industry. Orchestrator compiles unified watchlist of 100 companies ranked by composite score.
   </phase>
   <phase n="4" name="Reports" agent="screening-report-writer">
-    Pre-compute filenames: ./reports/[RUN_ID]/SCREEN_long_[DATE].md, ./reports/[RUN_ID]/SCREEN_mid_[DATE].md, ./reports/[RUN_ID]/SCREEN_short_[DATE].md. Agent synthesizes ALL phases into 3 horizon reports covering 30 sub-industries and 100 companies. Structure: Executive Summary → Macro Environment → Top 30 Sub-Industry Leaderboard → Deep Dive Highlights → Top 100 Company Watchlist (grouped by sub-industry) → Next Actions → Risks → Appendix (full 30-industry detail).
+    Pre-compute filenames: ./reports/[RUN_ID]/001_SCREEN_long_[DATE].md, ./reports/[RUN_ID]/001_SCREEN_mid_[DATE].md, ./reports/[RUN_ID]/001_SCREEN_short_[DATE].md. Agent synthesizes ALL phases into 3 horizon reports covering 30 sub-industries and 100 companies. Structure: Executive Summary → Macro Environment → Top 30 Sub-Industry Leaderboard → Deep Dive Highlights → Top 100 Company Watchlist (grouped by sub-industry) → Next Actions → Risks → Appendix (full 30-industry detail).
   </phase>
 </workflow>
 

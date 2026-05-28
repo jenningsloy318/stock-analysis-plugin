@@ -196,6 +196,18 @@ Example: "本次评级主要由Moat(8.5)和Valuation(8.0)驱动——公司拥�
 ## 7b. Tail Risk & Portfolio Context (if portfolio specified)
 [VaR/CVaR at 95% and 99% confidence. Max drawdown and drawdown duration. Calmar ratio. Correlation regime (normal/elevated/crisis) from `correlation.json`. Tail correlation spike (does diversification fail under stress?). Asymmetric beta: upside capture vs downside capture ratio. Stress-adjusted beta for position sizing. Drawdown recovery history (mean/median recovery days). Current drawdown status.]
 
+## 推荐标的排名 (Recommended Stock Ranking)
+
+| # | 代码 | 名称 | 当前股价 | 评分 | 推荐理由 (一句话) |
+|---|------|------|----------|------|-------------------|
+| 001 | [TICKER] | [公司名称] | $XX.XX | X.X/10 | [一句话推荐理由] |
+| 002 | [PEER1] | [公司名称] | $XX.XX | X.X/10 | [一句话推荐理由] |
+| 003 | [PEER2] | [公司名称] | $XX.XX | X.X/10 | [一句话推荐理由] |
+
+**首选标的**: 001 [TICKER] 是本分析的首选标的，因为[一句话理由]
+
+---
+
 ## 8. Recommendation
 - **Rating**: [Buy/Hold/Avoid]
 - **Target Price**: $X (X% upside) | Confidence interval: 60% probability $X-$Y
@@ -310,6 +322,18 @@ Example: "中期评级由Macro(8.0)和CANSLIM(7.5)主导——当前周期中期
 
 [If material: state whether current USD cycle is headwind or tailwind, and whether consensus EPS estimates already reflect FX guidance.]
 
+## 推荐标的排名 (Recommended Stock Ranking)
+
+| # | 代码 | 名称 | 当前股价 | 评分 | 推荐理由 (一句话) |
+|---|------|------|----------|------|-------------------|
+| 001 | [TICKER] | [公司名称] | $XX.XX | X.X/10 | [一句话推荐理由] |
+| 002 | [PEER1] | [公司名称] | $XX.XX | X.X/10 | [一句话推荐理由] |
+| 003 | [PEER2] | [公司名称] | $XX.XX | X.X/10 | [一句话推荐理由] |
+
+**首选标的**: 001 [TICKER] 是本分析的首选标的，因为[一句话理由]
+
+---
+
 ## 7. Position Sizing & Recommendation
 - **Rating**: [Buy / Hold / Sell]
 - **Target Price**: $X (X% upside, 12-month) | Confidence interval: 60% probability $X-$Y
@@ -390,6 +414,18 @@ Example: "短期交易信号主要由Alt Alignment(9.0)和Technical(8.5)驱动�
 
 ## 3. Alternative Data Readings
 [Digital signals: web traffic, app engagement, social sentiment. Composite score. Real-time divergences.]
+
+## 推荐标的排名 (Recommended Stock Ranking)
+
+| # | 代码 | 名称 | 当前股价 | 评分 | 推荐理由 (一句话) |
+|---|------|------|----------|------|-------------------|
+| 001 | [TICKER] | [公司名称] | $XX.XX | X.X/10 | [一句话推荐理由] |
+| 002 | [PEER1] | [公司名称] | $XX.XX | X.X/10 | [一句话推荐理由] |
+| 003 | [PEER2] | [公司名称] | $XX.XX | X.X/10 | [一句话推荐理由] |
+
+**首选标的**: 001 [TICKER] 是本分析的首选标的，因为[一句话理由]
+
+---
 
 ## 4. Trade Setup
 - **Entry Price**: $X

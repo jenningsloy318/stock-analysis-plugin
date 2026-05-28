@@ -155,8 +155,8 @@ Implications for sub-industry selection: which sub-industries benefit from curre
 
 | Rank | GICS Code | Sub-Industry | Sector Context | RS | Growth | Structural | **Score** |
 |------|-----------|--------------|----------------|-----|--------|------------|-----------|
-| 1 | [8-digit] | [Sub-Industry Name] | [Parent Sector / Industry Group] | X.X | X.X | X.X | **X.X** |
-| 2 | [8-digit] | [Sub-Industry Name] | [Parent Sector / Industry Group] | X.X | X.X | X.X | **X.X** |
+| 001 | [8-digit] | [Sub-Industry Name] | [Parent Sector / Industry Group] | X.X | X.X | X.X | **X.X** |
+| 002 | [8-digit] | [Sub-Industry Name] | [Parent Sector / Industry Group] | X.X | X.X | X.X | **X.X** |
 | ... | ... | ... | ... | ... | ... | ... | ... |
 
 NOTE: "Sector Context" column provides parent-level reference (Level 1/2) for each sub-industry.
@@ -164,16 +164,16 @@ This is NOT a sector ranking — it is context to help the reader locate sub-ind
 
 ### Top 3 Sub-Industries — Commentary
 
-**[#1 Sub-Industry Name] (Code: XXXXXXXX, Score: X.X/10)**
+**[#001 Sub-Industry Name] (Code: XXXXXXXX, Score: X.X/10)**
 - Sector context: [Parent sector + tailwinds/headwinds affecting this sub-industry]
 - Industry-group dynamics: [How it competes with adjacent sub-industries in same group]
 - Thesis: [Why it ranked first. Key strengths. 3-sentence maximum.]
 
-**[#2 Sub-Industry Name] (Code: XXXXXXXX, Score: X.X/10)**
+**[#002 Sub-Industry Name] (Code: XXXXXXXX, Score: X.X/10)**
 - Sector context: [...]
 - Thesis: [...]
 
-**[#3 Sub-Industry Name] (Code: XXXXXXXX, Score: X.X/10)**
+**[#003 Sub-Industry Name] (Code: XXXXXXXX, Score: X.X/10)**
 - Sector context: [...]
 - Thesis: [...]
 
@@ -185,8 +185,8 @@ This is NOT a sector ranking — it is context to help the reader locate sub-ind
 
 | Rank | Sub-Industry | Growth | Profitability | Valuation | Macro Fit | Innovation | Regulation | Capital Flows | RS | Cyclicality | Quality | **Composite** |
 |------|--------------|--------|---------------|-----------|-----------|------------|------------|---------------|-----|------------|---------|---------------|
-| 1 | [Name] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
-| 2 | [Name] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
+| 001 | [Name] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
+| 002 | [Name] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
 | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
 ### Key Discriminating Dimensions (关键区分维度)
@@ -194,9 +194,9 @@ This is NOT a sector ranking — it is context to help the reader locate sub-ind
 Example: "Growth和Innovation维度的差异最大（标准差分别为2.3和1.9），是拉开排名差距的主要因素。
 排名第1的[Name]在Growth维度得分X.X远超第2名的X.X，主因是..."]
 
-### Why #1 Beats #2, Why #2 Beats #3
+### Why #001 Beats #002, Why #002 Beats #003
 [For each top-3 pair, identify the specific dimensions that caused the rank difference.
-Example: "#1 vs #2: Growth差异(+1.2) + Innovation差异(+0.8) 合计贡献了排名差距的80%"]
+Example: "#001 vs #002: Growth差异(+1.2) + Innovation差异(+0.8) 合计贡献了排名差距的80%"]
 
 ---
 
@@ -240,8 +240,8 @@ What sector-level tailwinds/headwinds apply. How this sub-industry fits within t
 **Key Players**
 | Rank | Company | Ticker | Market Cap | Market Share (est.) | Moat Source |
 |------|---------|--------|------------|---------------------|-------------|
-| 1 | [Name] | [TICK] | $XB | ~X% | [Source] |
-| 2 | [Name] | [TICK] | $XB | ~X% | [Source] |
+| 001 | [Name] | [TICK] | $XB | ~X% | [Source] |
+| 002 | [Name] | [TICK] | $XB | ~X% | [Source] |
 | ... | ... | ... | ... | ... | ... |
 
 ---
@@ -258,16 +258,16 @@ What sector-level tailwinds/headwinds apply. How this sub-industry fits within t
 
 | Rank | Ticker | Company | 当前股价 | Market Cap | P/E | Rev Growth 3Y | ROIC | FCF Yield | Liquidity | **Score** |
 |------|--------|---------|---------|------------|-----|---------------|------|-----------|-----------|-----------|
-| 1 | [TICK] | [Name] | $XX.XX | $XB | XX.X | XX% | XX% | X.X% | $XM/day | **X.X** |
-| 2 | [TICK] | [Name] | $XX.XX | $XB | XX.X | XX% | XX% | X.X% | $XM/day | **X.X** |
+| 001 | [TICK] | [Name] | $XX.XX | $XB | XX.X | XX% | XX% | X.X% | $XM/day | **X.X** |
+| 002 | [TICK] | [Name] | $XX.XX | $XB | XX.X | XX% | XX% | X.X% | $XM/day | **X.X** |
 | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
 ### Company Scoring Dimension Breakdown (公司评分维度分解)
 
 | Rank | Ticker | Growth(20%) | Profitability(20%) | Moat(20%) | Valuation(15%) | Management(10%) | Risk(10%) | Liquidity(5%) | **Composite** |
 |------|--------|------------|-------------------|-----------|---------------|----------------|-----------|---------------|---------------|
-| 1 | [TICK] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
-| 2 | [TICK] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
+| 001 | [TICK] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
+| 002 | [TICK] | X.X | X.X | X.X | X.X | X.X | X.X | X.X | **X.X** |
 | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
 ### Company Selection Rationale (为什么选择这些公司)
@@ -275,7 +275,7 @@ What sector-level tailwinds/headwinds apply. How this sub-industry fits within t
 **Dimension Data Behind Each Score** (维度详细数据):
 For each top company, show the RAW DATA that drove each dimension score:
 
-**[#1 — TICKER] Dimension Detail:**
+**[#001 — TICKER] Dimension Detail:**
 | Dimension | Score | Key Data Points | Source |
 |-----------|-------|-----------------|--------|
 | Growth (X.X) | Rev CAGR: XX%, EPS CAGR: XX%, Estimate Revisions: +X% | [Source, Date] |
@@ -286,7 +286,7 @@ For each top company, show the RAW DATA that drove each dimension score:
 | Risk (X.X) | Customer conc: X%, D/E: X.X, Litigation: [none/pending], Regulatory: [low/med] | [Source, Date] |
 | Liquidity (X.X) | Avg Vol: $XM/day, Float: XX%, Short Interest: X%, Borrow: [easy/hard] | [Source, Date] |
 
-[Repeat for #2, #3 ... top 5 minimum]
+[Repeat for #002, #003 ... top 5 minimum]
 
 **Key Discriminating Dimensions (关键区分维度)**:
 [Which dimensions had the MOST score variance across the watchlist and thus most influenced final rankings.
@@ -294,17 +294,17 @@ Include: standard deviation per dimension, correlation with final rank.
 Example: "Moat维度标准差最高(2.1)，与最终排名相关系数0.89，是最具区分力的维度"]
 
 **Rank Difference Explanation (排名差异解释)**:
-- #1 vs #2: [TICK1]胜出因为Growth差(+X.X) + Moat差(+X.X)，虽然Valuation较弱(-X.X)
-- #2 vs #3: [TICK2]胜出因为Profitability差(+X.X) + Management差(+X.X)
+- #001 vs #002: [TICK1]胜出因为Growth差(+X.X) + Moat差(+X.X)，虽然Valuation较弱(-X.X)
+- #002 vs #003: [TICK2]胜出因为Profitability差(+X.X) + Management差(+X.X)
 [Continue for top-5 pairs]
 
 ### Top Picks — Investment Theses
 
-**[#1 — TICKER] Company Name (Score: X.X/10 — Top Pick)**
+**[#001 — TICKER] Company Name (Score: X.X/10 — Top Pick)**
 [2 sentences: what the company does, why it's best-positioned in this sub-industry, primary growth catalyst.]
 → Recommended stock-analysis report type: [Long-term / Mid-term]
 
-**[#2 — TICKER] Company Name (Score: X.X/10 — Strong Buy)**
+**[#002 — TICKER] Company Name (Score: X.X/10 — Strong Buy)**
 [2 sentences.]
 → Recommended stock-analysis report type: [Long-term / Mid-term]
 
@@ -358,7 +358,7 @@ Same structure as Broad Screen but with these modifications:
 - **Sub-Industry Deep Dive**: Covers the top-ranked sub-industry with full parent-level context (why this sector was chosen, how the industry group positions this sub-industry).
 - **Sector Context paragraph**: Added before the leaderboard — a 1-paragraph summary of the sector's macro positioning and why it was selected. This is CONTEXT, not a standalone section.
 - **Watchlist**: 10-15 companies (smaller universe than broad screen).
-- **Report title format**: `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_[YYYY-MM-DD].md`
+- **Report title format**: `./reports/screening/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_[YYYY-MM-DD].md`
 
 ### Thematic Screen Report (theme-driven subset of sub-industries)
 
@@ -367,7 +367,7 @@ Same structure as Broad Screen but with these modifications:
 - **Sub-Industry Leaderboard**: Only includes sub-industries relevant to the theme (across multiple sectors). Each entry includes a "Theme Relevance" note and parent sector context.
 - **Weights**: May be adjusted for theme alignment — any weight adjustments must be explicitly stated.
 - **Watchlist**: 10-15 companies. Each company thesis must tie back to the theme.
-- **Report title format**: `./reports/screening/THEME_[THEME_NAME]_[YYYY-MM-DD].md`
+- **Report title format**: `./reports/screening/[NNN]_THEME_[THEME_NAME]_[YYYY-MM-DD].md`
 
 ---
 

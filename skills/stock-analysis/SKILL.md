@@ -26,6 +26,7 @@ license: MIT
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three. "Quick" only if user explicitly says so.</rule>
   <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Output to `./reports/YYYYMMDDHHmm/` where YYYYMMDDHHmm is the run start timestamp (e.g., 202605251430).</rule>
   <rule name="Run Directory">Each run creates a unique subdirectory `./reports/YYYYMMDDHHmm/` under the workspace reports folder. RUN_ID is set once at run start and used for all file operations.</rule>
+  <rule name="Numbered Stock Index">Every report MUST include a "推荐标的排名" (Recommended Stock Ranking) section with zero-padded 3-digit indices (001, 002, 003...). The analyzed stock is ALWAYS 001 (top recommendation). Peer/alternative stocks follow as 002, 003, etc., ranked by conviction/score descending. This applies to ALL 3 horizon reports.</rule>
   <rule name="Tracking JSON">Each run creates `./reports/[RUN_ID]/[TICKER]-tracking.json` in Stage 0. The orchestrator MUST update stage status in this file BEFORE advancing to the next stage. Set current stage to "completed" with timestamp, then set next stage to "in_progress" with timestamp.</rule>
 </rules>
 
@@ -67,7 +68,7 @@ license: MIT
     Run compute_scores.py for deterministic 1-10 scores. Run cross_check.py for contradictions. Run persist.py conviction.
   </stage>
   <stage n="11" name="Reports" agent="equity-report-writer">
-    Pre-compute 3 filenames: ./reports/[RUN_ID]/[TICKER]_long_[DATE].md, ./reports/[RUN_ID]/[TICKER]_mid_[DATE].md, ./reports/[RUN_ID]/[TICKER]_short_[DATE].md. Agent reads all stage summaries + scores.json, generates all 3 reports. Run validate_report.py before delivery.
+    Pre-compute 3 filenames: ./reports/[RUN_ID]/001_[TICKER]_long_[DATE].md, ./reports/[RUN_ID]/001_[TICKER]_mid_[DATE].md, ./reports/[RUN_ID]/001_[TICKER]_short_[DATE].md. Agent reads all stage summaries + scores.json, generates all 3 reports. Run validate_report.py before delivery.
   </stage>
 </workflow>
 

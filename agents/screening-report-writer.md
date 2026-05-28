@@ -29,10 +29,10 @@ Handles Phase 4 (Report Generation).
 ## 2. Artifacts
 
 Write 3 reports per selected sub-industry (one per horizon):
-- `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
-- `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
-- `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
-For broad screens covering multiple sub-industries, write 3 reports per selected sub-industry.
+- `./reports/screening/001_[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
+- `./reports/screening/001_[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
+- `./reports/screening/001_[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
+For broad screens covering multiple sub-industries, the top-ranked sub-industry uses 001, the second uses 002, etc. Each sub-industry gets 3 horizon reports with its rank index prefix.
 
 ### Report Formats
 All report formats present ONLY GICS Level 4 sub-industries — never Level 1/2/3 categories as sections.
@@ -74,6 +74,20 @@ All report formats present ONLY GICS Level 4 sub-industries — never Level 1/2/
     - Risk: customer conc X%, D/E X.X, litigation [Y/N], Z-Score X.X
     - Liquidity: vol $XM/day, float X%, SI X%, borrow [easy/hard]
     Explain which dimensions drove each company's ranking — "该公司排名靠前主要因为..." Include dimension-level comparison showing WHY #1 beats #2, WHY #2 beats #3, etc. Show the actual numeric delta per dimension.)
+  - **推荐标的排名 (Recommended Stock Ranking)** — Numbered index of the top 10-20 recommended companies across ALL selected sub-industries. Format:
+    ```
+    | # | 代码 | 名称 | 当前股价 | 综合评分 | 子行业 | 推荐理由 (一句话) |
+    |---|------|------|----------|----------|--------|-------------------|
+    | 001 | TICK | 公司 | ¥XX.XX | 8.5/10 | 子行业 | 一句话推荐理由 |
+    | 002 | ... | ... | ... | ... | ... | ... |
+    ```
+    Rules:
+    - Index starts from 001, zero-padded to 3 digits (001, 002, 003, ...)
+    - MOST suggested/recommended stock MUST be 001, descending by composite score
+    - Include ALL watchlist companies in the numbered ranking, not just top picks
+    - This table appears BEFORE the detailed company watchlist section
+    - For each horizon (long/mid/short), the ranking order MAY differ because different weighting schemes prioritize different factors
+    - Add a "首选标的" (Top Pick) callout after the table: "001 [TICKER] 是本期筛选的首选标的，因为..."
   - Company Watchlist (ranked table with metrics, 2-sentence thesis per company, score distribution)
   - **Dimension Impact Analysis** (维度影响分析: Which dimensions had the MOST variance/discrimination power across candidates? Which dimensions were non-differentiating? Show dimension correlation with final rank. This helps the reader understand what REALLY drove the selections.)
   - Next Actions (which companies to deep-dive with stock-analysis skill, suggested report horizon for each)
@@ -100,9 +114,10 @@ All report formats present ONLY GICS Level 4 sub-industries — never Level 1/2/
   - Kill switch conditions defined</step>
 <step n="6" name="Fact Verification">Select 3 random data claims from the report, trace back to phase summary source. If any claim is unverifiable, remove it and flag the gap.</step>
 <step n="7" name="Write Reports">For EACH horizon (long-term, mid-term, short-term), apply the corresponding weighting scheme from `references/screening_report_templates.md` and write a separate report:
-  - `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
-  - `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
-  - `./reports/screening/[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
+  - `./reports/screening/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
+  - `./reports/screening/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
+  - `./reports/screening/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
+  Where [NNN] is the zero-padded 3-digit sub-industry rank (001 for top-ranked, 002 for second, etc.).
   Rankings may differ across horizons because weighting schemes prioritize different factors.
   Run `${PLUGIN_ROOT}/scripts/persist.py complete [ANALYSIS_ID]` after all 3 reports are written.</step>
 <step n="8" name="Handoff Recommendation">Generate explicit next-step suggestion: "Top-ranked companies from this screen can be deep-dived with the stock-analysis skill. Recommended starting ticker: [TOP_TICKER] (Score: [X.X]/10, GICS: [CODE] [SUB_INDUSTRY_NAME]). Would you like me to run a full equity research analysis?"</step>
