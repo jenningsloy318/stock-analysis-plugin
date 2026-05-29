@@ -39,6 +39,9 @@ Handles Stage 7 (Industry & Competitive).
 <step n="4" name="Market Sizing">TAM/SAM/SOM (top-down + bottom-up), penetration rate, adjacent markets</step>
 <step n="5" name="Platform Economics">Network effects, liquidity, multi-tenanting, take rate (if applicable)</step>
 <step n="6" name="Supply Chain Risk Mapping">Supplier diversification (customer/supplier HHI), geographic concentration (% revenue from single country/region), critical single-source components, chokepoint identification (e.g., TSMC for chips, rare earths for EVs), lead time variability, inventory buffer adequacy. Score: Low/Medium/High concentration risk per dimension.</step>
+<step n="6b" name="Roadmap Anchor (universal bottleneck step)">Identify a quantitative dated demand roadmap relevant to the company's primary industry. Examples: hyperscaler capex (AI infra), national EV unit-production targets, IEA renewable buildout, DoD FYDP (defense), FDA priority pipeline (drugs), SEMI WFE forecast (semi capex), grid expansion plans (utilities). Required: numbers + dates (e.g., "+X GW by 2028"). Save to `{company_dir}/roadmap_anchor.json`: `{theme, time_horizon_years, demand_growth_pct, key_milestones[], roadmap_sources[]}`. This roadmap anchor feeds Stage 8's bottleneck/asymmetry analysis.
+
+If no quantitative dated roadmap can be identified for the industry, write `{theme: "n/a", note: "no anchored roadmap — bottleneck framework not applicable"}` and continue. Reference: references/frameworks_bottleneck_investing.md.</step>
 <step n="7" name="Ecosystem Mapping">Upstream/downstream dependency, single-point-of-failure, complementor health</step>
 
 </workflow>
@@ -61,6 +64,7 @@ Handles Stage 7 (Industry & Competitive).
 
 ### Reference Files
 - references/frameworks_value_growth.md (Porter, Morningstar moat, Fisher's Scuttlebutt)
+- references/frameworks_bottleneck_investing.md (universal roadmap-anchor methodology — drives Step 6b)
 - references/sector_metrics.md (sector-specific competitive metrics + Extended Industry Verticals table)
 - references/international_markets.md (for non-US companies: structural adjustments)
 - Load the relevant industry deep-dive file from `references/sector_metrics.md` Extended Industry Verticals table based on GICS classification (e.g., industry_saas.md for SaaS, industry_healthcare.md for MedTech, industry_consumer.md for Retail)

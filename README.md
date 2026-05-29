@@ -64,23 +64,48 @@ export FINNHUB_API_KEY="your-key"
 
 ## Commands
 
-One unified skill with 4 modes, triggered by natural language.
+One unified skill with 5 modes. Dispatch by **explicit `--mode` flag** (authoritative) OR **natural-language trigger phrase**. The `--mode` flag always overrides trigger phrases when both present.
 
-### stock-analysis (4 modes)
+### stock-analysis (5 modes)
 
-| Mode | Trigger phrases | What it does |
-|------|----------------|-------------|
-| **pipeline** (default) | "find best stocks", "top stocks", "全面筛选" | Screen 163 sub-industries → pick top M companies → deep-dive each. Parameters: `--top-n 5 --total-m 10` |
-| **screen** | "screen sectors", "筛选行业", "best industries" | Sub-industry screening + company watchlist, no deep-dive |
-| **analyze** | "analyze AAPL", "deep dive TSLA", "investment thesis NVDA", "DCF AMD" | Full deep-dive on specific tickers |
-| **compare** | "compare AAPL,MSFT,GOOGL", "NVDA vs AMD" | Side-by-side 2-5 stocks, ranked by composite score |
+| Mode | Flag | Positional / args | Trigger phrases | What it does |
+|------|------|-------------------|-----------------|--------------|
+| **pipeline** *(default)* | `--mode pipeline` *(or omit)* | `--top-n 5 --total-m 10` | "find best stocks", "top stocks", "全面筛选" | Screen 163 sub-industries → pick top M companies → deep-dive each |
+| **screen** | `--mode screen` | `--top-n 30` | "screen sectors", "筛选行业", "best industries" | Sub-industry screening + company watchlist, no deep-dive |
+| **analyze** | `--mode analyze` | `TICKER [TICKER...]` (positional) | "analyze AAPL", "deep dive TSLA", "investment thesis NVDA", "DCF AMD" | Full 11-stage deep-dive on specific ticker(s) |
+| **compare** | `--mode compare` | `T1,T2[,T3,...]` (comma-list) | "compare AAPL,MSFT,GOOGL", "NVDA vs AMD" | Side-by-side 2-5 stocks, ranked by composite score |
+| **walk** | `--mode walk` | `THEME` (quoted multi-word) | "walk the chain for [theme]", "chokepoint analysis [theme]", "瓶颈分析" | Top-down chain decomposition: anchor demand roadmap → walk supply chain → score chokepoints → rank candidates by asymmetry composite. Universal (AI infra, EV, robotics, defense, solar, biopharma, grid, semi capex, materials). |
 
-### Pipeline Parameters
+**Dispatch order** (Stage 0): `--mode <name>` > trigger phrase > default(pipeline). Mode names: `pipeline | screen | analyze | compare | walk`.
 
-| Parameter | Default | Range | Description |
-|-----------|---------|-------|-------------|
-| `--top-n` | 5 (pipeline) / 30 (screen) | 1-163 | Number of top sub-industries to deep-dive |
-| `--total-m` | 10 | 1-20 | Total companies to deep-dive, selected by score across ALL sub-industries |
+**Invocation examples**:
+
+```
+# Flag form (explicit, scriptable)
+stock-analysis                                                  # pipeline (default)
+stock-analysis --top-n 5 --total-m 12                           # pipeline
+stock-analysis --mode pipeline --top-n 5 --total-m 12           # pipeline (explicit)
+stock-analysis --mode screen --top-n 30                         # screen 30 sub-industries
+stock-analysis --mode analyze NVDA                              # single deep-dive
+stock-analysis --mode analyze NVDA AMD INTC                     # multi-ticker deep-dive
+stock-analysis --mode compare NVDA,AMD,INTC                     # comparison
+stock-analysis --mode walk "humanoid robotics"                  # bottleneck walk
+stock-analysis --mode walk "AI optical interconnect" --top-n 7
+
+# Phrase form (natural)
+"find best stocks"                                              # → pipeline
+"screen sectors for top 10 industries"                          # → screen
+"deep dive NVDA"                                                # → analyze
+"compare NVDA vs AMD"                                           # → compare
+"walk the chain for rare-earth permanent magnets"               # → walk
+```
+
+### Parameters
+
+| Parameter | Default | Range | Used by | Description |
+|-----------|---------|-------|---------|-------------|
+| `--top-n` | 5 (pipeline) / 30 (screen) / 7 (walk) | 1-163 | pipeline, screen, walk | Number of top sub-industries (or candidate companies for walk) |
+| `--total-m` | 10 | 1-40 | pipeline | Total companies to deep-dive, selected by score across ALL sub-industries (not quota per sub-industry). Cap raised to 40 — performance-driven, raise only if you can wait (40 companies × 11 stages = 440 agent runs minimum). |
 
 Company distribution: top M companies are selected by score across ALL top-N sub-industries — not equally distributed. Higher-scoring sub-industries naturally contribute more companies.
 
@@ -112,7 +137,7 @@ All reports produced in **Chinese (中文)**. 3 horizons always generated.
 One orchestrator manages 18 specialist agents across 25 pipeline stages (20 work + 5 independent validation gates). All work is delegated — the orchestrator never performs analysis directly. The `report-validator` agent independently validates data freshness, screening completeness, scoring consistency, and report quality at 5 checkpoints.
 
 ```
-stock-analysis (4 modes: pipeline / screen / analyze / compare)
+stock-analysis (5 modes: pipeline / screen / analyze / compare / walk)
 ┌────────────────────────────────────────────────────────────┐
 │  team-lead (unified team lead)           │
 │  Routes mode → delegates to specialist agents              │

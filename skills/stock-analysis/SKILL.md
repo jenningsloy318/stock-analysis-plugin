@@ -1,8 +1,8 @@
 ---
 name: stock-analysis
-description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare. Triggers on 'find best stocks', 'screen sectors', 'analyze [TICKER]', 'compare T1,T2'."
+description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare, walk. Single-flag dispatch via --mode <name>; or natural-language triggers."
 author: Jennings Liu
-version: "1.05.11"
+version: "1.05.16"
 license: MIT
 ---
 
@@ -19,18 +19,32 @@ license: MIT
 <purpose>Team Lead orchestrates specialized analyst agents — it NEVER analyzes directly, only spawns, coordinates, and quality-gates. Agents execute data collection, screening, multi-dimensional analysis, scoring, and report generation in parallel where possible. Unified equity research pipeline: screen GICS Level 4 sub-industries → pick top M companies across top N sub-industries → deep-dive each in parallel waves → unified scoring → reports.</purpose>
 
 <triggers>
-Triggers on ALL of the following (mode detected from phrasing):
+Mode dispatch (Stage 0). Order: explicit `--mode <name>` flag > trigger phrase > default.
+
+**Flag** (authoritative — `--mode` ALWAYS overrides trigger phrases):
+- `--mode pipeline` → pipeline mode (default if omitted)
+- `--mode screen` → screen mode
+- `--mode analyze TICKER [TICKER...]` → analyze mode (positional ticker(s) follow `--mode analyze`)
+- `--mode compare T1,T2[,T3,...]` → compare mode (comma-list follows `--mode compare`)
+- `--mode walk THEME` → walk mode (positional theme follows `--mode walk`; quoted multi-word allowed)
+- `--top-n N` → top-N parameter (any mode that uses it)
+- `--total-m M` → total-M parameter (pipeline only)
+- *(no `--mode`)* → falls through to trigger phrases, then default = pipeline
+
+**Trigger phrases** (used when no `--mode` flag present):
 - **pipeline** (default): "find best stocks", "top stocks", "全面筛选", "best companies", "screen and analyze", "top picks"
 - **screen**: "screen sectors", "筛选行业", "best industries", "industry screening", "sector rotation"
 - **analyze**: "analyze [TICKER]", "deep dive [TICKER]", "investment thesis [TICKER]", "valuation of [TICKER]", "due diligence [COMPANY]", "DCF [TICKER]"
 - **compare**: "compare [T1],[T2]", "T1 vs T2", "which is better T1 or T2", "stock comparison"
+- **walk**: "walk the chain for [theme]", "find bottleneck in [theme]", "chokepoint analysis [theme]", "supply chain bottleneck [theme]", "瓶颈分析 [行业]"
+
 Do NOT trigger on: general market commentary, non-financial queries.
 </triggers>
 
 <note>Detailed agent protocols live in `agents/*.md` — the team-lead orchestrator loads stage-specific instructions at spawn time. Reference files in `references/*.md` are loaded lazily per-stage.</note>
 
 <workflow>
-  <stage n="0" name="Setup">Detect mode. Extract parameters (--top-n, --total-m, or tickers). Create RUN_ID (YYYYMMDDHHmm), output directory (./reports/[RUN_ID]/), tracking.json. Create agent team via TeamCreate with name `stock-analysis-[RUN_ID]`. MUST complete before any data fetch or agent spawning.</stage>
+  <stage n="0" name="Setup">Detect mode: if `--mode <name>` present → use it (one of: pipeline, screen, analyze, compare, walk); else trigger phrase fallback; else default pipeline. Extract parameters: --top-n (1-163), --total-m (1-40, pipeline only), tickers (positional after `--mode analyze` OR comma-list after `--mode compare`), theme (positional after `--mode walk`, quoted multi-word allowed). Create RUN_ID (YYYYMMDDHHmm), output directory (./reports/[RUN_ID]/), tracking.json. Create agent team via TeamCreate with name `stock-analysis-[RUN_ID]`. MUST complete before any data fetch or agent spawning.</stage>
   <stage n="1" name="Data Collection" agent="data-collector">Fetch shared data ONCE: macro indicators, economic surprises, sector/sub-industry RS, market breadth, theme performance. Load references/gics_taxonomy.md and references/data_source_matrix.md. All downstream stages reuse this data.</stage>
   <stage n="1.5" name="Data Validation" agent="report-validator" modes="pipeline,screen,analyze,compare">Validate Stage 1 shared data: freshness check, source coverage, required files present. Blocks downstream stages if shared data is stale or incomplete. MUST PASS before Stages 2+.</stage>
 
@@ -42,16 +56,18 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <stage n="5" name="Financial Health" agent="fundamental-analyst" modes="pipeline,analyze,compare" per-company="true">DuPont 5-factor decomposition, Piotroski F-Score, Lynch categories, key ratio analysis. Scripts: fetch_financials.py, calculate_metrics.py.</stage>
   <stage n="6" name="Earnings Quality" agent="fundamental-analyst" modes="pipeline,analyze,compare" per-company="true" depends="5">Beneish M-Score, Montier C-Score, accruals quality, cash conversion, revenue recognition, capital allocation history (Buffett retention test, buyback ROI, M&A track record). Scripts: fetch_capital_structure.py, calculate_earnings_quality.py, diff_filings.py.</stage>
   <stage n="7" name="Industry & Competitive" agent="industry-analyst" modes="pipeline,analyze,compare" per-company="true">Porter's Five Forces, TAM/SAM/SOM, Morningstar moat assessment, BCG matrix, ecosystem mapping. REUSES industry thesis from Stage 3 if available. Scripts: fetch_peer_universe.py.</stage>
-  <stage n="8" name="Supply Chain" agent="supply-chain-analyst" modes="pipeline,analyze,compare" per-company="true" depends="7">Tier 1-3 supplier mapping, geographic concentration (HHI), chokepoint identification, disruption scenario modeling, inventory-to-sales analysis. Scripts: fetch_supply_chain.py.</stage>
+  <stage n="8" name="Supply Chain" agent="supply-chain-analyst" modes="pipeline,analyze,compare" per-company="true" depends="7">Tier 1-3 supplier mapping, geographic concentration (HHI), chokepoint identification, disruption scenario modeling, inventory-to-sales analysis. **Step 7b**: bottleneck asymmetry composite via score_bottleneck_asymmetry.py for each chokepoint candidate. Scripts: fetch_supply_chain.py, score_bottleneck_asymmetry.py.</stage>
   <stage n="9" name="Macro & Geopolitics" agent="macro-analyst" modes="pipeline,analyze,compare" per-company="true">Dalio economic cycle, Druckenmiller liquidity, Four-Box Framework, Fed stance, CRP country risk, sanctions exposure, currency exposure. REUSES macro data from Stage 1. Scripts: fetch_global_macro.py, fetch_currency_exposure.py.</stage>
-  <stage n="10" name="Valuation" agent="quant-analyst" modes="pipeline,analyze,compare" per-company="true" depends="5,7">DCF+Monte Carlo, comps, SOTP, LBO floor, reverse DCF, margin of safety. Scripts: calculate_metrics.py, forecast.py, fetch_private_comps.py.</stage>
+  <stage n="10" name="Valuation" agent="quant-analyst" modes="pipeline,analyze,compare" per-company="true" depends="5,7,8">DCF+Monte Carlo, comps, SOTP, LBO floor, reverse DCF, margin of safety. **Step 3c**: read bottleneck_asymmetry.json from Stage 8 if present, fold tier/asymmetry-band/earliness-band into valuation summary as ±15% qualitative adjustment (NOT a DCF replacement). Scripts: calculate_metrics.py, forecast.py, fetch_private_comps.py.</stage>
   <stage n="11" name="Market Regime" agent="quant-analyst" modes="pipeline,analyze,compare" per-company="true" depends="10">Weinstein stage classification, CANSLIM, Soros reflexivity, factor attribution (Fama-French 5-factor), options signals, sentiment, institutional positioning. Scripts: fetch_technicals.py, compute_factors.py, fetch_cot.py, calculate_options.py, fetch_sentiment.py, fetch_short_interest.py, fetch_activist_exposure.py, compute_liquidity.py, compute_seasonality.py, compute_earnings_edge.py.</stage>
   <stage n="12" name="Risk Assessment" agent="risk-analyst" modes="pipeline,analyze,compare" per-company="true" depends="10">Scenario analysis (bull/base/bear), Marks 2nd-level thinking, Burry forensic, Klarman permanent-vs-temporary, kill switch definition, correlation regime. Scripts: fetch_credit.py, fetch_behavioral.py, compute_correlation_regime.py.</stage>
   <stage n="13" name="Alt Data & Digital" agent="alt-data-analyst" modes="pipeline,analyze,compare" per-company="true">Digital footprint (web traffic, app rankings), NLP earnings call analysis, channel checks, transaction data. Scripts: fetch_alternatives.py, fetch_news_nlp.py, calculate_candor.py.</stage>
   <stage n="14" name="Catalyst Intelligence" agent="catalyst-analyst" modes="pipeline,analyze,compare" per-company="true" depends="13">Catalyst calendar (FDA, earnings, product launches, regulatory), event-driven probability, pre/post-event drift (PEAD), catalyst sequencing. Scripts: compute_earnings_edge.py, event_study.py.</stage>
   <stage n="15" name="A-Share Analysis" agent="china-market-analyst" modes="pipeline,analyze,compare" per-company="true" condition="ticker ends with .SH or .SZ" depends="5-14">政策敏感性矩阵, 产业政策周期, 北向资金, 融资融券, 龙虎榜, 游资追踪. MANDATORY for .SH/.SZ tickers. SKIP for all others.</stage>
 
-  <stage n="16" name="Scoring & Cross-Check" agent="scorer">Deterministic scoring (compute_scores.py) for each company. Cross-check contradictions (cross_check.py). Bayesian conviction calibration (calibrate_conviction.py). LLM agents may adjust Moat and Management ±2.0 based on qualitative findings. Rank companies by composite score.</stage>
+  <stage n="walk" name="Bottleneck Walk" agent="roadmap-walker" modes="walk">Top-down chain decomposition: anchor quantitative dated demand roadmap → reverse-walk chain finished-product→raw-substrate (≥5 layers) → score 4-element chokepoint checklist per layer → identify candidates in chokepoint layers (score ≥3) → run score_bottleneck_asymmetry.py for each → write walk_roadmap.json, walk_chain.json, walk_candidates.json, walk.md. Replaces Stages 2-16.5 in walk mode. Universal across industries (AI infra, EV, robotics, defense, solar, biopharma, grid, semi capex, materials). Recommends `--mode analyze TICKER` follow-up for tier-1/strong candidates. Reference: references/frameworks_bottleneck_investing.md.</stage>
+
+  <stage n="16" name="Scoring & Cross-Check" agent="scorer" modes="pipeline,analyze,compare">Deterministic scoring (compute_scores.py) for each company. Cross-check contradictions (cross_check.py). Bayesian conviction calibration (calibrate_conviction.py). LLM agents may adjust Moat and Management ±2.0 based on qualitative findings. Rank companies by composite score.</stage>
   <stage n="16.5" name="Score Validation" agent="report-validator" modes="pipeline,analyze,compare">Validate Stage 16 scoring: all 11 components present in 1-10 range, composite matches weighted sum, rating bracket consistent, no unresolved contradictions, ranking sorted correctly. Blocks report generation if scoring is invalid.</stage>
   <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer">Pipeline: screening overview (3 horizons) + per-company deep-dives (3 horizons each). Screen: screening reports only. Analyze: per-company reports only. Compare: comparison reports with ranked table.</stage>
   <stage n="17.5" name="Report Validation" agent="report-validator">Independent validation of all generated reports: run validate_report.py (8 gates) for each report, verify Chinese content, verify required sections, verify stock price display. MUST PASS before Best Picks.</stage>
@@ -79,15 +95,17 @@ Do NOT trigger on: general market commentary, non-financial queries.
 
 <modes>
   <mode name="pipeline" default="true">
+    <flag>--mode pipeline (or omit)</flag>
     <trigger>"find best stocks", "top stocks", "全面筛选", "screen and analyze", "top picks"</trigger>
     <parameters>
       <parameter name="top-n" default="5" range="1-30">Number of top sub-industries after screening all 163.</parameter>
-      <parameter name="total-m" default="10" range="1-20">Total companies to deep-dive. Selected by score across ALL top-n sub-industries — NOT quota per sub-industry. Max 20: each company runs 11 analysis stages (5-15), so 20 companies = 220 agent runs minimum.</parameter>
+      <parameter name="total-m" default="10" range="1-40">Total companies to deep-dive. Selected by score across ALL top-n sub-industries — NOT quota per sub-industry. Max 40: each company runs 11 analysis stages (5-15), so 40 companies = 440 agent runs minimum. Cap is performance-driven; raise only if you can wait.</parameter>
     </parameters>
     <stages>0→1→1.5→2→3→4→4.5→5-15(waves)→16→16.5→17→17.5→18→18.5→19</stages>
   </mode>
 
   <mode name="screen">
+    <flag>--mode screen</flag>
     <trigger>"screen sectors", "筛选行业", "best industries", "industry screening"</trigger>
     <parameters>
       <parameter name="top-n" default="30" range="1-163">Number of top sub-industries to deep-dive.</parameter>
@@ -96,20 +114,33 @@ Do NOT trigger on: general market commentary, non-financial queries.
   </mode>
 
   <mode name="analyze">
+    <flag>--mode analyze TICKER [TICKER...]</flag>
     <trigger>"analyze [TICKER]", "deep dive [TICKER]", "investment thesis", "valuation of", "DCF"</trigger>
     <parameters>
-      <parameter name="tickers" required="true">One or more ticker symbols from user prompt.</parameter>
+      <parameter name="tickers" required="true">One or more ticker symbols (positional after `--mode analyze`, OR extracted from prompt).</parameter>
     </parameters>
     <stages>0→1→1.5→5-15(waves)→16→16.5→17→17.5→18→18.5→19(best picks + validation + cleanup)</stages>
   </mode>
 
   <mode name="compare">
+    <flag>--mode compare T1,T2[,T3,...]</flag>
     <trigger>"compare [T1],[T2]", "T1 vs T2", "which is better", "stock comparison"</trigger>
     <parameters>
-      <parameter name="tickers" required="true">2-5 ticker symbols from user prompt.</parameter>
+      <parameter name="tickers" required="true">2-5 ticker symbols (comma-list after `--mode compare`, OR extracted from prompt).</parameter>
     </parameters>
     <stages>0→1→1.5→5-15(waves)→16(rank+merge)→16.5→17→17.5→18→18.5→19(comparison + validation + best picks + cleanup)</stages>
     <constraints>Max 5 stocks. Identical valuation methodology across all.</constraints>
+  </mode>
+
+  <mode name="walk">
+    <flag>--mode walk THEME</flag>
+    <trigger>"walk the chain for [theme]", "find bottleneck in [theme]", "chokepoint analysis [theme]", "supply chain bottleneck [theme]", "瓶颈分析 [行业]"</trigger>
+    <parameters>
+      <parameter name="theme" required="true">Universal roadmap theme (positional after `--mode walk`, quoted multi-word allowed). Examples: "humanoid robotics", "AI optical interconnect", "rare-earth permanent magnets", "defense electronics", "grid transmission", "biologic manufacturing".</parameter>
+      <parameter name="top-n" default="7" range="1-20">Maximum candidate companies to score and return.</parameter>
+    </parameters>
+    <stages>0→1→1.5→walk(roadmap-walker)→17→17.5→18→18.5→19(walk report + validation + best picks + cleanup)</stages>
+    <constraints>Universal — applies to AI infra, EV/battery, robotics, defense, solar, biopharma, grid, semi capex, advanced materials. Roadmap MUST be quantitative + dated (numbers + timeline). Output recommends `--mode analyze TICKER` follow-up for tier-1/strong candidates.</constraints>
   </mode>
 </modes>
 
@@ -127,7 +158,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="agent-team" mandatory="true">ALL work MUST use agent team. Create team via TeamCreate with name `stock-analysis-[RUN_ID]` in Stage 0, before spawning any agents. Delete team via TeamDelete in Stage 19 cleanup.</rule>
   <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER analyzes directly. Only spawns agents, coordinates, and quality-gates.</rule>
   <rule name="no-pause" mandatory="true">NEVER pause between stages to ask user for confirmation. The pipeline runs Stage 0 → 19 continuously. No "Continue?" prompts. Only stop if user explicitly asks a question.</rule>
-  <rule name="no-stage-skip" mandatory="true">In pipeline mode, stages 5-15 MUST run for EVERY selected company. NEVER skip deep-dive stages because "too many companies" or "due to scale". If total-m exceeds 20, cap at 20 and proceed with all stages.</rule>
+  <rule name="no-stage-skip" mandatory="true">In pipeline mode, stages 5-15 MUST run for EVERY selected company. NEVER skip deep-dive stages because "too many companies" or "due to scale". If total-m exceeds 40, cap at 40 and proceed with all stages.</rule>
   <rule name="shared-data-once" mandatory="true">Macro, RS, breadth, theme data fetched ONCE in Stage 1. All downstream stages reuse — never re-fetch.</rule>
   <rule name="context-eviction" mandatory="true">After each stage: write summary → drop raw data. If context >80%, offload via persist.py.</rule>
 </rules>
@@ -145,13 +176,16 @@ Do NOT trigger on: general market commentary, non-financial queries.
 </constraints>
 
 <criteria name="Skip Conditions">
-  Stage 2-4 (Screening): SKIP for analyze/compare modes.
-  Stage 4.5 (Screening Validation): SKIP for analyze/compare modes.
+  Stage 2-4 (Screening): SKIP for analyze/compare/walk modes.
+  Stage 4.5 (Screening Validation): SKIP for analyze/compare/walk modes.
   Stage 3 (Deep-Dive): SKIP if top-n = 1 (single sub-industry).
+  Stage 5-15 (Per-company Deep-Dive): SKIP for screen/walk modes.
   Stage 15 (A-Share): SKIP for non-.SH/.SZ tickers.
-  Stage 16.5 (Score Validation): SKIP for screen mode (no scoring).
-  Stage 17 screening reports: SKIP for analyze/compare modes.
-  Stage 17 company reports: SKIP for screen mode.
+  Stage 16-16.5 (Scoring): SKIP for screen/walk modes (no per-company composite scoring).
+  Stage walk (Bottleneck Walk): RUN ONLY for walk mode.
+  Stage 17 screening reports: SKIP for analyze/compare/walk modes.
+  Stage 17 company reports: SKIP for screen/walk modes.
+  Stage 17 walk report: RUN ONLY for walk mode.
   Stage 18.5 (Best Picks Validation): NEVER skip if Stage 18 ran.
   Stage 19 (Cleanup): NEVER skip — always runs as the final stage.
 </criteria>
@@ -179,5 +213,6 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <ref>Data source matrix: `references/data_source_matrix.md` — source tiers, confidence caps</ref>
   <ref>Screening templates: `references/screening_report_templates.md` — report formats, scoring formulas</ref>
   <ref>Equity templates: `references/equity_report_templates.md` — deep-dive report formats</ref>
+  <ref>Bottleneck framework: `references/frameworks_bottleneck_investing.md` — universal 5-step methodology, 4-element chokepoint checklist, 6-input asymmetry composite</ref>
   <ref>Scoring calibration: `references/scoring_calibration.md` — calibration targets</ref>
 </references>

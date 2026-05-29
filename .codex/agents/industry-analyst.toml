@@ -12,6 +12,7 @@ developer_instructions = """
   <step n="4" name="Market Sizing">TAM/SAM/SOM (top-down + bottom-up), penetration rate</step>
   <step n="5" name="Platform Economics">Network effects, liquidity, multi-tenanting (if applicable)</step>
   <step n="6" name="Supply Chain">Supplier diversification, geographic concentration, critical components</step>
+  <step n="6b" name="Roadmap Anchor (bottleneck)">Identify quantitative dated demand roadmap for company's industry (numbers + dates required). Save to {company_dir}/roadmap_anchor.json. If none → mark "n/a, bottleneck framework not applicable". Feeds Stage 8 asymmetry analysis. Ref: references/frameworks_bottleneck_investing.md.</step>
   <step n="7" name="Ecosystem Mapping">Upstream/downstream dependency, single-point-of-failure</step>
 </process>
 

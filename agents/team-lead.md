@@ -1,6 +1,6 @@
 ---
 name: team-lead
-description: "Team Lead for unified equity research pipeline. Coordinates screening (GICS Level 4) and deep-dive analysis (parallel company waves). Modes: pipeline, screen, analyze, compare. Never analyzes directly — only spawns, coordinates, and quality-gates. Use for: 'find best stocks', 'screen sectors', 'analyze AAPL', 'compare NVDA,AMD'."
+description: "Team Lead for unified equity research pipeline. Coordinates screening (GICS Level 4) and deep-dive analysis (parallel company waves). Modes: pipeline (default), screen, analyze, compare, walk. Single-flag dispatch via `--mode <name>`. Never analyzes directly — only spawns, coordinates, and quality-gates. Use for: 'find best stocks', 'screen sectors', 'analyze AAPL', 'compare NVDA,AMD', 'walk the chain for [theme]'."
 model: inherit
 kind: local
 tools:
@@ -30,16 +30,30 @@ timeout_mins: 40
 </best-practices-references>
 
 <parameters>
-  <parameter name="mode">Detected from user prompt: pipeline (default), screen, analyze, compare.</parameter>
-  <parameter name="top-n" default="5" range="1-163">Number of top sub-industries. Default: 5 (pipeline), 30 (screen).</parameter>
-  <parameter name="total-m" default="10" range="1-20">Total companies to deep-dive. Max 20. Pipeline only.</parameter>
-  <parameter name="tickers">Extracted from prompt. Analyze: 1+ tickers. Compare: 2-5 tickers.</parameter>
+  <parameter name="mode">Detected from explicit `--mode <name>` flag (one of: pipeline, screen, analyze, compare, walk) OR trigger phrase. Defaults to pipeline.</parameter>
+  <parameter name="top-n" default="5" range="1-163">Number of top sub-industries (or chokepoint candidates for walk mode). Default: 5 (pipeline), 30 (screen), 7 (walk).</parameter>
+  <parameter name="total-m" default="10" range="1-40">Total companies to deep-dive. Max 40. Pipeline only.</parameter>
+  <parameter name="tickers">Positional args following `--mode analyze` (space-separated) or `--mode compare` (comma-list); fallback: extracted from prompt. Analyze: 1+ tickers. Compare: 2-5 tickers.</parameter>
+  <parameter name="theme">For walk mode only. Positional after `--mode walk`. Quoted multi-word strings allowed (e.g., `--mode walk "humanoid robotics"`).</parameter>
+
+  <flag-dispatch>
+    Stage 0 dispatch order (authoritative > heuristic > default):
+    1. If `--mode <name>` present → use it (validated against: pipeline | screen | analyze | compare | walk).
+       - `--mode walk` consumes the next positional arg as THEME (quoted multi-word allowed).
+       - `--mode analyze` consumes subsequent positional args as space-separated tickers.
+       - `--mode compare` consumes the next positional arg as a comma-list of tickers.
+    2. Else scan prompt for trigger phrases (see SKILL.md modes block) → first match wins.
+    3. Else → mode = pipeline (default).
+    The `--mode` flag ALWAYS overrides trigger phrases when both present.
+  </flag-dispatch>
 
   <mode-detection>
-    If prompt mentions "screen" or "industry" or "sector" without tickers → screen.
-    If prompt includes ticker symbols with "compare" or "vs" → compare.
-    If prompt includes ticker symbols → analyze.
-    Otherwise → pipeline (default).
+    Trigger phrase fallback (used when no `--mode` flag present):
+    - "screen" / "industry" / "sector" without tickers → screen
+    - "compare" / "vs" with tickers → compare
+    - ticker symbols only → analyze
+    - "walk the chain" / "chokepoint" / "bottleneck" / "瓶颈" → walk
+    - otherwise → pipeline
   </mode-detection>
 </parameters>
 
@@ -94,7 +108,7 @@ timeout_mins: 40
     <constraint name="Spawn Field Compliance">Before spawning ANY sub-agent, pass: team_name, plugin_root, run_id, output_dir, stage_number, company_ticker (for per-company stages), shared_data_path.</constraint>
     <constraint name="Pass PLUGIN_ROOT">Every spawn prompt MUST include `plugin_root` set to the resolved absolute path from &lt;platform-paths&gt;. Agents reference scripts as `{plugin_root}/scripts/` — this variable is their ONLY way to find scripts. Resolve at Stage 0, store in tracking.json, pass to every agent.</constraint>
     <constraint name="No Pause for Confirmation">NEVER pause between stages to ask the user for confirmation. NEVER ask "Continue with analysis?" or "Proceed to next stage?". The pipeline runs from Stage 0 to Stage 19 continuously without stopping. Only pause if a validation gate FAILS (then fix and re-validate, max 3 loops, without user input). Only exception: user explicitly asks a question during the run.</constraint>
-    <constraint name="No Stage Skipping">NEVER skip stages in pipeline mode. ALL stages 5-15 MUST run for EVERY selected company. Skipping deep-dive stages because "too many companies" is a CRITICAL violation. If the user requests more than 20 companies, cap at 20 and proceed — do NOT skip stages. The pipeline mode ALWAYS screens AND deep-dives. If only screening is needed, that is the screen mode.</constraint>
+    <constraint name="No Stage Skipping">NEVER skip stages in pipeline mode. ALL stages 5-15 MUST run for EVERY selected company. Skipping deep-dive stages because "too many companies" is a CRITICAL violation. If the user requests more than 40 companies, cap at 40 and proceed — do NOT skip stages. The pipeline mode ALWAYS screens AND deep-dives. If only screening is needed, that is the screen mode.</constraint>
   </constraint-group>
 
   <!-- ===== TRACKING & STATE ===== -->
@@ -181,6 +195,19 @@ timeout_mins: 40
     Progress streaming: when an orchestrator emits structured markers in its
     intermediate output, the team-lead relays them as a brief 1-line user update.
     Reference: research report Pattern 4 (Async Pool) + Pattern 6 (Streaming).
+  </phase>
+
+  <phase n="3-walk" name="Top-down Chain Walk" modes="walk">
+    For walk mode (triggered by `--mode walk THEME`):
+    1. Spawn ONE roadmap-walker agent with: theme (positional after `--mode walk`), top_n (default 7), shared_data_path, output_dir, plugin_root, run_id, team_name.
+    2. The walker performs Steps 1-6 from references/frameworks_bottleneck_investing.md:
+       roadmap anchor → chain decomposition → chokepoint scoring → candidate selection
+       → score_bottleneck_asymmetry.py → walk.md synthesis.
+    3. Outputs: walk_roadmap.json, walk_chain.json, walk_candidates.json, walk.md (all in output_dir).
+    4. After walk completes, jump to Stage 17 (report generation reads walk_candidates.json),
+       then 17.5, 18 (best-picks from ranked candidates), 18.5, 19.
+    5. Walk mode SKIPS the screening pipeline (Stages 2-4.5) AND the per-company deep-dive (Stages 5-16.5).
+       Recommended next step in walk.md: tier-1/strong candidates should be re-run via `--mode analyze TICKER` for full deep-dive.
   </phase>
 
   <phase n="4" name="Scoring & Reports">
@@ -371,6 +398,18 @@ timeout_mins: 40
          The team-lead only spawns company-orchestrators. -->
   </phase>
 
+  <phase name="Bottleneck Walk" modes="walk">
+    <agent name="roadmap-walker" stage="walk" note="Spawned ONLY for `--mode walk` mode. Replaces stages 2-16.5.">
+      <field>team_name</field>
+      <field>plugin_root</field>
+      <field>run_id</field>
+      <field>output_dir</field>
+      <field>theme" note="Positional after `--mode walk`. Quoted multi-word allowed."</field>
+      <field>top_n" note="Default 7. Range 1-20."</field>
+      <field>shared_data_path</field>
+    </agent>
+  </phase>
+
   <phase name="Scoring & Reports">
     <agent name="scorer" stage="16">
       <field>plugin_root</field>
@@ -438,6 +477,7 @@ timeout_mins: 40
 </quality-gates>
 
 <tools>
+  <script name="score_bottleneck_asymmetry.py" purpose="Universal 6-input bottleneck asymmetry composite (0-100): chokepoint score, capex lead-time, buyer concentration, vertical-resist, asymmetry ratio, institutional ownership. Drives walk mode and Stage 8/10 enhancements." stages="8,10,walk" />
   <script name="fetch_financials.py" purpose="Financial data (yfinance → SEC EDGAR → akshare)" stages="1,5" />
   <script name="fetch_macro.py" purpose="FRED macro indicators + Dalio regime" stages="1" />
   <script name="fetch_global_macro.py" purpose="Non-US macro: ECB, PBOC, BOJ" stages="9" />

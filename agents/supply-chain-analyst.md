@@ -88,6 +88,28 @@ Flag any critical supplier with High financial distress risk.</step>
 - **Nearshoring/Friendshoring progress**: Is the company actively diversifying supply away from concentrated geographies? Track announced investments in new manufacturing locations.
 - **Customs & border risk**: Does the company's supply chain cross multiple customs borders? Each border = delay risk and regulatory risk.</step>
 
+<step n="7b" name="Bottleneck Asymmetry (universal)">For each chokepoint identified in step 3, compute a deterministic asymmetry composite using `score_bottleneck_asymmetry.py`. Capture six inputs per candidate (the company being analyzed AND any sole-source supplier publicly traded):
+- `tech_uniqueness` (0/1) — IP/process know-how requires 5+ years to replicate?
+- `capex_years` (float) — actual greenfield-equivalent build time for new capacity at this layer
+- `top5_buyer_pct` (0-100) — top-5 buyer concentration in the layer's revenue
+- `vertical_resist` (0/1) — downstream customers attempted to vertically integrate or dual-source and failed (or never attempted because cost-prohibitive)?
+- `asymmetry_ratio` — `market_cap_usd / addressable_market_controlled_usd` (defensible share of layer's revenue today + 3-yr expansion under stated capex)
+- `inst_own_pct` (0-100) — most-recent 13F-aggregate institutional ownership
+
+Run:
+```bash
+uv run python {plugin_root}/scripts/score_bottleneck_asymmetry.py \
+  --ticker [TICKER] --tech-uniqueness [0|1] --capex-years [F] \
+  --top5-buyer-pct [F] --vertical-resist [0|1] \
+  --asymmetry-ratio [F] --inst-own-pct [F] \
+  --layer-name "[LAYER]" --roadmap-theme "[INDUSTRY]" \
+  --output {company_dir}/bottleneck_asymmetry.json
+```
+
+Embed in stage8.md: composite (0-100), tier (tier-1/strong/marginal/skip), earliness band (early/mid/late), all flags. If chokepoint gate fails (raw 0-4 score < 3), explicitly note "not a true chokepoint" — single-source ≠ chokepoint without IP + lead-time + concentration + resistance.
+
+Reference: references/frameworks_bottleneck_investing.md.</step>
+
 <step n="8" name="Supply Chain Resilience Score">Compute a composite Supply Chain Resilience Score (1-10):
 - **Concentration Risk** (30% weight): Inverse of geographic HHI. Higher concentration = lower resilience.
 - **Single-Source Exposure** (25%): % of COGS from single-source suppliers. Higher = lower resilience.
@@ -110,6 +132,7 @@ Score interpretation:
 - At least 5 key suppliers identified by name and location
 - Geographic HHI computed for both supplier and manufacturing locations
 - At least 2 chokepoints identified with specific risk scores
+- Bottleneck asymmetry composite (0-100) computed via score_bottleneck_asymmetry.py for every chokepoint candidate; never hand-eyeballed
 - Disruption scenario table with at least 3 scenarios modeled
 - Inventory health assessed (DIO trend vs 3-year average)
 - Resilience score provided with component breakdown
@@ -128,9 +151,11 @@ Score interpretation:
 ### Reference Files
 - references/data_source_matrix.md (for supply chain data sources)
 - references/frameworks_risk_alt.md (for disruption scenario methodology)
+- references/frameworks_bottleneck_investing.md (universal bottleneck/asymmetry methodology)
 
 ### Data Acquisition & Scripts
 Run `{plugin_root}/scripts/fetch_supply_chain.py [TICKER] --sector [GICS] --output ./reports/[RUN_ID]/supply_chain.json` for supply chain concentration risk scoring and supplier mapping.
+Run `{plugin_root}/scripts/score_bottleneck_asymmetry.py` (CLI flags listed in Step 7b above) for deterministic 0-100 asymmetry composite per chokepoint candidate.
 
 For supply chain research, use search tools:
 1. `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` — "[TICKER] 10-K supply chain suppliers raw materials risk factors"

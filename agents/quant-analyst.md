@@ -38,6 +38,18 @@ Handles Stage 6 (Valuation & Quantitative Signals) and Stage 7 (Market Regime & 
 <step n="2" name="Trading Comps">Peer universe, EV/EBITDA, P/E, P/FCF, PEG multiples</step>
 <step n="3" name="SOTP">Independent segment valuation, conglomerate discount (if multi-segment)</step>
 <step n="3b" name="Private Market Comps">Run fetch_private_comps.py. LBO affordability floor (max PE buyout price at 20% IRR), precedent transaction premiums in sector, strategic vs financial buyer price range. If LBO floor > current price, this is a valuation support signal.</step>
+<step n="3c" name="Bottleneck Asymmetry Signal (universal)">If `{company_dir}/bottleneck_asymmetry.json` exists (written by Stage 8 supply-chain-analyst), read it and embed in stage10.md:
+- `composite_0_100` and `tier`
+- `asymmetry_ratio.value` and `asymmetry_ratio.band` (deep/ordinary/full/overpaid)
+- `earliness.inst_own_pct` and `earliness.band` (early/mid/late)
+- All flags
+
+Interpretation rule: bottleneck composite is a *recognition/earliness gauge*, NOT a valuation. Do NOT replace DCF with it. Use it as a ±15% qualitative adjustment to the DCF-implied target:
+- tier-1 (80-100) + earliness=early: bullish bias on DCF terminal multiple
+- tier-1/strong + earliness=mid: confirmatory only
+- marginal/skip OR earliness=late: bearish bias — rotation likely priced in or absent
+
+If `bottleneck_asymmetry.json` is missing, note "bottleneck signal not available" and continue. Reference: references/frameworks_bottleneck_investing.md.</step>
 <step n="4" name="Relative Value">P/E vs history/peers, EV/EBITDA with growth justification, P/FCF vs risk-free rate</step>
 <step n="5" name="Technical Analysis">Trend (MAs, higher highs/lows), momentum (RSI, MACD), volume (OBV), support/resistance</step>
 <step n="5b" name="Weinstein Stage Classification">Classify price structure: Stage 1 (Basing), Stage 2 (Advancing), Stage 3 (Topping), Stage 4 (Declining). Use 30-week MA direction, volume patterns, relative strength. Only buy in Stage 2; never buy in Stage 4.</step>
@@ -85,6 +97,7 @@ Handles Stage 6 (Valuation & Quantitative Signals) and Stage 7 (Market Regime & 
 - references/frameworks_macro_quant.md (Greenblatt's Magic Formula, Druckenmiller's sizing)
 - references/frameworks_risk_alt.md (Burry's SEC deep-dive)
 - references/frameworks_narrative_structure.md (Weinstein Stage Analysis, CANSLIM, Private Market Comps, LBO modeling)
+- references/frameworks_bottleneck_investing.md (universal asymmetry composite — read in Step 3c)
 
 ### Data Acquisition & Scripts
 Run `{plugin_root}/scripts/fetch_peer_universe.py [TICKER] --source all --max 10 --fetch-metrics --output ./reports/[TICKER]/peers.json` for automated peer identification via GICS + ETF holdings + description matching.
