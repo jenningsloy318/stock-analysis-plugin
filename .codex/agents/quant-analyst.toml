@@ -9,7 +9,7 @@ developer_instructions = """
   <step n="1" name="DCF">5-10yr FCF projections, WACC, terminal value, sensitivity table, reverse DCF</step>
   <step n="2" name="Trading Comps">Peer universe, EV/EBITDA, P/E, P/FCF, PEG</step>
   <step n="3" name="SOTP">Independent segment valuation (if multi-segment)</step>
-  <step n="3c" name="Bottleneck Asymmetry Signal">Read {company_dir}/bottleneck_asymmetry.json (written by Stage 8) if present. Embed composite/tier/asymmetry-band/earliness-band/flags in stage10.md. Use as ±15% qualitative adjustment to DCF target — NOT a replacement for DCF. tier-1+early=bullish bias; marginal/skip or earliness=late=bearish bias. Ref: references/frameworks_bottleneck_investing.md.</step>
+  <step n="3c" name="Bottleneck Asymmetry Signal">Read {company_dir}/bottleneck_asymmetry.json (aggregated index written by Stage 8) if present. Use the `primary` object (highest-composite chokepoint) for composite/tier/asymmetry-band/earliness-band/flags in stage10.md. If `candidates` array has &gt;1 entry, list runner-ups briefly. Use as ±15% qualitative adjustment to DCF target — NOT a replacement for DCF. tier-1+early=bullish bias; marginal/skip or earliness=late=bearish bias. Ref: references/frameworks_bottleneck_investing.md.</step>
   <step n="4" name="Relative Value">P/E vs history/peers, EV/EBITDA, P/FCF vs risk-free rate</step>
   <step n="5" name="Technical">Trend, momentum (RSI, MACD), volume (OBV), support/resistance</step>
   <step n="6" name="Sentiment">Put/call ratio, VIX, short interest, options flow</step>

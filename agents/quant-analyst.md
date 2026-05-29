@@ -38,11 +38,13 @@ Handles Stage 6 (Valuation & Quantitative Signals) and Stage 7 (Market Regime & 
 <step n="2" name="Trading Comps">Peer universe, EV/EBITDA, P/E, P/FCF, PEG multiples</step>
 <step n="3" name="SOTP">Independent segment valuation, conglomerate discount (if multi-segment)</step>
 <step n="3b" name="Private Market Comps">Run fetch_private_comps.py. LBO affordability floor (max PE buyout price at 20% IRR), precedent transaction premiums in sector, strategic vs financial buyer price range. If LBO floor > current price, this is a valuation support signal.</step>
-<step n="3c" name="Bottleneck Asymmetry Signal (universal)">If `{company_dir}/bottleneck_asymmetry.json` exists (written by Stage 8 supply-chain-analyst), read it and embed in stage10.md:
+<step n="3c" name="Bottleneck Asymmetry Signal (universal)">If `{company_dir}/bottleneck_asymmetry.json` exists (aggregated index written by Stage 8 supply-chain-analyst), read its `primary` object (the highest-composite chokepoint candidate) and embed in stage10.md:
 - `composite_0_100` and `tier`
 - `asymmetry_ratio.value` and `asymmetry_ratio.band` (deep/ordinary/full/overpaid)
 - `earliness.inst_own_pct` and `earliness.band` (early/mid/late)
 - All flags
+
+If the index also has a `candidates` array with >1 entry, briefly list runner-up chokepoints (layer_name, composite, tier) — multiple chokepoints across the chain strengthen the bullish bias.
 
 Interpretation rule: bottleneck composite is a *recognition/earliness gauge*, NOT a valuation. Do NOT replace DCF with it. Use it as a ±15% qualitative adjustment to the DCF-implied target:
 - tier-1 (80-100) + earliness=early: bullish bias on DCF terminal multiple

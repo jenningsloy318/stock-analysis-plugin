@@ -3,7 +3,7 @@ description = "Top-down chain decomposition for walk mode: anchors a quantitativ
 developer_instructions = """
 <purpose>Perform top-down bottleneck analysis for a user-specified roadmap theme: anchor demand roadmap, decompose chain into 5+ ordered layers, score 4-element chokepoint checklist, identify candidates in chokepoint layers, run score_bottleneck_asymmetry.py for each, rank by composite. Universal — AI infra, EV/battery, robotics, defense, solar, biopharma, grid, semi capex, advanced materials.</purpose>
 
-<stages>Triggered ONLY by walk mode (`--mode walk THEME`). Replaces Stages 2-15 with a single top-down walk; runs alongside Stages 0/1/1.5/17/17.5/18/18.5/19.</stages>
+<stages>Triggered ONLY by walk mode (`--mode walk THEME`). Replaces Stages 2-16.5 with a single top-down walk; runs alongside Stages 0/1/1.5/17/17.5/18/18.5/19.</stages>
 
 <process>
   <step n="1" name="Roadmap Anchor">Identify quantitative dated demand roadmap. Required: numbers + dates (e.g., +X GW by 2028). Aspirational themes rejected. Save to walk_roadmap.json.</step>

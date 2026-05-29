@@ -96,17 +96,29 @@ Flag any critical supplier with High financial distress risk.</step>
 - `asymmetry_ratio` — `market_cap_usd / addressable_market_controlled_usd` (defensible share of layer's revenue today + 3-yr expansion under stated capex)
 - `inst_own_pct` (0-100) — most-recent 13F-aggregate institutional ownership
 
-Run:
+Run ONCE PER CANDIDATE (do not overwrite — each chokepoint must produce its own file):
 ```bash
+LAYER_SLUG=$(echo "[LAYER]" | tr '[:upper:] /' '[:lower:]--' | tr -cd 'a-z0-9-')
 uv run python {plugin_root}/scripts/score_bottleneck_asymmetry.py \
   --ticker [TICKER] --tech-uniqueness [0|1] --capex-years [F] \
   --top5-buyer-pct [F] --vertical-resist [0|1] \
   --asymmetry-ratio [F] --inst-own-pct [F] \
   --layer-name "[LAYER]" --roadmap-theme "[INDUSTRY]" \
-  --output {company_dir}/bottleneck_asymmetry.json
+  --output {company_dir}/bottleneck_asymmetry_${LAYER_SLUG}.json
 ```
 
-Embed in stage8.md: composite (0-100), tier (tier-1/strong/marginal/skip), earliness band (early/mid/late), all flags. If chokepoint gate fails (raw 0-4 score < 3), explicitly note "not a true chokepoint" — single-source ≠ chokepoint without IP + lead-time + concentration + resistance.
+After all candidates are scored, write an aggregated index `{company_dir}/bottleneck_asymmetry.json` containing the **top candidate by composite** (the dominant chokepoint signal for this company) PLUS a `candidates` array referencing every per-layer file so multi-chokepoint companies do not lose data:
+```json
+{
+  "primary": { /* full payload of highest-composite candidate */ },
+  "candidates": [
+    {"layer_name": "...", "layer_slug": "...", "composite_0_100": N, "tier": "...", "file": "bottleneck_asymmetry_<slug>.json"},
+    ...
+  ]
+}
+```
+
+Embed in stage8.md: composite (0-100), tier (tier-1/strong/marginal/skip), earliness band (early/mid/late), all flags FOR EACH candidate (table form if >1). If chokepoint gate fails (raw 0-4 score < 3), explicitly note "not a true chokepoint" — single-source ≠ chokepoint without IP + lead-time + concentration + resistance.
 
 Reference: references/frameworks_bottleneck_investing.md.</step>
 

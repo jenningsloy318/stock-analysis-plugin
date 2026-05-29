@@ -104,7 +104,7 @@ stock-analysis --mode walk "AI optical interconnect" --top-n 7
 
 | Parameter | Default | Range | Used by | Description |
 |-----------|---------|-------|---------|-------------|
-| `--top-n` | 5 (pipeline) / 30 (screen) / 7 (walk) | 1-163 | pipeline, screen, walk | Number of top sub-industries (or candidate companies for walk) |
+| `--top-n` | 5 (pipeline) / 30 (screen) / 7 (walk) | 1-163 (pipeline, screen) / 1-20 (walk) | pipeline, screen, walk | Number of top sub-industries (pipeline/screen) or candidate companies (walk). Walk caps at 20 because candidates are individual companies in chokepoint layers, not GICS sub-industries. |
 | `--total-m` | 10 | 1-40 | pipeline | Total companies to deep-dive, selected by score across ALL sub-industries (not quota per sub-industry). Cap raised to 40 — performance-driven, raise only if you can wait (40 companies × 11 stages = 440 agent runs minimum). |
 
 Company distribution: top M companies are selected by score across ALL top-N sub-industries — not equally distributed. Higher-scoring sub-industries naturally contribute more companies.

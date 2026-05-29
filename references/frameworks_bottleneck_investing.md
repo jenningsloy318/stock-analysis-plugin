@@ -104,7 +104,7 @@ Combine into a single **Asymmetry Composite** (used by `scripts/score_bottleneck
 
 | Input | Weight | Notes |
 |-------|--------|-------|
-| Chokepoint score (0-4 from Step 3) | 30% | Hard gate: score < 3 → composite < 60 regardless. |
+| Chokepoint score (0-4 from Step 3) | 30% | Hard gate: raw chokepoint score < 3 → composite hard-capped at 59 (matches scorer's `HARD_CAP_BELOW_GATE`). |
 | Capex lead-time (years) | 15% | Saturated above 5 years. |
 | Customer concentration (top-5 %) | 15% | Saturated above 80%. |
 | Vertical-integration resistance (0/1) | 10% | Binary. |
