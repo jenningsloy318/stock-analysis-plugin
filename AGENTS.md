@@ -12,7 +12,16 @@
 **team-lead** — Unified pipeline coordinator following super-dev team-lead pattern:
 - XML-tagged: `<constraints>` with `<constraint-group>`, `<process>`, `<agent-spawn-fields>`, `<quality-gates>`
 - NEVER analyzes directly — only spawns, coordinates, and quality-gates
-- Manages 19 stages with dependency-aware wave scheduling across companies
+- Manages 19 stages; delegates per-company analysis to company-orchestrators
+
+## Company Orchestrator (Context Isolation Layer)
+
+**company-orchestrator** — Per-company deep-dive manager:
+- Spawned by team-lead in parallel batches of 4 (one orchestrator per company)
+- Independently manages ALL stages 5-15 for a single company in its own context window
+- Uses dependency-aware wave scheduling internally (3 concurrent analysts max)
+- Returns structured completion summary to team-lead upon finishing
+- Prevents team-lead context exhaustion when analyzing 10-20 companies
 
 ## Specialist Agents (18 agents, 25 stages)
 
@@ -21,6 +30,7 @@
 | **data-collector** | 1 | Shared data: macro, RS, breadth, themes | No |
 | **sector-screener** | 2, 3 | Sub-industry scoring + deep-dive | No |
 | **company-screener** | 4 | Company filtering, scoring, ranking | No |
+| **company-orchestrator** | 5-15 | Per-company analysis coordinator | Yes |
 | **fundamental-analyst** | 5, 6 | Financial health + earnings quality | Yes |
 | **industry-analyst** | 7 | Porter, TAM, moat, competitive | Yes |
 | **supply-chain-analyst** | 8 | Supply chain mapping, HHI, disruption | Yes |
@@ -87,16 +97,19 @@ Wave 4: [15]              ← all deps, A-share only
 | **analyze** | 0→1→1.5→5-15→16→16.5→17→17.5→18→18.5→19 | 2-4.5 |
 | **compare** | 0→1→1.5→5-15→16(rank)→16.5→17→17.5→18→18.5→19 | 2-4.5 |
 
-### Cross-Company Wave Scheduling
+### Cross-Company Orchestrator Batching
 
-With max 4 concurrent agents and M companies, stages pipeline across companies:
+With max 4 concurrent company-orchestrators and M companies:
 ```
-T1: [5,7,9,13] → [6,8,10,14] → [11,12] → [15]
-T2: [5,7,9,13] → [6,8,10,14] → [11,12] → [15]
-T3: [5,7,9,13] → ...
+Batch 1: [company-orch(001), company-orch(002), company-orch(003), company-orch(004)]
+  └── Each internally: Wave1[5,7,9,13] → Wave2[6,8,10,14] → Wave3[11,12] → Wave4[15]
+Batch 2: [company-orch(005), company-orch(006), company-orch(007), company-orch(008)]
+  └── Each internally: same wave pattern
+...
+Batch 5: [company-orch(017), company-orch(018), company-orch(019), company-orch(020)]
 
-Slot utilization:
-[T1:5, T1:7, T1:9, T1:13] → [T1:6, T1:8, T1:10, T1:14] → [T1:11, T1:12, T2:5, T2:7] → ...
+Team-lead turns for 20 companies: ~11 (vs 220+ without orchestrators)
+Each orchestrator has its own 40-turn budget and independent context window.
 ```
 
 ## Platform-Specific Notes

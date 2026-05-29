@@ -95,8 +95,9 @@ timeout_mins: 40
   <!-- ===== PARALLELISM ===== -->
   <constraint-group name="Parallelism">
     <constraint name="Max 4 Concurrent">Cap parallel agents at 4. If all slots are busy, queue the next agent until a slot frees.</constraint>
-    <constraint name="Wave Scheduling">For per-company stages (5-15), use dependency-aware wave scheduling. A company's Stage N can start as soon as its dependencies are met and an agent slot is free — do NOT wait for all companies to complete the previous wave.</constraint>
+    <constraint name="Company Orchestrator Delegation">For per-company stages (5-15), spawn ONE company-orchestrator agent per company. Each orchestrator independently manages ALL stages 5-15 for its company in its own context window. The team-lead spawns company-orchestrators in parallel batches of 4, waiting for a batch to complete before spawning the next. This prevents team-lead context exhaustion.</constraint>
     <constraint name="Batch Scheduling">For screening stages (2-4), use batch scheduling with 3-4 parallel agents per batch.</constraint>
+    <constraint name="Company Batch Size">Spawn company-orchestrators in batches of 4 (matching max concurrent). With 20 companies: 5 batches × 4 orchestrators. Each batch runs fully in parallel; next batch starts only after current batch completes.</constraint>
   </constraint-group>
 
   <!-- ===== QUALITY ===== -->
@@ -136,16 +137,28 @@ timeout_mins: 40
     After Stage 4.5: screen mode → jump to Stage 17→17.5→18→18.5→19 (screening reports + validation + best picks + cleanup)
   </phase>
 
-  <phase n="3" name="Analysis Waves" modes="pipeline,analyze,compare">
-    For each company/ticker, execute stages 5-15 using dependency-aware wave scheduling across companies:
+  <phase n="3" name="Analysis via Company Orchestrators" modes="pipeline,analyze,compare">
+    Spawn company-orchestrator agents in parallel batches to execute stages 5-15:
 
-    Per-company dependency DAG:
-    Wave 1: [Stage 5 + Stage 7 + Stage 9 + Stage 13] — all independent, 4 agents
-    Wave 2: [Stage 6 + Stage 8 + Stage 10 + Stage 14] — 6←5, 8←7, 10←5+7, 14←13
-    Wave 3: [Stage 11 + Stage 12] — 11←10, 12←10
+    1. Create company directories: ./reports/[RUN_ID]/NNN-[TICKER]/ for each company
+    2. Determine batch size: 4 company-orchestrators per batch
+    3. For batch = 1 to ceil(M/4):
+       a. Spawn up to 4 company-orchestrators in PARALLEL (one per company)
+       b. Each orchestrator independently manages ALL stages 5-15 for its company
+       c. Each orchestrator has its own context window — no context sharing with team-lead
+       d. WAIT for ALL orchestrators in current batch to complete
+       e. Collect completion summaries from each orchestrator
+       f. Update tracking.json with per-company stage completions
+    4. After ALL batches complete, verify all companies have stages 5-14 (or 5-15) completed
+
+    Each company-orchestrator internally uses dependency-aware wave scheduling:
+    Wave 1: [Stage 5 + Stage 7 + Stage 9 + Stage 13] — all independent
+    Wave 2: [Stage 6 + Stage 8 + Stage 10 + Stage 14] — dependency-gated
+    Wave 3: [Stage 11 + Stage 12] — dependency-gated
     Wave 4: [Stage 15] — A-share only (conditional)
 
-    Cross-company scheduling: do NOT wait for all companies to finish a wave. As soon as Company A completes Stage 5, its Stage 6 can start in the next available slot — even if Company B is still in Stage 5.
+    The team-lead does NOT manage individual analyst spawns for stages 5-15.
+    All wave scheduling happens INSIDE the company-orchestrator's context.
   </phase>
 
   <phase n="4" name="Scoring & Reports">
@@ -173,40 +186,36 @@ timeout_mins: 40
   Exception: For per-company stages (5-15), each company tracks independently. A company's Stage 6 can start while another company is still in Stage 5.
 </process>
 
-<process name="Analysis Wave Scheduling">
-  For stages 5-15 (per-company analysis), schedule agents using dependency-aware wave pattern:
+<process name="Company Orchestrator Batch Scheduling">
+  For stages 5-15 (per-company analysis), delegate to company-orchestrator agents in parallel batches:
 
   <scheduling-rule>
-    1. Maintain a queue of (company, stage) pairs ready to execute.
-    2. A (company, stage) pair is "ready" when ALL its dependency stages for THAT company are "completed".
-    3. When an agent slot frees (total active < 4), pop the highest-priority ready pair and spawn.
-    4. Priority: earlier stage number first, then earlier company rank.
-    5. When an agent completes, mark its (company, stage) as "completed" and check if any new pairs become ready.
+    1. Sort companies by rank (001 first, then 002, etc.)
+    2. Divide into batches of 4 (e.g., 20 companies → 5 batches)
+    3. For each batch:
+       a. Spawn 4 company-orchestrator agents IN PARALLEL (single Agent tool call with 4 invocations)
+       b. Each orchestrator receives: team_name, plugin_root, run_id, output_dir, company_ticker, company_rank, company_dir, shared_data_path, industry_thesis_path, is_a_share
+       c. WAIT for all 4 orchestrators to return completion summaries
+       d. Parse each summary: verify stages_completed, note any risk_flags
+       e. Update tracking.json with per-company stage statuses
+       f. Proceed to next batch
+    4. After ALL batches complete: verify every company has all required stage files
+    5. If any company has status "partial": log the failure but continue to Stage 16
   </scheduling-rule>
 
-  <dependency-map>
-    Stage 5: no deps
-    Stage 6: depends on 5
-    Stage 7: no deps
-    Stage 8: depends on 7
-    Stage 9: no deps
-    Stage 10: depends on 5, 7
-    Stage 11: depends on 10
-    Stage 12: depends on 10
-    Stage 13: no deps
-    Stage 14: depends on 13
-    Stage 15: depends on all (5-14), conditional
-  </dependency-map>
+  <turn-budget>
+    With company-orchestrator delegation, the team-lead's turn budget for Phase 3 is:
+    - Per batch: 1 turn to spawn (parallel) + 1 turn to process results = 2 turns
+    - 5 batches (20 companies ÷ 4): 10 turns total
+    - Verification: 1 turn
+    Total Phase 3: ~11 turns (vs. 220+ turns without orchestrators)
+  </turn-budget>
 
-  <example-schedule companies="3" agents="4">
-    T1: [5,7,9,13] → [6,8,10,14] → [11,12] → [15]
-    T2: [5,7,9,13] → [6,8,10,14] → [11,12] → [15]
-    T3: [5,7,9,13] → [6,8,10,14] → [11,12] → [15]
-
-    Slot utilization over time:
-    [T1:5, T1:7, T1:9, T1:13] → [T1:6, T1:8, T1:10, T1:14] → [T1:11, T1:12, T2:5, T2:7] → ...
-    As T1 completes wave 1, T2 starts wave 1 in freed slots.
-  </example-schedule>
+  <context-isolation>
+    Each company-orchestrator runs in its OWN context window with up to 40 turns.
+    The team-lead NEVER receives raw analysis data — only structured completion summaries.
+    This prevents context window overflow regardless of company count.
+  </context-isolation>
 </process>
 
 <agent-spawn-fields>
@@ -261,54 +270,22 @@ timeout_mins: 40
   </phase>
 
   <phase name="Analysis">
-    <agent name="fundamental-analyst" stage="5,6" per-company="true">
+    <agent name="company-orchestrator" stage="5-15" per-company="true" note="One orchestrator per company, spawned in parallel batches of 4">
+      <field>team_name</field>
+      <field>plugin_root</field>
+      <field>run_id</field>
+      <field>output_dir</field>
       <field>company_ticker</field>
+      <field>company_rank" note="e.g., 001, 002"</field>
       <field>company_dir" note="./reports/[RUN_ID]/NNN-[TICKER]/"</field>
       <field>shared_data_path</field>
-      <field>stage_number" note="5 or 6"</field>
-    </agent>
-    <agent name="industry-analyst" stage="7" per-company="true">
-      <field>company_ticker</field>
-      <field>company_dir</field>
       <field>industry_thesis_path" note="from Stage 3, if available"</field>
-      <field>shared_data_path</field>
+      <field>is_a_share" note="true if ticker ends with .SH or .SZ"</field>
     </agent>
-    <agent name="supply-chain-analyst" stage="8" per-company="true">
-      <field>company_ticker</field>
-      <field>company_dir</field>
-      <field>shared_data_path</field>
-    </agent>
-    <agent name="macro-analyst" stage="9" per-company="true">
-      <field>company_ticker</field>
-      <field>company_dir</field>
-      <field>shared_data_path</field>
-    </agent>
-    <agent name="quant-analyst" stage="10,11" per-company="true">
-      <field>company_ticker</field>
-      <field>company_dir</field>
-      <field>shared_data_path</field>
-      <field>stage_number" note="10 or 11"</field>
-    </agent>
-    <agent name="risk-analyst" stage="12" per-company="true">
-      <field>company_ticker</field>
-      <field>company_dir</field>
-      <field>shared_data_path</field>
-    </agent>
-    <agent name="alt-data-analyst" stage="13" per-company="true">
-      <field>company_ticker</field>
-      <field>company_dir</field>
-      <field>shared_data_path</field>
-    </agent>
-    <agent name="catalyst-analyst" stage="14" per-company="true">
-      <field>company_ticker</field>
-      <field>company_dir</field>
-      <field>shared_data_path</field>
-    </agent>
-    <agent name="china-market-analyst" stage="15" per-company="true" condition="ticker ends with .SH or .SZ">
-      <field>company_ticker</field>
-      <field>company_dir</field>
-      <field>shared_data_path</field>
-    </agent>
+
+    <!-- NOTE: Individual analyst agents (fundamental-analyst, industry-analyst, etc.)
+         are now spawned BY the company-orchestrator, not by the team-lead directly.
+         The team-lead only spawns company-orchestrators. -->
   </phase>
 
   <phase name="Scoring & Reports">

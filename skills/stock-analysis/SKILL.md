@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare. Triggers on 'find best stocks', 'screen sectors', 'analyze [TICKER]', 'compare T1,T2'."
 author: Jennings Liu
-version: "1.05.10"
+version: "1.05.11"
 license: MIT
 ---
 
@@ -61,14 +61,20 @@ Do NOT trigger on: general market commentary, non-financial queries.
 </workflow>
 
 <dependencies>
-  Per-company analysis stages (5-15) have a dependency DAG enabling pipeline-wave parallelism across companies:
+  Per-company analysis stages (5-15) are delegated to company-orchestrator agents — one per company, spawned in parallel batches of 4.
 
-  <wave n="1" agents="4" stages="5,7,9,13" note="All independent — maximum parallelism" />
-  <wave n="2" agents="4" stages="6,8,10,14" note="6←5, 8←7, 10←5+7, 14←13" />
+  Each company-orchestrator independently manages the dependency DAG within its own context window:
+  <wave n="1" agents="3" stages="5,7,9,13" note="All independent — orchestrator spawns up to 3 parallel analysts" />
+  <wave n="2" agents="3" stages="6,8,10,14" note="6←5, 8←7, 10←5+7, 14←13" />
   <wave n="3" agents="2" stages="11,12" note="11←10, 12←10" />
   <wave n="4" agents="1" stages="15" note="15←all, A-share only" />
 
-  Scheduling rule: across M companies, stages execute as soon as their dependencies are met and an agent slot is free (max 4 concurrent). This creates a pipeline wave where different companies can be at different stages simultaneously.
+  Team-lead scheduling (across companies):
+  - Batch 1: company-orchestrators for companies 001-004 (parallel)
+  - Batch 2: company-orchestrators for companies 005-008 (parallel)
+  - ... up to batch ceil(M/4)
+  Each batch runs fully in parallel; next batch starts after current batch completes.
+  This isolates per-company context and prevents team-lead context exhaustion.
 </dependencies>
 
 <modes>
@@ -132,6 +138,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <constraint name="Team First">Team creation (TeamCreate) is the FIRST action — before any scripts or data fetches.</constraint>
   <constraint name="Data via Agents">Data-fetch scripts are run by data-collector or search-agent teammates, NOT by the team lead directly.</constraint>
   <constraint name="Max 4 Concurrent">Cap parallel agents at 4 to manage context window.</constraint>
+  <constraint name="Company Orchestrator Delegation">For stages 5-15, team-lead spawns company-orchestrator agents (one per company) in parallel batches of 4. Each orchestrator independently manages all analysis stages for its company. The team-lead NEVER spawns individual analyst agents (fundamental-analyst, industry-analyst, etc.) directly for stages 5-15.</constraint>
   <constraint name="Quality Gate">Report cannot be delivered until pre-delivery checklist passes. If any gate fails: "INCOMPLETE ANALYSIS — [reason]".</constraint>
   <constraint name="Level 4 Structure">Sub-Industry is the structural unit in reports — Level 1/2/3 appear only as context within Level 4 entries.</constraint>
   <constraint name="Cleanup">Stage 19 cleanup: delete intermediate files (stage*.md, raw-data.json, phase*.md), terminate all remaining agents, delete team via TeamDelete. Keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage.</constraint>
