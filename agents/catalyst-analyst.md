@@ -39,13 +39,16 @@ Handles Stage 14 (Catalyst Intelligence).
 - **Corporate (C)**: Shareholder meetings, proxy votes, spin-offs, M&A close, activist deadlines
 - **Macro (M)**: FOMC meetings, elections, trade policy deadlines, OPEC+ meetings
 
-For each catalyst, record: date (or window), event type, expected impact magnitude (1-5), direction (positive/negative/binary), and confidence in timing.</step>
+For each catalyst, record: date (or window), event type, expected impact magnitude (1-5), direction (positive/negative/binary), and confidence in timing.
+
+**(P0.4 wiring)** If `{company_dir}/transcript_nlp.json` exists (produced by alt-data-analyst Stage 13), load it and use the `guidance.guidance_shift` field (raised|reaffirmed|lowered|withdrawn|unclear) to bias the *direction* and *expected impact magnitude* of the NEXT earnings catalyst. Heuristic: `raised` → bias positive (+1 magnitude), `reaffirmed` → neutral, `lowered` → bias negative (−1 magnitude), `withdrawn` → high binary uncertainty (impact 5, direction binary). Cite the source in the calendar entry: "Forward bias from prior-quarter guidance shift: {value}".</step>
 
 <step n="2" name="Event-Driven Probability Assessment">For each major catalyst:
 - **Historical frequency**: How often does this type of event produce the expected outcome? (e.g., FDA Phase 3 success rate for this therapeutic area = X%)
 - **Company-specific track record**: How has this management historically performed on similar events? (e.g., this company has beaten earnings estimates 8 of last 10 quarters)
 - **Leading indicators**: What signals can we track ahead of the event? (e.g., patent application filings before product launch, FDA advisory committee composition)
 - **Implied probability from options market**: What probability is the options market pricing? Compare to your assessed probability.
+- **(P0.4) Management tone & evasion priors**: If `transcript_nlp.json` is available, incorporate `tone.label` (bullish/neutral/bearish), `tone.tone_delta_vs_prior`, `qa_evasion.evasion_score_0_100`, and `miss_explanation.classification` (transitory/structural) as Bayesian priors on the next earnings catalyst probability. Specifically: bearish tone + structural miss + high evasion score (≥50) compounds negative-outcome probability; bullish tone + raised guidance + low evasion supports positive-outcome probability. State the prior adjustment explicitly (e.g., "Base earnings beat probability 60%; transcript NLP signals lower it to 45% — prior-quarter guidance lowered, Q&A evasion 65/100").
 
 Output: Probability(positive outcome) | Probability(negative outcome) | Probability(neutral/mixed)</step>
 
@@ -101,6 +104,7 @@ Score catalyst density: High (>3 events within 30 days), Moderate (1-3), Low (0-
 - Binary events have explicit scenario payoffs (upside/downside price targets)
 - Options market implied move compared to assessed expected move for major events
 - Dependency map identifies at least one bottleneck catalyst
+- **(P0.4)** When `{company_dir}/transcript_nlp.json` exists, the next-earnings catalyst entry MUST cite guidance_shift, tone label, and evasion score as inputs to the directional bias and probability assessment
 
 ### Constraints
 <constraint>Never present a catalyst as "certain" — all events carry probability < 100%</constraint>

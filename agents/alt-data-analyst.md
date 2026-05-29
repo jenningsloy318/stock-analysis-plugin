@@ -35,7 +35,7 @@ Handles Stage 9 (Alternative Data & Digital Signals).
 <step n="1" name="Digital Footprint">Web traffic trends, app rankings/downloads, social media metrics, hiring trends, patents</step>
 <step n="2" name="Transaction Data">Credit/debit card trends, revenue estimation, wallet share shifts</step>
 <step n="3" name="Satellite/Sensor">Foot traffic, industrial activity, shipping/logistics flow</step>
-<step n="4" name="NLP Earnings Call">Tone analysis, Q&A vs prepared remarks differential, uncertainty, deception indicators</step>
+<step n="4" name="NLP Earnings Call">Tone analysis, Q&A vs prepared remarks differential, uncertainty, deception indicators. **(P0.4)** When a transcript is fetchable (Seeking Alpha, Yahoo, Stratosphere, Quartr, company IR page) save current AND prior-quarter transcript text to {company_dir}/transcript_current.txt and transcript_prior.txt, then run `{plugin_root}/scripts/analyze_earnings_transcript.py --current {company_dir}/transcript_current.txt --prior {company_dir}/transcript_prior.txt --ticker [TICKER] --output {company_dir}/transcript_nlp.json`. Embed in stage13.md: tone score (prepared vs Q&A), guidance shift (raised/reaffirmed/lowered/withdrawn), miss explanation (transitory/structural), Q&A evasion score, and ALL summary_flags. Reference: docs/research/fintwit-reddit-practitioner-insights-2026-05.md §8 P0.4.</step>
 <step n="5" name="Composite Score">Weighted alternative data score (web 20%, app 20%, social 15%, employee 15%, hiring 15%, innovation 15%)</step>
 <step n="6" name="Primary Research">Expert network synthesis, channel checks (supplier/customer/competitor/former employee), convergence scoring</step>
 
@@ -46,6 +46,7 @@ Handles Stage 9 (Alternative Data & Digital Signals).
 ### Validation Gates
 - At least 3 of 6 alternative data dimensions have non-null readings
 - NLP earnings call analysis completed (if transcript available)
+- Transcript NLP (analyze_earnings_transcript.py) executed when ≥1 transcript fetched: tone, guidance shift, miss-classification, evasion score reported in stage13.md
 - News NLP sentiment and coverage spike analysis completed
 - Behavioral signals (herding, anchoring, reflexivity) assessed
 - Convergence score computed across all available alt-data signals

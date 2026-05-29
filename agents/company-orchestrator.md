@@ -261,9 +261,9 @@ timeout_mins: 30
     Output: {company_dir}/stage5.md
   </stage>
   <stage n="6" agent="fundamental-analyst" depends="5">
-    Beneish M-Score, accruals quality, cash conversion, capital allocation.
-    Scripts: fetch_capital_structure.py, calculate_earnings_quality.py, diff_filings.py
-    Output: {company_dir}/stage6.md
+    Beneish M-Score, accruals quality, cash conversion, capital allocation, Capital Allocation Audit (P0.1 — A-F scorecard).
+    Scripts: fetch_capital_structure.py, calculate_earnings_quality.py, audit_capital_allocation.py, diff_filings.py
+    Output: {company_dir}/stage6.md (+ artifact: capital_allocation.json)
   </stage>
   <stage n="7" agent="industry-analyst">
     Porter's Five Forces, TAM/SAM/SOM, moat assessment, ecosystem mapping.

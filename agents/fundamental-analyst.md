@@ -47,6 +47,7 @@ Handles Stage 5 (Financial Health) and Stage 6 (Earnings Quality).
 <step n="8" name="Capital Allocation">ROIC vs WACC spread, M&A track record, buyback discipline</step>
 <step n="9" name="Insider Activity">Form 4 analysis, cluster detection, 10b5-1 modifications</step>
 <step n="10" name="Capital Structure &amp; Shareholder Returns">Run fetch_capital_structure.py. Analyze: buyback ROI (value created/destroyed per dollar), SBC dilution rate (flag if SBC >5% revenue), total capital return yield (dividends + net buybacks / market cap), debt maturity wall risk, optimal leverage assessment vs sector peers</step>
+<step n="10.5" name="Capital Allocation Audit (P0.1 — practitioner-grade scorecard)">Run audit_capital_allocation.py with raw-data.json + capital_structure.json. Produces A-F composite grade across 5 dimensions: (1) buyback IRR + SBC dilution, (2) capex efficiency = Δrevenue/Σcapex 5yr, (3) dividend payout & coverage, (4) M&A discipline (goodwill growth vs revenue growth), (5) Buffett retention test. Embed grade table + top red flags in stage6.md under heading "Capital Allocation Audit". This is cited by FinTwit practitioners (@InvestmentTalk, @bluegrasscap) as the single highest-alpha factor — surface red flags prominently. Reference: docs/research/fintwit-reddit-practitioner-insights-2026-05.md §8 P0.1.</step>
 <step n="11" name="Narrative Translation">Apply Damodaran's Narrative+Numbers: articulate the company's 3-sentence future narrative, map each sentence to a financial variable (growth rate, margin, reinvestment, risk), assess narrative plausibility, compare management's stated narrative to actual capital allocation. Flag narrative-action inconsistencies.</step>
 
 </workflow>
@@ -59,6 +60,7 @@ Handles Stage 5 (Financial Health) and Stage 6 (Earnings Quality).
 - Piotroski F-Score computed (adds distress/quality signal)
 - At least one Form 4 filing from last 90 days reviewed
 - Capital structure analysis completed (buyback ROI, SBC dilution, total return yield)
+- Capital Allocation Audit (audit_capital_allocation.py) executed; composite A-F grade reported in stage6.md with red flags surfaced
 - Earnings quality score computed (accruals, cash conversion, revenue quality)
 - Filing diff analyzed (risk factor changes, MD&A language shifts vs prior period, footnote changes)
 - Narrative-to-numbers mapping articulated (3 sentences → model variables)
@@ -87,6 +89,7 @@ Handles Stage 5 (Financial Health) and Stage 6 (Earnings Quality).
 
 ### Data Acquisition & Scripts
 Run `{plugin_root}/scripts/fetch_capital_structure.py [TICKER] --output ./reports/[TICKER]/capital_structure.json` for shareholder return analysis.
+Run `{plugin_root}/scripts/audit_capital_allocation.py {company_dir}/raw-data.json --capital-structure {company_dir}/capital_structure.json --ticker [TICKER] --output {company_dir}/capital_allocation.json` — practitioner-grade A-F scorecard (buyback IRR + capex efficiency + dividend + M&A + retention). Embed top red flags + composite grade in stage6.md.
 Run `{plugin_root}/scripts/calculate_earnings_quality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/earnings_quality.json` for accruals, cash conversion, and revenue quality scoring.
 Run `{plugin_root}/scripts/diff_filings.py [TICKER] --output ./reports/[TICKER]/filing_diff.json` for 10-K/10-Q redline detection (risk factor changes, MD&A tone shift, accounting policy changes, forensic flags).
 Run `{plugin_root}/scripts/compute_seasonality.py ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/seasonality.json` for quarterly revenue/EPS seasonal patterns and earnings beat/miss context.

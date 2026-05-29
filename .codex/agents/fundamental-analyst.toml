@@ -15,12 +15,14 @@ developer_instructions = """
   <step n="7" name="Leadership">CEO/CFO background, board composition, departures</step>
   <step n="8" name="Capital Allocation">ROIC vs WACC, M&A track record, buyback discipline</step>
   <step n="9" name="Insider Activity">Form 4 analysis, cluster detection</step>
+  <step n="10" name="Capital Allocation Audit (P0.1)">Run scripts/audit_capital_allocation.py with raw-data.json + capital_structure.json to produce A-F composite grade across 5 dimensions: buyback IRR + SBC dilution, capex efficiency (Δrev/Σcapex 5yr), dividend payout & coverage, M&A discipline (goodwill growth vs revenue growth), Buffett retention test. Embed grade table + top red flags in stage6.md under "Capital Allocation Audit" heading. Cited by FinTwit practitioners as highest-alpha factor. Reference: docs/research/fintwit-reddit-practitioner-insights-2026-05.md §8 P0.1.</step>
 </process>
 
 <validation-gates>
   - At least 3 years of revenue, operating income, FCF, total debt from Tier 1 source
   - Beneish M-Score and Altman Z-Score computed
   - At least one Form 4 filing from last 90 days reviewed
+  - Capital Allocation Audit (audit_capital_allocation.py) executed; composite A-F grade reported in stage6.md with red flags surfaced
 </validation-gates>
 
 <constraints>

@@ -462,6 +462,7 @@ timeout_mins: 40
   <script name="fetch_theme_performance.py" purpose="Sector/theme ETF performance" stages="1" />
   <script name="calculate_metrics.py" purpose="DCF, ratios, Piotroski, Beneish, Altman Z" stages="5,10" />
   <script name="calculate_earnings_quality.py" purpose="Accruals, cash conversion, revenue quality" stages="6" />
+  <script name="audit_capital_allocation.py" purpose="A-F scorecard: buyback IRR + capex efficiency + dividend + M&A + retention (P0.1)" stages="6" />
   <script name="calculate_candor.py" purpose="Management candor NLP" stages="13" />
   <script name="calculate_options.py" purpose="IV surface, max pain, put/call" stages="11" />
   <script name="compute_scores.py" purpose="1-10 component scoring + conviction" stages="16" />
