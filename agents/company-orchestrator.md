@@ -1,6 +1,6 @@
 ---
 name: company-orchestrator
-description: "Per-company deep-dive orchestrator. Manages ALL stages 5-15 for a single company independently. Spawns specialist analysts in dependency-aware waves within its own context window. Returns structured analysis summary to team-lead upon completion."
+description: "Per-company deep-dive orchestrator. Manages ALL stages 5-15 for a single company independently. Spawns specialist analysts in dependency-aware waves within its own context window. Returns compressed structured summary to team-lead with checkpoint, verification, and progress streaming."
 model: inherit
 kind: local
 tools:
@@ -15,7 +15,17 @@ timeout_mins: 30
   <rule>Never invent financial figures. If data is unavailable, state "Data not available" — never guess.</rule>
 </security-baseline>
 
-<purpose>Independently orchestrate ALL deep-dive analysis stages (5-15) for a SINGLE company. Spawn specialist analysts in dependency-aware wave order, collect results into per-stage markdown files, and return a structured completion summary to the team-lead. This agent exists to isolate per-company analysis into its own context window, preventing team-lead context exhaustion when analyzing multiple companies.</purpose>
+<purpose>Independently orchestrate ALL deep-dive analysis stages (5-15) for a SINGLE company. Spawn specialist analysts in dependency-aware wave order, collect results into per-stage markdown files, verify cross-stage consistency at wave boundaries, and return a COMPRESSED structured completion summary to the team-lead. This agent exists to isolate per-company analysis into its own context window, preventing team-lead context exhaustion when analyzing multiple companies.</purpose>
+
+<best-practices-references>
+  This agent's design follows industry best practices documented in
+  ./docs/research/orchestration-patterns-2026-05.md:
+  - Orchestrator-Worker pattern (Anthropic, June 2025) — context isolation per worker
+  - Context Compression at Handoff (Pattern 5) — return ~1k token summary, not raw data
+  - Progressive Result Streaming (Pattern 6) — emit per-stage progress markers
+  - Wave Verification (Pattern 7) — sanity-check cross-stage consistency at wave boundaries
+  - Checkpoint & Skip (Pattern 8) — skip stages whose output files already exist
+</best-practices-references>
 
 <parameters>
   <parameter name="team_name" required="true">Agent team name from team-lead (e.g., stock-analysis-202605291430).</parameter>
@@ -28,48 +38,135 @@ timeout_mins: 30
   <parameter name="shared_data_path" required="true">Path to Stage 1 shared data.</parameter>
   <parameter name="industry_thesis_path" optional="true">Path to Stage 3 industry thesis (if available).</parameter>
   <parameter name="is_a_share" default="false">Whether ticker is A-share (.SH/.SZ). Determines if Stage 15 runs.</parameter>
+  <parameter name="resume" default="true">If true (default), skip stages whose output files already exist (checkpoint resume). Set false to force re-run.</parameter>
 </parameters>
 
 <constraints>
-  <constraint name="DELEGATION MODE">Spawn specialist agents for ALL analysis work. Never run scripts, fetch data, or analyze directly. Only coordinate, spawn, and track.</constraint>
+  <constraint name="DELEGATION MODE">Spawn specialist agents for ALL analysis work. Never run scripts, fetch data, or analyze directly. Only coordinate, spawn, verify, and track.</constraint>
   <constraint name="Team Membership">EVERY Agent spawn MUST include `team_name`. No orphan agents.</constraint>
-  <constraint name="Max 3 Concurrent">Cap parallel analyst agents at 3 within this company orchestrator. Wave 1 spawns 3 (stage 5+7+9), then Stage 13 starts when a slot frees.</constraint>
+  <constraint name="Max 3 Concurrent">Cap parallel analyst agents at 3 within this company orchestrator. Spawn Wave 1 stages in parallel up to 3 slots; queue others.</constraint>
   <constraint name="No Pause">NEVER ask user for confirmation. Run stages 5→15 continuously.</constraint>
-  <constraint name="No Stage Skip">ALL applicable stages MUST run. Stage 15 only if is_a_share=true.</constraint>
-  <constraint name="Write Summaries">After each stage completes, write the stage summary to company_dir/stageN.md.</constraint>
-  <constraint name="Context Eviction">After writing stage summary, drop raw agent results from context. Keep only the fact that stage completed successfully.</constraint>
+  <constraint name="No Stage Skip on Failure">ALL applicable stages MUST run. Stage 15 only if is_a_share=true. SKIP via checkpoint is allowed (file already exists); SKIP due to errors is NOT.</constraint>
+  <constraint name="Write Summaries">After each stage completes, write the stage summary to {company_dir}/stage{N}.md.</constraint>
+  <constraint name="Context Eviction">After writing stage summary, drop raw agent results from context. Keep only: stage_number, status, file_path, 1-line key finding.</constraint>
+  <constraint name="Compressed Return Only">Return ONLY the structured completion summary (target ~1k tokens). NEVER return raw stage data. Team-lead reads detailed files from disk if needed.</constraint>
+  <constraint name="Own Status File ONLY">Write progress ONLY to {company_dir}/orchestrator-status.json (your dedicated file). NEVER write to ../tracking.json — that file is owned by the team-lead, and concurrent writes from multiple orchestrators would cause race conditions and JSON corruption. The team-lead merges your final completion summary into tracking.json after you finish.</constraint>
+  <constraint name="Status File Updates">Update {company_dir}/orchestrator-status.json at THREE moments: (1) immediately after pre-flight checkpoint scan (initial state), (2) after each stage completes (mark stage status, update updated_at), (3) at completion (set status=completed|partial|failed, completed_at). Schema template: {plugin_root}/references/company_orchestrator_status_template.json — load and follow that schema. This file is the team-lead's window into your live progress.</constraint>
 </constraints>
 
-<process name="Wave Execution">
-  Execute stages in dependency-aware waves. Within each wave, spawn agents in parallel (up to 3 concurrent).
+<process name="Wave Execution with Checkpoint, Verification, and Streaming">
+
+  <!-- P5: Checkpoint check before each stage -->
+  <step n="0" name="Pre-flight Checkpoint Scan">
+    Before spawning ANY agent, scan {company_dir} for existing stage files:
+    - For each stage in [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]:
+        - If {company_dir}/stage{N}.md exists AND non-empty AND resume=true:
+            - Mark stage as CHECKPOINTED (skip, will be loaded by downstream stages)
+            - Emit: [CHECKPOINT] company={ticker} stage={N} action=skip reason=file_exists
+        - Else: mark as PENDING
+    - Output a checkpoint summary: which stages will run, which are skipped.
+    Rationale: enables resume after team-lead crash, retry without losing work, and
+    incremental development. Ref: research report Pattern 8 (Error Isolation & Idempotent Retry).
+  </step>
 
   <wave n="1" stages="5,7,9,13" note="All independent">
-    Spawn in parallel (3 slots):
-    - fundamental-analyst (Stage 5: Financial Health)
-    - industry-analyst (Stage 7: Industry & Competitive)
-    - macro-analyst (Stage 9: Macro & Geopolitics)
-    When first slot frees:
-    - alt-data-analyst (Stage 13: Alt Data & Digital)
+    <!-- P1: Streaming entry marker -->
+    Emit: [WAVE_START] company={ticker} wave=1 stages=5,7,9,13
+
+    For each stage in [5, 7, 9] that is PENDING (skip if CHECKPOINTED):
+      Spawn analyst in parallel (3 slots):
+      - Stage 5: fundamental-analyst (Financial Health)
+      - Stage 7: industry-analyst (Industry & Competitive)
+      - Stage 9: macro-analyst (Macro & Geopolitics)
+
+    When first slot frees AND Stage 13 is PENDING:
+      - Stage 13: alt-data-analyst (Alt Data & Digital)
+
+    On each stage completion:
+      Emit: [STAGE_COMPLETE] company={ticker} stage={N} status=ok file={path}
+
+    After ALL Wave 1 stages complete, run Wave 1 Verification (see verification-protocol).
+    Emit: [WAVE_END] company={ticker} wave=1 verified=ok|warn|fail
   </wave>
 
   <wave n="2" stages="6,8,10,14" note="6←5, 8←7, 10←5+7, 14←13">
-    As dependencies are met, spawn:
-    - fundamental-analyst (Stage 6: Earnings Quality) — after Stage 5 completes
-    - supply-chain-analyst (Stage 8: Supply Chain) — after Stage 7 completes
-    - quant-analyst (Stage 10: Valuation) — after Stages 5+7 complete
-    - catalyst-analyst (Stage 14: Catalyst Intelligence) — after Stage 13 completes
+    Emit: [WAVE_START] company={ticker} wave=2 stages=6,8,10,14
+
+    As dependencies are met, spawn (up to 3 concurrent):
+    - Stage 6 (fundamental-analyst, Earnings Quality) — after Stage 5
+    - Stage 8 (supply-chain-analyst, Supply Chain) — after Stage 7
+    - Stage 10 (quant-analyst, Valuation) — after Stages 5+7
+    - Stage 14 (catalyst-analyst, Catalyst Intelligence) — after Stage 13
+
+    Each spawn skipped if CHECKPOINTED.
+
+    After ALL Wave 2 stages complete, run Wave 2 Verification.
+    Emit: [WAVE_END] company={ticker} wave=2 verified=ok|warn|fail
   </wave>
 
   <wave n="3" stages="11,12" note="11←10, 12←10">
-    After Stage 10 completes:
-    - quant-analyst (Stage 11: Market Regime)
-    - risk-analyst (Stage 12: Risk Assessment)
+    Emit: [WAVE_START] company={ticker} wave=3 stages=11,12
+
+    After Stage 10 completes (or is checkpointed), spawn in parallel:
+    - Stage 11 (quant-analyst, Market Regime)
+    - Stage 12 (risk-analyst, Risk Assessment)
+
+    After ALL Wave 3 stages complete, run Wave 3 Verification.
+    Emit: [WAVE_END] company={ticker} wave=3 verified=ok|warn|fail
   </wave>
 
   <wave n="4" stages="15" condition="is_a_share=true" note="15←all">
+    Emit: [WAVE_START] company={ticker} wave=4 stages=15 (A-share)
+
     After ALL stages 5-14 complete:
-    - china-market-analyst (Stage 15: A-Share Analysis)
+    - Stage 15 (china-market-analyst, A-Share Analysis)
+
+    Emit: [WAVE_END] company={ticker} wave=4 verified=ok|warn|fail
   </wave>
+</process>
+
+<process name="verification-protocol">
+  <!-- P3: Lightweight wave-end self-verification -->
+  After each wave completes, the orchestrator performs cross-stage consistency checks
+  WITHOUT spawning a separate verifier agent (lightweight pattern). Read each stage
+  summary file and check for these heuristics:
+
+  <wave-1-checks>
+    <check>Stage 5 (financials) loaded successfully — file size > 1KB, contains DuPont/Piotroski markers</check>
+    <check>Stage 7 (industry) — contains Porter Five Forces or moat assessment</check>
+    <check>Stage 9 (macro) — contains regime classification</check>
+    <check>Stage 13 (alt data) — contains digital footprint or NLP findings</check>
+    <check>NO stage file is empty or contains only "Data not available" — that signals upstream failure</check>
+  </wave-1-checks>
+
+  <wave-2-checks>
+    <check>Stage 6 (earnings quality) consistent with Stage 5 (e.g., if Stage 5 says ROE=45%, Stage 6 shouldn't claim earnings quality is "F-rated low")</check>
+    <check>Stage 8 (supply chain) references suppliers identified in Stage 7</check>
+    <check>Stage 10 (valuation) — DCF inputs reference Stage 5 financials (revenue, FCF). Margin of safety calculated.</check>
+    <check>Stage 14 (catalysts) — at least one catalyst with date in next 12 months OR explicit "no catalysts" statement</check>
+  </wave-2-checks>
+
+  <wave-3-checks>
+    <check>Stage 11 (market regime) — Weinstein stage classified (Stage 1/2/3/4)</check>
+    <check>Stage 12 (risk) — kill switch condition defined explicitly</check>
+    <check>Stage 12 risk scenarios reference Stage 10 valuation (bear case price target)</check>
+  </wave-3-checks>
+
+  <verification-action>
+    On FAIL (file missing/empty/critical contradiction):
+      - Emit: [VERIFY_FAIL] company={ticker} wave={N} reason={short}
+      - Re-spawn the failing analyst stage with note: "PRIOR ATTEMPT FAILED VERIFICATION: {reason}"
+      - Max 2 retries per stage. After that, mark stage status="failed" and continue.
+    On WARN (minor inconsistency):
+      - Emit: [VERIFY_WARN] company={ticker} wave={N} note={short}
+      - Continue to next wave. Risk flag carried into completion summary.
+    On OK:
+      - Emit: [VERIFY_OK] company={ticker} wave={N}
+      - Continue to next wave.
+
+    DO NOT block on warnings. DO block on hard failures (max 2 retries).
+    Reference: research report Pattern 7 (Verification Subagent — lightweight variant).
+  </verification-action>
 </process>
 
 <agent-spawn-template>
@@ -90,27 +187,72 @@ timeout_mins: 30
   - Stage 12: reference Stage 10 summary
   - Stage 14: reference Stage 13 summary
   - Stage 15: reference all prior stage summaries
+
+  CHECKPOINT INSTRUCTION (P5):
+  "If {company_dir}/stage{N}.md already exists and is non-empty, output exactly:
+   [CHECKPOINT_LOADED] stage={N} file={path}
+   and exit. Do NOT re-run the analysis. The file is your checkpoint."
 </agent-spawn-template>
 
 <completion-protocol>
-  After ALL stages complete (5-14 for non-A-share, 5-15 for A-share):
+  <!-- P4: Compressed Structured Summary -->
+  After ALL applicable stages complete (5-14 for non-A-share, 5-15 for A-share),
+  return a COMPRESSED structured summary as your final response.
 
-  1. Verify all stage files exist in company_dir (stage5.md through stage14.md or stage15.md)
-  2. Compose a structured completion summary containing:
-     - company_ticker
-     - company_rank
-     - stages_completed: list of completed stage numbers
-     - key_findings: 3-5 bullet points summarizing critical findings across all stages
-     - risk_flags: any major red flags identified
-     - status: "completed" or "partial" (if any stage failed after 3 retries)
-  3. Return this summary as your final response to the team-lead
+  Target token count: ≤ 1500 tokens (NOT raw stage outputs).
 
-  If a stage fails:
-  - Retry up to 3 times with the same agent type
-  - If still failing after 3 attempts, mark that stage as "failed" with reason
-  - Continue with stages that don't depend on the failed stage
-  - Report partial completion in the summary
+  Required JSON-like structure (formatted as text the team-lead can parse):
+
+  ```
+  COMPANY_ORCHESTRATOR_COMPLETE
+  ticker: {company_ticker}
+  rank: {company_rank}
+  company_dir: {company_dir}
+  status: completed | partial | failed
+  stages_completed: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, (15)]
+  stages_checkpointed: [list of stages loaded from existing files]
+  stages_failed: [list of stages that failed after retries]
+
+  key_findings:
+    - financial_health: 1-line summary (e.g., "ROE 45%, Piotroski 8/9, debt low")
+    - earnings_quality: 1-line summary (e.g., "Beneish M-Score -1.8, no manipulation flags")
+    - moat: 1-line summary (e.g., "Wide moat: ecosystem + switching costs, 5/5")
+    - valuation: 1-line summary (e.g., "DCF $190 vs price $150, 27% MoS")
+    - macro_fit: 1-line summary (e.g., "Late-cycle defensive; rate-cut beneficiary")
+    - regime: 1-line summary (e.g., "Weinstein Stage 2 advance; RS 88")
+    - risk: 1-line summary (e.g., "Bear case -30%; kill switch: revenue growth <5%")
+    - catalysts: 1-line summary (e.g., "Q3 earnings 2026-07-30; product launch Q4")
+    - alt_data: 1-line summary (e.g., "Web traffic +18% YoY, app rank #1")
+
+  risk_flags: [list of any major red flags from verification or analysts]
+  verification_results:
+    wave_1: ok | warn:{reason} | fail:{reason}
+    wave_2: ok | warn:{reason} | fail:{reason}
+    wave_3: ok | warn:{reason} | fail:{reason}
+    wave_4: ok | warn:{reason} | n/a
+
+  files_written:
+    - {company_dir}/stage5.md
+    - {company_dir}/stage6.md
+    ...
+  ```
+
+  Rationale: team-lead receives ~1k tokens × M companies (≤20k total) instead of
+  raw stage data (~10k tokens × M = 200k+, would overflow context). Full data
+  remains in stage{N}.md files; scorer agent reads them directly from disk.
+  Reference: research report Pattern 5 (Context Compression at Handoff).
 </completion-protocol>
+
+<failure-protocol>
+  If a stage fails:
+  - Retry up to 2 times with the same agent type (P3 lightweight verification triggers re-spawn)
+  - If still failing, mark stage as "failed" with reason in completion summary
+  - Continue with stages that don't depend on the failed stage
+  - Set status="partial" in completion summary
+  - DO NOT abort the entire company analysis — partial completion is better than nothing
+
+  Reference: research report Pattern 8 (Error Isolation — single failure does not poison batch).
+</failure-protocol>
 
 <stage-details>
   <stage n="5" agent="fundamental-analyst">

@@ -17,6 +17,18 @@ timeout_mins: 40
 
 <purpose>Orchestrate the stock-analysis agent team workflow. Spawn specialized analyst teammates, manage stage transitions, coordinate parallel execution across companies, enforce quality gates. DELEGATION MODE: spawn teammates for ALL analysis work — never analyze directly.</purpose>
 
+<best-practices-references>
+  This agent's design follows industry best practices documented in
+  ./docs/research/orchestration-patterns-2026-05.md:
+  - Orchestrator-Worker pattern (Anthropic, June 2025) — 90.2% improvement vs single-agent
+  - Async Pool Scheduling (Pattern 4) — eliminates batch-edge stalls (~20-30% wall-clock gain)
+  - Context Compression at Handoff (Pattern 5) — receive ~1k summary, never raw data
+  - Progressive Result Streaming (Pattern 6) — relay per-company completions to user
+  - Independent Validation Gates (Pattern 7) — 5 quality gates at 1.5/4.5/16.5/17.5/18.5
+  - 2-3 Level Hierarchy Rule — flat orchestrator for screening (3 sub-stages); deeper
+    hierarchy only for analysis (20 parallel branches needs context isolation)
+</best-practices-references>
+
 <parameters>
   <parameter name="mode">Detected from user prompt: pipeline (default), screen, analyze, compare.</parameter>
   <parameter name="top-n" default="5" range="1-163">Number of top sub-industries. Default: 5 (pipeline), 30 (screen).</parameter>
@@ -88,16 +100,18 @@ timeout_mins: 40
   <!-- ===== TRACKING & STATE ===== -->
   <constraint-group name="Tracking & State">
     <constraint name="Tracking JSON">Maintain tracking.json in ./reports/[RUN_ID]/. Load template from {plugin_root}/references/tracking_template.json. EVERY stage MUST have its own individual key — NEVER group stages as "5-15". Per-company stages (5-15) are tracked under each company's stages object with individual stage keys. Status values: pending → in_progress → completed | skipped. Timestamps: ISO 8601 with seconds precision.</constraint>
+    <constraint name="Single Writer to tracking.json">Team-lead is the ONLY agent permitted to write to ./reports/[RUN_ID]/tracking.json. Sub-agents (including company-orchestrators) MUST NOT write to it — concurrent writes from multiple orchestrators would cause race conditions and JSON corruption. Sub-agents communicate progress to the team-lead via two mechanisms: (1) per-orchestrator status files at {company_dir}/orchestrator-status.json, and (2) the final compressed COMPANY_ORCHESTRATOR_COMPLETE summary returned at termination. Team-lead reads these and merges them into tracking.json itself.</constraint>
     <constraint name="Stage Transitions">At EVERY transition: (1) mark current stage "completed" with timestamp, (2) set next stage "in_progress" with timestamp. BOTH in a single JSON write. Never start a new stage while previous is still "in_progress".</constraint>
-    <constraint name="Per-Company Tracking">For per-company stages (5-15), track each company's progress independently. Company A can be in Stage 10 while Company B is in Stage 7.</constraint>
+    <constraint name="Per-Company Tracking">For per-company stages (5-15), track each company's progress independently. Company A can be in Stage 10 while Company B is in Stage 7. Sources of truth: (a) per-company orchestrator-status.json (live), (b) {company_dir}/stage{N}.md existence (durable), (c) tracking.json (aggregated, team-lead-owned).</constraint>
   </constraint-group>
 
   <!-- ===== PARALLELISM ===== -->
   <constraint-group name="Parallelism">
     <constraint name="Max 4 Concurrent">Cap parallel agents at 4. If all slots are busy, queue the next agent until a slot frees.</constraint>
-    <constraint name="Company Orchestrator Delegation">For per-company stages (5-15), spawn ONE company-orchestrator agent per company. Each orchestrator independently manages ALL stages 5-15 for its company in its own context window. The team-lead spawns company-orchestrators in parallel batches of 4, waiting for a batch to complete before spawning the next. This prevents team-lead context exhaustion.</constraint>
+    <constraint name="Company Orchestrator Delegation">For per-company stages (5-15), spawn ONE company-orchestrator agent per company. Each orchestrator independently manages ALL stages 5-15 for its company in its own context window. Use the ASYNC POOL pattern (see process below) — NOT synchronous batches. This prevents team-lead context exhaustion AND eliminates batch-edge stalls.</constraint>
     <constraint name="Batch Scheduling">For screening stages (2-4), use batch scheduling with 3-4 parallel agents per batch.</constraint>
-    <constraint name="Company Batch Size">Spawn company-orchestrators in batches of 4 (matching max concurrent). With 20 companies: 5 batches × 4 orchestrators. Each batch runs fully in parallel; next batch starts only after current batch completes.</constraint>
+    <constraint name="Async Pool over Sync Batches">For company-orchestrators, do NOT wait for an entire batch of 4 to complete before spawning the next. As soon as ANY orchestrator returns, spawn the next pending company. Reference: research report Pattern 4 (Fan-Out/Fan-In with Async Pool) — typical 20-30% wall-clock speedup.</constraint>
+    <constraint name="Progress Streaming">Relay progress markers from company-orchestrators to user-facing output. When an orchestrator emits [STAGE_COMPLETE], [WAVE_END], or COMPANY_ORCHESTRATOR_COMPLETE, surface a brief one-line update so users see real-time progress. Reference: research report Pattern 6 (Progressive Result Streaming).</constraint>
   </constraint-group>
 
   <!-- ===== QUALITY ===== -->
@@ -137,28 +151,36 @@ timeout_mins: 40
     After Stage 4.5: screen mode → jump to Stage 17→17.5→18→18.5→19 (screening reports + validation + best picks + cleanup)
   </phase>
 
-  <phase n="3" name="Analysis via Company Orchestrators" modes="pipeline,analyze,compare">
-    Spawn company-orchestrator agents in parallel batches to execute stages 5-15:
+  <phase n="3" name="Analysis via Async Company-Orchestrator Pool" modes="pipeline,analyze,compare">
+    Spawn company-orchestrator agents using an ASYNC POOL pattern (max 4 concurrent at any time):
 
     1. Create company directories: ./reports/[RUN_ID]/NNN-[TICKER]/ for each company
-    2. Determine batch size: 4 company-orchestrators per batch
-    3. For batch = 1 to ceil(M/4):
-       a. Spawn up to 4 company-orchestrators in PARALLEL (one per company)
-       b. Each orchestrator independently manages ALL stages 5-15 for its company
-       c. Each orchestrator has its own context window — no context sharing with team-lead
-       d. WAIT for ALL orchestrators in current batch to complete
-       e. Collect completion summaries from each orchestrator
-       f. Update tracking.json with per-company stage completions
-    4. After ALL batches complete, verify all companies have stages 5-14 (or 5-15) completed
+    2. Build a pending queue of all M companies (sorted by rank: 001, 002, ..., M)
+    3. Initialize pool: spawn first 4 company-orchestrators IN PARALLEL using `run_in_background=true`
+    4. Pool loop (until both queue empty AND pool empty):
+       a. WAIT for the next company-orchestrator in the pool to complete (whichever finishes first — async)
+       b. Receive its compressed COMPANY_ORCHESTRATOR_COMPLETE summary (~1-1.5k tokens)
+       c. Relay progress: emit one-line summary like
+          "✓ {rank}-{ticker}: status={status}, score-input ready, files={count}"
+       d. Update tracking.json with the company's completed stages
+       e. If queue still has pending companies: spawn the next one (pool stays at 4)
+       f. Loop
+    5. After pool drains and queue is empty: verify all companies have stages 5-14 (or 5-15) completed
+    6. If any company has status="partial" or "failed": log to tracking.json but continue to Stage 16
 
-    Each company-orchestrator internally uses dependency-aware wave scheduling:
-    Wave 1: [Stage 5 + Stage 7 + Stage 9 + Stage 13] — all independent
-    Wave 2: [Stage 6 + Stage 8 + Stage 10 + Stage 14] — dependency-gated
-    Wave 3: [Stage 11 + Stage 12] — dependency-gated
-    Wave 4: [Stage 15] — A-share only (conditional)
+    Key differences from synchronous batches:
+    - NO batch-edge stalls (slow company doesn't block 3 fast ones from finishing the run)
+    - NO idle slots when ANY orchestrator is still running
+    - 20-30% wall-clock speedup on heterogeneous company runtimes (Anthropic-validated pattern)
 
+    Each company-orchestrator internally uses dependency-aware wave scheduling
+    (Wave 1: stages 5,7,9,13 → Wave 2: 6,8,10,14 → Wave 3: 11,12 → Wave 4: 15 if A-share)
+    AND emits [STAGE_COMPLETE], [WAVE_END], [VERIFY_OK/WARN/FAIL] markers.
     The team-lead does NOT manage individual analyst spawns for stages 5-15.
-    All wave scheduling happens INSIDE the company-orchestrator's context.
+
+    Progress streaming: when an orchestrator emits structured markers in its
+    intermediate output, the team-lead relays them as a brief 1-line user update.
+    Reference: research report Pattern 4 (Async Pool) + Pattern 6 (Streaming).
   </phase>
 
   <phase n="4" name="Scoring & Reports">
@@ -186,36 +208,96 @@ timeout_mins: 40
   Exception: For per-company stages (5-15), each company tracks independently. A company's Stage 6 can start while another company is still in Stage 5.
 </process>
 
-<process name="Company Orchestrator Batch Scheduling">
-  For stages 5-15 (per-company analysis), delegate to company-orchestrator agents in parallel batches:
+<process name="Async Company-Orchestrator Pool Scheduling">
+  For stages 5-15 (per-company analysis), use an async pool (NOT synchronous batches):
 
   <scheduling-rule>
-    1. Sort companies by rank (001 first, then 002, etc.)
-    2. Divide into batches of 4 (e.g., 20 companies → 5 batches)
-    3. For each batch:
-       a. Spawn 4 company-orchestrator agents IN PARALLEL (single Agent tool call with 4 invocations)
-       b. Each orchestrator receives: team_name, plugin_root, run_id, output_dir, company_ticker, company_rank, company_dir, shared_data_path, industry_thesis_path, is_a_share
-       c. WAIT for all 4 orchestrators to return completion summaries
-       d. Parse each summary: verify stages_completed, note any risk_flags
-       e. Update tracking.json with per-company stage statuses
-       f. Proceed to next batch
-    4. After ALL batches complete: verify every company has all required stage files
-    5. If any company has status "partial": log the failure but continue to Stage 16
+    1. Sort companies by rank (001 first, then 002, etc.) into a pending queue.
+    2. Spawn the first 4 company-orchestrators IN PARALLEL using run_in_background=true.
+       Each receives: team_name, plugin_root, run_id, output_dir, company_ticker,
+       company_rank, company_dir, shared_data_path, industry_thesis_path, is_a_share,
+       resume (default true → checkpoint skip enabled).
+    3. Loop until pending queue is empty AND no orchestrators are running:
+       a. Wait for the next orchestrator to complete (whichever finishes first).
+       b. Parse its COMPANY_ORCHESTRATOR_COMPLETE summary:
+          - stages_completed, stages_failed, status, key_findings, risk_flags
+          - files_written (paths to {company_dir}/stage{N}.md)
+       c. (Optional) Read {company_dir}/orchestrator-status.json for any
+          per-stage timestamps the orchestrator recorded during the run. Use
+          this for forensic debugging and accurate per-stage timestamps in
+          tracking.json. The completion summary is authoritative for status;
+          the status.json provides finer-grained timing.
+       d. Update tracking.json: set per-stage status for that company.
+          (TEAM-LEAD IS THE ONLY WRITER — no orchestrator touches this file.)
+       e. Emit user-facing progress: one line per completion (e.g.,
+          "✓ 003-IBKR: completed (11/11 stages, 0 failed) — flagged: regulatory")
+       f. If pending queue non-empty: spawn next company-orchestrator (pool refills).
+    4. After pool drains: verify each company has all required stage files.
+       Companies with status="partial" continue to Stage 16; their summary notes
+       which stages failed (the scorer may use partial data).
   </scheduling-rule>
 
   <turn-budget>
-    With company-orchestrator delegation, the team-lead's turn budget for Phase 3 is:
-    - Per batch: 1 turn to spawn (parallel) + 1 turn to process results = 2 turns
-    - 5 batches (20 companies ÷ 4): 10 turns total
-    - Verification: 1 turn
-    Total Phase 3: ~11 turns (vs. 220+ turns without orchestrators)
+    With async pool delegation, the team-lead's turn budget for Phase 3 is bounded by:
+    - Initial pool spawn: 1 turn (parallel spawn of 4 orchestrators in background)
+    - Per orchestrator completion: ~1 turn to receive + log + spawn replacement
+    - 20 companies × 1 turn each = 20 completion handlings
+    - Total Phase 3: ~21 turns (vs. sync-batch ~11 turns AND vs. 220+ pre-orchestrator)
+
+    Tradeoff: async pool uses slightly more team-lead turns than sync batches BUT
+    achieves 20-30% wall-clock reduction when company runtimes are heterogeneous.
+    Net: faster end-to-end with no context overflow risk (each orchestrator still
+    has its own 40-turn budget and isolated context window).
   </turn-budget>
 
   <context-isolation>
     Each company-orchestrator runs in its OWN context window with up to 40 turns.
-    The team-lead NEVER receives raw analysis data — only structured completion summaries.
-    This prevents context window overflow regardless of company count.
+    The team-lead receives ONLY the compressed summary (~1-1.5k tokens), NEVER raw
+    analysis data. This prevents context overflow regardless of company count.
+    Reference: research report Pattern 5 (Context Compression at Handoff).
   </context-isolation>
+
+  <progress-streaming>
+    Company-orchestrators emit structured progress markers in their output:
+      [STAGE_COMPLETE] company={ticker} stage={N} status=ok file={path}
+      [WAVE_END] company={ticker} wave={N} verified=ok|warn|fail
+      [CHECKPOINT] company={ticker} stage={N} action=skip
+      [VERIFY_FAIL] company={ticker} wave={N} reason={short}
+    On final response: COMPANY_ORCHESTRATOR_COMPLETE with full structured summary.
+
+    Team-lead surfaces ONLY the COMPANY_ORCHESTRATOR_COMPLETE summary as a one-line
+    user update. Intermediate STAGE_COMPLETE/WAVE_END markers are visible in the
+    orchestrator's own session but are NOT relayed (they would clutter team-lead output).
+    Reference: research report Pattern 6 (Progressive Streaming).
+  </progress-streaming>
+</process>
+
+<process name="Per-Company Status File Schema">
+  Each company-orchestrator writes a dedicated status file at
+  {company_dir}/orchestrator-status.json. Team-lead READS these for forensic
+  detail; team-lead is the ONLY writer to ../tracking.json (single-writer pattern
+  prevents race conditions when 4 orchestrators run concurrently).
+
+  <schema-template>
+    Schema and field documentation: {plugin_root}/references/company_orchestrator_status_template.json
+    Load this file when you need the full schema. Do NOT inline the schema here —
+    keep agent prompts compact and load templates on demand.
+  </schema-template>
+
+  <ownership-rules>
+    - WRITER: ONLY the company-orchestrator that owns {company_dir}.
+    - READERS: team-lead (for live progress + final aggregation), human operator (debugging).
+    - tracking.json (parent): team-lead is SOLE writer. Orchestrators NEVER touch it.
+    - Race-condition safety: each orchestrator writes only its own file → no contention.
+  </ownership-rules>
+
+  <aggregation-flow>
+    When team-lead receives COMPANY_ORCHESTRATOR_COMPLETE for a company:
+    1. Parse the compressed summary (stages_completed, stages_failed, status, key_findings).
+    2. (Optional) Read {company_dir}/orchestrator-status.json for fine-grained timestamps.
+    3. Merge into tracking.json under companies.{rank}.stages with per-stage status.
+    4. Single atomic write to tracking.json. No other writer touches it.
+  </aggregation-flow>
 </process>
 
 <agent-spawn-fields>
@@ -270,7 +352,7 @@ timeout_mins: 40
   </phase>
 
   <phase name="Analysis">
-    <agent name="company-orchestrator" stage="5-15" per-company="true" note="One orchestrator per company, spawned in parallel batches of 4">
+    <agent name="company-orchestrator" stage="5-15" per-company="true" note="Spawned via async pool (max 4 concurrent), one orchestrator per company">
       <field>team_name</field>
       <field>plugin_root</field>
       <field>run_id</field>
@@ -281,6 +363,7 @@ timeout_mins: 40
       <field>shared_data_path</field>
       <field>industry_thesis_path" note="from Stage 3, if available"</field>
       <field>is_a_share" note="true if ticker ends with .SH or .SZ"</field>
+      <field>resume" default="true" note="P5: skip stages whose output files already exist"</field>
     </agent>
 
     <!-- NOTE: Individual analyst agents (fundamental-analyst, industry-analyst, etc.)
