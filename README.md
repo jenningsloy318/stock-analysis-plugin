@@ -80,7 +80,7 @@ One unified skill with 4 modes, triggered by natural language.
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
 | `--top-n` | 5 (pipeline) / 30 (screen) | 1-163 | Number of top sub-industries to deep-dive |
-| `--total-m` | 10 | 1-100 | Total companies to deep-dive, selected by score across ALL sub-industries |
+| `--total-m` | 10 | 1-20 | Total companies to deep-dive, selected by score across ALL sub-industries |
 
 Company distribution: top M companies are selected by score across ALL top-N sub-industries — not equally distributed. Higher-scoring sub-industries naturally contribute more companies.
 

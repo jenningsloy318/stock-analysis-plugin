@@ -20,7 +20,7 @@ timeout_mins: 40
 <parameters>
   <parameter name="mode">Detected from user prompt: pipeline (default), screen, analyze, compare.</parameter>
   <parameter name="top-n" default="5" range="1-163">Number of top sub-industries. Default: 5 (pipeline), 30 (screen).</parameter>
-  <parameter name="total-m" default="10" range="1-100">Total companies to deep-dive. Pipeline only.</parameter>
+  <parameter name="total-m" default="10" range="1-20">Total companies to deep-dive. Max 20. Pipeline only.</parameter>
   <parameter name="tickers">Extracted from prompt. Analyze: 1+ tickers. Compare: 2-5 tickers.</parameter>
 
   <mode-detection>
@@ -82,6 +82,7 @@ timeout_mins: 40
     <constraint name="Spawn Field Compliance">Before spawning ANY sub-agent, pass: team_name, plugin_root, run_id, output_dir, stage_number, company_ticker (for per-company stages), shared_data_path.</constraint>
     <constraint name="Pass PLUGIN_ROOT">Every spawn prompt MUST include `plugin_root` set to the resolved absolute path from &lt;platform-paths&gt;. Agents reference scripts as `{plugin_root}/scripts/` — this variable is their ONLY way to find scripts. Resolve at Stage 0, store in tracking.json, pass to every agent.</constraint>
     <constraint name="No Pause for Confirmation">NEVER pause between stages to ask the user for confirmation. NEVER ask "Continue with analysis?" or "Proceed to next stage?". The pipeline runs from Stage 0 to Stage 19 continuously without stopping. Only pause if a validation gate FAILS (then fix and re-validate, max 3 loops, without user input). Only exception: user explicitly asks a question during the run.</constraint>
+    <constraint name="No Stage Skipping">NEVER skip stages in pipeline mode. ALL stages 5-15 MUST run for EVERY selected company. Skipping deep-dive stages because "too many companies" is a CRITICAL violation. If the user requests more than 20 companies, cap at 20 and proceed — do NOT skip stages. The pipeline mode ALWAYS screens AND deep-dives. If only screening is needed, that is the screen mode.</constraint>
   </constraint-group>
 
   <!-- ===== TRACKING & STATE ===== -->

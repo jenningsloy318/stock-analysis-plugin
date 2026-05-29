@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare. Triggers on 'find best stocks', 'screen sectors', 'analyze [TICKER]', 'compare T1,T2'."
 author: Jennings Liu
-version: "1.05.07"
+version: "1.05.08"
 license: MIT
 ---
 
@@ -76,7 +76,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <trigger>"find best stocks", "top stocks", "全面筛选", "screen and analyze", "top picks"</trigger>
     <parameters>
       <parameter name="top-n" default="5" range="1-30">Number of top sub-industries after screening all 163.</parameter>
-      <parameter name="total-m" default="10" range="1-100">Total companies to deep-dive. Selected by score across ALL top-n sub-industries — NOT quota per sub-industry.</parameter>
+      <parameter name="total-m" default="10" range="1-20">Total companies to deep-dive. Selected by score across ALL top-n sub-industries — NOT quota per sub-industry. Max 20: each company runs 11 analysis stages (5-15), so 20 companies = 220 agent runs minimum.</parameter>
     </parameters>
     <stages>0→1→1.5→2→3→4→4.5→5-15(waves)→16→16.5→17→17.5→18→18.5→19</stages>
   </mode>
@@ -121,6 +121,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="agent-team" mandatory="true">ALL work MUST use agent team. Create team via TeamCreate with name `stock-analysis-[RUN_ID]` in Stage 0, before spawning any agents. Delete team via TeamDelete in Stage 19 cleanup.</rule>
   <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER analyzes directly. Only spawns agents, coordinates, and quality-gates.</rule>
   <rule name="no-pause" mandatory="true">NEVER pause between stages to ask user for confirmation. The pipeline runs Stage 0 → 19 continuously. No "Continue?" prompts. Only stop if user explicitly asks a question.</rule>
+  <rule name="no-stage-skip" mandatory="true">In pipeline mode, stages 5-15 MUST run for EVERY selected company. NEVER skip deep-dive stages because "too many companies" or "due to scale". If total-m exceeds 20, cap at 20 and proceed with all stages.</rule>
   <rule name="shared-data-once" mandatory="true">Macro, RS, breadth, theme data fetched ONCE in Stage 1. All downstream stages reuse — never re-fetch.</rule>
   <rule name="context-eviction" mandatory="true">After each stage: write summary → drop raw data. If context >80%, offload via persist.py.</rule>
 </rules>
