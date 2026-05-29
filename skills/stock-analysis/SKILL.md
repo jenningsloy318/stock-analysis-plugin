@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare. Triggers on 'find best stocks', 'screen sectors', 'analyze [TICKER]', 'compare T1,T2'."
 author: Jennings Liu
-version: "1.05.09"
+version: "1.05.10"
 license: MIT
 ---
 
@@ -109,7 +109,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
 
 <rules>
   <rule name="Report Language">ALL reports MUST be written in Chinese (中文). Technical terms in English. GICS names: "Semiconductors (半导体)". Source citations in original language.</rule>
-  <rule name="Price Filter">Growth-stage companies only. US < $100, China A-shares < ¥100. Skip filter if user specifies ticker. Filter BEFORE watchlist ranking.</rule>
+  <rule name="Price Filter" mandatory="true">Price filter applies ONLY during Stage 4 (Company Screening). ALL markets: US < $100, China A-shares < ¥100, all other markets < equivalent of $100 USD. This filter determines which companies enter the watchlist and proceed to deep-dive (Stages 5-15). After screening, do NOT re-filter or exclude companies during analysis (5-15) or report generation (17-18). Exception: if user specifies a specific ticker (analyze/compare mode), proceed regardless of price.</rule>
   <rule name="Stock Price Display">Every company in any table/list must include 当前股价. Format: "$XX.XX" or "¥XX.XX".</rule>
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three.</rule>
   <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`.</rule>

@@ -72,7 +72,7 @@ Handles Phase 3 (Company Screening).
 <gate>Each top-20 company must have a specific moat score with evidence, not generic.</gate>
 
 ### Constraints
-<constraint>Focus on growth-stage companies (成长型公司). Filter OUT companies with stock price above $100 (US) or ¥100 (A-shares) from the ranked watchlist.</constraint>
+<constraint mandatory="true">Price filter is MANDATORY for ALL markets. US stocks < $100, A-shares < ¥100, all other markets < $100 USD equivalent. Filter OUT companies above the threshold BEFORE ranking. This filter applies ONLY at the screening stage — downstream analysis agents (Stages 5-15) do NOT re-filter.</constraint>
 <constraint>Every company table/ranking MUST include a "当前股价" (current price) column. Format: "$XX.XX" or "¥XX.XX".</constraint>
 <constraint>Do not invent financial data — use "Data not available" when a metric cannot be found</constraint>
 <constraint>Market cap filter is a minimum, not a target — do not exclude large caps</constraint>

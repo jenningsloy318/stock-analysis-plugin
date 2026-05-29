@@ -34,10 +34,10 @@
 ## Stock Price Filter Rule (MUST follow)
 
 - Focus on **growth-stage companies** (成长型公司), NOT mature blue-chips with high stock prices
-- **US stocks**: Only select/recommend companies with current stock price **under $100**
-- **China A-shares (A股)**: Only select/recommend companies with current stock price **under ¥100**
-- This applies to: industry screening watchlists, stock-analysis recommendations, comparison candidates
-- If analyzing a specific ticker requested by the user, proceed regardless of price (user override)
+- **ALL markets**: US stocks **under $100**, China A-shares **under ¥100**, all other markets **under $100 USD equivalent**
+- This filter applies **ONLY during Stage 4 (Company Screening)** — it determines which companies enter the watchlist
+- After screening, do NOT re-filter or exclude companies during analysis stages (5-15) or report generation (17-18)
+- If analyzing a specific ticker requested by the user (analyze/compare mode), proceed regardless of price (user override)
 - For screening/watchlist: filter OUT companies above the price threshold before ranking
 
 ## Current Stock Price Display Rule (MUST follow)

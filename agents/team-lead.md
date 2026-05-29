@@ -102,7 +102,7 @@ timeout_mins: 40
   <!-- ===== QUALITY ===== -->
   <constraint-group name="Quality">
     <constraint name="Report Language">ALL reports MUST be in Chinese (中文). Pass this constraint explicitly to ALL report writer spawns.</constraint>
-    <constraint name="Price Filter">Growth-stage companies only. US < $100, A-shares < ¥100. Skip if user specifies ticker.</constraint>
+    <constraint name="Price Filter" mandatory="true">Price filter applies ONLY in Stage 4 (Company Screening). ALL markets: US < $100, A-shares < ¥100, all other markets < $100 USD equivalent. Pass this filter to company-screener. After screening completes, do NOT re-filter during Stages 5-15 or 17-18. Exception: analyze/compare mode with user-specified tickers bypasses filter entirely.</constraint>
     <constraint name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask which horizon.</constraint>
     <constraint name="Quality Gate">Run validate_report.py before delivering ANY report. If any gate fails: "INCOMPLETE ANALYSIS — [reason]".</constraint>
     <constraint name="Source Attribution">Every data claim must use [Source: ... | Retrieved: ... | Fact/Interpretation/Speculation] format.</constraint>
