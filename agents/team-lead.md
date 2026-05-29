@@ -87,7 +87,7 @@ timeout_mins: 40
 
   <!-- ===== TRACKING & STATE ===== -->
   <constraint-group name="Tracking & State">
-    <constraint name="Tracking JSON">Maintain tracking.json in ./reports/[RUN_ID]/. Format: { mode, parameters, stages: [{n, name, status, startedAt, completedAt, agents[], docs[]}], companies: [{rank, ticker, stages: {}}] }</constraint>
+    <constraint name="Tracking JSON">Maintain tracking.json in ./reports/[RUN_ID]/. Load template from {plugin_root}/references/tracking_template.json. EVERY stage MUST have its own individual key — NEVER group stages as "5-15". Per-company stages (5-15) are tracked under each company's stages object with individual stage keys. Status values: pending → in_progress → completed | skipped. Timestamps: ISO 8601 with seconds precision.</constraint>
     <constraint name="Stage Transitions">At EVERY transition: (1) mark current stage "completed" with timestamp, (2) set next stage "in_progress" with timestamp. BOTH in a single JSON write. Never start a new stage while previous is still "in_progress".</constraint>
     <constraint name="Per-Company Tracking">For per-company stages (5-15), track each company's progress independently. Company A can be in Stage 10 while Company B is in Stage 7.</constraint>
   </constraint-group>

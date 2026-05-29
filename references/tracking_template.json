@@ -1,0 +1,64 @@
+{
+  "run_id": "YYYYMMDDHHmm",
+  "mode": "pipeline|screen|analyze|compare",
+  "team": {
+    "name": "stock-analysis-YYYYMMDDHHmm"
+  },
+  "parameters": {
+    "top_n": 5,
+    "total_m": 10,
+    "tickers": null
+  },
+  "plugin_root": "/absolute/path/to/plugin",
+  "stages": {
+    "0": {"name": "Setup", "status": "pending", "startedAt": null, "completedAt": null},
+    "1": {"name": "Data Collection", "status": "pending", "startedAt": null, "completedAt": null},
+    "1.5": {"name": "Data Validation", "status": "pending", "startedAt": null, "completedAt": null},
+    "2": {"name": "Sub-Industry Screening", "status": "pending", "startedAt": null, "completedAt": null},
+    "3": {"name": "Sub-Industry Deep-Dive", "status": "pending", "startedAt": null, "completedAt": null},
+    "4": {"name": "Company Screening", "status": "pending", "startedAt": null, "completedAt": null},
+    "4.5": {"name": "Screening Validation", "status": "pending", "startedAt": null, "completedAt": null},
+    "5": {"name": "Financial Health", "status": "pending", "startedAt": null, "completedAt": null},
+    "6": {"name": "Earnings Quality", "status": "pending", "startedAt": null, "completedAt": null},
+    "7": {"name": "Industry & Competitive", "status": "pending", "startedAt": null, "completedAt": null},
+    "8": {"name": "Supply Chain", "status": "pending", "startedAt": null, "completedAt": null},
+    "9": {"name": "Macro & Geopolitics", "status": "pending", "startedAt": null, "completedAt": null},
+    "10": {"name": "Valuation", "status": "pending", "startedAt": null, "completedAt": null},
+    "11": {"name": "Market Regime", "status": "pending", "startedAt": null, "completedAt": null},
+    "12": {"name": "Risk Assessment", "status": "pending", "startedAt": null, "completedAt": null},
+    "13": {"name": "Alt Data & Digital", "status": "pending", "startedAt": null, "completedAt": null},
+    "14": {"name": "Catalyst Intelligence", "status": "pending", "startedAt": null, "completedAt": null},
+    "15": {"name": "A-Share Analysis", "status": "pending", "startedAt": null, "completedAt": null},
+    "16": {"name": "Scoring & Cross-Check", "status": "pending", "startedAt": null, "completedAt": null},
+    "16.5": {"name": "Score Validation", "status": "pending", "startedAt": null, "completedAt": null},
+    "17": {"name": "Report Generation", "status": "pending", "startedAt": null, "completedAt": null},
+    "17.5": {"name": "Report Validation", "status": "pending", "startedAt": null, "completedAt": null},
+    "18": {"name": "Best Picks Highlight", "status": "pending", "startedAt": null, "completedAt": null},
+    "18.5": {"name": "Best Picks Validation", "status": "pending", "startedAt": null, "completedAt": null},
+    "19": {"name": "Cleanup", "status": "pending", "startedAt": null, "completedAt": null}
+  },
+  "companies": [
+    {
+      "rank": "001",
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "current_price": "$XX.XX",
+      "composite_score": null,
+      "stages": {
+        "5": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null},
+        "6": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null},
+        "7": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null},
+        "8": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null},
+        "9": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null},
+        "10": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null},
+        "11": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null},
+        "12": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null},
+        "13": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null},
+        "14": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null},
+        "15": {"status": "pending", "startedAt": null, "completedAt": null, "agent": null, "note": "SKIP for non-.SH/.SZ tickers"}
+      }
+    }
+  ],
+  "current_stage": "0",
+  "created_at": "YYYY-MM-DDTHH:mm:ssZ"
+}
