@@ -116,10 +116,24 @@ TREASURY_TICKERS = {
 }
 
 
+def _flatten_etf_map(etf_map: dict) -> list[tuple[str, str]]:
+    """Normalize either {ticker: label} or {key: {tickers: [...], label: ...}}
+    into a list of (ticker, label) pairs."""
+    pairs: list[tuple[str, str]] = []
+    for key, value in etf_map.items():
+        if isinstance(value, dict) and "tickers" in value:
+            label = value.get("label", key)
+            for t in value["tickers"]:
+                pairs.append((t, label))
+        else:
+            pairs.append((key, str(value)))
+    return pairs
+
+
 def fetch_etf_group(etf_map: dict, group_name: str) -> list[dict]:
     """Fetch performance data for a group of ETFs."""
     results = []
-    for ticker, label in etf_map.items():
+    for ticker, label in _flatten_etf_map(etf_map):
         try:
             stock = yf.Ticker(ticker)
             hist = stock.history(period="1mo")

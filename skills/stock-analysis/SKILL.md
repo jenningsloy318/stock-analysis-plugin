@@ -58,7 +58,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <stage n="7" name="Industry & Competitive" agent="industry-analyst" modes="pipeline,analyze,compare" per-company="true">Porter's Five Forces, TAM/SAM/SOM, Morningstar moat assessment, BCG matrix, ecosystem mapping. REUSES industry thesis from Stage 3 if available. Scripts: fetch_peer_universe.py.</stage>
   <stage n="8" name="Supply Chain" agent="supply-chain-analyst" modes="pipeline,analyze,compare" per-company="true" depends="7">Tier 1-3 supplier mapping, geographic concentration (HHI), chokepoint identification, disruption scenario modeling, inventory-to-sales analysis. **Step 7b**: bottleneck asymmetry composite via score_bottleneck_asymmetry.py for each chokepoint candidate. Scripts: fetch_supply_chain.py, score_bottleneck_asymmetry.py.</stage>
   <stage n="9" name="Macro & Geopolitics" agent="macro-analyst" modes="pipeline,analyze,compare" per-company="true">Dalio economic cycle, Druckenmiller liquidity, Four-Box Framework, Fed stance, CRP country risk, sanctions exposure, currency exposure. REUSES macro data from Stage 1. Scripts: fetch_global_macro.py, fetch_currency_exposure.py.</stage>
-  <stage n="10" name="Valuation" agent="quant-analyst" modes="pipeline,analyze,compare" per-company="true" depends="5,7,8">DCF+Monte Carlo, comps, SOTP, LBO floor, reverse DCF, margin of safety. **Step 3c**: read bottleneck_asymmetry.json from Stage 8 if present, fold tier/asymmetry-band/earliness-band into valuation summary as ±15% qualitative adjustment (NOT a DCF replacement). Scripts: calculate_metrics.py, forecast.py, fetch_private_comps.py.</stage>
+  <stage n="10" name="Valuation" agent="quant-analyst" modes="pipeline,analyze,compare" per-company="true" depends="5,7">DCF+Monte Carlo, comps, SOTP, LBO floor, reverse DCF, margin of safety. **Step 3c**: optionally read bottleneck_asymmetry.json from Stage 8 if already written, fold tier/asymmetry-band/earliness-band into valuation summary as ±15% qualitative adjustment (NOT a DCF replacement; not a hard dependency — Stage 10 runs in parallel with Stage 8 in Wave 2). Scripts: calculate_metrics.py, forecast.py, fetch_private_comps.py.</stage>
   <stage n="11" name="Market Regime" agent="quant-analyst" modes="pipeline,analyze,compare" per-company="true" depends="10">Weinstein stage classification, CANSLIM, Soros reflexivity, factor attribution (Fama-French 5-factor), options signals, sentiment, institutional positioning. Scripts: fetch_technicals.py, compute_factors.py, fetch_cot.py, calculate_options.py, fetch_sentiment.py, fetch_short_interest.py, fetch_activist_exposure.py, compute_liquidity.py, compute_seasonality.py, compute_earnings_edge.py.</stage>
   <stage n="12" name="Risk Assessment" agent="risk-analyst" modes="pipeline,analyze,compare" per-company="true" depends="10">Scenario analysis (bull/base/bear), Marks 2nd-level thinking, Burry forensic, Klarman permanent-vs-temporary, kill switch definition, correlation regime. Scripts: fetch_credit.py, fetch_behavioral.py, compute_correlation_regime.py.</stage>
   <stage n="13" name="Alt Data & Digital" agent="alt-data-analyst" modes="pipeline,analyze,compare" per-company="true">Digital footprint (web traffic, app rankings), NLP earnings call analysis, channel checks, transaction data. Scripts: fetch_alternatives.py, fetch_news_nlp.py, calculate_candor.py.</stage>
@@ -77,7 +77,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
 </workflow>
 
 <dependencies>
-  Per-company analysis stages (5-15) are delegated to company-orchestrator agents — one per company, spawned in parallel batches of 4.
+  Per-company analysis stages (5-15) are delegated to company-orchestrator agents — one per company, scheduled by an ASYNC POOL with max 4 concurrent.
 
   Each company-orchestrator independently manages the dependency DAG within its own context window:
   <wave n="1" agents="3" stages="5,7,9,13" note="All independent — orchestrator spawns up to 3 parallel analysts" />
@@ -85,12 +85,14 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <wave n="3" agents="2" stages="11,12" note="11←10, 12←10" />
   <wave n="4" agents="1" stages="15" note="15←all, A-share only" />
 
-  Team-lead scheduling (across companies):
-  - Batch 1: company-orchestrators for companies 001-004 (parallel)
-  - Batch 2: company-orchestrators for companies 005-008 (parallel)
-  - ... up to batch ceil(M/4)
-  Each batch runs fully in parallel; next batch starts after current batch completes.
-  This isolates per-company context and prevents team-lead context exhaustion.
+  Team-lead scheduling (across companies) — async pool, NOT synchronous batches:
+  - Initialize: spawn first 4 company-orchestrators in parallel (run_in_background=true)
+  - When ANY orchestrator finishes (whichever first), immediately spawn the next pending company
+  - Pool stays saturated at min(4, remaining) at all times — no batch-edge stalls
+  - Loop until queue empty AND pool empty
+  This isolates per-company context, prevents team-lead context exhaustion, and avoids
+  the 20-30% wall-clock penalty of synchronous batches on heterogeneous runtimes.
+  Reference: agents/team-lead.md Phase 3 (Async Pool pattern).
 </dependencies>
 
 <modes>
@@ -169,7 +171,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <constraint name="Team First">Team creation (TeamCreate) is the FIRST action — before any scripts or data fetches.</constraint>
   <constraint name="Data via Agents">Data-fetch scripts are run by data-collector or search-agent teammates, NOT by the team lead directly.</constraint>
   <constraint name="Max 4 Concurrent">Cap parallel agents at 4 to manage context window.</constraint>
-  <constraint name="Company Orchestrator Delegation">For stages 5-15, team-lead spawns company-orchestrator agents (one per company) in parallel batches of 4. Each orchestrator independently manages all analysis stages for its company. The team-lead NEVER spawns individual analyst agents (fundamental-analyst, industry-analyst, etc.) directly for stages 5-15.</constraint>
+  <constraint name="Company Orchestrator Delegation">For stages 5-15, team-lead spawns company-orchestrator agents (one per company) via an ASYNC POOL with max 4 concurrent (next company spawns as soon as any prior orchestrator finishes — no batch-edge stalls). Each orchestrator independently manages all analysis stages for its company. The team-lead NEVER spawns individual analyst agents (fundamental-analyst, industry-analyst, etc.) directly for stages 5-15.</constraint>
   <constraint name="Quality Gate">Report cannot be delivered until pre-delivery checklist passes. If any gate fails: "INCOMPLETE ANALYSIS — [reason]".</constraint>
   <constraint name="Level 4 Structure">Sub-Industry is the structural unit in reports — Level 1/2/3 appear only as context within Level 4 entries.</constraint>
   <constraint name="Cleanup">Stage 19 cleanup: delete intermediate files (stage*.md, raw-data.json, phase*.md), terminate all remaining agents, delete team via TeamDelete. Keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage.</constraint>

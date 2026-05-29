@@ -132,11 +132,26 @@ def fetch_ecb_series(series_key: str, last_n: int = 12) -> dict | None:
             time_dim = next((d for d in dims if d.get("id") == "TIME_PERIOD"), None)
             time_values = time_dim.get("values", []) if time_dim else []
 
-            for i, val in enumerate(data.get("dataSets", [{}])[0].get("observations", {}).values()):
-                if isinstance(val, list) and len(val) > 0 and val[0] is not None:
-                    time_idx = i % len(time_values) if time_values else i
-                    period = time_values[time_idx].get("id", "") if time_idx < len(time_values) else ""
-                    observations.append({"period": period, "value": round(float(val[0]), 3)})
+            # ECB SDW observation keys are dimension-index strings like "0:0:0".
+            # The trailing index is the TIME_PERIOD position. Parse it explicitly
+            # rather than relying on dict-iteration order.
+            obs_dict = data.get("dataSets", [{}])[0].get("observations", {})
+            parsed_obs = []
+            for key, val in obs_dict.items():
+                if not (isinstance(val, list) and val and val[0] is not None):
+                    continue
+                try:
+                    time_idx = int(str(key).split(":")[-1])
+                except (ValueError, IndexError):
+                    continue
+                if 0 <= time_idx < len(time_values):
+                    period = time_values[time_idx].get("id", "")
+                else:
+                    period = ""
+                parsed_obs.append((time_idx, {"period": period, "value": round(float(val[0]), 3)}))
+
+            parsed_obs.sort(key=lambda p: p[0])
+            observations = [obs for _, obs in parsed_obs]
 
             if observations:
                 return {"series": series_key, "source": "ECB SDW", "observations": observations[-last_n:]}

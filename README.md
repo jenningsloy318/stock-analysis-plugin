@@ -134,7 +134,7 @@ All reports produced in **Chinese (中文)**. 3 horizons always generated.
 
 ## Architecture
 
-One orchestrator manages 18 specialist agents across 25 pipeline stages (20 work + 5 independent validation gates). All work is delegated — the orchestrator never performs analysis directly. The `report-validator` agent independently validates data freshness, screening completeness, scoring consistency, and report quality at 5 checkpoints.
+One orchestrator manages 20 specialist agents across 25 pipeline stages (20 work + 5 independent validation gates). All work is delegated — the orchestrator never performs analysis directly. The `report-validator` agent independently validates data freshness, screening completeness, scoring consistency, and report quality at 5 checkpoints.
 
 ```
 stock-analysis (5 modes: pipeline / screen / analyze / compare / walk)

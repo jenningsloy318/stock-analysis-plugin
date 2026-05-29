@@ -205,13 +205,14 @@ def interpret_factors(coefficients: dict) -> dict:
     interp = {}
     for name, data in coefficients.items():
         if name == "Alpha":
-            alpha = data["coefficient"]
+            alpha_daily = data["coefficient"]
+            alpha_annual = (1 + alpha_daily) ** 252 - 1
             if abs(data["t_statistic"]) < 1.96:
                 interp["alpha"] = "Not statistically significant — returns explained by factor exposure."
-            elif alpha > 0:
-                interp["alpha"] = f"Positive alpha ({alpha * 100:.2f}% monthly) — stock outperformed factor model."
+            elif alpha_daily > 0:
+                interp["alpha"] = f"Positive alpha ({alpha_annual * 100:.2f}% annualized) — stock outperformed factor model."
             else:
-                interp["alpha"] = f"Negative alpha ({alpha * 100:.2f}% monthly) — stock underperformed factor model."
+                interp["alpha"] = f"Negative alpha ({alpha_annual * 100:.2f}% annualized) — stock underperformed factor model."
         else:
             beta = data["coefficient"]
             sig = data["significant_at_5pct"]

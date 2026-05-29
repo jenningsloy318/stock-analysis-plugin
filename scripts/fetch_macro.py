@@ -212,13 +212,13 @@ INDICATORS = {
         "category": "activity",
         "description": "Total industry capacity utilization.",
     },
-    "RSXFS": {
-        "series_id": "RSXFS",
-        "label": "Retail Sales (ex Food Services)",
+    "RSAFS": {
+        "series_id": "RSAFS",
+        "label": "Retail Sales (Total, incl. Food Services)",
         "unit": "Millions of Dollars",
         "frequency": "Monthly",
         "category": "activity",
-        "description": "Advance retail sales excluding food services.",
+        "description": "Advance retail sales, total (RSXFS was discontinued in 2022; RSAFS is the current series).",
     },
     "HOUST": {
         "series_id": "HOUST",
@@ -298,11 +298,11 @@ INDICATORS = {
     },
     "NMFCI": {
         "series_id": "NMFCI",
-        "label": "ISM Services PMI (Business Activity)",
+        "label": "Chicago Fed Adjusted NFCI: Nonfinancial Leverage",
         "unit": "Index",
-        "frequency": "Monthly",
-        "category": "activity",
-        "description": "ISM Non-Manufacturing (Services) Business Activity Index. Services = ~80% of US GDP. >50 = expansion.",
+        "frequency": "Weekly",
+        "category": "credit",
+        "description": "Chicago Fed Adjusted NFCI Nonfinancial Leverage Subindex. Note: this is a financial-conditions series, NOT the ISM Services PMI (which is proprietary and not on FRED).",
     },
     # ---- JOLTS (Job Openings & Labor Turnover) ----
     "JTSJOL": {
@@ -470,10 +470,11 @@ def compute_macro_summary(results: dict) -> dict:
         else "low"
     )
 
-    # Services PMI (80% of economy)
-    services_pmi = next((d for d in keys.get("NMFCI", {}).get("data", [])), None)
-    services_pmi_val = services_pmi["value"] if services_pmi else None
-    services_contraction = services_pmi_val is not None and services_pmi_val < 50
+    # Services PMI not available on FRED for free; field intentionally unset to
+    # avoid mislabeling another series as Services PMI. Manufacturing PMI (NAPM)
+    # remains the activity proxy.
+    services_pmi_val = None
+    services_contraction = False
 
     # JOLTS indicators
     jolts_openings = next((d for d in keys.get("JTSJOL", {}).get("data", [])), None)

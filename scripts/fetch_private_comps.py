@@ -561,16 +561,15 @@ def main():
 
     results = fetch_private_comps(args.ticker.upper(), args.sector)
 
-    output_path = args.output
-    if output_path is None:
-        output_path = f"./reports/{args.ticker.upper()}/private_comps.json"
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2, default=str)
-
-    print(json.dumps(results, indent=2, default=str))
+    output = json.dumps(results, indent=2, default=str)
+    if args.output:
+        out_dir = os.path.dirname(os.path.abspath(args.output))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+        with open(args.output, "w") as f:
+            f.write(output)
+    else:
+        print(output)
 
 
 if __name__ == "__main__":

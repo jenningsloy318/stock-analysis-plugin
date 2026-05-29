@@ -122,6 +122,16 @@ def fetch_insider_transactions(ticker: str, api_key: str) -> dict:
     monthly_buyers = defaultdict(set)
     monthly_sellers = defaultdict(set)
 
+    # Finnhub returns transactionType strings like "P - Purchase" / "S - Sale".
+    # Match the leading code letter rather than literal "Buy"/"Sell".
+    def _is_buy(tx_type: str) -> bool:
+        s = (tx_type or "").strip().upper()
+        return s.startswith("P") or s == "BUY" or "PURCHASE" in s
+
+    def _is_sell(tx_type: str) -> bool:
+        s = (tx_type or "").strip().upper()
+        return s.startswith("S") or s == "SELL" or "SALE" in s
+
     for t in parsed:
         if not t["transaction_date"]:
             continue
@@ -130,10 +140,10 @@ def fetch_insider_transactions(ticker: str, api_key: str) -> dict:
         except ValueError:
             continue
         month_key = dt.strftime("%Y-%m")
-        if t["transaction_type"] == "Buy" and not t["is_10b5_1"]:
+        if _is_buy(t["transaction_type"]) and not t["is_10b5_1"]:
             monthly_buys[month_key] += t["value"] or 0
             monthly_buyers[month_key].add(t["name"])
-        elif t["transaction_type"] == "Sell" and not t["is_10b5_1"]:
+        elif _is_sell(t["transaction_type"]) and not t["is_10b5_1"]:
             monthly_sells[month_key] += t["value"] or 0
             monthly_sellers[month_key].add(t["name"])
 

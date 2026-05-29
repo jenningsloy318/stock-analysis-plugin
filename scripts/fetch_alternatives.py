@@ -253,7 +253,31 @@ class _GlassdoorParser(HTMLParser):
 
 def fetch_glassdoor(ticker: str) -> dict:
     """Fetch Glassdoor public company rating page."""
-    # Resolve ticker to company name for Glassdoor URL
+    # Glassdoor employer URLs require a stable numeric employer ID (the EI_IExxxxx
+    # suffix) which Glassdoor assigns and does NOT derive from the company name.
+    # We previously synthesized this with hash() — Python 3 hash is per-process
+    # randomized, so the URL changed every run and was always invalid.
+    # Until a real lookup table is wired in, return a clean "not available" stub.
+    company_map = {
+        "AAPL": "Apple", "MSFT": "Microsoft", "GOOGL": "Google",
+        "AMZN": "Amazon", "META": "Meta", "TSLA": "Tesla",
+        "NVDA": "Nvidia", "NFLX": "Netflix", "DIS": "Walt-Disney-Company",
+        "JPM": "J-P-Morgan", "BAC": "Bank-of-America", "WMT": "Walmart",
+    }
+    company = company_map.get(ticker.upper(), ticker)
+
+    return {
+        "source": "glassdoor_public",
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "company": company,
+        "overall_rating": None,
+        "ceo_approval": None,
+        "note": "Glassdoor employer ID lookup not implemented; cannot construct a stable EI_IE URL from company name alone.",
+    }
+
+
+def _fetch_glassdoor_legacy(ticker: str) -> dict:
+    """Legacy implementation kept for reference; uses hash() and is unreliable."""
     company_map = {
         "AAPL": "Apple", "MSFT": "Microsoft", "GOOGL": "Google",
         "AMZN": "Amazon", "META": "Meta", "TSLA": "Tesla",
@@ -264,7 +288,8 @@ def fetch_glassdoor(ticker: str) -> dict:
 
     rate_limit()
     try:
-        url = f"https://www.glassdoor.com/Overview/Working-at-{company}-EI_IE{hash(company) % 100000}.htm"
+        # Note: hash() is per-process randomized; URL is unstable across runs.
+        url = f"https://www.glassdoor.com/Overview/Working-at-{company}-EI_IE{abs(hash(company)) % 100000}.htm"
         resp = requests.get(url, headers=HEADERS, timeout=15)
         if resp.status_code != 200:
             return {"source": "glassdoor_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),

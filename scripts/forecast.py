@@ -1487,16 +1487,22 @@ def main():
                 "fcf_growth_rate": round(ensemble_cagr, 4),
                 "growth_rate_source": "Ensemble forecast (ARIMA + ETS + Naive)",
                 "growth_rate_lower": round(
-                    fcf_data["ensemble_forecasts"][-1]["lower"]
-                    / fcf_data["last_observed"] ** (1 / args.horizon)
+                    (
+                        fcf_data["ensemble_forecasts"][-1]["lower"]
+                        / fcf_data["last_observed"]
+                    )
+                    ** (1 / args.horizon)
                     - 1,
                     4,
                 )
                 if fcf_data.get("ensemble_forecasts") and fcf_data["last_observed"] > 0
                 else None,
                 "growth_rate_upper": round(
-                    fcf_data["ensemble_forecasts"][-1]["upper"]
-                    / fcf_data["last_observed"] ** (1 / args.horizon)
+                    (
+                        fcf_data["ensemble_forecasts"][-1]["upper"]
+                        / fcf_data["last_observed"]
+                    )
+                    ** (1 / args.horizon)
                     - 1,
                     4,
                 )

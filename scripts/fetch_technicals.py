@@ -965,7 +965,6 @@ def compute_pandas_ta_indicators(
                 {"kind": "bbands", "length": 40, "std": 2.0},
                 {"kind": "true_range"},
                 {"kind": "thermo", "length": 20},
-                {"kind": "p volatility", "length": 12},
                 {"kind": "pvol"},
                 # === Volume (~15) ===
                 {"kind": "obv"},

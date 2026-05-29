@@ -104,7 +104,7 @@ def run_cross_check(scores: dict, behavioral: dict | None = None) -> dict:
     # Rule 5: Framework divergence
     divergence = scores.get("framework_divergence", {})
     if divergence.get("investigation_required"):
-        pairs = divergence.get("divergent_pairs", [])
+        pairs = divergence.get("divergences", [])
         flags.append(
             {
                 "rule": 5,

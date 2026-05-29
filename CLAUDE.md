@@ -67,13 +67,15 @@
 ## Agent Orchestration (MUST follow)
 
 - The `stock-analysis` skill (unified pipeline) acts as the team lead — it NEVER analyzes directly, only spawns, coordinates, and quality-gates.
-- Modes: pipeline (default: screen → analyze), screen, analyze, compare.
+- Modes: pipeline (default: screen → analyze), screen, analyze, compare, walk.
 - 25 stages (20 work stages + 5 validation gates), each handled by a dedicated specialist agent.
 - Stage 0: TeamCreate with name `stock-analysis-[RUN_ID]` before any agent spawning.
 - Stage 1.5, 4.5, 16.5, 17.5, 18.5: Independent validation by report-validator agent.
 - Stage 19: TeamDelete + remove temp files — ALWAYS the last stage.
 - Validation gates are BLOCKING — team-lead WAITS for VALIDATED: PASS before advancing.
 - Screening agents: `data-collector`, `sector-screener`, `company-screener`, `scorer`.
+- Orchestrator agents: `team-lead` (top-level skill orchestrator) and `company-orchestrator` (per-company stages 5-15 manager, async pool max 4).
+- Walk-mode agent: `roadmap-walker` (top-down chain decomposition for `--mode walk THEME`).
 - Analysis agents (per-company): `fundamental-analyst`, `industry-analyst`, `supply-chain-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `catalyst-analyst`, `china-market-analyst`.
 - Validation agent: `report-validator` — independent, runs validate_report.py, signals PASS/FAIL.
 - Report agents: `screening-report-writer`, `equity-report-writer`.
@@ -199,6 +201,11 @@
 | `alpha_factor_zoo.py` | Factor computation engine with 19 base operators, 4 factor zoos | 11 |
 | `validate_factors.py` | AST safety validation for factor expressions, lookahead bias detection | 11 |
 | `audit_tool_calls.py` | Post-hoc report grounding verification | 17 |
+| `audit_capital_allocation.py` | Capital allocation audit (P0.1): buyback ROI, dividend coverage, M&A track record | 5, 6 |
+| `score_ceo_quality.py` | CEO quality score (P0.3): tenure, capital allocation skill, candor, alignment | 5 |
+| `synthesize_primary_research.py` | Primary research synthesis (P0.2): per-claim convergence scoring across expert/channel sources | 13 |
+| `analyze_earnings_transcript.py` | Earnings transcript NLP (P0.4): tone, guidance shift, miss-classification, Q&A evasion score | 13 |
+| `score_bottleneck_asymmetry.py` | Universal bottleneck-investing asymmetry composite (0-100) per chokepoint candidate | 8, walk |
 | `fetch_market_breadth.py` | Market breadth: % above MAs, A/D, McClellan, VIX term structure, credit spreads | 1 |
 | `fetch_theme_performance.py` | Theme/style ETF performance, sector RS, regime summary | 1 |
 

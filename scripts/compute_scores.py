@@ -1891,6 +1891,18 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
 
     conviction = round(conviction, 1)
 
+    # Lollapalooza bonus — apply BEFORE rating assignment so rating reflects final conviction
+    lollapalooza = False
+    high_components = [
+        k for k, v in component_scores.items() if v is not None and v >= 7.5
+    ]
+    if len(high_components) >= 3:
+        lollapalooza = True
+        conviction = min(10.0, round(conviction + 1.5, 1))
+        overrides.append(
+            f"Lollapalooza Effect detected ({len(high_components)} strong components) → +1.5 bonus"
+        )
+
     # Rating
     if conviction >= 9.0:
         rating = "Strong Buy"
@@ -1904,19 +1916,6 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
         rating = "Sell"
     else:
         rating = "Strong Sell"
-
-    # Lollapalooza bonus
-    lollapalooza = False
-    # Check for 3+ high-score components (>7.5)
-    high_components = [
-        k for k, v in component_scores.items() if v is not None and v >= 7.5
-    ]
-    if len(high_components) >= 3:
-        lollapalooza = True
-        conviction = min(10.0, conviction + 1.5)
-        overrides.append(
-            f"Lollapalooza Effect detected ({len(high_components)} strong components) → +1.5 bonus"
-        )
 
     return {
         "conviction": round(conviction, 1),

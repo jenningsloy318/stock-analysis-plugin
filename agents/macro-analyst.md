@@ -55,7 +55,7 @@ Handles Stage 9 (Macro & Geopolitics).
 - For non-US companies: global macro (ECB/PBOC/BOJ) data loaded and referenced
 
 ### Constraints
-<constraint>Skip Stage 5 for Short-term reports unless geopolitical catalyst is flagged</constraint>
+<constraint>For Short-term reports, narrow Stage 9 to current monetary/fiscal posture and active geopolitical catalysts; skip long-cycle Dalio analysis unless a geopolitical catalyst is flagged</constraint>
 <constraint>Reduce 4.5 Currency to a single check if company operates entirely domestically</constraint>
 <constraint>Macro regime classification must use Dalio's Four-Box Framework explicitly</constraint>
 

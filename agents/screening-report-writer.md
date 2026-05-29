@@ -118,10 +118,10 @@ Also load {plugin_root}/references/gics_taxonomy.md for code validation and {plu
   - Kill switch conditions defined</step>
 <step n="6" name="Fact Verification">Select 3 random data claims from the report, trace back to phase summary source. If any claim is unverifiable, remove it and flag the gap.</step>
 <step n="7" name="Write Reports">For EACH horizon (long-term, mid-term, short-term), apply the corresponding weighting scheme from `{plugin_root}/references/screening_report_templates.md` and write a separate report:
-  - `./reports/[RUN_ID]/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
-  - `./reports/[RUN_ID]/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
-  - `./reports/[RUN_ID]/[NNN]_[SECTOR]_[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
-  Where [NNN] is the zero-padded 3-digit sub-industry rank (001 for top-ranked, 002 for second, etc.).
+  - `./reports/[RUN_ID]/[NNN]-[SUB_INDUSTRY_CODE]_long_[YYYY-MM-DD].md`
+  - `./reports/[RUN_ID]/[NNN]-[SUB_INDUSTRY_CODE]_mid_[YYYY-MM-DD].md`
+  - `./reports/[RUN_ID]/[NNN]-[SUB_INDUSTRY_CODE]_short_[YYYY-MM-DD].md`
+  Where [NNN] is the zero-padded 3-digit sub-industry rank (001 for top-ranked, 002 for second, etc.) and [SUB_INDUSTRY_CODE] is the GICS Level 4 8-digit code. Filename uses dash before NNN to match equity-report convention (NNN-[TICKER]_horizon_[DATE].md). Sector is captured INSIDE the report content as context, never as a filename prefix (Level 4 is the PRIMARY structural unit per CLAUDE.md).
   Rankings may differ across horizons because weighting schemes prioritize different factors.
   Run `{plugin_root}/scripts/persist.py complete [ANALYSIS_ID]` after all 3 reports are written.</step>
 <step n="8" name="Handoff Recommendation">Generate explicit next-step suggestion: "Top-ranked companies from this screen can be deep-dived with the stock-analysis skill. Recommended starting ticker: [TOP_TICKER] (Score: [X.X]/10, GICS: [CODE] [SUB_INDUSTRY_NAME]). Would you like me to run a full equity research analysis?"</step>

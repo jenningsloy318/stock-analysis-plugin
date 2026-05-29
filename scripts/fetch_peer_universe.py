@@ -133,24 +133,42 @@ def find_gics_peers(ticker_info: dict) -> list[str]:
 
 
 def find_etf_peers(ticker: str, ticker_info: dict) -> list[str]:
-    """Find peers from sector ETF holdings — market-cap-adjacent companies."""
+    """Find peers from sector ETF holdings — market-cap-adjacent companies.
+
+    Uses yfinance .funds_data.top_holdings when available. The previous
+    implementation called .get_institutional_holders() (institutional shareholders
+    of the ETF, not its constituent holdings) and never appended to peers, so
+    every call returned [].
+    """
     sector = ticker_info.get("sector", "")
     sector_etfs = SECTOR_ETF_MAP.get(sector, [])
 
     if not sector_etfs:
         return []
 
-    peers = set()
+    peers: set[str] = set()
+    self_ticker = (ticker_info.get("ticker") or ticker or "").upper()
 
     for etf_ticker in sector_etfs[:2]:  # Limit to 2 ETFs for speed
         try:
             etf = yf.Ticker(etf_ticker)
-            holdings = etf.get_institutional_holders()
-            # This API is limited; fall back to known holdings via web
+            holdings_df = None
+
+            funds_data = getattr(etf, "funds_data", None)
+            if funds_data is not None:
+                top_holdings = getattr(funds_data, "top_holdings", None)
+                if top_holdings is not None:
+                    holdings_df = top_holdings
+
+            if holdings_df is not None and hasattr(holdings_df, "index"):
+                for sym in list(holdings_df.index)[:25]:
+                    sym_str = str(sym).upper().strip()
+                    if sym_str and sym_str != self_ticker:
+                        peers.add(sym_str)
         except Exception:
             continue
 
-    return list(peers)
+    return sorted(peers)
 
 
 def find_description_peers(ticker_info: dict, universe: list[str], max_results: int = 10) -> list[str]:

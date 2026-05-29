@@ -130,7 +130,6 @@ _SP500_FALLBACK = [
     "INTC",
     "PANW",
     "MDT",
-    "ADI",
     "PLTR",
     "KLAC",
     "AMT",

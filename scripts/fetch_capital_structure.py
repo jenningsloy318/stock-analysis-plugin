@@ -41,6 +41,23 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 
+def _fetch_10y_yield() -> float:
+    """Fetch the latest 10-year Treasury yield (^TNX) as a decimal.
+    Falls back to 0.043 (a long-run-average proxy) if the live fetch fails."""
+    try:
+        import yfinance as yf
+
+        tnx = yf.Ticker("^TNX").history(period="5d")
+        if tnx is not None and not tnx.empty:
+            # ^TNX is quoted in percent (e.g., 4.30 means 4.30%)
+            latest = float(tnx["Close"].dropna().iloc[-1]) / 100.0
+            if 0.0 < latest < 0.20:
+                return round(latest, 4)
+    except Exception:
+        pass
+    return 0.043
+
+
 def _safe_div(numerator: float | None, denominator: float | None) -> float | None:
     """Return numerator / denominator, or None if either is None / zero."""
     if numerator is None or denominator is None or denominator == 0:
@@ -765,7 +782,11 @@ def compute_capital_return(
 
         div_history = stock.dividends
         if div_history is not None and len(div_history) > 0:
-            div_annual = div_history.resample("YE").sum()
+            try:
+                div_annual = div_history.resample("YE").sum()
+            except (ValueError, KeyError):
+                # pandas < 2.2 uses "A" for year-end alias
+                div_annual = div_history.resample("A").sum()
             # Drop the current (partial) calendar year — it has fewer dividend
             # payments than a full year and will produce a misleadingly low CAGR.
             # rollforward() of today returns today's own year-end, so exclude
@@ -998,8 +1019,9 @@ def compute_capital_structure(
         ),
     }
 
-    # WACC
-    risk_free_rate = 0.043  # ~10Y UST as of 2025
+    # WACC — risk-free rate sourced live from 10Y Treasury yield (^TNX)
+    # with a hardcoded fallback if the live fetch fails.
+    risk_free_rate = _fetch_10y_yield()
     equity_risk_premium = 0.055  # Damodaran implied ERP
     beta_val = beta or 1.0
     cost_of_equity = risk_free_rate + beta_val * equity_risk_premium

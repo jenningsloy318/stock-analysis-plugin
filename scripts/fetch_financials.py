@@ -152,7 +152,7 @@ def fetch_from_akshare(ticker: str, years: int) -> dict | None:
                 hist = ak.stock_zh_a_hist(
                     symbol=code,
                     period="daily",
-                    start_date=f"{2025-years}0101",
+                    start_date=f"{datetime.now().year - years}0101",
                     end_date="20991231",
                     adjust="qfq",
                 )
@@ -676,14 +676,21 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
                 )
 
         # Quarterly data for recent trend
-        quarterly_income = stock.quarterly_financials
+        quarterly_income = stock.quarterly_income_stmt
+        # Fall back to legacy quarterly_financials if income_stmt is unavailable
+        if quarterly_income is None or (hasattr(quarterly_income, "empty") and quarterly_income.empty):
+            quarterly_income = stock.quarterly_financials
         quarterly_revenue = (
             df_to_series(quarterly_income, "Total Revenue")
             if quarterly_income is not None
             else []
         )
         quarterly_eps = (
-            df_to_series(quarterly_income, "Diluted EPS")
+            (
+                df_to_series(quarterly_income, "Diluted EPS")
+                or df_to_series(quarterly_income, "Basic EPS")
+                or []
+            )
             if quarterly_income is not None
             else []
         )

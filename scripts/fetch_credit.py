@@ -36,10 +36,10 @@ FRED_BASE = "https://api.stlouisfed.org/fred"
 HEADERS = {"User-Agent": "StockAnalysisSkill/2.0 (research@example.com)"}
 
 # Key credit spread series on FRED
+# Note: TEDRATE was discontinued in 2023 with LIBOR retirement and is intentionally omitted.
 CREDIT_SERIES = {
     "BAMLH0A0HYM2": "HY OAS (ICE BofA US High Yield)",
     "BAMLC0A0CM": "IG OAS (ICE BofA US Corporate)",
-    "TEDRATE": "TED Spread (3M LIBOR - 3M Treasury)",
     "BAA10Y": "Moody's Baa - 10Y Treasury Spread",
     "AAA10Y": "Moody's Aaa - 10Y Treasury Spread",
 }
@@ -98,7 +98,6 @@ def fetch_credit_spreads(api_key: str | None) -> dict:
     # Credit regime assessment
     hy_spread = results.get("BAMLH0A0HYM2", {}).get("latest")
     ig_spread = results.get("BAMLC0A0CM", {}).get("latest")
-    ted = results.get("TEDRATE", {}).get("latest")
 
     regime = "unknown"
     if hy_spread is not None and ig_spread is not None:
@@ -119,7 +118,6 @@ def fetch_credit_spreads(api_key: str | None) -> dict:
             "classification": regime,
             "hy_oas": hy_spread,
             "ig_oas": ig_spread,
-            "ted_spread": ted,
             "assessment": (
                 "Credit stress — high yield spreads elevated, financing difficult"
                 if regime == "stress"

@@ -12,18 +12,18 @@
 **team-lead** — Unified pipeline coordinator following super-dev team-lead pattern:
 - XML-tagged: `<constraints>` with `<constraint-group>`, `<process>`, `<agent-spawn-fields>`, `<quality-gates>`
 - NEVER analyzes directly — only spawns, coordinates, and quality-gates
-- Manages 19 stages; delegates per-company analysis to company-orchestrators
+- Manages 25 stages (20 work + 5 validation gates); delegates per-company analysis to company-orchestrators
 
 ## Company Orchestrator (Context Isolation Layer)
 
 **company-orchestrator** — Per-company deep-dive manager:
-- Spawned by team-lead in parallel batches of 4 (one orchestrator per company)
+- Spawned by team-lead via async pool (max 4 concurrent — next company spawns as soon as any prior orchestrator finishes; no batch-edge stalls)
 - Independently manages ALL stages 5-15 for a single company in its own context window
 - Uses dependency-aware wave scheduling internally (3 concurrent analysts max)
 - Returns structured completion summary to team-lead upon finishing
 - Prevents team-lead context exhaustion when analyzing 10-20 companies
 
-## Specialist Agents (18 agents, 25 stages)
+## Specialist Agents (20 agents, 25 stages)
 
 | Agent | Stage(s) | Purpose | Per-Company |
 |-------|----------|---------|-------------|
@@ -44,6 +44,7 @@
 | **report-validator** | 1.5, 4.5, 16.5, 17.5, 18.5 | Independent validation at 5 checkpoints | No |
 | **screening-report-writer** | 17 | Screening overview reports | No |
 | **equity-report-writer** | 17, 18 | Per-company deep-dive + best picks | No |
+| **roadmap-walker** | walk | Top-down chain decomposition for `--mode walk THEME` (replaces stages 2-16.5) | No |
 | **search-agent** | all | Multi-source financial web search | No |
 | **market-daily-orchestrator** | daily | Daily market macro report | No |
 
@@ -97,20 +98,33 @@ Wave 4: [15]              ← all deps, A-share only
 | **analyze** | 0→1→1.5→5-15→16→16.5→17→17.5→18→18.5→19 | 2-4.5 |
 | **compare** | 0→1→1.5→5-15→16(rank)→16.5→17→17.5→18→18.5→19 | 2-4.5 |
 
-### Cross-Company Orchestrator Batching
+### Cross-Company Orchestrator Async Pool
 
 With max 4 concurrent company-orchestrators and M companies:
 ```
-Batch 1: [company-orch(001), company-orch(002), company-orch(003), company-orch(004)]
-  └── Each internally: Wave1[5,7,9,13] → Wave2[6,8,10,14] → Wave3[11,12] → Wave4[15]
-Batch 2: [company-orch(005), company-orch(006), company-orch(007), company-orch(008)]
-  └── Each internally: same wave pattern
-...
-Batch 5: [company-orch(017), company-orch(018), company-orch(019), company-orch(020)]
+Initial:  spawn company-orch(001), (002), (003), (004) in parallel (run_in_background=true)
+Async:    when ANY orchestrator finishes (whichever first), immediately spawn the next pending company
+          - pool stays saturated at min(4, remaining) at all times
+          - no batch-edge stalls (slow company doesn't block fast ones)
+Loop:     until queue empty AND pool empty
+
+Each orchestrator internally: Wave1[5,7,9,13] → Wave2[6,8,10,14] → Wave3[11,12] → Wave4[15]
+20-30% wall-clock speedup vs synchronous batches on heterogeneous runtimes.
 
 Team-lead turns for 20 companies: ~11 (vs 220+ without orchestrators)
 Each orchestrator has its own 40-turn budget and independent context window.
 ```
+
+### Walk Mode (Top-down Chain Decomposition)
+
+Triggered by `--mode walk "THEME"` (e.g., `--mode walk "humanoid robotics"`).
+- team-lead spawns ONE roadmap-walker agent (replaces stages 2-16.5)
+- Walker performs Steps 1-6 of references/frameworks_bottleneck_investing.md:
+  roadmap anchor → chain decomposition → chokepoint scoring → candidate selection
+  → score_bottleneck_asymmetry.py → walk.md synthesis
+- Outputs: walk_roadmap.json, walk_chain.json, walk_candidates.json, walk.md
+- Then jumps to Stage 17 (reports) → 17.5 → 18 (best picks) → 18.5 → 19 (cleanup)
+- SKIPS the screening pipeline AND per-company deep-dive
 
 ## Platform-Specific Notes
 

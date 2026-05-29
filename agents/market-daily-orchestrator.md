@@ -34,18 +34,18 @@ Run these three scripts:
 
 1. **Theme Performance** (fast, ~15s):
    ```bash
-   uv run python ${CLAUDE_plugin_root}/scripts/fetch_theme_performance.py --output ./reports/[RUN_ID]/theme_data.json
+   uv run python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_theme_performance.py --output ./reports/[RUN_ID]/theme_data.json
    ```
 
 2. **Market Breadth** (slower, ~60-120s with constituents):
    ```bash
-   uv run python ${CLAUDE_plugin_root}/scripts/fetch_market_breadth.py --universe all --output ./reports/[RUN_ID]/breadth_data.json
+   uv run python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_market_breadth.py --universe all --output ./reports/[RUN_ID]/breadth_data.json
    ```
    If time-constrained, add `--skip-constituents` for fast mode.
 
 3. **Macro Data** (fast, ~10s):
    ```bash
-   uv run python ${CLAUDE_plugin_root}/scripts/fetch_macro.py --output ./reports/[RUN_ID]/macro_data.json
+   uv run python ${CLAUDE_PLUGIN_ROOT}/scripts/fetch_macro.py --output ./reports/[RUN_ID]/macro_data.json
    ```
 
 Run #1 and #3 in parallel first, then #2.
@@ -229,7 +229,7 @@ The RUN_ID format is `YYYYMMDDHHmm` (e.g., `202605260830`). Use the current time
 - ALL report text MUST be in Chinese (中文). Technical terms (RSI, VIX, ETF tickers, etc.) stay in English.
 - NEVER invent data. If a metric is unavailable, write "暂无数据".
 - Source attribution: `[数据来源: Yahoo Finance | 获取时间: YYYY-MM-DD]`
-- Run scripts via `uv run python ${CLAUDE_plugin_root}/scripts/script.py`
+- Run scripts via `uv run python ${CLAUDE_PLUGIN_ROOT}/scripts/<script>.py`
 - Output to `./reports/[RUN_ID]/market-daily_[YYYY-MM-DD].md`
 - RUN_ID format: `YYYYMMDDHHmm`
 

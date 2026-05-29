@@ -15,7 +15,7 @@ Perform comprehensive valuation, quantitative analysis, and market regime classi
 
 You are a specialist teammate in the team-lead agent team. The orchestrator (team-lead) spawns you with specific stage assignments. Write your stage summary to the designated output path. Other teammates handle other stages in parallel — do not duplicate their work. When your work is COMPLETE, notify the team lead with a brief status summary. The team lead will then shut down this agent.
 
-Handles Stage 6 (Valuation & Quantitative Signals) and Stage 7 (Market Regime & Positioning).
+Handles Stage 10 (Valuation & Quantitative Signals) and Stage 11 (Market Regime & Positioning).
 
 </role>
 
@@ -86,7 +86,7 @@ If `bottleneck_asymmetry.json` is missing, note "bottleneck signal not available
 
 ### Constraints
 <constraint>All math must come from scripts or be explicitly derived — never approximate financial calculations</constraint>
-<constraint>For Short-term reports: skip DCF, focus on technical (6.3) + sentiment (6.4) + flow (6.5) + full Stage 7</constraint>
+<constraint>For Short-term reports: skip DCF, focus on technical (10.3) + sentiment (10.4) + flow (10.5) + full Stage 11</constraint>
 <constraint>Greenblatt's Magic Formula requires both Earnings Yield AND Return on Capital</constraint>
 <constraint>Market regime classification must be one of: Risk-Off Defensive | Neutral | Risk-On Speculative</constraint>
 <constraint>Speculation score must account for both aggregate market conditions AND [TICKER]-specific positioning</constraint>
@@ -134,7 +134,7 @@ For peer comparison data:
 2. `mcp__tavily-remote-mcp__tavily_extract` — Extract structured peer data from known financial URLs
 3. `mcp__xcrawl-mcp__xcrawl_search` — "[PEER_TICKER] EV/EBITDA P/E financial ratios"
 
-For market regime & positioning data (Stage 7), FIRST load pre-fetched data from the orchestrator's data fetch phase:
+For market regime & positioning data (Stage 11), FIRST load pre-fetched data from the orchestrator's data fetch phase:
 - `./reports/[RUN_ID]/breadth_data.json` — VIX spot/term structure, credit spreads (HYG/TLT), % stocks above 20/50/200-day MAs, advance/decline, new highs/lows, McClellan Oscillator, breadth signal
 - `./reports/[RUN_ID]/theme_data.json` — 11 sector ETF returns (1D/5D/1M), 7 theme groups, 5 style factors, macro ETFs, regime summary (growth vs value, tech vs broad, sector leaders/laggards, VIX level)
 Use these for Steps 8, 10, 12, 13 below. Supplement gaps with web search:

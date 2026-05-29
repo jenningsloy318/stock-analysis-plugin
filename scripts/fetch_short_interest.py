@@ -623,11 +623,24 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Short interest dynamics and squeeze potential analysis"
     )
-    parser.add_argument("--ticker", required=True, help="Ticker symbol (e.g. AAPL)")
+    parser.add_argument(
+        "ticker",
+        nargs="?",
+        help="Ticker symbol (e.g. AAPL). Positional, matches other fetch scripts.",
+    )
+    parser.add_argument(
+        "--ticker",
+        dest="ticker_flag",
+        help="Alternative named form of the ticker argument (kept for back-compat).",
+    )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     args = parser.parse_args()
 
-    result = analyze_short_interest(args.ticker)
+    ticker = args.ticker or args.ticker_flag
+    if not ticker:
+        parser.error("ticker required (positional or --ticker)")
+
+    result = analyze_short_interest(ticker)
 
     output = json.dumps(result, indent=2)
     if args.output:

@@ -187,10 +187,15 @@ def fetch_return(ticker: str, from_date: date, horizon_days: int) -> float | Non
         if hist.empty or len(hist) < 2:
             return None
 
-        prices = hist["Close"].values
-        start_price = float(prices[0])
-        # Use the price closest to (but not after) end_date
-        end_price = float(prices[min(len(prices) - 1, horizon_days)])
+        prices = hist["Close"]
+        start_price = float(prices.iloc[0])
+        # End price = closest trading day at or before end_date.
+        # horizon_days is calendar days, but `prices` is indexed by trading dates;
+        # find the last bar with date ≤ end_date instead of indexing positionally.
+        mask = hist.index.date <= end_date
+        if not mask.any():
+            return None
+        end_price = float(prices[mask].iloc[-1])
 
         if start_price <= 0:
             return None

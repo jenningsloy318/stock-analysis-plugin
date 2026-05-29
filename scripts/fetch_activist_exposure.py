@@ -788,24 +788,38 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Activist investor exposure and governance catalyst analysis"
     )
-    parser.add_argument("--ticker", required=True, help="Stock ticker symbol (e.g. AAPL)")
+    parser.add_argument(
+        "ticker",
+        nargs="?",
+        help="Stock ticker symbol (e.g. AAPL). Positional, matches other fetch scripts.",
+    )
+    parser.add_argument(
+        "--ticker",
+        dest="ticker_flag",
+        help="Alternative named form of the ticker argument (kept for back-compat).",
+    )
     parser.add_argument(
         "--output",
         default=None,
-        help="Output JSON file path (default: ./reports/<TICKER>/activist_exposure.json)",
+        help="Output JSON file path. Default: stdout (use --output to also write a file).",
     )
     args = parser.parse_args()
 
-    ticker = args.ticker.upper()
+    ticker_arg = args.ticker or args.ticker_flag
+    if not ticker_arg:
+        parser.error("ticker required (positional or --ticker)")
+    ticker = ticker_arg.upper()
     results = fetch_activist_exposure(ticker)
 
-    output_path = args.output or f"./reports/{ticker}/activist_exposure.json"
-    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-
-    with open(output_path, "w") as fh:
-        json.dump(results, fh, indent=2, default=str)
-
-    print(json.dumps(results, indent=2, default=str))
+    output = json.dumps(results, indent=2, default=str)
+    if args.output:
+        out_dir = os.path.dirname(os.path.abspath(args.output))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+        with open(args.output, "w") as fh:
+            fh.write(output)
+    else:
+        print(output)
 
 
 if __name__ == "__main__":

@@ -368,9 +368,9 @@ def gate_forensic_checks(report_dir: str) -> dict:
 
     issues: list[str] = []
 
-    # Beneish M-Score
+    # Beneish M-Score (calculate_metrics writes key as "mscore")
     beneish_block = metrics.get("beneish_mscore", {})
-    m_score = beneish_block.get("m_score") if isinstance(beneish_block, dict) else None
+    m_score = beneish_block.get("mscore") if isinstance(beneish_block, dict) else None
     beneish_flag = False
     if m_score is None:
         issues.append("Beneish M-Score not computed")
@@ -380,9 +380,9 @@ def gate_forensic_checks(report_dir: str) -> dict:
             f"Beneish M-Score {m_score:.2f} > -1.78 (earnings manipulation risk)"
         )
 
-    # Altman Z-Score
+    # Altman Z-Score (calculate_metrics writes key as "zscore")
     altman_block = metrics.get("altman_zscore", {})
-    z_score = altman_block.get("z_score") if isinstance(altman_block, dict) else None
+    z_score = altman_block.get("zscore") if isinstance(altman_block, dict) else None
     altman_flag = False
     if z_score is None:
         issues.append("Altman Z-Score not computed")
@@ -390,11 +390,12 @@ def gate_forensic_checks(report_dir: str) -> dict:
         altman_flag = True
         issues.append(f"Altman Z-Score {z_score:.2f} < 1.81 (distress zone)")
 
-    # Piotroski F-Score
+    # Piotroski F-Score (calculate_metrics writes key as "fscore")
     piotroski_block = metrics.get("piotroski_fscore", {})
-    piotroski_present = (
-        isinstance(piotroski_block, dict) and piotroski_block.get("score") is not None
+    piotroski_score = (
+        piotroski_block.get("fscore") if isinstance(piotroski_block, dict) else None
     )
+    piotroski_present = piotroski_score is not None
     if not piotroski_present:
         issues.append("Piotroski F-Score not computed")
 
@@ -409,9 +410,7 @@ def gate_forensic_checks(report_dir: str) -> dict:
         "altman_flag": altman_flag,
         "altman_z_score": round(z_score, 3) if z_score is not None else None,
         "piotroski_present": piotroski_present,
-        "piotroski_score": (
-            piotroski_block.get("score") if isinstance(piotroski_block, dict) else None
-        ),
+        "piotroski_score": piotroski_score,
         "issues": issues,
         "details": "OK" if not issues else "; ".join(issues),
     }

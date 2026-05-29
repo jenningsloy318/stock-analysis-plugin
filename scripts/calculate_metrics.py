@@ -325,6 +325,8 @@ def compute_piotroski_fscore(financials: dict) -> dict:
     debt_series = extract_values(balance.get("total_debt", []))
     ocf_series = extract_values(cashflow.get("operating_cash_flow", []))
     shares_series = extract_values(balance.get("shares_outstanding", []))
+    current_assets_series = extract_values(balance.get("current_assets", []))
+    current_liabilities_series = extract_values(balance.get("current_liabilities", []))
 
     score = 0
     details = {}
@@ -391,15 +393,15 @@ def compute_piotroski_fscore(financials: dict) -> dict:
     if f5:
         score += 1
 
-    # F6: Current ratio improving (approximated as equity/debt improving)
+    # F6: Current ratio improving (current assets / current liabilities)
     cr_current = (
-        safe_div(equity_series[0], debt_series[0])
-        if equity_series and debt_series
+        safe_div(current_assets_series[0], current_liabilities_series[0])
+        if current_assets_series and current_liabilities_series
         else None
     )
     cr_prior = (
-        safe_div(equity_series[1], debt_series[1])
-        if len(equity_series) > 1 and len(debt_series) > 1
+        safe_div(current_assets_series[1], current_liabilities_series[1])
+        if len(current_assets_series) > 1 and len(current_liabilities_series) > 1
         else None
     )
     f6 = cr_current is not None and cr_prior is not None and cr_current > cr_prior
@@ -412,14 +414,14 @@ def compute_piotroski_fscore(financials: dict) -> dict:
         score += 1
 
     # F7: No share dilution (shares outstanding not increasing)
+    # When data is unavailable, leave F7 unscored rather than gifting a free point
     f7 = False
     if len(shares_series) >= 2:
         f7 = shares_series[0] <= shares_series[1]
-    elif not shares_series:
-        f7 = True  # assume no dilution if data unavailable
     details["f7_no_dilution"] = {
         "current_shares": shares_series[0] if shares_series else None,
         "pass": f7,
+        "data_available": len(shares_series) >= 2,
     }
     if f7:
         score += 1
@@ -801,6 +803,8 @@ def compute_ratios(
     cash_series = extract_values(balance.get("cash", []))
     ocf_series = extract_values(cashflow.get("operating_cash_flow", []))
     fcf_series = extract_values(cashflow.get("free_cash_flow", []))
+    pretax_series = extract_values(income.get("pretax_income", []))
+    tax_series = extract_values(income.get("tax_provision", []))
 
     # Most recent values
     rev = rev_series[0] if rev_series else None
@@ -812,6 +816,14 @@ def compute_ratios(
     cash = cash_series[0] if cash_series else None
     ocf = ocf_series[0] if ocf_series else None
     fcf = fcf_series[0] if fcf_series else None
+
+    # Effective tax rate from actual income statement; fall back to 21% if unavailable
+    pretax = pretax_series[0] if pretax_series else None
+    tax = tax_series[0] if tax_series else None
+    if pretax and pretax > 0 and tax is not None:
+        effective_tax_rate = max(0.0, min(0.5, tax / pretax))
+    else:
+        effective_tax_rate = 0.21
 
     # P/E ratio: from profile if available, else compute from market_cap / NI
     pe_ratio = None
@@ -896,12 +908,24 @@ def compute_ratios(
         "net_margin": round(safe_div(ni, rev), 4) if ni and rev else None,
         "roa": round(safe_div(ni, assets), 4) if ni and assets else None,
         "roe": round(safe_div(ni, equity), 4) if ni and equity else None,
-        "roic": round(safe_div(oi * (1 - 0.21), equity + debt - cash), 4)
+        "roic": round(safe_div(oi * (1 - effective_tax_rate), equity + debt - cash), 4)
         if oi and equity and debt is not None and cash is not None
         else None,
         "incremental_roic": None,
+        "effective_tax_rate": round(effective_tax_rate, 4),
         "debt_to_equity": round(safe_div(debt, equity), 4) if debt and equity else None,
-        "current_ratio": None,
+        "current_ratio": (
+            round(
+                safe_div(
+                    extract_values(balance.get("current_assets", []))[0],
+                    extract_values(balance.get("current_liabilities", []))[0],
+                ),
+                4,
+            )
+            if extract_values(balance.get("current_assets", []))
+            and extract_values(balance.get("current_liabilities", []))
+            else None
+        ),
         "net_debt": round(debt - cash, 2)
         if debt is not None and cash is not None
         else None,

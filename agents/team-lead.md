@@ -430,17 +430,13 @@ timeout_mins: 40
       <field>screening_data_path" note="./reports/[RUN_ID]/stage2.md + stage4.md"</field>
       <field>report_filenames" note="pre-computed exact paths"</field>
     </agent>
-    <agent name="equity-report-writer" stage="17,18" modes="pipeline,analyze,compare">
+    <agent name="equity-report-writer" stage="17,18" modes="pipeline,analyze,compare" note="Stage 17 = per-company equity reports (long/mid/short × N companies); Stage 18 = HIGHLIGHTS_BEST_PICKS.md from ranking.json">
       <field>plugin_root</field>
       <field>company_dirs</field>
       <field>mode</field>
       <field>report_filenames</field>
-    </agent>
-    <agent name="equity-report-writer" stage="18" note="Best Picks Highlight">
-      <field>plugin_root</field>
-      <field>output_dir</field>
-      <field>ranking_json" note="./reports/[RUN_ID]/ranking.json"</field>
-      <field>company_dirs</field>
+      <field>output_dir" note="for Stage 18 best-picks output"</field>
+      <field>ranking_json" note="./reports/[RUN_ID]/ranking.json (Stage 18 only)"</field>
     </agent>
     <agent name="report-validator" stage="17.5" note="Report Quality Validation">
       <field>plugin_root</field>
