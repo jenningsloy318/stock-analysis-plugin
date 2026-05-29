@@ -37,7 +37,7 @@ Handles Stage 9 (Alternative Data & Digital Signals).
 <step n="3" name="Satellite/Sensor">Foot traffic, industrial activity, shipping/logistics flow</step>
 <step n="4" name="NLP Earnings Call">Tone analysis, Q&A vs prepared remarks differential, uncertainty, deception indicators. **(P0.4)** When a transcript is fetchable (Seeking Alpha, Yahoo, Stratosphere, Quartr, company IR page) save current AND prior-quarter transcript text to {company_dir}/transcript_current.txt and transcript_prior.txt, then run `{plugin_root}/scripts/analyze_earnings_transcript.py --current {company_dir}/transcript_current.txt --prior {company_dir}/transcript_prior.txt --ticker [TICKER] --output {company_dir}/transcript_nlp.json`. Embed in stage13.md: tone score (prepared vs Q&A), guidance shift (raised/reaffirmed/lowered/withdrawn), miss explanation (transitory/structural), Q&A evasion score, and ALL summary_flags. Reference: docs/research/fintwit-reddit-practitioner-insights-2026-05.md §8 P0.4.</step>
 <step n="5" name="Composite Score">Weighted alternative data score (web 20%, app 20%, social 15%, employee 15%, hiring 15%, innovation 15%)</step>
-<step n="6" name="Primary Research">Expert network synthesis, channel checks (supplier/customer/competitor/former employee), convergence scoring</step>
+<step n="6" name="Primary Research">Expert network synthesis, channel checks (supplier/customer/competitor/former employee), convergence scoring. **(P0.2)** Gather primary-research evidence via search tools (Tegus/GLG fallback to YouTube interview transcripts + Seeking Alpha + earnings call Q&A + industry expert clips), structure into `{company_dir}/research_inputs.json` with shape `{ticker, claims: [{topic, thesis_dir, evidence: [{source_type, source_name, date, claim, sentiment, confidence}]}]}`, then run `{plugin_root}/scripts/synthesize_primary_research.py --research {company_dir}/research_inputs.json --ticker [TICKER] --output {company_dir}/primary_research.json`. Embed in stage13.md: per-claim convergence score (high/moderate/low/conflicting), source diversity count, and ALL red_flags (especially high-convergence BEARISH theses). Reference: docs/research/fintwit-reddit-practitioner-insights-2026-05.md §8 P0.2.</step>
 
 </workflow>
 
@@ -50,6 +50,7 @@ Handles Stage 9 (Alternative Data & Digital Signals).
 - News NLP sentiment and coverage spike analysis completed
 - Behavioral signals (herding, anchoring, reflexivity) assessed
 - Convergence score computed across all available alt-data signals
+- **(P0.2)** Primary research synthesis (synthesize_primary_research.py) executed when ≥2 evidence items gathered: per-claim convergence + red flags reported in stage13.md
 
 ### Constraints
 <constraint>Paywalled sources returning null is normal — never fabricate data to fill gaps</constraint>

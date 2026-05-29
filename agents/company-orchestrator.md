@@ -296,9 +296,9 @@ timeout_mins: 30
     Output: {company_dir}/stage12.md
   </stage>
   <stage n="13" agent="alt-data-analyst">
-    Digital footprint, NLP earnings calls, channel checks, transaction data.
-    Scripts: fetch_alternatives.py, fetch_news_nlp.py, calculate_candor.py
-    Output: {company_dir}/stage13.md
+    Digital footprint, NLP earnings calls, channel checks, transaction data, primary research synthesis (P0.2).
+    Scripts: fetch_alternatives.py, fetch_news_nlp.py, calculate_candor.py, analyze_earnings_transcript.py, synthesize_primary_research.py
+    Output: {company_dir}/stage13.md (+ artifacts: transcript_nlp.json, primary_research.json)
   </stage>
   <stage n="14" agent="catalyst-analyst" depends="13">
     Catalyst calendar, event-driven probability, PEAD, catalyst sequencing.
