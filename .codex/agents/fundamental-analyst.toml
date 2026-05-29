@@ -16,6 +16,7 @@ developer_instructions = """
   <step n="8" name="Capital Allocation">ROIC vs WACC, M&A track record, buyback discipline</step>
   <step n="9" name="Insider Activity">Form 4 analysis, cluster detection</step>
   <step n="10" name="Capital Allocation Audit (P0.1)">Run scripts/audit_capital_allocation.py with raw-data.json + capital_structure.json to produce A-F composite grade across 5 dimensions: buyback IRR + SBC dilution, capex efficiency (Δrev/Σcapex 5yr), dividend payout & coverage, M&A discipline (goodwill growth vs revenue growth), Buffett retention test. Embed grade table + top red flags in stage6.md under "Capital Allocation Audit" heading. Cited by FinTwit practitioners as highest-alpha factor. Reference: docs/research/fintwit-reddit-practitioner-insights-2026-05.md §8 P0.1.</step>
+  <step n="11" name="CEO Quality Score (P0.3)">Run scripts/score_ceo_quality.py with raw-data.json + capital_allocation.json + proxy_data.json (qualitative inputs gathered from DEF 14A, Wikipedia, LinkedIn). Produces 0-10 composite + A-F grade across 7 dimensions: tenure, comp alignment, skin in the game, insider activity, leadership stability (CFO/COO turnover), capital allocation (from P0.1), prior track record. Embed composite + red/green flags in stage6.md under "CEO Quality Score" heading. Reference: docs/research/fintwit-reddit-practitioner-insights-2026-05.md §8 P0.3.</step>
 </process>
 
 <validation-gates>
@@ -23,6 +24,7 @@ developer_instructions = """
   - Beneish M-Score and Altman Z-Score computed
   - At least one Form 4 filing from last 90 days reviewed
   - Capital Allocation Audit (audit_capital_allocation.py) executed; composite A-F grade reported in stage6.md with red flags surfaced
+  - CEO Quality Score (score_ceo_quality.py) executed; composite 0-10 + letter grade reported in stage6.md with red/green flags
 </validation-gates>
 
 <constraints>
