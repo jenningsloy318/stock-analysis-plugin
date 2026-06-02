@@ -70,6 +70,75 @@ Assess each moat source with evidence:
 
 **Moat trajectory**: Is the moat widening (market share gaining, pricing power strengthening, switching costs increasing), stable, or narrowing? Cite specific evidence.
 
+## 4-Moat Decision Framework (MUST follow for every company)
+
+This is the **decision-discipline overlay** that condenses the Morningstar 5-source list into a 4-row decision table. It is MANDATORY in every long/mid/short equity report. The Morningstar list above is the analytical taxonomy; this is the output discipline.
+
+### Rating scale (S/M/W mapped to 1-10)
+
+| Rating | Numeric (1-10) | Meaning |
+|--------|----------------|---------|
+| **Strong** | 8-10 | Multi-year quantified evidence; competitor with $10B+ capital cannot replicate within 5 years |
+| **Moderate** | 5-7 | Real advantage but contestable; replication possible with capital + time |
+| **Weak** | 1-4 | No durable barrier; competitors can match on equal terms |
+
+### The 4-row decision table (REQUIRED in every report)
+
+| 护城河类型 (Moat Type) | 关键判断问题 (Key Question) | 评级 (Rating) | 量化证据 (Quantified Evidence) | 来源 (Source) |
+|---|---|---|---|---|
+| **网络效应 Network Effects** | Does user growth self-reinforce? Same-side or cross-side? | S/M/W (n/10) | e.g., "300万 CUDA developers; 12% YoY active dev growth; cross-side: dev count → workload demand" | [citation] |
+| **转换成本 Switching Costs** | How costly to switch to a competitor (time, money, retraining, workflow rebuild)? | S/M/W (n/10) | e.g., "Salesforce 90%+ renewal rate; avg integration depth = 14 systems" | [citation] |
+| **规模优势 Scale Advantages** | Does unit cost fall meaningfully with scale? Can a new entrant reach break-even? | S/M/W (n/10) | e.g., "TSMC capacity 90%+ utilization; new fab requires $20B+ capex; gross-margin gap vs #2 = 18pp" | [citation] |
+| **无形资产 Intangible Assets** | Brand premium / patent / license / proprietary data competitors cannot copy? | S/M/W (n/10) | e.g., "Constellation 13 nuclear reactors; zero new US licenses issued in 30+ years" | [citation] |
+
+**Evidence-specificity rule**: A vague claim ("strong brand") is not evidence. Required form: a quantified statement with a number AND a source. Reject placeholder evidence.
+
+### The $10B counterfactual (forcing function)
+
+For each moat rated **Strong**, the report MUST answer:
+
+> 如果一个竞争者拥有 $100 亿美元资本和 5 年时间，能否复制这家公司的 [moat type]？
+> *If a well-funded competitor had $10B and 5 years, could they replicate this [moat]?*
+
+- **Yes** → downgrade to Moderate or Weak (cite *what specifically* could be replicated and at what cost).
+- **No** → keep Strong (cite *what specifically* prevents replication: sequencing barrier, regulatory monopoly, install-base lock-in, dataset that took N years to accumulate, etc.).
+
+This test prevents inflated moat scores driven by halo from current high margins or growth.
+
+### Anti-pattern checks (MUST run for every Strong rating)
+
+Every Strong rating must explicitly clear both anti-pattern checks:
+
+1. **First-mover ≠ moat**. Being first only matters if it created a network/switching/scale lock-in that late entrants cannot match. MySpace/Nokia/BlackBerry were first; that didn't save them. State explicitly *what about being first translated into durable barriers*.
+2. **High growth ≠ moat**. Growth often reflects industry tailwind, not company-specific advantage. State explicitly *what fraction of growth comes from the company's barriers vs. industry tailwind*. If growth is industry-driven, do NOT use it as moat evidence.
+
+A Strong rating that fails either anti-pattern check must be downgraded to Moderate.
+
+### Peer-pair moat comparison (REQUIRED)
+
+For every company analyzed, identify ONE direct peer riding the SAME secular theme and produce a side-by-side moat table. The pair must share a tailwind (e.g., AI infra → NVIDIA vs. Dell; cloud → AWS vs. Oracle Cloud) so the comparison isolates moat from theme.
+
+| 护城河 | [Company] | [Peer on same theme] |
+|---|---|---|
+| 网络效应 | S/M/W + 1-line evidence | S/M/W + 1-line evidence |
+| 转换成本 | S/M/W + 1-line evidence | S/M/W + 1-line evidence |
+| 规模优势 | S/M/W + 1-line evidence | S/M/W + 1-line evidence |
+| 无形资产 | S/M/W + 1-line evidence | S/M/W + 1-line evidence |
+
+This forces the analyst to distinguish *theme-driven* return potential from *moat-driven* durability. Two companies on the same theme can have radically different unit economics — the peer pair makes this visible (NVIDIA 60%+ op-margin vs Dell server single-digit op-margin under the same AI capex wave).
+
+### How this maps to the deterministic moat score
+
+`compute_moat_quality()` produces a quant proxy from op-margin / ROE / revenue-CAGR. The LLM may adjust ±2.0 based on the 4-moat table above. Adjustment rules:
+
+- 4 Strong → may add up to +2.0
+- 3 Strong → may add up to +1.0
+- 2 Strong → no adjustment (neutral)
+- 1 Strong → may subtract up to −1.0
+- 0 Strong → may subtract up to −2.0
+
+Every adjustment must cite the specific row(s) of the decision table that justify it.
+
 ## Porter's Five Forces
 
 For each force, rate as High/Medium/Low and provide evidence:

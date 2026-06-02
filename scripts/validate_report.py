@@ -6,7 +6,7 @@ Usage:
     validate_report.py ./reports/TSLA/ --report-type short --strict
     validate_report.py ./reports/MSFT/ --report-type mid --output ./reports/MSFT/validation.json
 
-Validates all JSON outputs in a report directory against the eight pre-delivery
+Validates all JSON outputs in a report directory against the nine pre-delivery
 quality gates defined in the analysis philosophy:
   1. Data Freshness       — timestamps within allowed staleness window
   2. Source Coverage      — required and optional files present
@@ -16,6 +16,8 @@ quality gates defined in the analysis philosophy:
   6. Fact Check           — 5 cross-reference checks across raw-data and metrics
   7. Chinese Language     — report files contain Chinese (中文) content
   8. Stock Price Display  — ranking tables include 当前股价 column
+  9. Moat Decision Table  — 4-Moat S/M/W table present (long: + counterfactual,
+                            anti-patterns, peer-pair comparison)
 
 In --strict mode any gate failure sets overall_pass = false.
 In default mode only the three blocking gates (freshness, coverage,
@@ -719,6 +721,95 @@ def gate_stock_price_display(report_dir: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
+def gate_moat_decision_table(report_dir: str, report_type: str) -> dict:
+    """Verify the 4-Moat Decision Table is present in equity reports.
+
+    Long: full table + counterfactual + anti-pattern + peer-pair required.
+    Mid:  condensed table required (4 moat rows + S/M/W ratings).
+    Short: snapshot table required (4 moat rows + S/M/W ratings).
+    """
+    issues: list[str] = []
+    warnings: list[str] = []
+    checked = 0
+    passed = 0
+
+    # File pattern: NNN-[TICKER]_[long|mid|short]_[DATE].md
+    target_suffix = f"_{report_type}_"
+
+    moat_rows = ["网络效应", "转换成本", "规模优势", "无形资产"]
+    rating_tokens = ["Strong", "Moderate", "Weak", "S/M/W"]
+    counterfactual_keywords = ["100 亿", "$10B", "$100亿", "10 亿美元", "反事实", "counterfactual"]
+    anti_pattern_keywords = ["先发", "first-mover", "增长 ≠ 护城河", "Growth ≠ moat", "growth ≠ moat", "反例"]
+    peer_pair_keywords = ["同业护城河对比", "Peer-Pair", "peer pair", "peer-pair"]
+
+    for fname in sorted(os.listdir(report_dir)):
+        if not fname.endswith(".md"):
+            continue
+        if target_suffix not in fname:
+            continue
+        # Skip stage summaries / appendix-only files
+        fpath = os.path.join(report_dir, fname)
+        try:
+            with open(fpath) as fh:
+                content = fh.read()
+        except OSError:
+            continue
+
+        checked += 1
+
+        # Required for ALL horizons: 4 moat rows + at least one S/M/W rating token
+        missing_rows = [r for r in moat_rows if r not in content]
+        if missing_rows:
+            issues.append(
+                f"{fname}: 4-Moat Decision Table missing rows: {missing_rows}"
+            )
+            continue
+        if not any(t in content for t in rating_tokens):
+            issues.append(
+                f"{fname}: 4-Moat Decision Table found but no S/M/W rating tokens (Strong/Moderate/Weak)"
+            )
+            continue
+
+        # Long-horizon: also require counterfactual + anti-pattern + peer-pair
+        if report_type == "long":
+            if not any(kw in content for kw in counterfactual_keywords):
+                issues.append(
+                    f"{fname}: long-horizon report missing $10B counterfactual section"
+                )
+                continue
+            if not any(kw in content for kw in anti_pattern_keywords):
+                issues.append(
+                    f"{fname}: long-horizon report missing anti-pattern check (first-mover/growth ≠ moat)"
+                )
+                continue
+            if not any(kw in content for kw in peer_pair_keywords):
+                issues.append(
+                    f"{fname}: long-horizon report missing peer-pair moat comparison"
+                )
+                continue
+
+        passed += 1
+
+    passed_gate = checked == 0 or len(issues) == 0
+    return {
+        "pass": passed_gate,
+        "files_checked": checked,
+        "files_passed": passed,
+        "issues": issues,
+        "warnings": warnings,
+        "details": (
+            f"{passed}/{checked} reports include 4-Moat Decision Table"
+            if checked
+            else f"No {report_type} reports found"
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Confidence level
+# ---------------------------------------------------------------------------
+
+
 def _derive_confidence(gates: dict, report_type: str) -> str:
     """Heuristic: High if all pass, Medium if only optional fail, Low otherwise."""
     blocking_keys = {"data_freshness", "source_coverage", "conviction_consistency"}
@@ -782,6 +873,7 @@ def main() -> None:
     fact_check = gate_fact_check(report_dir)
     chinese = gate_chinese_language(report_dir)
     stock_price = gate_stock_price_display(report_dir)
+    moat_table = gate_moat_decision_table(report_dir, args.report_type)
 
     gates = {
         "data_freshness": freshness,
@@ -792,6 +884,7 @@ def main() -> None:
         "fact_check": fact_check,
         "chinese_language": chinese,
         "stock_price_display": stock_price,
+        "moat_decision_table": moat_table,
     }
 
     # Determine overall pass

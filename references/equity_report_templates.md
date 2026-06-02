@@ -184,7 +184,49 @@ Example: "本次评级主要由Moat(8.5)和Valuation(8.0)驱动——公司拥�
 ---
 
 ## 1. Moat Assessment
-[Detailed moat analysis using Morningstar framework. Evidence required per moat source. Trajectory statement: widening / stable / narrowing.]
+
+### 1a. 护城河决策表 (4-Moat Decision Table — REQUIRED)
+
+| 护城河类型 | 关键判断问题 | 评级 | 量化证据 (Quantified) | 来源 |
+|---|---|---|---|---|
+| 网络效应 (Network Effects) | Self-reinforcing user growth? Same-side or cross-side? | Strong/Moderate/Weak (n/10) | [Specific number + mechanism, e.g., "300万 CUDA developers, 12% YoY"] | [citation] |
+| 转换成本 (Switching Costs) | Cost (time/money/retraining) for customers to leave? | Strong/Moderate/Weak (n/10) | [e.g., "renewal rate 92%, avg integration depth = 14 systems"] | [citation] |
+| 规模优势 (Scale Advantages) | Unit cost falls with scale? Can new entrant break even? | Strong/Moderate/Weak (n/10) | [e.g., "capacity utilization 90%+, $20B+ minimum efficient scale"] | [citation] |
+| 无形资产 (Intangible Assets) | Brand/patent/license/data competitors cannot copy? | Strong/Moderate/Weak (n/10) | [e.g., "13 nuclear licenses, zero new US issuances since 1996"] | [citation] |
+
+**Vague evidence is rejected.** "Strong brand" is NOT evidence; "brand commands 30% price premium and 70% of customers cite brand as primary reason in NPS surveys" IS evidence.
+
+### 1b. $10B 反事实测试 (Counterfactual Test — REQUIRED for every Strong rating)
+
+For each row above rated **Strong**, answer in 1-2 sentences:
+> 如果一个竞争者拥有 $100 亿美元资本和 5 年时间，能否复制这个护城河？
+
+- If **Yes** → downgrade to Moderate/Weak above (state what is replicable and at what cost).
+- If **No** → keep Strong (state *what specifically* prevents replication: regulatory monopoly, install-base lock-in, dataset accumulation lag, etc.).
+
+### 1c. 反例检查 (Anti-Pattern Checks — REQUIRED for every Strong rating)
+
+- **First-mover ≠ moat**: Was being first translated into a structural lock-in (network/switching/scale) that late entrants cannot match? Reference: MySpace, Nokia, BlackBerry.
+- **Growth ≠ moat**: What % of growth is industry tailwind vs company-specific barriers? If growth is industry-driven, do NOT count it as moat evidence. Strong moat companies grow when the industry shrinks.
+
+A Strong rating that fails either check is auto-downgraded to Moderate.
+
+### 1d. 同业护城河对比 (Peer-Pair Moat Comparison — REQUIRED)
+
+Pick ONE direct peer riding the SAME secular theme to isolate moat-driven returns from theme-driven returns. Pair example: NVIDIA vs Dell (both ride AI infra capex; one captures 60%+ op-margin, one captures single-digit).
+
+| 护城河 | [TICKER] | [PEER on same theme] | Why the gap matters |
+|---|---|---|---|
+| 网络效应 | S/M/W + 1-line evidence | S/M/W + 1-line evidence | [How this drives margin/durability gap] |
+| 转换成本 | S/M/W + 1-line evidence | S/M/W + 1-line evidence | [...] |
+| 规模优势 | S/M/W + 1-line evidence | S/M/W + 1-line evidence | [...] |
+| 无形资产 | S/M/W + 1-line evidence | S/M/W + 1-line evidence | [...] |
+
+### 1e. 护城河趋势 (Moat Trajectory)
+
+State explicitly: **widening / stable / narrowing** with specific 12-24 month evidence (market share delta, pricing power evidence, switching-cost depth change, regulatory/competitive shifts). Tie to ROIC and gross-margin trajectory from §3.
+
+[Detailed moat analysis using Morningstar framework here, supporting the table above. Reference: frameworks_value_growth.md §"4-Moat Decision Framework".]
 
 ## 2. Management Quality Score
 [Score: X/10. Capital allocation track record. Insider ownership. Compensation structure. Fisher's 15 points assessment.]
@@ -305,6 +347,21 @@ Example: "中期评级由Macro(8.0)和CANSLIM(7.5)主导——当前周期中期
 ## 1. Category & Thesis
 **Lynch Category**: [Slow Grower / Stalwart / Fast Grower / Cyclical / Turnaround / Asset Play]
 [Why this category? Why now? PEG ratio context. 1-paragraph thesis.]
+
+## 1b. 护城河决策表 (4-Moat Decision Table — REQUIRED, mid-horizon focus)
+
+Mid-horizon weight: moat determines whether mid-cycle margin compression is temporary (wide moat, snaps back) or terminal (no moat, structural). Render condensed table:
+
+| 护城河 | 评级 (S/M/W, n/10) | 量化证据 (1 line) | 12mo 趋势 (widening/stable/narrowing) |
+|---|---|---|---|
+| 网络效应 | | | |
+| 转换成本 | | | |
+| 规模优势 | | | |
+| 无形资产 | | | |
+
+**Mid-horizon implication** (1 paragraph): How does the moat profile interact with the next 6-18mo macro/cycle setup? Does the moat let the company gain share *during* the setup (compounding), or is the moat irrelevant to the catalyst (one-time event)?
+
+For full $10B counterfactual + anti-pattern checks + peer-pair table, refer to the long-horizon report. Mid-horizon report only carries the condensed table + trajectory + 1-paragraph implication.
 
 ## 2. Catalyst Map
 | Catalyst | Date (est.) | Direction | Magnitude | Probability |
@@ -459,6 +516,21 @@ Example: "短期交易信号主要由Alt Alignment(9.0)和Technical(8.5)驱动�
 
 ## 3. Alternative Data Readings
 [Digital signals: web traffic, app engagement, social sentiment. Composite score. Real-time divergences.]
+
+## 3b. 护城河快照 (Moat Snapshot — REQUIRED, short-horizon)
+
+Even short-term setups need a moat sanity-check: a Strong-moat name with a technical breakdown is a *buyable dip*; a No-moat name with a technical breakdown is a *short candidate*. One-line per moat:
+
+| 护城河 | 评级 (S/M/W) | 1-line evidence | Trade implication |
+|---|---|---|---|
+| 网络效应 | | | |
+| 转换成本 | | | |
+| 规模优势 | | | |
+| 无形资产 | | | |
+
+**Moat-vs-setup interaction** (1 sentence): How does the moat profile change the asymmetry of this short-term trade? Examples: "Strong moat across 3/4 → buy-the-dip bias on technical pullback"; "Weak moat + late-cycle tape → reduce position size by 50%."
+
+For full table + counterfactual + peer pair, see the long-horizon report.
 
 ## 8. Capital Allocation Deep-Dive (Long-term reports)
 [Mauboussin Capital Allocation Scorecard: score each of 5 levers (Organic Reinvestment, M&A, Buybacks, Dividends, Debt Mgmt). Buffett Retention Test: 5yr market cap change / cumulative retained earnings. Score: >1.5x (Excellent), 1.0-1.5x (Good), 0.5-1.0x (Poor), <0.5x (Destructive). SBC dilution analysis: % of revenue, net share count trajectory, SBC/FCF ratio. Buyback ROI: average repurchase price vs current intrinsic value. M&A track record: ROIC on acquisitions 3yr post-close. Capital allocation verdict: Value Creator / Neutral / Value Destroyer.]
