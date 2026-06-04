@@ -70,7 +70,7 @@ Handles Stage 9 (Macro & Geopolitics).
 
 ### Data Acquisition & Scripts
 Run `{plugin_root}/scripts/fetch_macro.py --output ./reports/macro.json` for FRED indicators.
-Run `{plugin_root}/scripts/fetch_global_macro.py --output ./reports/global_macro.json` for non-US macro (ECB, PBOC, BOJ, Eurostat, World Bank).
+Run `{plugin_root}/scripts/fetch_global_macro.py --output ./reports/global_macro.json` for non-US macro (ECB, PBOC, BOJ, Eurostat, World Bank). Default WB indicators: `core,demographics,trade` categories. To pull additional analysis dimensions, pass `--categories core,demographics,innovation,trade,infrastructure,energy,financial,sovereign` (or `--categories all` for the full 23-indicator surface). Use `innovation` (R&D % GDP, tertiary enrollment) for tech-sector country-level moat checks; `infrastructure` (internet/mobile penetration, electricity per capita) for SaaS / digital TAM saturation; `financial` (private credit, market cap % GDP — country-level Buffett ratio) for over/undervaluation regime; `sovereign` (gov debt % GDP) for fiscal-cliff risk. See `references/data_source_matrix.md` for full WB indicator mapping.
 Run `{plugin_root}/scripts/fetch_economic_surprises.py --output ./reports/economic_surprises.json` for CESI proxies, nowcasts, actual-vs-consensus.
 Run `{plugin_root}/scripts/fetch_currency_exposure.py [TICKER] --raw-data ./reports/[TICKER]/raw-data.json --output ./reports/[TICKER]/currency_exposure.json` for ADR status, geographic revenue mix, DXY correlation, and FX EPS impact.
 Reuse existing files if already fetched in Step 0.

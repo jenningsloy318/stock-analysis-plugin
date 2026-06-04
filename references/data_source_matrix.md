@@ -74,6 +74,37 @@ For non-US companies, replace US-only sources with local equivalents:
 | Industry | Local industry regulator, trade body, exchange sector classification, regional government statistics |
 | Governance | Local proxy/annual meeting materials, exchange governance filings |
 
+### World Bank Open Data — Indicator Map
+
+`fetch_global_macro.py` exposes 23 WB indicators across 8 categories (default: `core,demographics,trade`). All free, no auth required, REST endpoint `api.worldbank.org/v2/`. **Max Freshness: annual data, 3–12 month lag** — suitable for long-term reports; cross-reference with FRED (US) or local statistics offices for shorter horizons.
+
+| Category | Indicator (key) | WB Code | Used By Stage | Why It Matters |
+|---|---|---|---|---|
+| `core` | GDP growth | `NY.GDP.MKTP.KD.ZG` | 4, 9 | Cycle position |
+| `core` | GDP (USD) | `NY.GDP.MKTP.CD` | 4 | Country size denominator |
+| `core` | CPI | `FP.CPI.TOTL.ZG` | 4 | Inflation regime |
+| `core` | Unemployment | `SL.UEM.TOTL.ZS` | 4 | Slack indicator |
+| `core` | Current account % GDP | `BN.CAB.XOKA.GD.ZS` | 9 | External-balance / FX risk |
+| `core` | Exports / Imports growth | `NE.EXP.GNFS.ZS`, `NE.IMP.GNFS.ZS` | 4, 9 | Trade pulse |
+| `core` | FDI % GDP | `BX.KLT.DINV.WD.GD.ZS` | 9 | Capital-flow regime |
+| `demographics` | Population growth | `SP.POP.GROW` | 4, 9 | Long-term demand multiplier; Japan-thesis flip detection |
+| `demographics` | Working-age % | `SP.POP.1564.TO.ZS` | 4 | Productivity ceiling; pension burden |
+| `demographics` | Urban % | `SP.URB.TOTL.IN.ZS` | 9 | China/India consumption-tier story |
+| `innovation` | R&D % GDP | `GB.XPD.RSDV.GD.ZS` | 4, 7 | Country-level innovation moat (US 3.5% / CN 2.4% / IN 0.7%) |
+| `innovation` | Tertiary enrollment | `SE.TER.ENRR` | 7 | Labor pool quality |
+| `trade` | Trade % GDP | `NE.TRD.GNFS.ZS` | 4, 9 | Tariff exposure quantification |
+| `trade` | High-tech exports % | `TX.VAL.TECH.MF.ZS` | 8 | Tech supply-chain dependency |
+| `infrastructure` | Internet users % | `IT.NET.USER.ZS` | 7 | SaaS / digital TAM saturation |
+| `infrastructure` | Mobile per 100 | `IT.CEL.SETS.P2` | 7 | Same |
+| `infrastructure` | Electricity per capita | `EG.USE.ELEC.KH.PC` | 9 | EV / data-center demand floor |
+| `energy` | Energy per GDP | `EG.USE.COMM.GD.PP.KD` | 8, 9 | Supply-chain energy exposure |
+| `energy` | CO2 per GDP | `EN.GHG.CO2.RT.GDP.PP` | 12 | Carbon-pricing risk |
+| `financial` | Private credit % GDP | `FS.AST.PRVT.GD.ZS` | 4 | Liquidity floor for cyclicals |
+| `financial` | Market cap % GDP | `CM.MKT.LCAP.GD.ZS` | 4 | Per-country Buffett ratio (over/undervaluation regime) |
+| `sovereign` | Gov debt % GDP | `GC.DOD.TOTL.GD.ZS` | 4, 9 | Fiscal-cliff / sovereign-debt risk |
+
+CLI: `fetch_global_macro.py --categories core,demographics,innovation` (subset) or `--categories all` (full 23 indicators).
+
 ## Sector-Specific Add-Ons
 
 | Sector | Required Add-Ons |
