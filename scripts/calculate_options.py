@@ -362,6 +362,538 @@ def compute_iv_term_structure(
     }
 
 
+def classify_iv_regime(
+    iv_surface: dict,
+    iv_term_structure: dict | None,
+    days_to_next_earnings: int | None,
+    flow_5d_net_call_premium_usd: float | None,
+) -> dict:
+    """Classify elevated IV as event-driven vs demand-driven (pitfall 3).
+
+    Event-IV (will crush hard post-print): days_to_earnings <14 OR steep front-week
+    backwardation. Demand-IV (will sustain): days_to_earnings >45 + IV elevated
+    proportionally + 5-day net call premium >$5M/day average.
+
+    Returns iv_classification: 'event' | 'demand' | 'mixed' | 'unknown' with rationale.
+
+    See: references/pitfalls/03-iv-event-vs-demand.md
+    """
+    rationale: list[str] = []
+    classification = "unknown"
+
+    atm_iv = iv_surface.get("atm_iv") if iv_surface else None
+    iv_rank = iv_surface.get("iv_rank") if iv_surface else None
+
+    # Determine if IV is elevated to begin with
+    elevated = False
+    if iv_rank is not None and iv_rank >= 50:
+        elevated = True
+        rationale.append(f"IVR {iv_rank:.0f} ≥50: elevated regime")
+    elif atm_iv is not None and atm_iv >= 0.40:
+        elevated = True
+        rationale.append(f"ATM IV {atm_iv * 100:.0f}%: elevated absolute level")
+
+    if not elevated:
+        return {
+            "iv_classification": "not_elevated",
+            "rationale": ["IV not elevated; classification N/A"],
+            "vega_default_rule": "neutral — direction dominates structure choice",
+            "applies_pitfall_3": False,
+        }
+
+    # Event-driven IV signals
+    event_signals = 0
+    if days_to_next_earnings is not None and days_to_next_earnings <= 14:
+        event_signals += 2
+        rationale.append(
+            f"Days to earnings {days_to_next_earnings} ≤14: event-driven default"
+        )
+    elif days_to_next_earnings is not None and days_to_next_earnings <= 45:
+        event_signals += 1
+        rationale.append(
+            f"Days to earnings {days_to_next_earnings} in 14-45: mixed event premium building"
+        )
+
+    if iv_term_structure and iv_term_structure.get("structure") == "backwardation":
+        slope = iv_term_structure.get("slope", 0)
+        if slope is not None and slope <= -0.05:
+            event_signals += 2
+            rationale.append(
+                f"Steep backwardation (slope {slope:+.3f}): event-driven term skew"
+            )
+        else:
+            event_signals += 1
+            rationale.append("Mild backwardation: some event premium")
+
+    # Demand-driven IV signals
+    demand_signals = 0
+    if days_to_next_earnings is None or days_to_next_earnings > 45:
+        demand_signals += 1
+        if days_to_next_earnings is not None:
+            rationale.append(
+                f"Days to earnings {days_to_next_earnings} >45: no near-term event"
+            )
+        else:
+            rationale.append("No near-term earnings catalyst identified")
+
+    if iv_term_structure and iv_term_structure.get("structure") in ("contango", "flat"):
+        demand_signals += 1
+        rationale.append(
+            "Term structure contango/flat: vol bid spread across expiries (demand-IV signature)"
+        )
+
+    if (
+        flow_5d_net_call_premium_usd is not None
+        and flow_5d_net_call_premium_usd >= 25_000_000  # ~$5M/day × 5 days
+    ):
+        demand_signals += 2
+        rationale.append(
+            f"5d net call premium ${flow_5d_net_call_premium_usd / 1e6:.1f}M ≥ $25M: sustained institutional accumulation"
+        )
+
+    # Classification
+    if event_signals >= 3 and event_signals > demand_signals:
+        classification = "event"
+        vega_default = (
+            "short premium (will crush post-event) — bull put spread / iron condor / "
+            "bear call spread per direction"
+        )
+    elif demand_signals >= 2 and demand_signals > event_signals:
+        classification = "demand"
+        vega_default = (
+            "INVERTED rule — long premium can still pay (vol bid sustains); "
+            "if selling premium, prefer wide-strike short put / put spread; "
+            "AVOID Jade Lizard / IC if directional conviction (pitfall 5)"
+        )
+    elif event_signals > 0 and demand_signals > 0:
+        classification = "mixed"
+        vega_default = (
+            "mixed — partial event premium + partial demand bid; "
+            "pull catalyst clock + flow data before sizing vega"
+        )
+    else:
+        classification = "unknown"
+        vega_default = "insufficient data to classify; default to short premium at high IVR with caution"
+
+    return {
+        "iv_classification": classification,
+        "event_signals": event_signals,
+        "demand_signals": demand_signals,
+        "rationale": rationale,
+        "vega_default_rule": vega_default,
+        "applies_pitfall_3": True,
+        "methodology": (
+            "Pitfall 3 (event-IV vs demand-IV): combine catalyst clock + term structure + "
+            "5-day net call premium flow. See references/pitfalls/03-iv-event-vs-demand.md"
+        ),
+    }
+
+
+def _structure_pl_at_spot(structure: str, params: dict, future_spot: float) -> float:
+    """Compute per-contract P/L of a named multi-leg structure at a future spot.
+
+    Returns dollars per contract (× 100 shares). Negative = loss.
+    Conventions: short legs collect credit at entry; long legs pay debit at entry.
+    `params` keys vary by structure type.
+    """
+    cents_per_contract = 100.0
+
+    def long_call_intrinsic(
+        strike: float, premium_paid: float, spot_at: float
+    ) -> float:
+        return (max(0.0, spot_at - strike) - premium_paid) * cents_per_contract
+
+    def long_put_intrinsic(strike: float, premium_paid: float, spot_at: float) -> float:
+        return (max(0.0, strike - spot_at) - premium_paid) * cents_per_contract
+
+    def short_call_pl(strike: float, premium_collected: float, spot_at: float) -> float:
+        return (premium_collected - max(0.0, spot_at - strike)) * cents_per_contract
+
+    def short_put_pl(strike: float, premium_collected: float, spot_at: float) -> float:
+        return (premium_collected - max(0.0, strike - spot_at)) * cents_per_contract
+
+    s = structure.lower()
+    if s == "long_call":
+        return long_call_intrinsic(params["strike"], params["debit"], future_spot)
+    if s == "long_put":
+        return long_put_intrinsic(params["strike"], params["debit"], future_spot)
+    if s == "naked_short_put":
+        return short_put_pl(params["strike"], params["credit"], future_spot)
+    if s == "bull_put_spread":
+        # short put high strike + long put low strike, net credit
+        long_leg = long_put_intrinsic(
+            params["long_strike"], params["long_debit"], future_spot
+        )
+        short_leg = short_put_pl(
+            params["short_strike"], params["short_credit"], future_spot
+        )
+        return long_leg + short_leg
+    if s == "bull_call_debit_spread":
+        # long call low strike + short call high strike, net debit
+        long_leg = long_call_intrinsic(
+            params["long_strike"], params["long_debit"], future_spot
+        )
+        short_leg = short_call_pl(
+            params["short_strike"], params["short_credit"], future_spot
+        )
+        return long_leg + short_leg
+    if s == "bear_call_spread":
+        long_leg = long_call_intrinsic(
+            params["long_strike"], params["long_debit"], future_spot
+        )
+        short_leg = short_call_pl(
+            params["short_strike"], params["short_credit"], future_spot
+        )
+        return long_leg + short_leg
+    if s == "iron_condor":
+        # short put + long put (lower) + short call + long call (higher)
+        legs = (
+            short_put_pl(
+                params["short_put_strike"], params["short_put_credit"], future_spot
+            )
+            + long_put_intrinsic(
+                params["long_put_strike"], params["long_put_debit"], future_spot
+            )
+            + short_call_pl(
+                params["short_call_strike"], params["short_call_credit"], future_spot
+            )
+            + long_call_intrinsic(
+                params["long_call_strike"], params["long_call_debit"], future_spot
+            )
+        )
+        return legs
+    if s == "jade_lizard":
+        # short put (OTM) + bear call spread (short call lower + long call higher)
+        # Designed: total credit > call spread width (no upside risk above long call)
+        legs = (
+            short_put_pl(
+                params["short_put_strike"], params["short_put_credit"], future_spot
+            )
+            + short_call_pl(
+                params["short_call_strike"], params["short_call_credit"], future_spot
+            )
+            + long_call_intrinsic(
+                params["long_call_strike"], params["long_call_debit"], future_spot
+            )
+        )
+        return legs
+    if s == "risk_reversal":
+        # short put + long call (typically same expiry, OTM both)
+        return short_put_pl(
+            params["short_put_strike"], params["short_put_credit"], future_spot
+        ) + long_call_intrinsic(
+            params["long_call_strike"], params["long_call_debit"], future_spot
+        )
+    return 0.0
+
+
+def compute_pl_matrix(
+    spot: float,
+    direction: str,
+    iv_surface: dict,
+    calls: list[dict],
+    puts: list[dict],
+) -> dict:
+    """Build counterfactual P/L matrix per pitfall 5.
+
+    For a given directional thesis (bull|bear), build candidate structures from
+    actual chain prices and compute P/L at +0/+10/+20/+35/+50% (or -, for bear).
+
+    Reject any candidate that flat-lines or shows LOSS in the high-conviction
+    scenario column when conviction count >= 4.
+
+    See: references/pitfalls/05-capped-upside-vs-conviction.md
+    """
+    if direction not in ("bull", "bear"):
+        return {"error": f"direction must be bull|bear, got {direction!r}"}
+    if not calls or not puts:
+        return {"error": "Empty option chain — cannot build P/L matrix"}
+
+    # Build per-strike mid-price lookups
+    def mid(opt: dict) -> float | None:
+        bid = opt.get("bid")
+        ask = opt.get("ask")
+        last = opt.get("lastPrice")
+        if bid and ask and bid > 0 and ask > 0:
+            return (bid + ask) / 2.0
+        if last and last > 0:
+            return last
+        return None
+
+    call_mids = {c["strike"]: mid(c) for c in calls if c.get("strike") and mid(c)}
+    put_mids = {p["strike"]: mid(p) for p in puts if p.get("strike") and mid(p)}
+
+    if not call_mids or not put_mids:
+        return {"error": "No mid-prices available on chain"}
+
+    # Find ATM and useful OTM strikes
+    def nearest(strikes: list[float], target: float) -> float | None:
+        if not strikes:
+            return None
+        return min(strikes, key=lambda s: abs(s - target))
+
+    call_strikes_sorted = sorted(call_mids.keys())
+    put_strikes_sorted = sorted(put_mids.keys())
+
+    if direction == "bull":
+        scenario_pcts = [0.0, 0.10, 0.20, 0.35, 0.50]
+    else:
+        scenario_pcts = [0.0, -0.10, -0.20, -0.35, -0.50]
+
+    scenarios = [round(spot * (1 + p), 2) for p in scenario_pcts]
+    scenario_labels = [f"{int(p * 100):+d}%" for p in scenario_pcts]
+
+    candidates: list[dict] = []
+
+    if direction == "bull":
+        # Candidate 1: Naked short put (5% OTM)
+        sp_strike = nearest(put_strikes_sorted, spot * 0.95)
+        if sp_strike and put_mids.get(sp_strike):
+            params = {"strike": sp_strike, "credit": put_mids[sp_strike]}
+            candidates.append(
+                {
+                    "name": "naked_short_put",
+                    "params": params,
+                    "max_loss": -(sp_strike - put_mids[sp_strike]) * 100,
+                    "uncapped_upside": False,
+                    "asymmetry_class": "capped (credit only)",
+                }
+            )
+
+        # Candidate 2: Bull put spread (5% OTM short, 10% OTM long)
+        sp_short = nearest(put_strikes_sorted, spot * 0.95)
+        sp_long = nearest(put_strikes_sorted, spot * 0.90)
+        if (
+            sp_short
+            and sp_long
+            and sp_short != sp_long
+            and put_mids.get(sp_short)
+            and put_mids.get(sp_long)
+        ):
+            params = {
+                "short_strike": sp_short,
+                "short_credit": put_mids[sp_short],
+                "long_strike": sp_long,
+                "long_debit": put_mids[sp_long],
+            }
+            candidates.append(
+                {
+                    "name": "bull_put_spread",
+                    "params": params,
+                    "asymmetry_class": "capped (credit only)",
+                    "uncapped_upside": False,
+                }
+            )
+
+        # Candidate 3: Long ATM call
+        atm_call = nearest(call_strikes_sorted, spot)
+        if atm_call and call_mids.get(atm_call):
+            params = {"strike": atm_call, "debit": call_mids[atm_call]}
+            candidates.append(
+                {
+                    "name": "long_call",
+                    "params": params,
+                    "asymmetry_class": "uncapped upside",
+                    "uncapped_upside": True,
+                }
+            )
+
+        # Candidate 4: Bull call debit spread (ATM long, 10% OTM short)
+        c_long = nearest(call_strikes_sorted, spot)
+        c_short = nearest(call_strikes_sorted, spot * 1.10)
+        if (
+            c_long
+            and c_short
+            and c_long != c_short
+            and call_mids.get(c_long)
+            and call_mids.get(c_short)
+        ):
+            params = {
+                "long_strike": c_long,
+                "long_debit": call_mids[c_long],
+                "short_strike": c_short,
+                "short_credit": call_mids[c_short],
+            }
+            candidates.append(
+                {
+                    "name": "bull_call_debit_spread",
+                    "params": params,
+                    "asymmetry_class": "capped at upper strike",
+                    "uncapped_upside": False,
+                }
+            )
+
+        # Candidate 5: Risk reversal (5% OTM short put + 5% OTM long call)
+        rr_put = nearest(put_strikes_sorted, spot * 0.95)
+        rr_call = nearest(call_strikes_sorted, spot * 1.05)
+        if rr_put and rr_call and put_mids.get(rr_put) and call_mids.get(rr_call):
+            params = {
+                "short_put_strike": rr_put,
+                "short_put_credit": put_mids[rr_put],
+                "long_call_strike": rr_call,
+                "long_call_debit": call_mids[rr_call],
+            }
+            candidates.append(
+                {
+                    "name": "risk_reversal",
+                    "params": params,
+                    "asymmetry_class": "uncapped upside",
+                    "uncapped_upside": True,
+                }
+            )
+
+        # Candidate 6 (FORBIDDEN demonstrator): Jade Lizard
+        # short put 5% OTM + short call 5% OTM + long call 10% OTM
+        jl_sp = nearest(put_strikes_sorted, spot * 0.95)
+        jl_sc = nearest(call_strikes_sorted, spot * 1.05)
+        jl_lc = nearest(call_strikes_sorted, spot * 1.10)
+        if (
+            jl_sp
+            and jl_sc
+            and jl_lc
+            and jl_sc != jl_lc
+            and put_mids.get(jl_sp)
+            and call_mids.get(jl_sc)
+            and call_mids.get(jl_lc)
+        ):
+            params = {
+                "short_put_strike": jl_sp,
+                "short_put_credit": put_mids[jl_sp],
+                "short_call_strike": jl_sc,
+                "short_call_credit": call_mids[jl_sc],
+                "long_call_strike": jl_lc,
+                "long_call_debit": call_mids[jl_lc],
+            }
+            candidates.append(
+                {
+                    "name": "jade_lizard",
+                    "params": params,
+                    "asymmetry_class": "CAPPED — bull tail loses (FORBIDDEN at conviction>=4)",
+                    "uncapped_upside": False,
+                    "forbidden_at_high_conviction": True,
+                }
+            )
+
+        # Candidate 7 (FORBIDDEN demonstrator): Iron Condor
+        ic_sp = nearest(put_strikes_sorted, spot * 0.95)
+        ic_lp = nearest(put_strikes_sorted, spot * 0.90)
+        ic_sc = nearest(call_strikes_sorted, spot * 1.05)
+        ic_lc = nearest(call_strikes_sorted, spot * 1.10)
+        if (
+            all([ic_sp, ic_lp, ic_sc, ic_lc])
+            and put_mids.get(ic_sp)
+            and put_mids.get(ic_lp)
+            and call_mids.get(ic_sc)
+            and call_mids.get(ic_lc)
+        ):
+            params = {
+                "short_put_strike": ic_sp,
+                "short_put_credit": put_mids[ic_sp],
+                "long_put_strike": ic_lp,
+                "long_put_debit": put_mids[ic_lp],
+                "short_call_strike": ic_sc,
+                "short_call_credit": call_mids[ic_sc],
+                "long_call_strike": ic_lc,
+                "long_call_debit": call_mids[ic_lc],
+            }
+            candidates.append(
+                {
+                    "name": "iron_condor",
+                    "params": params,
+                    "asymmetry_class": "CAPPED both sides (FORBIDDEN at conviction>=4)",
+                    "uncapped_upside": False,
+                    "forbidden_at_high_conviction": True,
+                }
+            )
+    else:
+        # bear-side mirror
+        # Candidate: Bear call spread (5% OTM short, 10% OTM long)
+        bc_short = nearest(call_strikes_sorted, spot * 1.05)
+        bc_long = nearest(call_strikes_sorted, spot * 1.10)
+        if (
+            bc_short
+            and bc_long
+            and bc_short != bc_long
+            and call_mids.get(bc_short)
+            and call_mids.get(bc_long)
+        ):
+            params = {
+                "short_strike": bc_short,
+                "short_credit": call_mids[bc_short],
+                "long_strike": bc_long,
+                "long_debit": call_mids[bc_long],
+            }
+            candidates.append(
+                {
+                    "name": "bear_call_spread",
+                    "params": params,
+                    "asymmetry_class": "capped (credit only)",
+                    "uncapped_upside": False,
+                }
+            )
+        # Long ATM put
+        atm_put = nearest(put_strikes_sorted, spot)
+        if atm_put and put_mids.get(atm_put):
+            params = {"strike": atm_put, "debit": put_mids[atm_put]}
+            candidates.append(
+                {
+                    "name": "long_put",
+                    "params": params,
+                    "asymmetry_class": "uncapped downside (bullish-for-bear)",
+                    "uncapped_upside": True,
+                }
+            )
+
+    # Compute P/L matrix
+    matrix_rows = []
+    for cand in candidates:
+        row = {
+            "structure": cand["name"],
+            "asymmetry_class": cand["asymmetry_class"],
+            "uncapped_upside": cand.get("uncapped_upside", False),
+            "forbidden_at_high_conviction": cand.get(
+                "forbidden_at_high_conviction", False
+            ),
+            "pl_per_contract": {},
+        }
+        for label, future_spot in zip(scenario_labels, scenarios):
+            pl = _structure_pl_at_spot(cand["name"], cand["params"], future_spot)
+            row["pl_per_contract"][label] = round(pl, 2)
+        matrix_rows.append(row)
+
+    # Identify recommendations
+    high_conv_label = scenario_labels[-2]  # +35% or -35%
+    survivors = [
+        r
+        for r in matrix_rows
+        if not r.get("forbidden_at_high_conviction")
+        and r["pl_per_contract"].get(high_conv_label, 0) > 0
+    ]
+    survivors.sort(key=lambda r: r["pl_per_contract"][high_conv_label], reverse=True)
+
+    return {
+        "spot": spot,
+        "direction": direction,
+        "scenario_labels": scenario_labels,
+        "scenario_spots": scenarios,
+        "candidates": matrix_rows,
+        "best_for_high_conviction_tail": survivors[:3] if survivors else [],
+        "rejected_at_high_conviction": [
+            r["structure"]
+            for r in matrix_rows
+            if r.get("forbidden_at_high_conviction")
+            or r["pl_per_contract"].get(high_conv_label, 0) <= 0
+        ],
+        "methodology": (
+            "Pitfall 5 (asymmetry rule): rank candidate structures by P/L in the "
+            f"high-conviction tail ({high_conv_label}). Reject any showing LOSS or "
+            "flat in the conviction column. Forbidden structures (Jade Lizard, IC) "
+            "shown for comparison only — never recommend at conviction>=4. "
+            "See references/pitfalls/05-capped-upside-vs-conviction.md"
+        ),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compute options market signals from yfinance data"
@@ -376,6 +908,33 @@ def main():
         choices=["basic", "full"],
         default="basic",
         help="Analysis depth (basic = nearest expiry; full = all expiries)",
+    )
+    parser.add_argument(
+        "--days-to-earnings",
+        type=int,
+        default=None,
+        help=(
+            "Days until next earnings (used for IV classification — pitfall 3). "
+            "If omitted, IV classification skips the catalyst-clock signal."
+        ),
+    )
+    parser.add_argument(
+        "--net-call-premium-5d",
+        type=float,
+        default=None,
+        help=(
+            "5-day net call premium in USD (used for IV classification + conviction "
+            "count — pitfalls 3 and 5). Positive = call-side accumulation."
+        ),
+    )
+    parser.add_argument(
+        "--direction",
+        choices=["bull", "bear"],
+        default=None,
+        help=(
+            "If set, emit counterfactual P/L matrix for this directional thesis "
+            "(pitfall 5). Recommended whenever conviction count >= 4."
+        ),
     )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     args = parser.parse_args()
@@ -497,6 +1056,31 @@ def main():
                 else "Neutral / Mixed"
             ),
         }
+
+        # IV regime classification (pitfall 3) — always runs; uses term structure
+        # if available, otherwise emits classification with the signals it has.
+        result["iv_classification"] = classify_iv_regime(
+            iv_surface=result.get("iv_surface", {}),
+            iv_term_structure=result.get("iv_term_structure"),
+            days_to_next_earnings=args.days_to_earnings,
+            flow_5d_net_call_premium_usd=args.net_call_premium_5d,
+        )
+
+        # Counterfactual P/L matrix (pitfall 5) — only when direction is supplied
+        if args.direction:
+            result["pl_matrix"] = compute_pl_matrix(
+                spot=float(spot),
+                direction=args.direction,
+                iv_surface=result.get("iv_surface", {}),
+                calls=calls,
+                puts=puts,
+            )
+
+        # Convenience flow echo for downstream consumers (compute_scores.py)
+        if args.net_call_premium_5d is not None:
+            result.setdefault("flow", {})["net_call_premium_5d_usd"] = (
+                args.net_call_premium_5d
+            )
 
     except Exception as e:
         result = {"ticker": ticker, "error": str(e)}

@@ -1694,6 +1694,259 @@ def compute_canslim(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Directional conviction count (Pitfall 5: capped-upside vs conviction)
+# ---------------------------------------------------------------------------
+
+
+def compute_conviction_count_directional(
+    metrics: dict,
+    technicals: dict,
+    sentiment: dict | None,
+    short_interest: dict | None,
+    alternatives: dict | None,
+    options_data: dict | None = None,
+) -> dict:
+    """Compute bull / bear conviction count (each 0-8) for short-term structure selection.
+
+    Inspired by `himself65/trade-skills` pitfall 24. When count >= 4, capped-upside
+    structures (Jade Lizard, Iron Condor, Calendar, Diagonal, Covered Call) are
+    forbidden — must use uncapped or wide-upside structures instead.
+
+    Each of 8 factors contributes 1 point if met. Returns count, factor breakdown,
+    banned_structures[] when count >= 4, required_structures[].
+
+    See: references/pitfalls/05-capped-upside-vs-conviction.md
+    """
+    bull_factors: list[dict] = []
+    bear_factors: list[dict] = []
+
+    # 1. 3+ independent bullish/bearish channel checks (alt-data)
+    primary = (alternatives or {}).get("primary_research") or {}
+    convergence = primary.get("convergence_score") or {}
+    bullish_sources = convergence.get("bullish_distinct_sources", 0) or 0
+    bearish_sources = convergence.get("bearish_distinct_sources", 0) or 0
+    if bullish_sources >= 3:
+        bull_factors.append(
+            {"name": "channel_check_confluence", "value": bullish_sources}
+        )
+    if bearish_sources >= 3:
+        bear_factors.append(
+            {"name": "channel_check_confluence", "value": bearish_sources}
+        )
+
+    # 2. Sector / thematic narrative actively re-rating
+    sector_rs = (technicals or {}).get("sector_rs") or {}
+    sector_rs_score = sector_rs.get("sector_rs_score")
+    if sector_rs_score is not None:
+        if sector_rs_score >= 7.0:
+            bull_factors.append({"name": "sector_rerate", "value": sector_rs_score})
+        elif sector_rs_score <= 3.0:
+            bear_factors.append({"name": "sector_rerate", "value": sector_rs_score})
+
+    # 3. Stock down >20% from recent high (de-risked) for bull / up >20% from low for bear
+    pct_off_high = (technicals or {}).get("pct_off_52w_high")
+    pct_off_low = (technicals or {}).get("pct_off_52w_low")
+    if pct_off_high is not None and pct_off_high <= -20:
+        bull_factors.append({"name": "de_risked_setup", "value": pct_off_high})
+    if pct_off_low is not None and pct_off_low >= 20:
+        bear_factors.append({"name": "extended_setup", "value": pct_off_low})
+
+    # 4. Past 4 quarters: ≥3 positive earnings reactions (bull) / ≥3 negative (bear)
+    earnings_edge = (sentiment or {}).get("earnings_edge") or {}
+    pos_reactions = earnings_edge.get("positive_reactions_last_4q", 0) or 0
+    neg_reactions = earnings_edge.get("negative_reactions_last_4q", 0) or 0
+    if pos_reactions >= 3:
+        bull_factors.append(
+            {"name": "positive_earnings_history", "value": pos_reactions}
+        )
+    if neg_reactions >= 3:
+        bear_factors.append(
+            {"name": "negative_earnings_history", "value": neg_reactions}
+        )
+
+    # 5. NEW information likely to be disclosed (forward catalyst with high impact)
+    catalysts = (sentiment or {}).get("upcoming_catalysts") or []
+    if any(
+        (c.get("expected_impact_magnitude", 0) or 0) >= 4
+        and (c.get("direction") or "").lower() in ("positive", "bull", "bullish")
+        for c in catalysts
+    ):
+        bull_factors.append({"name": "high_impact_positive_catalyst", "value": True})
+    if any(
+        (c.get("expected_impact_magnitude", 0) or 0) >= 4
+        and (c.get("direction") or "").lower() in ("negative", "bear", "bearish")
+        for c in catalysts
+    ):
+        bear_factors.append({"name": "high_impact_negative_catalyst", "value": True})
+
+    # 6. Net options flow back-month bullish (call premium dominance, 5d rolling)
+    flow = (options_data or {}).get("flow") or {}
+    net_call_5d = flow.get("net_call_premium_5d_usd")
+    net_put_5d = flow.get("net_put_premium_5d_usd")
+    if net_call_5d is not None and net_call_5d >= 5_000_000 and (net_put_5d or 0) <= 0:
+        bull_factors.append({"name": "options_flow_bullish", "value": net_call_5d})
+    if net_put_5d is not None and net_put_5d >= 5_000_000 and (net_call_5d or 0) <= 0:
+        bear_factors.append({"name": "options_flow_bearish", "value": net_put_5d})
+
+    # 7. Short interest >10% (squeeze potential for bull, distribution risk for bear)
+    si = (short_interest or {}).get("short_interest") or {}
+    si_pct = si.get("short_pct_float")
+    if si_pct is not None and si_pct >= 10:
+        # High SI is a *bull-conviction amplifier* (squeeze potential), not bear
+        bull_factors.append({"name": "short_squeeze_potential", "value": si_pct})
+
+    # 8. Implied move materially below recent realized average
+    iv_data = (options_data or {}).get("iv") or {}
+    implied_move = iv_data.get("implied_move_pct")
+    realized_30d = iv_data.get("realized_vol_30d_pct")
+    if (
+        implied_move is not None
+        and realized_30d is not None
+        and implied_move > 0
+        and realized_30d > 0
+        and implied_move < 0.7 * realized_30d
+    ):
+        # Symmetric — tells us the market is underpricing movement; both sides see asymmetry
+        bull_factors.append({"name": "implied_below_realized", "value": implied_move})
+        bear_factors.append({"name": "implied_below_realized", "value": implied_move})
+
+    bull_count = len(bull_factors)
+    bear_count = len(bear_factors)
+
+    # Banned structures activate at count >= 4 (per pitfall 5)
+    banned_structures: list[str] = []
+    required_structures: list[str] = []
+    direction: str | None = None
+
+    if bull_count >= 4 and bull_count > bear_count:
+        direction = "bull"
+        banned_structures = [
+            "Jade Lizard",
+            "Iron Condor",
+            "Calendar",
+            "Diagonal (tight strikes)",
+            "Covered Call",
+        ]
+        required_structures = [
+            "Naked Short Put (cash-secured, far OTM)",
+            "Bull Put Spread",
+            "Risk Reversal",
+            "Long Call (single)",
+            "Bull Call Debit Spread",
+            "Synthetic Long",
+        ]
+    elif bear_count >= 4 and bear_count > bull_count:
+        direction = "bear"
+        banned_structures = [
+            "Reverse Jade Lizard",
+            "Iron Condor",
+            "Calendar (tight strikes)",
+            "Cash-Secured Put on falling knife",
+        ]
+        required_structures = [
+            "Bear Call Spread",
+            "Long Put",
+            "Bear Put Debit Spread",
+            "Risk Reversal (sell call + buy put)",
+        ]
+
+    return {
+        "bull_conviction_count": bull_count,
+        "bear_conviction_count": bear_count,
+        "bull_factors": bull_factors,
+        "bear_factors": bear_factors,
+        "high_conviction_directional": direction,
+        "asymmetry_rule_active": direction is not None,
+        "banned_structures": banned_structures,
+        "required_structures": required_structures,
+        "methodology": (
+            "Pitfall 5 (asymmetry axis): tally 8 factors. Count >= 4 with directional "
+            "dominance activates banned-structures rule. See "
+            "references/pitfalls/05-capped-upside-vs-conviction.md"
+        ),
+    }
+
+
+def classify_tape_class(
+    ticker: str,
+    technicals: dict | None,
+    liquidity: dict | None,
+    alternatives: dict | None,
+) -> dict:
+    """Classify tape behavior (pitfall 8): institutional|retail|manipulator|lowliquidity.
+
+    Drives short-term structure selection: manipulator tapes default to selling
+    premium with wide-strike structures; institutional tapes use standard frameworks;
+    retail tapes pair float-saturation checks with structure choice; lowliquidity
+    tapes invalidate orderbook-based frameworks.
+
+    Seed list of known manipulator-class names from `references/pitfalls/08-manipulator-tape.md`.
+    Override via observed metrics: realized vol >70%, mean overnight gap >2.5%,
+    implied/realized ratio <0.85 for sustained period.
+    """
+    seed_manipulator = {"APP", "MSTR", "COIN", "PLTR", "DJT"}
+    rationale: list[str] = []
+    tape_class = "institutional"
+
+    if ticker.upper() in seed_manipulator:
+        tape_class = "manipulator"
+        rationale.append(f"{ticker} on seed manipulator-class list (pitfall 8)")
+
+    tech = technicals or {}
+    realized_vol_30d = tech.get("realized_vol_30d_pct") or tech.get("hist_vol_30d")
+    overnight_gap_avg = tech.get("avg_overnight_gap_pct")
+
+    # Override: high realized vol + frequent gap behavior → manipulator
+    if (
+        realized_vol_30d is not None
+        and realized_vol_30d >= 70
+        and overnight_gap_avg is not None
+        and overnight_gap_avg >= 2.5
+    ):
+        if tape_class != "manipulator":
+            rationale.append(
+                f"realized vol {realized_vol_30d:.0f}% + avg overnight gap "
+                f"{overnight_gap_avg:.1f}% → manipulator class"
+            )
+        tape_class = "manipulator"
+
+    # Liquidity override
+    liq = liquidity or {}
+    liq_score = liq.get("liquidity_score")
+    if liq_score is not None and liq_score < 4.0:
+        tape_class = "lowliquidity"
+        rationale.append(
+            f"liquidity score {liq_score:.1f} <4.0 → orderbook frameworks invalid"
+        )
+
+    # Retail saturation override (pitfall 9 cross-check)
+    sat = (alternatives or {}).get("social_saturation") or {}
+    sat_score = sat.get("social_saturation_score")
+    if tape_class == "institutional" and sat_score is not None and sat_score >= 60:
+        tape_class = "retail"
+        rationale.append(
+            f"social saturation {sat_score:.0f} ≥60 → retail-dominated tape"
+        )
+
+    structure_default = {
+        "institutional": "Standard frameworks apply (gamma + price-action)",
+        "retail": "Pair float-saturation check with structure (pitfall 9)",
+        "manipulator": "Sell premium (Jade Lizard/IC/bull put spread); avoid long-dated calls",
+        "lowliquidity": "Orderbook frameworks unreliable; manipulator-tape rules apply",
+    }[tape_class]
+
+    return {
+        "tape_class": tape_class,
+        "rationale": rationale,
+        "structure_default": structure_default,
+        "methodology": (
+            "Pitfall 8 (manipulator-tape): seed list + realized vol / overnight gap "
+            "/ liquidity / saturation overrides. See references/pitfalls/08-manipulator-tape.md"
+        ),
+    }
+
+
 def detect_framework_divergence(scores: dict) -> dict:
     """Detect when component scores strongly disagree, indicating analytical tension.
 
@@ -1965,6 +2218,13 @@ def main():
     parser.add_argument(
         "--activist", help="Path to fetch_activist_exposure.py output JSON"
     )
+    parser.add_argument(
+        "--options",
+        help=(
+            "Path to calculate_options.py output JSON (enables conviction-count + "
+            "banned-structures emission for short-term reports — pitfall 5)"
+        ),
+    )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     parser.add_argument(
         "--ticker", default="UNKNOWN", help="Ticker symbol for output labeling"
@@ -2017,6 +2277,11 @@ def main():
         with open(args.activist) as f:
             activist_data = json.load(f)
 
+    options_data = {}
+    if args.options:
+        with open(args.options) as f:
+            options_data = json.load(f)
+
     scores = {
         "ticker": args.ticker,
         "report_type": args.report_type,
@@ -2038,6 +2303,25 @@ def main():
 
     # Framework divergence detection
     scores["framework_divergence"] = detect_framework_divergence(scores)
+
+    # Tape class (pitfall 8) — manipulator | retail | institutional | lowliquidity
+    scores["tape_class"] = classify_tape_class(
+        ticker=args.ticker,
+        technicals=technicals,
+        liquidity=liquidity_data,
+        alternatives=alternatives,
+    )
+
+    # Directional conviction count + banned/required structures (pitfall 5)
+    # Always computed; consumed primarily by short-term report writer.
+    scores["conviction_count_directional"] = compute_conviction_count_directional(
+        metrics=metrics,
+        technicals=technicals,
+        sentiment=sentiment,
+        short_interest=short_interest_data,
+        alternatives=alternatives,
+        options_data=options_data,
+    )
 
     # Conviction
     scores["conviction"] = compute_conviction(scores, args.report_type)

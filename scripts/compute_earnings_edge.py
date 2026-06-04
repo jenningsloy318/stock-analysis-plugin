@@ -262,6 +262,134 @@ def get_next_earnings(stock) -> dict:
         return {"next_earnings_date": None}
 
 
+def post_earnings_continuation_gate(
+    fundamentals_confirmed: bool | None,
+    sector_co_moving: bool | None,
+    net_call_premium_positive: bool | None,
+    short_interest_pct: float | None,
+) -> dict:
+    """Post-earnings 4-factor continuation gate (pitfall 20-equivalent for our pipeline).
+
+    Before predicting a multi-day fade off a gap-up earnings reaction, run the
+    4-factor confirmation check. If 3+ of 4 are bullish, the report MUST flag
+    continuation, not fade.
+
+    Inputs are typically supplied by the catalyst-analyst from upstream stage outputs:
+      - fundamentals_confirmed: True if guidance raised AND beat (else False; None=unknown)
+      - sector_co_moving: True if sector index +>5% trailing 5 days (else False; None=unknown)
+      - net_call_premium_positive: True if 5-day net call premium > 0 (else False; None=unknown)
+      - short_interest_pct: short interest % of float (None if unavailable)
+
+    Returns 4-factor gate verdict + recommended bias (continuation | fade | neutral).
+
+    See: references/pitfalls/20 (or our equivalent post-earnings rule)
+    """
+    bullish_count = 0
+    factors_evaluated = 0
+    factor_details: list[dict] = []
+
+    if fundamentals_confirmed is not None:
+        factors_evaluated += 1
+        if fundamentals_confirmed:
+            bullish_count += 1
+        factor_details.append(
+            {
+                "factor": "fundamentals_confirmed",
+                "bullish": fundamentals_confirmed,
+                "note": "guidance raised + beat"
+                if fundamentals_confirmed
+                else "miss or guide-down",
+            }
+        )
+
+    if sector_co_moving is not None:
+        factors_evaluated += 1
+        if sector_co_moving:
+            bullish_count += 1
+        factor_details.append(
+            {
+                "factor": "sector_co_moving",
+                "bullish": sector_co_moving,
+                "note": "peers +>5% trailing 5d"
+                if sector_co_moving
+                else "isolated bid",
+            }
+        )
+
+    if net_call_premium_positive is not None:
+        factors_evaluated += 1
+        if net_call_premium_positive:
+            bullish_count += 1
+        factor_details.append(
+            {
+                "factor": "net_call_premium_positive",
+                "bullish": net_call_premium_positive,
+                "note": "5d net call premium >0"
+                if net_call_premium_positive
+                else "flow distribution-shaped",
+            }
+        )
+
+    if short_interest_pct is not None:
+        factors_evaluated += 1
+        si_bullish = short_interest_pct >= 10
+        if si_bullish:
+            bullish_count += 1
+        factor_details.append(
+            {
+                "factor": "short_interest_squeeze",
+                "bullish": si_bullish,
+                "value_pct": short_interest_pct,
+                "note": (
+                    f"SI {short_interest_pct:.1f}% >= 10% (squeeze amplifies continuation)"
+                    if si_bullish
+                    else f"SI {short_interest_pct:.1f}% < 10% (no squeeze tailwind)"
+                ),
+            }
+        )
+
+    # Verdict: 3+ of 4 bullish → continuation; 1 or fewer → fade allowed; 2 → neutral
+    if factors_evaluated == 0:
+        verdict = "insufficient_data"
+        bias = "neutral"
+        rationale = "No factors evaluated; cannot apply post-earnings gate"
+    elif bullish_count >= 3:
+        verdict = "continuation"
+        bias = "do_not_call_fade"
+        rationale = (
+            f"{bullish_count}/{factors_evaluated} bullish factors. Multi-day momentum "
+            "continuation is the default — DO NOT predict fade. Hold or add."
+        )
+    elif bullish_count <= 1 and factors_evaluated >= 3:
+        verdict = "fade_allowed"
+        bias = "fade_or_neutral"
+        rationale = (
+            f"Only {bullish_count}/{factors_evaluated} bullish — fade signal is "
+            "consistent with the data."
+        )
+    else:
+        verdict = "neutral"
+        bias = "no_directional_call"
+        rationale = (
+            f"{bullish_count}/{factors_evaluated} bullish — mixed signals, do not "
+            "anchor on intraday pattern alone."
+        )
+
+    return {
+        "factors_evaluated": factors_evaluated,
+        "bullish_factors": bullish_count,
+        "factor_details": factor_details,
+        "verdict": verdict,
+        "recommended_bias": bias,
+        "rationale": rationale,
+        "methodology": (
+            "Pitfall 20 (post-earnings continuation): require 3+/4 bullish factors to "
+            "predict fade against. See references/pitfalls/ — equivalent rule embedded "
+            "in catalyst-analyst Stage 14."
+        ),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compute pre-earnings analysis and historical surprise patterns"
@@ -274,6 +402,31 @@ def main():
         help="Number of quarters to analyze (default: 12)",
     )
     parser.add_argument("--output", help="Output file path (default: stdout)")
+    # Post-earnings continuation gate (pitfall 20)
+    parser.add_argument(
+        "--fundamentals-confirmed",
+        choices=["true", "false"],
+        default=None,
+        help="Post-earnings gate: did the print confirm thesis (beat + raised guide)?",
+    )
+    parser.add_argument(
+        "--sector-co-moving",
+        choices=["true", "false"],
+        default=None,
+        help="Post-earnings gate: are sector peers up >5% trailing 5d?",
+    )
+    parser.add_argument(
+        "--net-call-premium-positive",
+        choices=["true", "false"],
+        default=None,
+        help="Post-earnings gate: is 5-day net call premium positive?",
+    )
+    parser.add_argument(
+        "--short-interest-pct",
+        type=float,
+        default=None,
+        help="Post-earnings gate: short interest as % of float (e.g., 12.5)",
+    )
     args = parser.parse_args()
 
     ticker = args.ticker.strip().upper()
@@ -316,6 +469,21 @@ def main():
             )
 
         result["signals"] = signals
+
+        # Post-earnings continuation gate (pitfall 20) — runs only when at least
+        # one factor flag was supplied. Catalyst-analyst Stage 14 supplies these
+        # from upstream stage outputs (sector RS, options flow, short interest).
+        def _bool_or_none(v: str | None) -> bool | None:
+            if v is None:
+                return None
+            return v.lower() == "true"
+
+        result["post_earnings_gate"] = post_earnings_continuation_gate(
+            fundamentals_confirmed=_bool_or_none(args.fundamentals_confirmed),
+            sector_co_moving=_bool_or_none(args.sector_co_moving),
+            net_call_premium_positive=_bool_or_none(args.net_call_premium_positive),
+            short_interest_pct=args.short_interest_pct,
+        )
 
     except Exception as e:
         result = {"ticker": ticker, "error": str(e)}

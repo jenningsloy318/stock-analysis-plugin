@@ -738,8 +738,22 @@ def gate_moat_decision_table(report_dir: str, report_type: str) -> dict:
 
     moat_rows = ["网络效应", "转换成本", "规模优势", "无形资产"]
     rating_tokens = ["Strong", "Moderate", "Weak", "S/M/W"]
-    counterfactual_keywords = ["100 亿", "$10B", "$100亿", "10 亿美元", "反事实", "counterfactual"]
-    anti_pattern_keywords = ["先发", "first-mover", "增长 ≠ 护城河", "Growth ≠ moat", "growth ≠ moat", "反例"]
+    counterfactual_keywords = [
+        "100 亿",
+        "$10B",
+        "$100亿",
+        "10 亿美元",
+        "反事实",
+        "counterfactual",
+    ]
+    anti_pattern_keywords = [
+        "先发",
+        "first-mover",
+        "增长 ≠ 护城河",
+        "Growth ≠ moat",
+        "growth ≠ moat",
+        "反例",
+    ]
     peer_pair_keywords = ["同业护城河对比", "Peer-Pair", "peer pair", "peer-pair"]
 
     for fname in sorted(os.listdir(report_dir)):
@@ -801,6 +815,234 @@ def gate_moat_decision_table(report_dir: str, report_type: str) -> dict:
             f"{passed}/{checked} reports include 4-Moat Decision Table"
             if checked
             else f"No {report_type} reports found"
+        ),
+    }
+
+
+def gate_yields_causality(report_dir: str) -> dict:
+    """Pitfall 2: yields don't cause equity moves.
+
+    Lints prose for sentences of the form 'X happened because [yields/dollar/oil]
+    moved'. Flags as warnings; does NOT block. Suggested rewrite: 'X and yields
+    both moved because the market revised [growth/inflation/policy] expectations.'
+    """
+    import re
+
+    bad_patterns = [
+        # English
+        r"because\s+(?:bond\s+)?yields\s+(?:moved|rose|fell|hit|crossed|spiked)",
+        r"because\s+(?:the\s+)?(?:dollar|DXY)\s+(?:moved|rose|fell|strengthened|weakened)",
+        r"because\s+oil\s+(?:moved|rose|fell|spiked)",
+        r"due\s+to\s+(?:the\s+)?(?:rise|fall|spike)\s+in\s+(?:bond\s+)?yields",
+        # Chinese
+        r"因为(?:债券|国债)?收益率",
+        r"由于(?:美元|油价)上涨",
+    ]
+
+    issues: list[str] = []
+    files_checked = 0
+    if not os.path.isdir(report_dir):
+        return {
+            "pass": True,
+            "files_checked": 0,
+            "issues": [],
+            "details": "report_dir not found; skipping",
+        }
+    for fname in sorted(os.listdir(report_dir)):
+        if not fname.endswith(".md"):
+            continue
+        files_checked += 1
+        try:
+            with open(os.path.join(report_dir, fname)) as fh:
+                content = fh.read()
+        except OSError:
+            continue
+        for pat in bad_patterns:
+            for match in re.finditer(pat, content, re.IGNORECASE):
+                # Capture surrounding context
+                start = max(0, match.start() - 40)
+                end = min(len(content), match.end() + 40)
+                snippet = content[start:end].replace("\n", " ")
+                issues.append(
+                    f"{fname}: weak causality — '{snippet}'. Rewrite: both moved due to upstream macro driver (pitfall 2)."
+                )
+
+    return {
+        "pass": len(issues) == 0,
+        "files_checked": files_checked,
+        "issues": issues,
+        "details": (
+            f"Linted {files_checked} markdown files for yield-causality fallacy. "
+            f"{len(issues)} suspect phrases."
+        ),
+        "methodology": (
+            "Pitfall 2: 'X happened because yields moved Y' is the rooster-crowing-at-sunrise "
+            "fallacy. See references/pitfalls/02-yields-not-causal.md"
+        ),
+    }
+
+
+def gate_three_axis_check(report_dir: str, report_type: str) -> dict:
+    """Pitfall 4 + 5: short-term reports require Direction × Vega × Asymmetry check.
+
+    Inspects scores.json for `conviction_count_directional`. If asymmetry rule is
+    active (count >= 4), the short-term report MUST contain a counterfactual P/L
+    matrix and explicit banned-structures section.
+    """
+    if report_type != "short":
+        return {
+            "pass": True,
+            "applicable": False,
+            "details": "Three-axis check applies only to short-term reports",
+        }
+
+    issues: list[str] = []
+    scores_path = os.path.join(report_dir, "scores.json")
+    scores = _load_json(scores_path) or {}
+    ccd = scores.get("conviction_count_directional", {})
+
+    if not ccd:
+        return {
+            "pass": True,
+            "applicable": True,
+            "issues": [
+                "scores.json missing conviction_count_directional — cannot verify asymmetry"
+            ],
+            "details": "Asymmetry-rule check skipped (no scores)",
+        }
+
+    if not ccd.get("asymmetry_rule_active"):
+        return {
+            "pass": True,
+            "applicable": True,
+            "asymmetry_rule_active": False,
+            "details": (
+                f"Conviction count: bull={ccd.get('bull_conviction_count')}, "
+                f"bear={ccd.get('bear_conviction_count')}; asymmetry rule inactive"
+            ),
+        }
+
+    direction = ccd.get("high_conviction_directional")
+    banned = ccd.get("banned_structures", [])
+
+    # Look for required artifacts in the short-term report markdown
+    needed_keywords_en = ["P/L matrix", "+35%", "banned"]
+    needed_keywords_zh = ["反事实损益", "禁用结构", "+35%"]
+
+    short_md_files = [
+        f for f in os.listdir(report_dir) if f.endswith(".md") and "short" in f.lower()
+    ]
+    if not short_md_files:
+        issues.append(
+            "Short-term report markdown not found — cannot verify 3-axis section"
+        )
+    else:
+        for fname in short_md_files:
+            with open(os.path.join(report_dir, fname)) as fh:
+                content = fh.read()
+            has_pl_matrix = any(kw in content for kw in needed_keywords_en) or any(
+                kw in content for kw in needed_keywords_zh
+            )
+            mentions_banned = any(b in content for b in banned[:3]) if banned else False
+            if not has_pl_matrix:
+                issues.append(
+                    f"{fname}: asymmetry-rule active ({direction}, count>=4) but counterfactual P/L matrix missing (pitfall 5)"
+                )
+            if not mentions_banned:
+                issues.append(
+                    f"{fname}: banned structures ({', '.join(banned[:3])}) not enumerated in report (pitfall 5)"
+                )
+
+    return {
+        "pass": len(issues) == 0,
+        "applicable": True,
+        "asymmetry_rule_active": True,
+        "direction": direction,
+        "banned_structures": banned,
+        "issues": issues,
+        "methodology": (
+            "Pitfall 4+5: short-term reports must show direction × vega × asymmetry "
+            "and counterfactual P/L matrix when conviction count >= 4. "
+            "See references/pitfalls/05-capped-upside-vs-conviction.md"
+        ),
+    }
+
+
+def gate_framework_diversity(report_dir: str) -> dict:
+    """Pitfall 12: every report must cite >=2 frameworks + acknowledge >=1 divergence."""
+    framework_keywords = [
+        # English
+        "Buffett",
+        "Munger",
+        "Graham",
+        "Mauboussin",
+        "Lynch",
+        "Fisher",
+        "ARK",
+        "Dalio",
+        "Soros",
+        "Druckenmiller",
+        "Marks",
+        "Greenblatt",
+        "Burry",
+        "Taleb",
+        "Damodaran",
+        # Chinese transliteration / common usage
+        "巴菲特",
+        "芒格",
+        "格雷厄姆",
+        "莫布森",
+        "彼得林奇",
+        "费雪",
+        "方舟",
+        "达里奥",
+        "索罗斯",
+        "德鲁肯米勒",
+        "马克斯",
+        "格林布拉特",
+        "伯里",
+        "塔勒布",
+        "达莫达兰",
+    ]
+    divergence_keywords = ["divergence", "diverge", "tension", "分歧", "不一致", "矛盾"]
+
+    issues: list[str] = []
+    files_checked = 0
+    if not os.path.isdir(report_dir):
+        return {
+            "pass": True,
+            "files_checked": 0,
+            "issues": [],
+            "details": "report_dir not found; skipping",
+        }
+    for fname in sorted(os.listdir(report_dir)):
+        if not fname.endswith(".md"):
+            continue
+        # Only check the per-horizon report files
+        if not any(h in fname.lower() for h in ("long", "mid", "short")):
+            continue
+        files_checked += 1
+        try:
+            with open(os.path.join(report_dir, fname)) as fh:
+                content = fh.read()
+        except OSError:
+            continue
+        cited = {kw for kw in framework_keywords if kw in content}
+        if len(cited) < 2:
+            issues.append(
+                f"{fname}: only {len(cited)} framework(s) cited ({', '.join(sorted(cited)) or 'none'}); pitfall 12 requires >=2"
+            )
+        has_divergence = any(kw in content for kw in divergence_keywords)
+        if not has_divergence:
+            issues.append(f"{fname}: no acknowledged framework divergence (pitfall 12)")
+
+    return {
+        "pass": len(issues) == 0,
+        "files_checked": files_checked,
+        "issues": issues,
+        "methodology": (
+            "Pitfall 12: every report must cite >=2 analytical frameworks AND "
+            "acknowledge >=1 divergence. See references/pitfalls/12-single-framework-anchoring.md"
         ),
     }
 
@@ -874,6 +1116,9 @@ def main() -> None:
     chinese = gate_chinese_language(report_dir)
     stock_price = gate_stock_price_display(report_dir)
     moat_table = gate_moat_decision_table(report_dir, args.report_type)
+    yields_causality = gate_yields_causality(report_dir)
+    three_axis = gate_three_axis_check(report_dir, args.report_type)
+    framework_diversity = gate_framework_diversity(report_dir)
 
     gates = {
         "data_freshness": freshness,
@@ -885,6 +1130,9 @@ def main() -> None:
         "chinese_language": chinese,
         "stock_price_display": stock_price,
         "moat_decision_table": moat_table,
+        "yields_causality": yields_causality,
+        "three_axis_check": three_axis,
+        "framework_diversity": framework_diversity,
     }
 
     # Determine overall pass
@@ -924,7 +1172,9 @@ def main() -> None:
             "Pre-delivery quality gates per CLAUDE.md analysis philosophy. "
             "Blocking gates: data_freshness, source_coverage, conviction_consistency. "
             "Non-blocking (warn only unless --strict): forensic_checks, kill_switch, "
-            "fact_check, chinese_language, stock_price_display."
+            "fact_check, chinese_language, stock_price_display, yields_causality "
+            "(pitfall 2), three_axis_check (pitfalls 4+5; short-term only), "
+            "framework_diversity (pitfall 12)."
         ),
     }
 

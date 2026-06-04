@@ -65,6 +65,34 @@ If `bottleneck_asymmetry.json` is missing, note "bottleneck signal not available
 <step n="12" name="Fund Flows & Rotation">Load theme_data.json for sector ETF returns (1D/5D/1M), theme group performance, style factor rotation (growth vs value, large vs small), regime_summary signals. Supplement with web search for COT positioning, ETF flow data.</step>
 <step n="13" name="Regime Classification">Synthesize breadth_data.json signals (breadth health, A/D ratio, VIX regime) + theme_data.json regime_summary (sector leaders/laggards, growth/value bias) → Risk-Off Defensive | Neutral | Risk-On Speculative. Note breadth deterioration/improvement trend. Impact on [TICKER].</step>
 
+<step n="14" name="3-Axis Structure Check (short-term reports only)">**Pitfall 4 + 5 enforcement.** Required for short-term horizon reports; skip for long/mid.
+
+Read `scores.json` → `conviction_count_directional` and `tape_class`. Then read `options.json` → `iv_classification` and (if conviction>=4) `pl_matrix`. The stage11.md output MUST include this section verbatim:
+
+```
+## 3-Axis Structure Check (Direction × Vega × Asymmetry)
+
+Tape class: {institutional|retail|manipulator|lowliquidity}  ← pitfall 8
+IV classification: {event|demand|mixed|not_elevated}          ← pitfall 3
+Bull conviction count: X/8 | Bear conviction count: Y/8       ← pitfall 5
+
+Direction axis: {bull|bear|neutral} — net delta sign required
+Vega axis: {long|short|mixed} — IVR-driven; INVERTED if IV class = demand
+Asymmetry axis (active when count>=4): {uncapped|capped|forbidden}
+  - Banned structures: {list from scores.json}
+  - Required structures: {list from scores.json}
+
+Counterfactual P/L matrix (only when conviction>=4):
+| Structure | +0% | +10% | +20% | +35% | +50% |
+| ... | ... | ... | ... | ... | ... |
+Best for high-conviction tail (+35%): {top 3 from pl_matrix}
+Rejected (forbidden or LOSS at +35%): {list}
+```
+
+When conviction<4, render only Direction × Vega; the Asymmetry section is omitted but the conviction count itself MUST appear ("X/8 — asymmetry rule inactive"). When `iv_classification == demand`, add an inline note: "demand-IV inverts vega rule (pitfall 3) — long premium can pay even at high IVR; sell-premium structures must use wide strikes."
+
+Reference: `references/pitfalls/03-iv-event-vs-demand.md`, `references/pitfalls/04-direction-vega-asymmetry.md`, `references/pitfalls/05-capped-upside-vs-conviction.md`, `references/pitfalls/08-manipulator-tape.md`.</step>
+
 </workflow>
 
 <guardrails>
@@ -109,9 +137,9 @@ Run `{plugin_root}/scripts/fetch_sentiment.py [TICKER] --sources analyst` for an
 Run `{plugin_root}/scripts/fetch_sentiment.py [TICKER] --sources market_regime` for VIX, credit spreads, margin data.
 Run `{plugin_root}/scripts/calculate_metrics.py ./reports/[TICKER]/raw-data.json` for computed valuations.
 Run `{plugin_root}/scripts/fetch_private_comps.py [TICKER] --output ./reports/[TICKER]/private_comps.json` for M&A/LBO analysis.
-Run `{plugin_root}/scripts/compute_scores.py --metrics ./reports/[TICKER]/metrics.json --technicals ./reports/[TICKER]/tech.json --capital-structure ./reports/[TICKER]/capital_structure.json --liquidity ./reports/[TICKER]/liquidity.json --short-interest ./reports/[TICKER]/short_interest.json --activist ./reports/[TICKER]/activist.json --report-type [TYPE] --ticker [TICKER]` for component scores incl. Weinstein/CANSLIM, liquidity-adjusted position sizing, squeeze catalysts, and activist exposure.
+Run `{plugin_root}/scripts/compute_scores.py --metrics ./reports/[TICKER]/metrics.json --technicals ./reports/[TICKER]/tech.json --capital-structure ./reports/[TICKER]/capital_structure.json --liquidity ./reports/[TICKER]/liquidity.json --short-interest ./reports/[TICKER]/short_interest.json --activist ./reports/[TICKER]/activist.json --options ./reports/[TICKER]/options.json --report-type [TYPE] --ticker [TICKER]` for component scores incl. Weinstein/CANSLIM, liquidity-adjusted position sizing, squeeze catalysts, activist exposure, **directional conviction count + banned/required structures (pitfall 5), and tape class (pitfall 8)**. The `--options` flag is required for short-term reports — supplies IV surface and net call premium flow to the conviction count.
 Run `{plugin_root}/scripts/forecast.py ./reports/[TICKER]/raw-data.json --enhanced --returns-file ./reports/[TICKER]/returns.json` for GARCH volatility + fat-tail risk.
-Run `{plugin_root}/scripts/calculate_options.py [TICKER] --mode full --output ./reports/[TICKER]/options.json` for IV surface, max pain, put/call ratios, unusual activity, and gamma exposure (GEX regime, flip strike, dealer hedging dynamics).
+Run `{plugin_root}/scripts/calculate_options.py [TICKER] --mode full --days-to-earnings [N] --net-call-premium-5d [USD] --direction [bull|bear] --output ./reports/[TICKER]/options.json` for IV surface, max pain, put/call ratios, unusual activity, gamma exposure (GEX regime, flip strike, dealer hedging dynamics), **IV classification (event vs demand — pitfall 3), and counterfactual P/L matrix (pitfall 5; only when --direction is supplied)**. Resolve `--days-to-earnings` from the next-earnings-date in `next_earnings.json`. Resolve `--net-call-premium-5d` from Funda/Finnhub flow data if available; omit if unavailable. Pass `--direction` only when a directional thesis is in scope (short-term report or comparable analysis).
 Run `{plugin_root}/scripts/compute_factors.py [TICKER] --output ./reports/[TICKER]/factors.json` for Fama-French 5-factor regression and factor attribution.
 Run `{plugin_root}/scripts/fetch_cot.py [TICKER] --output ./reports/[TICKER]/cot.json` for CFTC Commitments of Traders institutional positioning.
 Run `{plugin_root}/scripts/fetch_news_nlp.py [TICKER] --output ./reports/[TICKER]/news_nlp.json` for news sentiment NLP, narrative tracking, and coverage spike detection.

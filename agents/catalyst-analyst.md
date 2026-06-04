@@ -119,6 +119,26 @@ Score catalyst density: High (>3 events within 30 days), Moderate (1-3), Low (0-
 
 ### Data Acquisition & Scripts
 Run `{plugin_root}/scripts/compute_earnings_edge.py [TICKER] --output ./reports/[RUN_ID]/earnings_edge.json` for historical beat/miss rate, PEAD, and earnings quality trend.
+
+**Post-earnings continuation gate (pitfall 20)** — when the most recent earnings has just printed (within 5 trading days), pass the 4 factors to `compute_earnings_edge.py` so the gate verdict appears in `earnings_edge.json["post_earnings_gate"]`:
+
+```
+uv run python ${PLUGIN_ROOT}/scripts/compute_earnings_edge.py [TICKER] \
+  --fundamentals-confirmed true|false \
+  --sector-co-moving true|false \
+  --net-call-premium-positive true|false \
+  --short-interest-pct 12.5 \
+  --output ./reports/[RUN_ID]/earnings_edge.json
+```
+
+Resolve each flag from upstream stage outputs:
+- `fundamentals_confirmed` ← Stage 5 fundamentals + transcript_nlp `guidance_shift == raised`
+- `sector_co_moving` ← Stage 1 sector RS + 5-day peer return
+- `net_call_premium_positive` ← Stage 11 options flow (5-day rolling)
+- `short_interest_pct` ← Stage 11 short interest data
+
+If `post_earnings_gate.verdict == "continuation"`, the catalyst calendar MUST flag continuation, not fade. **Do NOT predict a multi-day fade** when 3+/4 factors are bullish — see `references/pitfalls/13-post-earnings-momentum-vs-fade.md` (rule embedded in Stage 14 enforcement).
+
 Run `{plugin_root}/scripts/event_study.py [TICKER] --events ./reports/[RUN_ID]/events.json --output ./reports/[RUN_ID]/event_study.json` for CAR analysis around corporate events.
 Run `{plugin_root}/scripts/fetch_realtime.py [TICKER] --options --output ./reports/[RUN_ID]/options.json` for options chain and implied volatility data.
 

@@ -87,6 +87,25 @@ Also load {plugin_root}/references/data_source_matrix.md for coverage caps and {
   - Include "关键决定维度" (Key Decisive Dimensions) paragraph explaining which 2-3 dimensions MOST influenced the final conviction rating and WHY
   - If peer comparisons exist, show dimension-by-dimension comparison table vs peers to explain relative positioning
   - Never present only the final composite score — always decompose into dimensions with figures</step>
+<step n="5b" name="Short-Term 3-Axis Structure Section (mandatory for short-term report)">For the short-term report file ONLY, render a "## 三轴结构检查 (Direction × Vega × Asymmetry)" section. This is a HARD requirement enforced by `validate_report.py` `gate_three_axis_check`.
+
+Inputs (from designated company directory):
+- `scores.json` → `tape_class.tape_class`, `conviction_count_directional` (bull_count, bear_count, banned_structures, required_structures, asymmetry_rule_active)
+- `options.json` → `iv_classification.iv_classification`, `pl_matrix` (only when conviction>=4)
+
+Required content:
+1. Tape class: institutional | retail | manipulator | lowliquidity (pitfall 8) — 1-line interpretation
+2. IV classification: event | demand | mixed | not_elevated (pitfall 3) — 1-line vega rule (note: demand-IV INVERTS the default)
+3. Conviction count: X/8 bull / Y/8 bear (pitfall 5) + factor checklist breakdown
+4. If `asymmetry_rule_active`:
+   - Banned structures table (Jade Lizard, Iron Condor, Calendar, Diagonal — explain WHY each banned in this regime)
+   - Required structures table with direction/vega/upside columns
+   - Counterfactual P/L matrix from `options.json.pl_matrix.candidates` rendered as a markdown table; rows = structures, columns = +0/+10/+20/+35/+50% (or symmetric for bear)
+   - "推荐 (best for high-conviction tail)" — top 3 from `pl_matrix.best_for_high_conviction_tail`
+   - "已排除 (rejected)" — list from `pl_matrix.rejected_at_high_conviction` with rationale
+5. If asymmetry inactive (count<4): render only Direction × Vega; note the count for transparency
+
+References to cite in the section: pitfalls 03, 04, 05, 08; `references/microstructure-framework.md`.</step>
 <step n="6" name="Fact Verification">Select 5 random numeric claims, trace back to source, remove unverifiable claims</step>
 <step n="7" name="Pre-Delivery Checklist">Verify all gates pass before delivery</step>
 <step n="8" name="Write Reports">Save 3 reports:

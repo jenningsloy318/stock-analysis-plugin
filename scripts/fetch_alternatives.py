@@ -53,14 +53,18 @@ HEADERS = {"User-Agent": "StockAnalysisSkill/2.0 (research@example.com)"}
 # Google Trends — brand search interest
 # ---------------------------------------------------------------------------
 
+
 def fetch_web_traffic(ticker: str) -> dict:
     """Fetch Google Trends search interest using pytrends."""
     try:
         from pytrends.request import TrendReq
     except ImportError:
-        return {"source": "google_trends", "search_interest_avg_12m": None,
-                "search_interest_trend": "unavailable",
-                "note": "pytrends not installed. Run: pip install pytrends"}
+        return {
+            "source": "google_trends",
+            "search_interest_avg_12m": None,
+            "search_interest_trend": "unavailable",
+            "note": "pytrends not installed. Run: pip install pytrends",
+        }
 
     rate_limit()
     try:
@@ -70,10 +74,14 @@ def fetch_web_traffic(ticker: str) -> dict:
         interest = pytrends.interest_over_time()
 
         if interest is None or interest.empty:
-            return {"source": "google_trends", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                    "keyword": kw, "search_interest_avg_12m": None,
-                    "search_interest_trend": "insufficient_data",
-                    "note": "No data returned. Google may be rate-limiting."}
+            return {
+                "source": "google_trends",
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                "keyword": kw,
+                "search_interest_avg_12m": None,
+                "search_interest_trend": "insufficient_data",
+                "note": "No data returned. Google may be rate-limiting.",
+            }
 
         values = interest[kw].values
         avg_12m = float(values.mean()) if len(values) > 0 else None
@@ -81,22 +89,37 @@ def fetch_web_traffic(ticker: str) -> dict:
             recent = values[-6:].mean()
             prior = values[:6].mean() if len(values) >= 12 else values[:3].mean()
             delta_pct = (recent - prior) / prior * 100 if prior > 0 else 0
-            trend = "rising" if delta_pct > 10 else "declining" if delta_pct < -10 else "stable"
+            trend = (
+                "rising"
+                if delta_pct > 10
+                else "declining"
+                if delta_pct < -10
+                else "stable"
+            )
         else:
             trend = "insufficient_data"
 
-        return {"source": "google_trends", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "keyword": kw, "search_interest_avg_12m": round(avg_12m, 1) if avg_12m else None,
-                "search_interest_trend": trend,
-                "latest_value": round(float(values[-1]), 1) if len(values) > 0 else None}
+        return {
+            "source": "google_trends",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "keyword": kw,
+            "search_interest_avg_12m": round(avg_12m, 1) if avg_12m else None,
+            "search_interest_trend": trend,
+            "latest_value": round(float(values[-1]), 1) if len(values) > 0 else None,
+        }
     except Exception as e:
-        return {"source": "google_trends", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "search_interest_trend": "error", "note": f"Google Trends error: {e}"}
+        return {
+            "source": "google_trends",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "search_interest_trend": "error",
+            "note": f"Google Trends error: {e}",
+        }
 
 
 # ---------------------------------------------------------------------------
 # Similarweb — public web traffic estimates (free tier)
 # ---------------------------------------------------------------------------
+
 
 def _fetch_similarweb_public(domain: str) -> dict | None:
     """Scrape Similarweb's public ranking page for traffic estimates."""
@@ -111,12 +134,14 @@ def _fetch_similarweb_public(domain: str) -> dict | None:
         result = {}
 
         # Global rank
-        rank_match = re.search(r'Global Rank[^#]*?#(\d[\d,]*)', text)
+        rank_match = re.search(r"Global Rank[^#]*?#(\d[\d,]*)", text)
         if rank_match:
             result["global_rank"] = int(rank_match.group(1).replace(",", ""))
 
         # Total visits (approximate)
-        visits_match = re.search(r'total visits[^<]*?(\d+(?:\.\d+)?)\s*(M|B|K)', text, re.IGNORECASE)
+        visits_match = re.search(
+            r"total visits[^<]*?(\d+(?:\.\d+)?)\s*(M|B|K)", text, re.IGNORECASE
+        )
         if visits_match:
             num = float(visits_match.group(1))
             unit = visits_match.group(2).upper()
@@ -124,12 +149,12 @@ def _fetch_similarweb_public(domain: str) -> dict | None:
             result["estimated_monthly_visits"] = int(num * multiplier.get(unit, 1))
 
         # Bounce rate
-        bounce_match = re.search(r'Bounce Rate[^<]*?(\d+(?:\.\d+)?)%', text)
+        bounce_match = re.search(r"Bounce Rate[^<]*?(\d+(?:\.\d+)?)%", text)
         if bounce_match:
             result["bounce_rate"] = float(bounce_match.group(1))
 
         # Pages per visit
-        pages_match = re.search(r'Pages per Visit[^<]*?(\d+(?:\.\d+)?)', text)
+        pages_match = re.search(r"Pages per Visit[^<]*?(\d+(?:\.\d+)?)", text)
         if pages_match:
             result["pages_per_visit"] = float(pages_match.group(1))
 
@@ -142,25 +167,40 @@ def fetch_similarweb(ticker: str) -> dict:
     """Fetch Similarweb public traffic data for ticker-resolved domain."""
     # Resolve ticker to common domain
     domain_map = {
-        "AAPL": "apple.com", "MSFT": "microsoft.com", "GOOGL": "google.com",
-        "AMZN": "amazon.com", "META": "facebook.com", "TSLA": "tesla.com",
-        "NVDA": "nvidia.com", "NFLX": "netflix.com", "DIS": "disney.com",
+        "AAPL": "apple.com",
+        "MSFT": "microsoft.com",
+        "GOOGL": "google.com",
+        "AMZN": "amazon.com",
+        "META": "facebook.com",
+        "TSLA": "tesla.com",
+        "NVDA": "nvidia.com",
+        "NFLX": "netflix.com",
+        "DIS": "disney.com",
     }
     domain = domain_map.get(ticker.upper(), f"{ticker.lower()}.com")
 
     data = _fetch_similarweb_public(domain)
     if data:
-        return {"source": "similarweb_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "domain": domain, **data}
+        return {
+            "source": "similarweb_public",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "domain": domain,
+            **data,
+        }
 
-    return {"source": "similarweb_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-            "domain": domain, "data": None,
-            "note": "Could not extract Similarweb data. The page structure may have changed."}
+    return {
+        "source": "similarweb_public",
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "domain": domain,
+        "data": None,
+        "note": "Could not extract Similarweb data. The page structure may have changed.",
+    }
 
 
 # ---------------------------------------------------------------------------
 # App Store Rankings — public RSS feeds
 # ---------------------------------------------------------------------------
+
 
 def _fetch_app_store_rank(app_id: str, country: str = "us") -> dict | None:
     """Fetch app store ranking from Apple RSS feed (free, public)."""
@@ -191,40 +231,53 @@ def fetch_app_analytics(ticker: str) -> dict:
     # Common ticker → Apple App Store ID mappings
     app_id_map = {
         "AAPL": None,  # Apple doesn't have a single consumer app
-        "MSFT": "462054704",   # Microsoft 365
-        "AMZN": "297606951",   # Amazon Shopping
-        "META": "284882215",   # Facebook
+        "MSFT": "462054704",  # Microsoft 365
+        "AMZN": "297606951",  # Amazon Shopping
+        "META": "284882215",  # Facebook
         "GOOGL": "284815942",  # Google
-        "NFLX": "363590051",   # Netflix
-        "SPOT": "324684580",   # Spotify
-        "UBER": "368677368",   # Uber
-        "SNAP": "447188370",   # Snapchat
-        "PINS": "429047995",   # Pinterest
-        "SQ": "335393788",     # Square
-        "SHOP": "885041276",   # Shop (Shopify)
-        "ZM": "546505307",     # Zoom
+        "NFLX": "363590051",  # Netflix
+        "SPOT": "324684580",  # Spotify
+        "UBER": "368677368",  # Uber
+        "SNAP": "447188370",  # Snapchat
+        "PINS": "429047995",  # Pinterest
+        "SQ": "335393788",  # Square
+        "SHOP": "885041276",  # Shop (Shopify)
+        "ZM": "546505307",  # Zoom
     }
 
     app_id = app_id_map.get(ticker.upper())
     if not app_id:
-        return {"source": "app_store_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "data": None, "note": f"No app store ID mapping for {ticker}."}
+        return {
+            "source": "app_store_public",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "data": None,
+            "note": f"No app store ID mapping for {ticker}.",
+        }
 
     data = _fetch_app_store_rank(app_id)
     if data:
-        return {"source": "app_store_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                **data}
+        return {
+            "source": "app_store_public",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            **data,
+        }
 
-    return {"source": "app_store_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-            "data": None, "note": "Could not fetch app data."}
+    return {
+        "source": "app_store_public",
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "data": None,
+        "note": "Could not fetch app data.",
+    }
 
 
 # ---------------------------------------------------------------------------
 # Glassdoor — public page scrape (visible without login)
 # ---------------------------------------------------------------------------
 
+
 class _GlassdoorParser(HTMLParser):
     """Simple parser to extract rating numbers from Glassdoor public page."""
+
     def __init__(self):
         super().__init__()
         self.rating = None
@@ -238,17 +291,21 @@ class _GlassdoorParser(HTMLParser):
         if not text:
             return
         # Overall rating: "X.X" near "overall rating"
-        if re.match(r'^\d\.\d$', text) and self.rating is None:
+        if re.match(r"^\d\.\d$", text) and self.rating is None:
             self.rating = float(text)
         # CEO approval: "XX%" near "CEO"
-        ceo_match = re.search(r'(\d+)%\s*Approved?', self._text_buffer + " " + text)
+        ceo_match = re.search(r"(\d+)%\s*Approved?", self._text_buffer + " " + text)
         if ceo_match:
             self.ceo_approval = int(ceo_match.group(1))
         # Recommend: "XX%" near "Recommend"
-        rec_match = re.search(r'(\d+)%\s*Recommend', self._text_buffer + " " + text)
+        rec_match = re.search(r"(\d+)%\s*Recommend", self._text_buffer + " " + text)
         if rec_match:
             self.recommend = int(rec_match.group(1))
-        self._text_buffer = (self._text_buffer[-200:] + " " + text) if len(self._text_buffer) < 500 else text
+        self._text_buffer = (
+            (self._text_buffer[-200:] + " " + text)
+            if len(self._text_buffer) < 500
+            else text
+        )
 
 
 def fetch_glassdoor(ticker: str) -> dict:
@@ -259,10 +316,18 @@ def fetch_glassdoor(ticker: str) -> dict:
     # randomized, so the URL changed every run and was always invalid.
     # Until a real lookup table is wired in, return a clean "not available" stub.
     company_map = {
-        "AAPL": "Apple", "MSFT": "Microsoft", "GOOGL": "Google",
-        "AMZN": "Amazon", "META": "Meta", "TSLA": "Tesla",
-        "NVDA": "Nvidia", "NFLX": "Netflix", "DIS": "Walt-Disney-Company",
-        "JPM": "J-P-Morgan", "BAC": "Bank-of-America", "WMT": "Walmart",
+        "AAPL": "Apple",
+        "MSFT": "Microsoft",
+        "GOOGL": "Google",
+        "AMZN": "Amazon",
+        "META": "Meta",
+        "TSLA": "Tesla",
+        "NVDA": "Nvidia",
+        "NFLX": "Netflix",
+        "DIS": "Walt-Disney-Company",
+        "JPM": "J-P-Morgan",
+        "BAC": "Bank-of-America",
+        "WMT": "Walmart",
     }
     company = company_map.get(ticker.upper(), ticker)
 
@@ -279,10 +344,18 @@ def fetch_glassdoor(ticker: str) -> dict:
 def _fetch_glassdoor_legacy(ticker: str) -> dict:
     """Legacy implementation kept for reference; uses hash() and is unreliable."""
     company_map = {
-        "AAPL": "Apple", "MSFT": "Microsoft", "GOOGL": "Google",
-        "AMZN": "Amazon", "META": "Meta", "TSLA": "Tesla",
-        "NVDA": "Nvidia", "NFLX": "Netflix", "DIS": "Walt-Disney-Company",
-        "JPM": "J-P-Morgan", "BAC": "Bank-of-America", "WMT": "Walmart",
+        "AAPL": "Apple",
+        "MSFT": "Microsoft",
+        "GOOGL": "Google",
+        "AMZN": "Amazon",
+        "META": "Meta",
+        "TSLA": "Tesla",
+        "NVDA": "Nvidia",
+        "NFLX": "Netflix",
+        "DIS": "Walt-Disney-Company",
+        "JPM": "J-P-Morgan",
+        "BAC": "Bank-of-America",
+        "WMT": "Walmart",
     }
     company = company_map.get(ticker.upper(), ticker)
 
@@ -292,9 +365,13 @@ def _fetch_glassdoor_legacy(ticker: str) -> dict:
         url = f"https://www.glassdoor.com/Overview/Working-at-{company}-EI_IE{abs(hash(company)) % 100000}.htm"
         resp = requests.get(url, headers=HEADERS, timeout=15)
         if resp.status_code != 200:
-            return {"source": "glassdoor_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                    "overall_rating": None, "ceo_approval": None,
-                    "note": f"Glassdoor page not accessible (HTTP {resp.status_code})"}
+            return {
+                "source": "glassdoor_public",
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                "overall_rating": None,
+                "ceo_approval": None,
+                "note": f"Glassdoor page not accessible (HTTP {resp.status_code})",
+            }
 
         parser = _GlassdoorParser()
         parser.feed(resp.text)
@@ -326,61 +403,94 @@ def _fetch_glassdoor_legacy(ticker: str) -> dict:
         elif overall:
             rating_trend = "negative"
 
-        return {"source": "glassdoor_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "overall_rating": overall, "ceo_approval": ceo, "recommend_to_friend": recommend,
-                "rating_trend": rating_trend}
+        return {
+            "source": "glassdoor_public",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "overall_rating": overall,
+            "ceo_approval": ceo,
+            "recommend_to_friend": recommend,
+            "rating_trend": rating_trend,
+        }
 
     except Exception as e:
-        return {"source": "glassdoor_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "overall_rating": None, "ceo_approval": None, "note": f"Error: {e}"}
+        return {
+            "source": "glassdoor_public",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "overall_rating": None,
+            "ceo_approval": None,
+            "note": f"Error: {e}",
+        }
 
 
 # ---------------------------------------------------------------------------
 # LinkedIn — public company page for employee count (hiring proxy)
 # ---------------------------------------------------------------------------
 
+
 def fetch_hiring_trends(ticker: str) -> dict:
     """Fetch LinkedIn company page for employee count as hiring proxy."""
     company_map = {
-        "AAPL": "apple", "MSFT": "microsoft", "GOOGL": "google",
-        "AMZN": "amazon", "META": "meta", "TSLA": "tesla",
-        "NVDA": "nvidia", "NFLX": "netflix", "CRM": "salesforce",
-        "ADBE": "adobe", "INTC": "intel", "AMD": "amd",
+        "AAPL": "apple",
+        "MSFT": "microsoft",
+        "GOOGL": "google",
+        "AMZN": "amazon",
+        "META": "meta",
+        "TSLA": "tesla",
+        "NVDA": "nvidia",
+        "NFLX": "netflix",
+        "CRM": "salesforce",
+        "ADBE": "adobe",
+        "INTC": "intel",
+        "AMD": "amd",
     }
     company = company_map.get(ticker.upper(), ticker.lower())
 
     rate_limit()
     try:
         url = f"https://www.linkedin.com/company/{company}/"
-        resp = requests.get(url, headers={**HEADERS, "Accept-Language": "en-US,en;q=0.9"}, timeout=15)
+        resp = requests.get(
+            url, headers={**HEADERS, "Accept-Language": "en-US,en;q=0.9"}, timeout=15
+        )
         if resp.status_code != 200:
-            return {"source": "linkedin_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                    "employee_count": None, "linkedin_followers": None,
-                    "note": f"LinkedIn page not accessible (HTTP {resp.status_code})"}
+            return {
+                "source": "linkedin_public",
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                "employee_count": None,
+                "linkedin_followers": None,
+                "note": f"LinkedIn page not accessible (HTTP {resp.status_code})",
+            }
 
         text = resp.text
         result = {}
 
         # Employee count on LinkedIn
-        emp_match = re.search(r'(\d[\d,]*)\+?\s*(employees|associates|members)', text, re.IGNORECASE)
+        emp_match = re.search(
+            r"(\d[\d,]*)\+?\s*(employees|associates|members)", text, re.IGNORECASE
+        )
         if not emp_match:
             emp_match = re.search(r'"employeeCount":\s*(\d+)', text)
         if emp_match:
             try:
-                result["linkedin_employee_count"] = int(emp_match.group(1).replace(",", ""))
+                result["linkedin_employee_count"] = int(
+                    emp_match.group(1).replace(",", "")
+                )
             except (ValueError, IndexError):
                 pass
 
         # Follower count
-        follower_match = re.search(r'(\d[\d,]*)\s+followers', text, re.IGNORECASE)
+        follower_match = re.search(r"(\d[\d,]*)\s+followers", text, re.IGNORECASE)
         if follower_match:
             try:
-                result["linkedin_followers"] = int(follower_match.group(1).replace(",", ""))
+                result["linkedin_followers"] = int(
+                    follower_match.group(1).replace(",", "")
+                )
             except (ValueError, IndexError):
                 pass
 
         # Job count as hiring proxy
-        job_match = re.search(r'(\d[\d,]*)\+?\s*(jobs|open positions)', text, re.IGNORECASE)
+        job_match = re.search(
+            r"(\d[\d,]*)\+?\s*(jobs|open positions)", text, re.IGNORECASE
+        )
         if not job_match:
             job_match = re.search(r'"jobCount":\s*(\d+)', text)
         if job_match:
@@ -394,17 +504,26 @@ def fetch_hiring_trends(ticker: str) -> dict:
             result["retrieved_at"] = datetime.now(timezone.utc).isoformat()
             return result
 
-        return {"source": "linkedin_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "employee_count": None, "note": "Could not extract LinkedIn data"}
+        return {
+            "source": "linkedin_public",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "employee_count": None,
+            "note": "Could not extract LinkedIn data",
+        }
 
     except Exception as e:
-        return {"source": "linkedin_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "employee_count": None, "note": f"Error: {e}"}
+        return {
+            "source": "linkedin_public",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "employee_count": None,
+            "note": f"Error: {e}",
+        }
 
 
 # ---------------------------------------------------------------------------
 # Reddit — social sentiment from stock-related subreddits
 # ---------------------------------------------------------------------------
+
 
 def fetch_social_sentiment(ticker: str) -> dict:
     """Fetch Reddit social media sentiment using praw."""
@@ -415,33 +534,69 @@ def fetch_social_sentiment(ticker: str) -> dict:
     user_agent = os.environ.get("REDDIT_USER_AGENT", "StockAnalysisSkill/2.0")
 
     if not client_id or not client_secret:
-        return {"source": "social_reddit", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "reddit_mention_volume": None, "reddit_sentiment_score": None,
-                "note": "Reddit API credentials not set."}
+        return {
+            "source": "social_reddit",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "reddit_mention_volume": None,
+            "reddit_sentiment_score": None,
+            "note": "Reddit API credentials not set.",
+        }
 
     try:
         import praw
     except ImportError:
-        return {"source": "social_reddit", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "reddit_mention_volume": None, "note": "praw not installed."}
+        return {
+            "source": "social_reddit",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "reddit_mention_volume": None,
+            "note": "praw not installed.",
+        }
 
     try:
-        reddit = praw.Reddit(client_id=client_id, client_secret=client_secret,
-                              user_agent=user_agent, requestor_kwargs={"timeout": 15})
+        reddit = praw.Reddit(
+            client_id=client_id,
+            client_secret=client_secret,
+            user_agent=user_agent,
+            requestor_kwargs={"timeout": 15},
+        )
 
         subreddits = ["stocks", "wallstreetbets", "investing"]
         total_mentions = 0
         positive = 0
         negative = 0
-        positive_words = ["bullish", "buy", "long", "moon", "undervalued", "beat", "growth",
-                          "strong", "upgrade", "outperform", "calls"]
-        negative_words = ["bearish", "sell", "short", "overvalued", "miss", "decline", "weak",
-                          "downgrade", "underperform", "puts", "bagholder"]
+        positive_words = [
+            "bullish",
+            "buy",
+            "long",
+            "moon",
+            "undervalued",
+            "beat",
+            "growth",
+            "strong",
+            "upgrade",
+            "outperform",
+            "calls",
+        ]
+        negative_words = [
+            "bearish",
+            "sell",
+            "short",
+            "overvalued",
+            "miss",
+            "decline",
+            "weak",
+            "downgrade",
+            "underperform",
+            "puts",
+            "bagholder",
+        ]
 
         for sub_name in subreddits:
             try:
                 subreddit = reddit.subreddit(sub_name)
-                for post in subreddit.search(ticker, sort="relevance", time_filter="month", limit=25):
+                for post in subreddit.search(
+                    ticker, sort="relevance", time_filter="month", limit=25
+                ):
                     text = (post.title + " " + (post.selftext or "")).lower()
                     if ticker.lower() in text:
                         total_mentions += 1
@@ -454,16 +609,29 @@ def fetch_social_sentiment(ticker: str) -> dict:
             except Exception:
                 continue
 
-        sentiment = round((positive - negative) / total_mentions, 3) if total_mentions > 0 else None
+        sentiment = (
+            round((positive - negative) / total_mentions, 3)
+            if total_mentions > 0
+            else None
+        )
 
-        return {"source": "reddit_praw", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "reddit_mention_volume": total_mentions, "reddit_sentiment_score": sentiment,
-                "positive_mentions": positive, "negative_mentions": negative,
-                "subreddits_checked": subreddits,
-                "note": "Keyword-based sentiment. Directional only."}
+        return {
+            "source": "reddit_praw",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "reddit_mention_volume": total_mentions,
+            "reddit_sentiment_score": sentiment,
+            "positive_mentions": positive,
+            "negative_mentions": negative,
+            "subreddits_checked": subreddits,
+            "note": "Keyword-based sentiment. Directional only.",
+        }
     except Exception as e:
-        return {"source": "reddit_praw", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "reddit_mention_volume": None, "note": f"Reddit API error: {e}"}
+        return {
+            "source": "reddit_praw",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "reddit_mention_volume": None,
+            "note": f"Reddit API error: {e}",
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -478,8 +646,11 @@ def resolve_company_name(ticker: str) -> str:
     if ticker in _TICKER_TO_COMPANY:
         return _TICKER_TO_COMPANY[ticker]
     try:
-        resp = requests.get("https://www.sec.gov/files/company_tickers.json",
-                            headers={"User-Agent": "StockAnalysisSkill/2.0 (research@example.com)"}, timeout=10)
+        resp = requests.get(
+            "https://www.sec.gov/files/company_tickers.json",
+            headers={"User-Agent": "StockAnalysisSkill/2.0 (research@example.com)"},
+            timeout=10,
+        )
         if resp.status_code == 200:
             for entry in resp.json().values():
                 if entry.get("ticker", "").upper() == ticker:
@@ -500,16 +671,24 @@ def fetch_patents(ticker: str) -> dict:
         params = {"assignee": company_name, "rows": 20, "sort": "patentDate desc"}
         resp = requests.get(USPTO_API_URL, params=params, timeout=20)
         if resp.status_code != 200:
-            return {"source": "uspto_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                    "recent_patent_count": None, "technology_domains": [],
-                    "note": f"USPTO API returned {resp.status_code}"}
+            return {
+                "source": "uspto_public",
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                "recent_patent_count": None,
+                "technology_domains": [],
+                "note": f"USPTO API returned {resp.status_code}",
+            }
 
         data = resp.json()
         patents = data.get("results", [])
         domains: dict[str, int] = {}
         for p in patents:
             title = p.get("inventionTitle", "").lower()
-            if "machine learning" in title or "neural network" in title or "artificial intelligence" in title:
+            if (
+                "machine learning" in title
+                or "neural network" in title
+                or "artificial intelligence" in title
+            ):
                 domains["AI/ML"] = domains.get("AI/ML", 0) + 1
             elif "blockchain" in title:
                 domains["Blockchain"] = domains.get("Blockchain", 0) + 1
@@ -523,21 +702,33 @@ def fetch_patents(ticker: str) -> dict:
                 domains["Other"] = domains.get("Other", 0) + 1
 
         total_count = data.get("totalCount", len(patents))
-        return {"source": "uspto_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "total_patent_count": total_count if isinstance(total_count, int) else None,
-                "recent_patents": len(patents),
-                "technology_domains": [{"domain": d, "count": c} for d, c in sorted(domains.items(), key=lambda x: -x[1])],
-                "assignee_searched": company_name,
-                "note": "Assignee resolved via SEC EDGAR. Domain classification is keyword-based."}
+        return {
+            "source": "uspto_public",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "total_patent_count": total_count if isinstance(total_count, int) else None,
+            "recent_patents": len(patents),
+            "technology_domains": [
+                {"domain": d, "count": c}
+                for d, c in sorted(domains.items(), key=lambda x: -x[1])
+            ],
+            "assignee_searched": company_name,
+            "note": "Assignee resolved via SEC EDGAR. Domain classification is keyword-based.",
+        }
     except Exception as e:
-        return {"source": "uspto_public", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "recent_patent_count": None, "technology_domains": [], "note": f"USPTO API error: {e}"}
+        return {
+            "source": "uspto_public",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "recent_patent_count": None,
+            "technology_domains": [],
+            "note": f"USPTO API error: {e}",
+        }
 
 
 # ---------------------------------------------------------------------------
 # Transaction data — no free source, but we provide directional signal
 # via Google Trends product search
 # ---------------------------------------------------------------------------
+
 
 def fetch_transaction_data(ticker: str) -> dict:
     """Estimate consumer interest via Google Trends product queries (no paywall).
@@ -549,8 +740,11 @@ def fetch_transaction_data(ticker: str) -> dict:
     try:
         from pytrends.request import TrendReq
     except ImportError:
-        return {"source": "google_trends_transactions", "note": "pytrends not installed",
-                "retrieved_at": datetime.now(timezone.utc).isoformat()}
+        return {
+            "source": "google_trends_transactions",
+            "note": "pytrends not installed",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     rate_limit()
     try:
@@ -560,28 +754,46 @@ def fetch_transaction_data(ticker: str) -> dict:
         interest = pytrends.interest_over_time()
 
         if interest is None or interest.empty:
-            return {"source": "google_trends_transactions", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                    "transaction_signal": "unavailable", "note": "No data returned."}
+            return {
+                "source": "google_trends_transactions",
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                "transaction_signal": "unavailable",
+                "note": "No data returned.",
+            }
 
         # Average across keywords
-        vals = interest.mean(axis=1).values if len(keywords) > 1 else interest[keywords[0]].values
+        vals = (
+            interest.mean(axis=1).values
+            if len(keywords) > 1
+            else interest[keywords[0]].values
+        )
         avg = float(vals.mean()) if len(vals) > 0 else None
 
         if len(vals) >= 6:
             recent = vals[-6:].mean()
             prior = vals[:6].mean() if len(vals) < 12 else vals[:6].mean()
             delta = (recent - prior) / prior * 100 if prior > 0 else 0
-            signal = "rising" if delta > 10 else "declining" if delta < -10 else "stable"
+            signal = (
+                "rising" if delta > 10 else "declining" if delta < -10 else "stable"
+            )
         else:
             signal = "insufficient_data"
 
-        return {"source": "google_trends_transactions", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "keywords": keywords, "search_interest_avg_12m": round(avg, 1) if avg else None,
-                "transaction_signal": signal,
-                "note": "Google Trends product search interest as consumer demand proxy. Directional only."}
+        return {
+            "source": "google_trends_transactions",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "keywords": keywords,
+            "search_interest_avg_12m": round(avg, 1) if avg else None,
+            "transaction_signal": signal,
+            "note": "Google Trends product search interest as consumer demand proxy. Directional only.",
+        }
     except Exception as e:
-        return {"source": "google_trends_transactions", "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                "transaction_signal": "error", "note": f"Error: {e}"}
+        return {
+            "source": "google_trends_transactions",
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "transaction_signal": "error",
+            "note": f"Error: {e}",
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -600,19 +812,148 @@ SOURCES = {
 }
 
 
+def compute_social_saturation_score(alt_data: dict) -> dict:
+    """Compute social saturation score 0-100 (pitfall 9 / microstructure primitive 8).
+
+    High score = retail demand pool nearing exhaustion → marginal-bull supply
+    drying → institutional flow becomes the deciding signal.
+
+    Composes signals from web (Google Trends), reddit, app store, hiring proxies.
+    Each component contributes 0-25 points; final clamp 0-100.
+    """
+    score = 0.0
+    components: list[dict] = []
+
+    # 1. Google Trends momentum vs trailing peak (0-25)
+    web = alt_data.get("web") or {}
+    interest_avg = web.get("search_interest_avg_12m")
+    interest_recent = web.get("search_interest_recent_4w") or web.get(
+        "search_interest_avg_12m"
+    )
+    if interest_avg and interest_recent and interest_avg > 0:
+        ratio = interest_recent / interest_avg
+        contrib = min(25.0, max(0.0, (ratio - 1.0) * 50.0))
+        score += contrib
+        components.append(
+            {
+                "signal": "google_trends_momentum",
+                "ratio": round(ratio, 2),
+                "contrib": round(contrib, 1),
+            }
+        )
+
+    # 2. Reddit mention volume + sentiment intensity (0-30)
+    social = alt_data.get("social") or {}
+    reddit_mentions = social.get("reddit_mention_volume")
+    reddit_sentiment = social.get("reddit_sentiment_score")
+    if reddit_mentions:
+        # Heuristic thresholds: <50 = low; 50-200 = medium; 200-500 = high; 500+ = extreme
+        if reddit_mentions >= 500:
+            contrib = 30.0
+        elif reddit_mentions >= 200:
+            contrib = 20.0
+        elif reddit_mentions >= 50:
+            contrib = 10.0
+        else:
+            contrib = max(0.0, reddit_mentions / 10.0)
+        # Sentiment polarity intensifies saturation (extreme-positive or extreme-negative)
+        if reddit_sentiment is not None and abs(reddit_sentiment) > 0.6:
+            contrib = min(30.0, contrib * 1.2)
+        score += contrib
+        components.append(
+            {
+                "signal": "reddit_volume",
+                "mentions": reddit_mentions,
+                "sentiment": reddit_sentiment,
+                "contrib": round(contrib, 1),
+            }
+        )
+
+    # 3. App / digital adoption momentum (0-20) — proxy for product-driven retail interest
+    app = alt_data.get("app") or {}
+    app_rank_change = app.get("rank_change_30d")
+    if app_rank_change is not None and app_rank_change < -50:
+        # Rank improved (lower number) by >50 in 30 days = momentum
+        contrib = min(20.0, abs(app_rank_change) / 10.0)
+        score += contrib
+        components.append(
+            {
+                "signal": "app_rank_momentum",
+                "rank_change_30d": app_rank_change,
+                "contrib": round(contrib, 1),
+            }
+        )
+
+    # 4. News coverage / hiring spike (0-25) — multi-channel attention saturation
+    hiring = alt_data.get("hiring") or {}
+    job_growth_pct = hiring.get("job_postings_growth_pct_yoy")
+    if job_growth_pct is not None and job_growth_pct > 50:
+        contrib = min(15.0, job_growth_pct / 10.0)
+        score += contrib
+        components.append(
+            {
+                "signal": "hiring_spike",
+                "yoy_growth_pct": job_growth_pct,
+                "contrib": round(contrib, 1),
+            }
+        )
+
+    score_clamped = max(0.0, min(100.0, score))
+
+    if score_clamped < 30:
+        band = "low"
+        interpretation = "Room for new entrants; sentiment is not a constraint"
+    elif score_clamped < 60:
+        band = "medium"
+        interpretation = "Building attention; not yet saturation territory"
+    elif score_clamped < 85:
+        band = "high"
+        interpretation = (
+            "KOL cascade likely active. Institutional flow direction becomes the "
+            "deciding signal — sentiment alone is no longer information."
+        )
+    else:
+        band = "extreme"
+        interpretation = (
+            "Top forming. Watch for 'should have moved but didn't' — new catalyst "
+            "hits but price doesn't break out → distribution forming. Recommend "
+            "defensive structures."
+        )
+
+    return {
+        "social_saturation_score": round(score_clamped, 1),
+        "band": band,
+        "interpretation": interpretation,
+        "components": components,
+        "methodology": (
+            "Pitfall 9 + microstructure primitive 8: when retail is saturated, "
+            "marginal-bull supply is drying. Composes Google Trends + Reddit + "
+            "app rank + hiring spike signals. See "
+            "references/pitfalls/09-float-saturation.md and "
+            "references/microstructure-framework.md"
+        ),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Fetch alternative data for a ticker")
     parser.add_argument("ticker", help="Ticker symbol")
-    parser.add_argument("--sources", help="Comma-separated sources (default: all)",
-                        default="web,similarweb,app,glassdoor,social,patents,hiring,transactions")
+    parser.add_argument(
+        "--sources",
+        help="Comma-separated sources (default: all)",
+        default="web,similarweb,app,glassdoor,social,patents,hiring,transactions",
+    )
     parser.add_argument("--output", help="Output file path (default: stdout)")
     args = parser.parse_args()
 
     ticker = args.ticker.strip().upper()
     requested_sources = [s.strip() for s in args.sources.split(",")]
 
-    result = {"ticker": ticker, "retrieved_at": datetime.now(timezone.utc).isoformat(),
-              "alternative_data": {}}
+    result = {
+        "ticker": ticker,
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "alternative_data": {},
+    }
 
     for source_name in requested_sources:
         if source_name in SOURCES:
@@ -620,10 +961,20 @@ def main():
                 data = SOURCES[source_name](ticker)
                 result["alternative_data"][source_name] = data
             except Exception as e:
-                result["alternative_data"][source_name] = {"source": "error", "error": str(e)}
+                result["alternative_data"][source_name] = {
+                    "source": "error",
+                    "error": str(e),
+                }
         else:
-            result["alternative_data"][source_name] = {"source": "unknown_source",
-                "error": f"'{source_name}' not recognized. Available: {list(SOURCES.keys())}"}
+            result["alternative_data"][source_name] = {
+                "source": "unknown_source",
+                "error": f"'{source_name}' not recognized. Available: {list(SOURCES.keys())}",
+            }
+
+    # Social saturation score (pitfall 9 / microstructure primitive 8)
+    result["social_saturation"] = compute_social_saturation_score(
+        result["alternative_data"]
+    )
 
     output = json.dumps(result, indent=2)
     if args.output:
