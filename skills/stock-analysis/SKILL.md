@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare, walk. Single-flag dispatch via --mode <name>; or natural-language triggers."
 author: Jennings Liu
-version: "1.05.26"
+version: "1.05.27"
 license: MIT
 ---
 
@@ -29,6 +29,7 @@ Mode dispatch (Stage 0). Order: explicit `--mode <name>` flag > trigger phrase >
 - `--mode walk THEME` → walk mode (positional theme follows `--mode walk`; quoted multi-word allowed)
 - `--top-n N` → top-N parameter (any mode that uses it)
 - `--total-m M` → total-M parameter (pipeline only)
+- `--universe US|CN|ALL` → listing-exchange filter for screening (default: US — NYSE/NASDAQ only)
 - *(no `--mode`)* → falls through to trigger phrases, then default = pipeline
 
 **Trigger phrases** (used when no `--mode` flag present):
@@ -84,12 +85,12 @@ Do NOT trigger on: general market commentary, non-financial queries.
 
   Stages 3 + 4 run as a `pipeline(top_sub_industries, deepdive, screen)` — no barrier between stages; fast sub-industries progress to company screening while slow ones are still in deep-dive.
 
-  <stage n="5-15" name="Per-Company Deep-Dive" agent="company-orchestrator" modes="pipeline,analyze,compare" runs-in="workflow">Each company runs through one `company-orchestrator` instance via `parallel(watchlist, ...)`. The orchestrator internally manages dependency waves:
-    - Wave 1 (3 parallel): Stage 5 (financial-health), 7 (industry), 9 (macro), 13 (alt-data)
-    - Wave 2 (3 parallel, depend on Wave 1): Stage 6, 8, 10, 14
-    - Wave 3 (2 parallel, depend on Wave 2): Stage 11 (market regime), 12 (risk)
-    - Wave 4 (1, A-share only): Stage 15
-  Per-stage data stays inside the orchestrator's context; only a compressed completion summary returns to the workflow.</stage>
+  <stage n="5-15" name="Per-Company Deep-Dive" modes="pipeline,analyze,compare" runs-in="workflow">The workflow script drives the 4-wave dependency graph DIRECTLY via `parallel(watchlist, ...)` + `pipeline(c, wave1, wave2, wave3, wave4)` — no intermediate orchestrator agent. (The legacy `company-orchestrator` agent was deprecated in v1.05.27 because the Workflow runtime forbids nested sub-agent spawning.) Each wave uses `Promise.all()` for intra-wave parallelism:
+    - Wave 1 (4 parallel): Stage 5 `fundamental-analyst` (financial health) | 7 `industry-analyst` | 9 `macro-analyst` | 13 `alt-data-analyst`
+    - Wave 2 (4 parallel, depend on Wave 1): Stage 6 `fundamental-analyst` (earnings quality) | 8 `supply-chain-analyst` | 10 `quant-analyst` (valuation) | 14 `catalyst-analyst`
+    - Wave 3 (2 parallel, depend on Wave 2): Stage 11 `quant-analyst` (market regime) | 12 `risk-analyst`
+    - Wave 4 (1, A-share only): Stage 15 `china-market-analyst`
+  Each specialist writes `{company_dir}/stage{N}.md` + `stage{N}.json` and returns a <500-token completion summary. Cross-company concurrency capped by the Workflow runtime at min(16, cpu-2).</stage>
 
   <stage n="walk" name="Bottleneck Walk" agent="roadmap-walker" modes="walk" runs-in="workflow">Replaces stages 2-16.5 in walk mode. Top-down chain decomposition + 4-element chokepoint scoring + bottleneck asymmetry composite. Reference: `references/frameworks_bottleneck_investing.md`.</stage>
 

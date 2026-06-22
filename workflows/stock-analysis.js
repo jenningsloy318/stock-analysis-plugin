@@ -249,7 +249,21 @@ const TOP_N = args.top_n              // sub-industries (pipeline/screen) or can
 const TOTAL_M = args.total_m          // companies to deep-dive (pipeline only)
 const TICKERS = args.tickers || []    // analyze/compare modes
 const THEME = args.theme              // walk mode
+const UNIVERSE = args.universe || 'US' // 'US' | 'CN' | 'ALL' — listing-exchange filter for screening
 const OUTPUT_DIR = `./reports/${RUN_ID}`
+
+// Listing-universe filter — deterministic JS-side gate so the LLM screener can't drift.
+// US tickers: bare letters [A-Z]{1,5}, optional class suffix (e.g. BRK.B). NOT .TO/.HK/.SH/.SZ/.T/.L/etc.
+// CN tickers: .SH or .SZ suffix.
+// ALL: everything passes.
+const isUSTicker = (t) => /^[A-Z]{1,5}(\.[A-Z])?$/.test(t || '')
+const isCNTicker = (t) => /\.(SH|SZ)$/i.test(t || '')
+const passUniverse = (t) => {
+  if (UNIVERSE === 'ALL') return true
+  if (UNIVERSE === 'US')  return isUSTicker(t)
+  if (UNIVERSE === 'CN')  return isCNTicker(t)
+  return true
+}
 
 const validModes = ['pipeline', 'screen', 'analyze', 'compare', 'walk']
 if (!validModes.includes(MODE)) {
@@ -392,9 +406,14 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     ),
     deepdive => agent(
       `You are stock-analysis:company-screener. Screen companies in sub-industry ${deepdive.code} ` +
-      `(${deepdive.companies?.length || 0} candidates). Apply price filter (US < $100, ` +
-      `China A-shares < ¥100, all other markets < $100 USD equiv). Score growth/profitability/moat/` +
-      `valuation/management/risk/liquidity. Write to ${OUTPUT_DIR}/stage4-${deepdive.code}.json.`,
+      `(${deepdive.companies?.length || 0} candidates). LISTING UNIVERSE: ${UNIVERSE} — ` +
+      (UNIVERSE === 'US' ? `INCLUDE ONLY tickers listed on NYSE/NASDAQ (bare A-Z symbols, e.g. AAPL, BRK.B). ` +
+        `EXCLUDE non-US listings: .T (Tokyo), .HK (Hong Kong), .SH/.SZ (China A-shares), .L (London), .TO (Toronto), .DE/.PA/.AS (Europe), .AX (Australia). ` :
+       UNIVERSE === 'CN' ? `INCLUDE ONLY .SH and .SZ tickers (China A-shares). EXCLUDE all others. ` :
+                            `Accept any listing exchange. `) +
+      `Apply price filter (US < $100, China A-shares < ¥100, all other markets < $100 USD equiv). ` +
+      `Score growth/profitability/moat/valuation/management/risk/liquidity. ` +
+      `Write to ${OUTPUT_DIR}/stage4-${deepdive.code}.json.`,
       {
         agentType: 'stock-analysis:company-screener',
         schema: COMPANY_LIST_SCHEMA,
@@ -404,18 +423,20 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     )
   )
 
-  // Flatten + rank top-M across ALL sub-industries (NOT quota per sub-industry)
+  // Flatten + rank top-M across ALL sub-industries (NOT quota per sub-industry).
+  // Apply listing-universe gate deterministically as a backstop — LLM screener may drift.
   const allCompanies = (watchlist || [])
     .filter(Boolean)
     .flatMap(r => r.companies || [])
     .filter(c => c.price_filter_pass !== false)
+    .filter(c => passUniverse(c.ticker))
     .sort((a, b) => b.score - a.score)
   watchlist = allCompanies.slice(0, TOTAL_M || 10).map((c, i) => ({
     ...c,
     rank: String(i + 1).padStart(3, '0'),
   }))
 
-  log(`[screening] selected top ${watchlist.length} companies for deep-dive`)
+  log(`[screening] selected top ${watchlist.length} companies for deep-dive (universe=${UNIVERSE})`)
 
   // Stage 4.5 validation
   const screenValid = await agent(
@@ -483,36 +504,204 @@ if (MODE === 'screen') {
 // -----------------------------------------------------------------------------
 // PHASE 5 — Per-Company Deep-Dive (pipeline / analyze / compare modes)
 //
-// THE KEY WIN: each company-orchestrator runs 11 stages independently in its own
-// context window. The per-stage raw data (financials, NLP, technicals) NEVER enters
-// this workflow context — only the compressed completion summary returns.
+// HARNESS CONSTRAINT: sub-agents spawned by a Workflow cannot themselves spawn
+// further sub-agents via the Agent tool. That means the previous design (a
+// company-orchestrator agent that manages stages 5-15 internally) is broken in
+// this harness — orchestrators wrote orchestrator-status: failed with
+// reason="no_spawn_tool_available". The fix is to drive the 4-wave dependency
+// graph directly from this workflow script via parallel() + pipeline(), so the
+// workflow itself is the only thing spawning specialist analysts.
+//
+// Per-company waves (encoded as pipeline stages — each runs after the prior):
+//   Wave 1 (4 independent): Stage 5 fundamental | 7 industry | 9 macro | 13 alt-data
+//   Wave 2 (depends on Wave 1): Stage 6 earnings-quality | 8 supply-chain | 10 valuation | 14 catalyst
+//   Wave 3 (depends on Wave 2): Stage 11 market-regime | 12 risk
+//   Wave 4 (A-share only):     Stage 15 china-market
+// Within a wave, the analysts run via Promise.all (true parallel inside one
+// company). Across companies, parallel(watchlist) fans out — the runtime caps
+// total concurrency at min(16, cpu-2).
+//
+// File outputs (each analyst writes to disk so downstream waves can read them):
+//   {company_dir}/stage{N}.md and {company_dir}/stage{N}.json
 // -----------------------------------------------------------------------------
 phase('Per-Company Analysis')
-const companyResults = await parallel(watchlist.map(c => () =>
-  agent(
-    `You are stock-analysis:company-orchestrator. Manage ALL stages 5-15 for ticker=${c.ticker}. ` +
-    `company_rank=${c.rank} run_id=${RUN_ID} plugin_root=${PLUGIN_ROOT} ` +
-    `company_dir=${OUTPUT_DIR}/${c.rank}-${c.ticker}/ shared_data_path=${OUTPUT_DIR}/stage1.json. ` +
-    `is_a_share=${(c.ticker || '').match(/\.(SH|SZ)$/) ? 'true' : 'false'}. ` +
-    `Execute dependency-aware waves: Wave1(5,7,9,13) → Wave2(6,8,10,14) → Wave3(11,12) → ` +
-    `Wave4(15 if A-share). Resume from checkpoint files if present. Cap parallel analysts at 3 ` +
-    `within your context. Return compressed COMPANY_ORCHESTRATOR_RESULT (status, stages_completed, ` +
-    `stages_failed, key_findings, company_dir). NEVER return raw stage data.`,
-    {
-      agentType: 'stock-analysis:company-orchestrator',
-      schema: COMPANY_ORCHESTRATOR_RESULT_SCHEMA,
-      phase: 'Per-Company Analysis',
-      label: `company:${c.rank}-${c.ticker}`,
-    }
+
+const sharedDataPath = `${OUTPUT_DIR}/stage1.json`
+
+// Build a per-stage prompt template — keeps the wave functions readable
+const stagePrompt = (stageN, agentName, c, extra = '') => {
+  const companyDir = `${OUTPUT_DIR}/${c.rank}-${c.ticker}`
+  return (
+    `You are stock-analysis:${agentName}. Run Stage ${stageN} analysis for ticker=${c.ticker}. ` +
+    `plugin_root=${PLUGIN_ROOT} run_id=${RUN_ID} ` +
+    `company_ticker=${c.ticker} company_rank=${c.rank} ` +
+    `company_dir=${companyDir} shared_data_path=${sharedDataPath}. ` +
+    `Run all required Python scripts via 'uv run python ${PLUGIN_ROOT}/scripts/<script>.py'. ` +
+    `Write your stage summary to ${companyDir}/stage${stageN}.md and structured outputs to ` +
+    `${companyDir}/stage${stageN}.json. If a checkpoint file already exists and looks complete, ` +
+    `skip re-running expensive scripts and just confirm. Return a compressed completion summary ` +
+    `(<500 tokens): {stage, status, files_written, key_findings}. NEVER return raw data.` +
+    (extra ? ` ${extra}` : '')
   )
-))
+}
 
-const completedCompanies = companyResults.filter(Boolean)
-const failedCount = watchlist.length - completedCompanies.length
-log(`[analysis] ${completedCompanies.length}/${watchlist.length} companies completed analysis`)
+// Per-stage completion-summary schema (each analyst returns this — small object)
+const STAGE_RESULT_SCHEMA = {
+  type: 'object',
+  required: ['stage', 'status'],
+  properties: {
+    stage: { type: 'number' },
+    status: { type: 'string', enum: ['ok', 'partial', 'failed', 'skipped'] },
+    files_written: { type: 'array', items: { type: 'string' } },
+    key_findings: { type: 'string' },
+    notes: { type: 'string' },
+  },
+}
 
-if (completedCompanies.length === 0) {
-  return { status: 'failed', stage: 'per-company', reason: 'All company-orchestrators failed' }
+const companyResults = await parallel(watchlist.map(c => () => pipeline(
+  [c],
+
+  // ─────────────────────────── Wave 1 ───────────────────────────
+  // Stages 5, 7, 9, 13 — all independent. Run inside one company in parallel.
+  async (co) => {
+    const isAShare = (co.ticker || '').match(/\.(SH|SZ)$/) ? true : false
+    const [s5, s7, s9, s13] = await Promise.all([
+      agent(stagePrompt(5, 'fundamental-analyst', co,
+        `Focus: financial health — DuPont 5-factor, Piotroski F-Score, Lynch category, key ratios. ` +
+        `Scripts: fetch_financials.py, calculate_metrics.py.`),
+        { agentType: 'stock-analysis:fundamental-analyst', schema: STAGE_RESULT_SCHEMA,
+          phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s5` }),
+      agent(stagePrompt(7, 'industry-analyst', co,
+        `Focus: Porter's Five Forces, TAM/SAM/SOM, moat assessment, BCG matrix, ecosystem mapping. ` +
+        `REUSE industry thesis from ${OUTPUT_DIR}/stage3-*.json if present. Scripts: fetch_peer_universe.py.`),
+        { agentType: 'stock-analysis:industry-analyst', schema: STAGE_RESULT_SCHEMA,
+          phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s7` }),
+      agent(stagePrompt(9, 'macro-analyst', co,
+        `Focus: Dalio economic cycle, Druckenmiller liquidity, Four-Box, Fed stance, CRP, FX exposure. ` +
+        `REUSE macro data from ${sharedDataPath}. Scripts: fetch_global_macro.py, fetch_currency_exposure.py.`),
+        { agentType: 'stock-analysis:macro-analyst', schema: STAGE_RESULT_SCHEMA,
+          phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s9` }),
+      agent(stagePrompt(13, 'alt-data-analyst', co,
+        `Focus: digital footprint (web traffic, app rankings), NLP earnings call analysis, channel checks, ` +
+        `transaction data. Scripts: fetch_alternatives.py, fetch_news_nlp.py, calculate_candor.py, ` +
+        `analyze_earnings_transcript.py.`),
+        { agentType: 'stock-analysis:alt-data-analyst', schema: STAGE_RESULT_SCHEMA,
+          phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s13` }),
+    ])
+    return { ...co, isAShare, stages: { 5: s5, 7: s7, 9: s9, 13: s13 } }
+  },
+
+  // ─────────────────────────── Wave 2 ───────────────────────────
+  // Stages 6 (←5), 8 (←7), 10 (←5+7), 14 (←13)
+  async (co) => {
+    const [s6, s8, s10, s14] = await Promise.all([
+      agent(stagePrompt(6, 'fundamental-analyst', co,
+        `Focus: earnings quality — Beneish M-Score, Montier C-Score, accruals quality, cash conversion, ` +
+        `capital allocation (Buffett retention test, buyback ROI, M&A track record), CEO quality score. ` +
+        `Scripts: fetch_capital_structure.py, calculate_earnings_quality.py, diff_filings.py, ` +
+        `audit_capital_allocation.py, score_ceo_quality.py. Read ${OUTPUT_DIR}/${co.rank}-${co.ticker}/stage5.json first.`),
+        { agentType: 'stock-analysis:fundamental-analyst', schema: STAGE_RESULT_SCHEMA,
+          phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s6` }),
+      agent(stagePrompt(8, 'supply-chain-analyst', co,
+        `Focus: Tier 1-3 supplier mapping, geographic concentration (HHI), chokepoint identification, ` +
+        `disruption scenario modeling, inventory-to-sales analysis. Step 7b: bottleneck asymmetry composite. ` +
+        `Scripts: fetch_supply_chain.py, score_bottleneck_asymmetry.py. ` +
+        `Read ${OUTPUT_DIR}/${co.rank}-${co.ticker}/stage7.json first.`),
+        { agentType: 'stock-analysis:supply-chain-analyst', schema: STAGE_RESULT_SCHEMA,
+          phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s8` }),
+      agent(stagePrompt(10, 'quant-analyst', co,
+        `Focus: valuation — DCF+Monte Carlo, comps, SOTP, LBO floor, reverse DCF, margin of safety. ` +
+        `Optionally read ${OUTPUT_DIR}/${co.rank}-${co.ticker}/bottleneck_asymmetry.json from Stage 8 ` +
+        `and fold tier/asymmetry-band into valuation as ±15% qualitative adjustment. ` +
+        `Scripts: calculate_metrics.py, forecast.py, fetch_private_comps.py. ` +
+        `Read stage5.json and stage7.json first.`),
+        { agentType: 'stock-analysis:quant-analyst', schema: STAGE_RESULT_SCHEMA,
+          phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s10` }),
+      agent(stagePrompt(14, 'catalyst-analyst', co,
+        `Focus: catalyst calendar (FDA, earnings, product launches, regulatory), event-driven probability, ` +
+        `pre/post-event drift (PEAD), catalyst sequencing. Use loop-until-dry catalyst discovery (see ` +
+        `agent system prompt — up to 6 search rounds, exit on 2 consecutive empty rounds). ` +
+        `Scripts: compute_earnings_edge.py, event_study.py. ` +
+        `Read stage13.json (transcript NLP) first if present.`),
+        { agentType: 'stock-analysis:catalyst-analyst', schema: STAGE_RESULT_SCHEMA,
+          phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s14` }),
+    ])
+    return { ...co, stages: { ...co.stages, 6: s6, 8: s8, 10: s10, 14: s14 } }
+  },
+
+  // ─────────────────────────── Wave 3 ───────────────────────────
+  // Stages 11 (←10), 12 (←10)
+  async (co) => {
+    const [s11, s12] = await Promise.all([
+      agent(stagePrompt(11, 'quant-analyst', co,
+        `Focus: market regime — Weinstein stage, CANSLIM, Soros reflexivity, Fama-French 5-factor attribution, ` +
+        `options signals (IV, max pain, put/call), sentiment, institutional positioning, short interest, ` +
+        `activist exposure, liquidity (Amihud), seasonality. Scripts: fetch_technicals.py, compute_factors.py, ` +
+        `fetch_cot.py, calculate_options.py, fetch_sentiment.py, fetch_short_interest.py, ` +
+        `fetch_activist_exposure.py, compute_liquidity.py, compute_seasonality.py, compute_earnings_edge.py. ` +
+        `Read stage10.json first.`),
+        { agentType: 'stock-analysis:quant-analyst', schema: STAGE_RESULT_SCHEMA,
+          phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s11` }),
+      agent(stagePrompt(12, 'risk-analyst', co,
+        `Focus: scenario analysis (bull/base/bear), Marks 2nd-level thinking, Burry forensic, ` +
+        `Klarman permanent-vs-temporary, kill switch definition (THESIS-falsifiable observation — NOT ` +
+        `pipeline meta-state), correlation regime, credit spreads, narrative economics. ` +
+        `Scripts: fetch_credit.py, fetch_behavioral.py, compute_correlation_regime.py. ` +
+        `Read stage10.json first.`),
+        { agentType: 'stock-analysis:risk-analyst', schema: STAGE_RESULT_SCHEMA,
+          phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s12` }),
+    ])
+    return { ...co, stages: { ...co.stages, 11: s11, 12: s12 } }
+  },
+
+  // ─────────────────────────── Wave 4 — A-share only ───────────────────────────
+  // Stage 15 — depends on all prior. SKIP for non-.SH/.SZ tickers.
+  async (co) => {
+    if (!co.isAShare) {
+      return { ...co, stages: { ...co.stages, 15: { stage: 15, status: 'skipped', notes: 'non A-share' } } }
+    }
+    const s15 = await agent(stagePrompt(15, 'china-market-analyst', co,
+      `Focus (MANDATORY for .SH/.SZ): 政策敏感性矩阵, 产业政策周期, 北向资金, 融资融券, 龙虎榜, 游资追踪. ` +
+      `Read stage5-12 outputs first.`),
+      { agentType: 'stock-analysis:china-market-analyst', schema: STAGE_RESULT_SCHEMA,
+        phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s15` })
+    return { ...co, stages: { ...co.stages, 15: s15 } }
+  },
+)))
+
+// Pipeline returns one array per item; we passed [c] so each item is wrapped.
+// Unwrap and roll up into the COMPANY_ORCHESTRATOR_RESULT shape downstream code expects.
+const flattened = (companyResults || []).map(r => Array.isArray(r) ? r[0] : r).filter(Boolean)
+
+const completedCompanies = flattened.map(co => {
+  const stagesObj = co?.stages || {}
+  const completed = Object.entries(stagesObj)
+    .filter(([_, s]) => s && (s.status === 'ok' || s.status === 'partial' || s.status === 'skipped'))
+    .map(([n]) => Number(n))
+  const failed = Object.entries(stagesObj)
+    .filter(([_, s]) => s && s.status === 'failed')
+    .map(([n]) => Number(n))
+  const required = co.isAShare ? [5,6,7,8,9,10,11,12,13,14,15] : [5,6,7,8,9,10,11,12,13,14]
+  const missing = required.filter(n => !completed.includes(n))
+  const status = missing.length === 0 && failed.length === 0 ? 'completed'
+              : (completed.length >= required.length / 2) ? 'partial' : 'failed'
+  return {
+    ticker: co.ticker,
+    rank: co.rank,
+    status,
+    stages_completed: completed,
+    stages_failed: failed,
+    company_dir: `${OUTPUT_DIR}/${co.rank}-${co.ticker}`,
+    key_findings: Object.values(stagesObj)
+      .map(s => s?.key_findings).filter(Boolean).slice(0, 5).join(' | '),
+  }
+})
+
+const failedCount = watchlist.length - completedCompanies.filter(c => c.status !== 'failed').length
+log(`[analysis] ${completedCompanies.filter(c => c.status === 'completed').length}/${watchlist.length} companies fully completed, ${completedCompanies.filter(c => c.status === 'partial').length} partial, ${failedCount} failed`)
+
+if (completedCompanies.filter(c => c.status !== 'failed').length === 0) {
+  return { status: 'failed', stage: 'per-company', reason: 'All company analyses failed — check {company_dir}/stage*.md for analyst-side errors' }
 }
 
 // -----------------------------------------------------------------------------

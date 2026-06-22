@@ -171,9 +171,29 @@ For each high-impact report section (Investment Thesis, Conviction Score Decompo
 - Source coverage confidence cap applied from source plan
 - Conviction rating traceable to scoring algorithm
 - Source quorum met for numeric investment claims
-- Kill switch defined
+- Kill switch defined AS A THESIS-FALSIFYING OBSERVATION — see Kill Switch Quality below
 - Methodology attribution for all major conclusions
 - 5 random fact checks passed
+
+### Kill Switch Quality Rubric (MUST follow)
+A kill switch is a single observable, measurable, thesis-falsifying signal that would invalidate the long thesis. NOT pipeline meta-state.
+
+ACCEPTABLE (thesis-falsifying):
+- "Quarterly net retention drops below 105% for two consecutive quarters"
+- "Gross margin contracts >300bps YoY for two consecutive quarters"
+- "Subscription/license mix declines below 75% of revenue"
+- "Customer concentration: top-10 customer revenue share exceeds 35%"
+- "FDA AdCom vote on lead asset: <60% in favor"
+- "ROIC drops below cost of capital for 4 trailing quarters"
+
+REJECTED (pipeline meta-state, NOT a kill switch):
+- "If thesis breaks" / "If fundamentals deteriorate" — vague, unmeasurable
+- "If sentiment turns negative" — unmeasurable trigger
+- "kill_switch=true in ranking.json" — pipeline operator state, not thesis
+- "If composite score drops below 7" — internal scoring artifact, not external observation
+- "If we lose conviction" — circular
+
+EVERY equity report MUST contain ONE kill switch matching the ACCEPTABLE pattern: a specific metric + a numeric threshold + a time window. The Completeness Critic (Phase 7b) verifies falsifiability; reports without an acceptable kill switch will be flagged `overall_quality=FAIL`.
 
 ### Constraints
 <constraint>ALL report content MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. Source citations remain in original language. This is NON-NEGOTIABLE — never produce English reports.</constraint>

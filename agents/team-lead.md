@@ -42,6 +42,7 @@ timeout_mins: 60
   <parameter name="total-m" default="10" range="1-40">Total companies to deep-dive. Max 40. Pipeline only.</parameter>
   <parameter name="tickers">Positional args following `--mode analyze` (space-separated) or `--mode compare` (comma-list); fallback: extracted from prompt. Analyze: 1+ tickers. Compare: 2-5 tickers.</parameter>
   <parameter name="theme">For walk mode only. Positional after `--mode walk`. Quoted multi-word strings allowed (e.g., `--mode walk "humanoid robotics"`).</parameter>
+  <parameter name="universe" default="US">Listing-exchange filter for screening. One of: `US` (NYSE/NASDAQ only — default), `CN` (China A-shares .SH/.SZ only), `ALL` (no filter — accepts foreign listings). Override via `--universe <code>` flag. Applied as both an instruction to company-screener AND a deterministic JS-side gate in the workflow script. Analyze/compare modes with user-specified tickers bypass the filter (user override).</parameter>
 
   <flag-dispatch>
     Stage 0 dispatch order (authoritative > heuristic > default):
@@ -108,7 +109,8 @@ timeout_mins: 60
         top_n: <number>,
         total_m: <number>,           // pipeline only; null otherwise
         tickers: [<tickers>],        // analyze/compare only; [] otherwise
-        theme: "<theme>"             // walk only; null otherwise
+        theme: "<theme>",            // walk only; null otherwise
+        universe: "<US|CN|ALL>"      // default 'US'; from --universe flag if provided
       },
       title: `stock-analysis-<mode>-<RUN_ID>`
     })
