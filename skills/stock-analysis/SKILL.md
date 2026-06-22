@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare, walk. Single-flag dispatch via --mode <name>; or natural-language triggers."
 author: Jennings Liu
-version: "1.05.24"
+version: "1.05.25"
 license: MIT
 ---
 
@@ -95,10 +95,13 @@ Do NOT trigger on: general market commentary, non-financial queries.
 
   <stage n="16" name="Scoring & Cross-Check" agent="scorer" modes="pipeline,analyze,compare" runs-in="workflow">compute_scores.py + cross_check.py + calibrate_conviction.py. Writes ranking.json.</stage>
   <stage n="16.5" name="Score Validation" agent="report-validator" modes="pipeline,analyze,compare" runs-in="workflow">All 11 components in range, composite consistent, ranking sorted.</stage>
-  <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer" runs-in="workflow">3-horizon reports per company (long/mid/short × N companies) via `parallel()`. Screening reports for `screen` mode. Walk report for `walk` mode.</stage>
-  <stage n="17.5" name="Report Validation" agent="report-validator" runs-in="workflow">8-gate validate_report.py: Chinese content, sections, current price, sources, framework divergence, kill switch, methodology, no hallucinated figures.</stage>
-  <stage n="18" name="Best Picks Highlight" agent="equity-report-writer" runs-in="workflow">HIGHLIGHTS_BEST_PICKS.md — single-file summary of top-ranked companies.</stage>
-  <stage n="18.5" name="Best Picks Validation" agent="report-validator" runs-in="workflow">Final gate before workflow returns.</stage>
+  <stage n="16.6" name="Adversarial Verify" agent="risk-analyst" modes="pipeline,analyze,compare" runs-in="workflow">For top 5 picks: 3 perspective-diverse skeptics per company (fundamentals / macro / flow lens), prompted to REFUTE the bull thesis with Bayesian-skeptic default. A pick "survives" if ≥2 of 3 do NOT refute. Findings persisted to `verify_findings.json` and folded into reports + best-picks. Flagged picks are NOT dropped — surfaced to user with ⚠️ caution.</stage>
+  <stage n="16.7" name="Judge Panel" agent="quant-analyst" modes="pipeline,analyze,compare" runs-in="workflow">For top 5 picks: 4 investment-framework lenses (Buffett / Lynch / Marks / Druckenmiller), each independently rates 0-10 with verdict (STRONG_BUY/BUY/HOLD/AVOID). Synthesized to panel consensus (HIGH_CONSENSUS_BUY / MIXED / LOW_CONSENSUS / HIGH_CONSENSUS_AVOID) + score spread (wide spread = framework disagreement). Persisted to `judge_panel.json`.</stage>
+  <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer" runs-in="workflow">3-horizon reports per company (long/mid/short × N companies) via `parallel()`. Each report folds in the bear-case verdicts and panel consensus as dedicated "对手方观点" and "多框架交叉验证" sections.</stage>
+  <stage n="17.4" name="Completeness Critic" agent="report-validator" runs-in="workflow">One critic per report. Detects (a) missing modality / claim / source with HIGH/MEDIUM/LOW severity, (b) kill-switch falsifiability — extracts verbatim text, checks present + measurable + clear trigger. Per-report findings persisted to `critic_{horizon}.json`. HIGH-severity gaps and unfalsifiable kill switches surface in the final result.</stage>
+  <stage n="17.5" name="Report Validation" agent="report-validator" runs-in="workflow">Mechanical 8-gate validate_report.py: Chinese content, sections, current price, sources, framework divergence, kill switch, methodology, no hallucinated figures. Runs at `effort: 'low'`.</stage>
+  <stage n="18" name="Best Picks Highlight" agent="equity-report-writer" runs-in="workflow">HIGHLIGHTS_BEST_PICKS.md — single-file summary of top-ranked companies including 对手方验证 (bear-case survives), 多框架共识 (panel consensus), and ⚠️ caution notes for flagged picks.</stage>
+  <stage n="18.5" name="Best Picks Validation" agent="report-validator" runs-in="workflow">Final gate before workflow returns. Runs at `effort: 'low'`.</stage>
 
   <stage n="19" name="Cleanup" runs-in="harness">Workflow auto-cleans on completion. No explicit teardown call. The session's implicit team is dismantled at session exit. team-lead surfaces the compressed result and exits.</stage>
 </workflow>

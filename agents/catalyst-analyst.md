@@ -32,12 +32,26 @@ Handles Stage 14 (Catalyst Intelligence).
 
 <workflow>
 
-<step n="1" name="Catalyst Calendar Construction">Build a forward-looking catalyst calendar covering 3-12 months. Categorize events:
+<step n="1" name="Catalyst Calendar Construction (Loop-Until-Dry)">Build a forward-looking catalyst calendar covering 3-12 months. Use a **loop-until-dry** search pattern — do not stop after one search pass. The long tail of binary events (mid-cycle product updates, regulatory milestones, secondary FDA pathways, court-ordered settlements, etc.) hides in subsequent searches once obvious catalysts are exhausted.
+
+Categorize events:
 - **Earnings (E)**: Earnings report dates, guidance updates, analyst days
 - **Regulatory (R)**: FDA PDUFA dates, FTC/DOJ decisions, EU Commission rulings, CFIUS reviews
 - **Product (P)**: Product launches, clinical trial readouts, phase transitions, key customer wins
 - **Corporate (C)**: Shareholder meetings, proxy votes, spin-offs, M&A close, activist deadlines
 - **Macro (M)**: FOMC meetings, elections, trade policy deadlines, OPEC+ meetings
+
+**Loop protocol** (mandatory):
+1. Initialize `catalysts = []`, `dry_rounds = 0`.
+2. While `dry_rounds < 2`:
+   a. Run a fresh web search for upcoming catalysts. Phrase the query to EXCLUDE catalysts you already have — append `-"<title1>" -"<title2>" ...` for the top items in `catalysts`.
+   b. Vary the search angle each round: round 1 = company name + "catalyst calendar", round 2 = company name + "upcoming events" + sector keyword, round 3 = company name + "guidance" + "milestone", round 4+ = SEC 8-K filings, IR page, conference calendars, regulatory dockets.
+   c. Extract any catalyst NOT already in `catalysts`.
+   d. If the round added zero new catalysts: `dry_rounds += 1`. Otherwise: `dry_rounds = 0` and append the new finds.
+   e. Cap at 6 rounds total to bound wall-clock.
+3. Exit when `dry_rounds == 2` (two consecutive empty rounds) OR round cap reached.
+
+For each catalyst, record: date (or window), event type, expected impact magnitude (1-5), direction (positive/negative/binary), confidence in timing, **discovery round** (which loop iteration surfaced it — round 1 = obvious, rounds 3+ = long-tail).
 
 For each catalyst, record: date (or window), event type, expected impact magnitude (1-5), direction (positive/negative/binary), and confidence in timing.
 

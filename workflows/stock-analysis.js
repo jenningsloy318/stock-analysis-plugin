@@ -16,14 +16,17 @@
 
 export const meta = {
   name: 'stock-analysis',
-  description: 'Unified equity research — screen GICS Level 4 → top-M companies → 11-stage deep-dive → scoring → 3-horizon reports',
+  description: 'Unified equity research — screen GICS Level 4 → top-M companies → 11-stage deep-dive → scoring → adversarial verify → judge panel → 3-horizon reports → completeness critic',
   phases: [
     { title: 'Shared Data' },
     { title: 'Screening' },
     { title: 'Walk Chain' },
     { title: 'Per-Company Analysis' },
     { title: 'Scoring' },
+    { title: 'Adversarial Verify' },
+    { title: 'Judge Panel' },
     { title: 'Reports' },
+    { title: 'Completeness Critic' },
     { title: 'Validation' },
     { title: 'Best Picks' },
   ],
@@ -176,6 +179,66 @@ const WALK_RESULT_SCHEMA = {
   },
 }
 
+// Adversarial bear-case verifier — one skeptic per lens
+const REFUTE_VERDICT_SCHEMA = {
+  type: 'object',
+  required: ['refuted', 'confidence'],
+  properties: {
+    refuted: { type: 'boolean' },                      // true = bear case is real
+    confidence: { type: 'number', minimum: 0, maximum: 1 },
+    reason: { type: 'string' },                        // 1-3 sentences
+    falsifiable_signal: { type: 'string' },            // what would change the verdict
+  },
+}
+
+// Judge-panel lens scoring — one per investment framework
+const LENS_VERDICT_SCHEMA = {
+  type: 'object',
+  required: ['lens', 'score', 'verdict'],
+  properties: {
+    lens: { type: 'string', enum: ['buffett', 'lynch', 'marks', 'druckenmiller'] },
+    score: { type: 'number', minimum: 0, maximum: 10 },
+    verdict: { type: 'string', enum: ['STRONG_BUY', 'BUY', 'HOLD', 'AVOID'] },
+    rationale: { type: 'string' },
+    dimensions_matched: { type: 'array', items: { type: 'string' } },
+    dimensions_violated: { type: 'array', items: { type: 'string' } },
+  },
+}
+
+// Completeness critic on final reports — kill-switch falsifiability + missing-modality scan
+const CRITIC_FINDING_SCHEMA = {
+  type: 'object',
+  required: ['ticker', 'horizon', 'gaps', 'kill_switch_check'],
+  properties: {
+    ticker: { type: 'string' },
+    horizon: { type: 'string', enum: ['long', 'mid', 'short'] },
+    gaps: {                                             // missing modalities/claims
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['category', 'severity'],
+        properties: {
+          category: { type: 'string' },                 // e.g., 'modality', 'claim', 'source'
+          severity: { type: 'string', enum: ['HIGH', 'MEDIUM', 'LOW'] },
+          description: { type: 'string' },
+          suggested_fix: { type: 'string' },
+        },
+      },
+    },
+    kill_switch_check: {
+      type: 'object',
+      required: ['present', 'falsifiable'],
+      properties: {
+        present: { type: 'boolean' },
+        falsifiable: { type: 'boolean' },               // measurable + has a clear trigger
+        text: { type: 'string' },                       // verbatim kill switch from report
+        issues: { type: 'array', items: { type: 'string' } },
+      },
+    },
+    overall_quality: { type: 'string', enum: ['PASS', 'PASS_WITH_GAPS', 'FAIL'] },
+  },
+}
+
 // =============================================================================
 // MAIN
 // =============================================================================
@@ -211,6 +274,7 @@ const sharedData = await agent(
     schema: SHARED_DATA_SCHEMA,
     phase: 'Shared Data',
     label: 'data-collector',
+    effort: 'low',
   }
 )
 
@@ -223,7 +287,7 @@ const dataValid = await agent(
   `You are stock-analysis:report-validator. Validate shared data freshness for ${OUTPUT_DIR}. ` +
   `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate data-freshness ` +
   `--output-dir ${OUTPUT_DIR}'. Return {pass, reason, gates_failed} per schema.`,
-  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Shared Data', label: 'validate:data' }
+  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Shared Data', label: 'validate:data', effort: 'low' }
 )
 if (!dataValid?.pass) {
   return { status: 'failed', stage: 1.5, reason: dataValid?.reason || 'Data validation failed' }
@@ -359,7 +423,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate screening-completeness ` +
     `--output-dir ${OUTPUT_DIR}'. Required: sub-industry leaderboard ≥10 entries with valid GICS ` +
     `codes, company watchlist ≥10 (or all if MODE=screen and top-n<10), price filter applied.`,
-    { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Screening', label: 'validate:screening' }
+    { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Screening', label: 'validate:screening', effort: 'low' }
   )
   if (!screenValid?.pass) {
     log(`[WARN] screening validation: ${screenValid?.reason}`)
@@ -475,11 +539,146 @@ const scoreValid = await agent(
   `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate score-consistency ` +
   `--output-dir ${OUTPUT_DIR}'. Required: all 11 components present in 1-10 range, composite ` +
   `matches weighted sum, rating bracket consistent, no unresolved contradictions, ranking sorted.`,
-  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Scoring', label: 'validate:scoring' }
+  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Scoring', label: 'validate:scoring', effort: 'low' }
 )
 if (!scoreValid?.pass) {
   log(`[WARN] score validation: ${scoreValid?.reason}`)
 }
+
+// -----------------------------------------------------------------------------
+// PHASE 6b — Adversarial Verification (top-5 picks only)
+//
+// For each top pick, spawn 3 SKEPTICS, one per lens (fundamentals/macro/flow).
+// Each skeptic is prompted to REFUTE the bull thesis; default-refuted on
+// uncertainty. A pick "survives" only if ≥2 of 3 refute=false. Failed picks
+// are flagged in the final result, NOT dropped — the user makes the call.
+// Reference: research-report Pattern "Adversarial verify" + "Perspective-diverse verify".
+// -----------------------------------------------------------------------------
+phase('Adversarial Verify')
+const TOP_FOR_VERIFY = Math.min(5, scored.companies.length)
+const verifyTargets = scored.companies.slice(0, TOP_FOR_VERIFY)
+const LENSES = [
+  { key: 'fundamentals', focus: 'unit economics, working capital, accruals quality, capital allocation history, debt maturity, customer concentration' },
+  { key: 'macro',        focus: 'interest-rate sensitivity, FX exposure, regulatory risk, geopolitical risk, end-market cyclicality, supply-chain choke risk' },
+  { key: 'flow',         focus: 'institutional positioning, short interest, options skew, insider activity, sentiment regime, liquidity, factor exposure' },
+]
+
+const verifyResults = await parallel(verifyTargets.map(c => () =>
+  parallel(LENSES.map(lens => () =>
+    agent(
+      `You are an adversarial bear-case analyst. Try to REFUTE the bull thesis for ${c.ticker} ` +
+      `(composite score ${c.composite_score}, conviction ${c.conviction}) through the ${lens.key.toUpperCase()} lens. ` +
+      `Focus areas: ${lens.focus}. Read ${OUTPUT_DIR}/${c.rank}-${c.ticker}/stage*.md for evidence. ` +
+      `Default to refuted=true if you are uncertain or evidence is mixed — Bayesian skeptic prior. ` +
+      `Surface the single most damaging falsifiable signal (a measurable observation that would ` +
+      `prove the thesis wrong). Return REFUTE_VERDICT per schema. Be terse — 1-3 sentences max in reason.`,
+      {
+        agentType: 'stock-analysis:risk-analyst',
+        schema: REFUTE_VERDICT_SCHEMA,
+        phase: 'Adversarial Verify',
+        label: `refute:${c.rank}-${c.ticker}:${lens.key}`,
+      }
+    )
+  )).then(votes => {
+    const v = (votes || []).filter(Boolean)
+    const refuted_count = v.filter(x => x.refuted).length
+    return {
+      rank: c.rank,
+      ticker: c.ticker,
+      composite_score: c.composite_score,
+      conviction: c.conviction,
+      survives: refuted_count < 2,                       // need ≥2 of 3 to NOT-refute
+      refuted_count,
+      verdicts: v,
+      strongest_refutation: v.find(x => x.refuted)?.reason || null,
+    }
+  })
+))
+
+const flaggedPicks = (verifyResults || []).filter(Boolean).filter(r => !r.survives)
+if (flaggedPicks.length) {
+  log(`[WARN] adversarial verify flagged ${flaggedPicks.length}/${TOP_FOR_VERIFY}: ${flaggedPicks.map(p => p.ticker).join(', ')}`)
+}
+
+// Persist verify findings — equity-report-writer reads them to add a "Bear Case" section
+await agent(
+  `You are stock-analysis:report-validator. Persist adversarial verification results to ` +
+  `${OUTPUT_DIR}/verify_findings.json with this content: ${JSON.stringify(verifyResults || []).replace(/`/g,'\\`').slice(0, 4000)}. ` +
+  `Just write the file and return {pass:true,reason:"persisted"} — no validation needed.`,
+  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Adversarial Verify', label: 'persist:verify', effort: 'low' }
+)
+
+// -----------------------------------------------------------------------------
+// PHASE 6c — Judge Panel (multi-framework cross-check on top picks)
+//
+// 4 independent value-framework lenses rate each top pick. Surfaces dimension
+// disagreements that get washed out in the weighted composite. Synthesized into
+// a single panel verdict (HIGH_CONSENSUS / MIXED / LOW_CONSENSUS) per company.
+// Lenses: Buffett (moat+quality), Lynch (growth/PEG), Marks (cycle+pricing),
+// Druckenmiller (macro+momentum).
+// Reference: research-report Pattern "Judge panel".
+// -----------------------------------------------------------------------------
+phase('Judge Panel')
+const FRAMEWORK_LENSES = [
+  { lens: 'buffett',      focus: 'durable moat, ROIC vs WACC, reinvestment runway, owner earnings, capital allocation, predictability of FCF over 10y. Conservative on growth.' },
+  { lens: 'lynch',        focus: 'category fit (slow grower, stalwart, fast grower, cyclical, turnaround, asset play), PEG, earnings growth durability, niche advantage, simplicity of business' },
+  { lens: 'marks',        focus: 'second-level thinking: what is already priced in? cycle stage (boom/bust/recovery), implied vs realistic growth, asymmetric risk/reward, the price you pay relative to consensus' },
+  { lens: 'druckenmiller', focus: 'macro fit (rates, liquidity, USD), momentum + relative strength, capital flows, factor tailwind/headwind, concentration risk, when to size up vs trim' },
+]
+
+const judgeResults = await parallel(verifyTargets.map(c => () =>
+  parallel(FRAMEWORK_LENSES.map(L => () =>
+    agent(
+      `You are an investment analyst applying the ${L.lens.toUpperCase()} framework strictly. ` +
+      `Score ${c.ticker} on a 0-10 scale from this lens ONLY. ` +
+      `Focus: ${L.focus}. Read ${OUTPUT_DIR}/${c.rank}-${c.ticker}/stage*.md and ${OUTPUT_DIR}/ranking.json. ` +
+      `Do NOT defer to the composite score — the point of this lens is to disagree if the framework demands it. ` +
+      `Return LENS_VERDICT per schema with: lens="${L.lens}", score (0-10), verdict (STRONG_BUY/BUY/HOLD/AVOID), ` +
+      `1-2 sentence rationale, dimensions_matched (what this stock does well per ${L.lens}), ` +
+      `dimensions_violated (what it does poorly per ${L.lens}).`,
+      {
+        agentType: 'stock-analysis:quant-analyst',
+        schema: LENS_VERDICT_SCHEMA,
+        phase: 'Judge Panel',
+        label: `judge:${c.rank}-${c.ticker}:${L.lens}`,
+      }
+    )
+  )).then(lensVerdicts => {
+    const lv = (lensVerdicts || []).filter(Boolean)
+    const verdictCounts = lv.reduce((acc, v) => { acc[v.verdict] = (acc[v.verdict] || 0) + 1; return acc }, {})
+    const buyVotes = (verdictCounts.STRONG_BUY || 0) + (verdictCounts.BUY || 0)
+    const avoidVotes = verdictCounts.AVOID || 0
+    let consensus
+    if (buyVotes >= 3 && avoidVotes === 0) consensus = 'HIGH_CONSENSUS_BUY'
+    else if (avoidVotes >= 2) consensus = 'HIGH_CONSENSUS_AVOID'
+    else if (buyVotes >= 2 && avoidVotes >= 1) consensus = 'MIXED'
+    else consensus = 'LOW_CONSENSUS'
+    const scores = lv.map(v => v.score)
+    const score_mean = scores.length ? scores.reduce((a,b)=>a+b,0) / scores.length : 0
+    const score_spread = scores.length ? Math.max(...scores) - Math.min(...scores) : 0
+    return {
+      rank: c.rank,
+      ticker: c.ticker,
+      consensus,
+      score_mean,
+      score_spread,                                    // wide spread = framework disagreement
+      verdicts_by_lens: lv,
+    }
+  })
+))
+
+const disagreements = (judgeResults || []).filter(Boolean).filter(r => r.score_spread >= 3)
+if (disagreements.length) {
+  log(`[INFO] judge-panel disagreements (spread ≥3): ${disagreements.map(d => `${d.ticker}(±${d.score_spread.toFixed(1)})`).join(', ')}`)
+}
+
+// Persist judge findings
+await agent(
+  `You are stock-analysis:report-validator. Persist judge-panel results to ` +
+  `${OUTPUT_DIR}/judge_panel.json with this content: ${JSON.stringify(judgeResults || []).replace(/`/g,'\\`').slice(0, 8000)}. ` +
+  `Just write the file and return {pass:true,reason:"persisted"} — no validation.`,
+  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Judge Panel', label: 'persist:judge', effort: 'low' }
+)
 
 // -----------------------------------------------------------------------------
 // PHASE 7 — Reports (3 horizons × N companies)
@@ -494,8 +693,11 @@ await parallel(reportTargets.map(t => () =>
     `You are stock-analysis:equity-report-writer. Write ${t.horizon}-term equity research report ` +
     `for ${t.ticker} (rank ${t.rank}) in 中文 to ${OUTPUT_DIR}/${t.rank}-${t.ticker}/` +
     `${t.rank}-${t.ticker}_${t.horizon}_${RUN_ID}.md. Read all stage outputs from ` +
-    `${OUTPUT_DIR}/${t.rank}-${t.ticker}/. Include 推荐标的排名, 当前股价, dimension breakdown ` +
-    `table, methodology attribution, kill switch. Composite weights: see SKILL.md composite-weights.`,
+    `${OUTPUT_DIR}/${t.rank}-${t.ticker}/. ALSO read ${OUTPUT_DIR}/verify_findings.json (adversarial ` +
+    `bear-case verdicts) and ${OUTPUT_DIR}/judge_panel.json (4-framework lens scores) — fold these ` +
+    `into the report as dedicated "对手方观点 (Bear Case)" and "多框架交叉验证" sections. Include ` +
+    `推荐标的排名, 当前股价, dimension breakdown table, methodology attribution, kill switch. ` +
+    `Composite weights: see SKILL.md composite-weights.`,
     {
       agentType: 'stock-analysis:equity-report-writer',
       phase: 'Reports',
@@ -504,15 +706,68 @@ await parallel(reportTargets.map(t => () =>
   )
 ))
 
-// Stage 17.5 validation
+// -----------------------------------------------------------------------------
+// PHASE 7b — Completeness Critic + Kill-Switch Falsifiability Check
+//
+// One critic per report (3 horizons × N companies). Reads the report and asks:
+//  1. What's missing? (modality not run, claim unverified, framework not applied)
+//  2. Is the kill switch falsifiable? (measurable + clear trigger)
+// Findings persisted to {company_dir}/critic_{horizon}.json — the validator and
+// best-picks writer read them. HIGH-severity gaps surface in final result.
+// Reference: research-report Pattern "Completeness critic" + "Kill-switch sanity".
+// -----------------------------------------------------------------------------
+phase('Completeness Critic')
+const criticFindings = await parallel(reportTargets.map(t => () =>
+  agent(
+    `You are a senior equity research editor reviewing the report at ` +
+    `${OUTPUT_DIR}/${t.rank}-${t.ticker}/${t.rank}-${t.ticker}_${t.horizon}_${RUN_ID}.md. ` +
+    `Find what's MISSING — be specific. Categories: (a) modality (a data source/analysis script ` +
+    `that should have run but didn't), (b) claim (an assertion without a citation), (c) source ` +
+    `(a citation that should exist but is absent or stale). For each gap, classify severity ` +
+    `HIGH/MEDIUM/LOW and suggest a one-line fix. ` +
+    `ALSO check the kill switch: extract the verbatim kill-switch text from the report. Is it ` +
+    `(i) PRESENT, (ii) FALSIFIABLE (measurable observation + clear trigger)? Flag if the kill ` +
+    `switch is vague ("if thesis breaks"), unmeasurable ("if sentiment turns"), or missing ` +
+    `a quantitative threshold. Return CRITIC_FINDING per schema. Set overall_quality to FAIL if ` +
+    `kill switch is missing OR ≥3 HIGH gaps; PASS_WITH_GAPS if 1-2 HIGH gaps; PASS otherwise. ` +
+    `Persist findings to ${OUTPUT_DIR}/${t.rank}-${t.ticker}/critic_${t.horizon}.json.`,
+    {
+      agentType: 'stock-analysis:report-validator',
+      schema: CRITIC_FINDING_SCHEMA,
+      phase: 'Completeness Critic',
+      label: `critic:${t.rank}-${t.ticker}:${t.horizon}`,
+    }
+  )
+))
+
+const criticGaps = (criticFindings || []).filter(Boolean)
+const failedReports = criticGaps.filter(c => c.overall_quality === 'FAIL')
+const killSwitchIssues = criticGaps.filter(c => !c.kill_switch_check?.falsifiable)
+if (failedReports.length) {
+  log(`[WARN] completeness critic failed ${failedReports.length} reports: ${failedReports.map(c => `${c.ticker}:${c.horizon}`).join(', ')}`)
+}
+if (killSwitchIssues.length) {
+  log(`[WARN] kill-switch falsifiability issues on ${killSwitchIssues.length} reports: ${killSwitchIssues.map(c => `${c.ticker}:${c.horizon}`).join(', ')}`)
+}
+
+// Persist critic summary
+await agent(
+  `You are stock-analysis:report-validator. Persist completeness-critic summary to ` +
+  `${OUTPUT_DIR}/critic_summary.json with this content: ${JSON.stringify(criticGaps).replace(/`/g,'\\`').slice(0, 8000)}. ` +
+  `Just write the file and return {pass:true,reason:"persisted"} — no validation.`,
+  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Completeness Critic', label: 'persist:critic', effort: 'low' }
+)
+
 phase('Validation')
+
+// Stage 17.5 validation
 const reportValid = await agent(
   `You are stock-analysis:report-validator. Validate all generated reports at ${OUTPUT_DIR}. ` +
   `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
   `--output-dir ${OUTPUT_DIR}'. 8 gates: Chinese content, required sections, current price ` +
   `present, source attribution, framework divergence acknowledged, kill switch defined, ` +
   `methodology attribution, no hallucinated figures.`,
-  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:reports' }
+  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:reports', effort: 'low' }
 )
 if (!reportValid?.pass) {
   log(`[WARN] report validation failed: ${reportValid?.reason}`)
@@ -524,9 +779,16 @@ if (!reportValid?.pass) {
 phase('Best Picks')
 await agent(
   `You are stock-analysis:equity-report-writer. Write HIGHLIGHTS_BEST_PICKS.md in 中文 to ` +
-  `${OUTPUT_DIR}/HIGHLIGHTS_BEST_PICKS.md. Read ${OUTPUT_DIR}/ranking.json. Single-file summary ` +
-  `of top-ranked companies: rank, ticker, name, 当前股价, composite_score, conviction, ` +
-  `2-sentence thesis, kill switch, key catalyst. Ranked table format.`,
+  `${OUTPUT_DIR}/HIGHLIGHTS_BEST_PICKS.md. Read ${OUTPUT_DIR}/ranking.json AND ` +
+  `${OUTPUT_DIR}/verify_findings.json (adversarial bear-case verdicts) AND ` +
+  `${OUTPUT_DIR}/judge_panel.json (multi-framework lens consensus) AND ` +
+  `${OUTPUT_DIR}/critic_summary.json (completeness + kill-switch issues). ` +
+  `Single-file summary of top-ranked companies: rank, ticker, name, 当前股价, composite_score, ` +
+  `conviction, 2-sentence thesis, kill switch, key catalyst. ` +
+  `ALSO add columns: 对手方验证 (bear_case_survives — ✅ if survived adversarial verify, ⚠️ if flagged), ` +
+  `多框架共识 (panel_consensus — HIGH_CONSENSUS_BUY / MIXED / LOW_CONSENSUS / HIGH_CONSENSUS_AVOID). ` +
+  `For any company where bear_case_survives=false OR panel_consensus contains AVOID, surface a ` +
+  `⚠️ caution note with the strongest_refutation text. Ranked table format.`,
   { agentType: 'stock-analysis:equity-report-writer', phase: 'Best Picks', label: 'best-picks' }
 )
 
@@ -535,15 +797,16 @@ const bestPicksValid = await agent(
   `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate best-picks ` +
   `--output-dir ${OUTPUT_DIR}'. Required: ranked table with required columns, kill switch per ` +
   `company, 当前股价 present.`,
-  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:best-picks' }
+  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:best-picks', effort: 'low' }
 )
 
 // =============================================================================
 // FINAL — compressed return value (the ONLY thing the team-lead context sees)
 // =============================================================================
 return {
-  status: (reportValid?.pass && bestPicksValid?.pass && failedCount === 0) ? 'completed'
-        : 'partial',
+  status: (reportValid?.pass && bestPicksValid?.pass && failedCount === 0 && failedReports.length === 0)
+    ? 'completed'
+    : 'partial',
   mode: MODE,
   run_id: RUN_ID,
   output_dir: OUTPUT_DIR,
@@ -556,10 +819,36 @@ return {
     reports: reportValid?.pass,
     best_picks: bestPicksValid?.pass,
   },
-  top_picks: scored.companies.slice(0, 5).map(c => ({
-    rank: c.rank,
-    ticker: c.ticker,
-    composite_score: c.composite_score,
-    conviction: c.conviction,
-  })),
+  top_picks: scored.companies.slice(0, 5).map(c => {
+    const v = (verifyResults || []).find(r => r?.ticker === c.ticker)
+    const j = (judgeResults || []).find(r => r?.ticker === c.ticker)
+    return {
+      rank: c.rank,
+      ticker: c.ticker,
+      composite_score: c.composite_score,
+      conviction: c.conviction,
+      bear_case_survives: v?.survives ?? null,         // false = adversarial verify flagged it
+      strongest_refutation: v?.strongest_refutation ?? null,
+      panel_consensus: j?.consensus ?? null,           // HIGH_CONSENSUS_BUY | MIXED | LOW_CONSENSUS | HIGH_CONSENSUS_AVOID
+      panel_score_spread: j?.score_spread ?? null,
+    }
+  }),
+  quality_findings: {
+    adversarial_flagged: flaggedPicks.map(p => ({
+      ticker: p.ticker,
+      refuted_count: p.refuted_count,
+      strongest_refutation: p.strongest_refutation,
+    })),
+    judge_panel_disagreements: disagreements.map(d => ({
+      ticker: d.ticker,
+      consensus: d.consensus,
+      score_spread: d.score_spread,
+    })),
+    failed_reports: failedReports.map(c => ({ ticker: c.ticker, horizon: c.horizon, gaps: c.gaps?.length || 0 })),
+    kill_switch_issues: killSwitchIssues.map(c => ({
+      ticker: c.ticker,
+      horizon: c.horizon,
+      issues: c.kill_switch_check?.issues || [],
+    })),
+  },
 }
