@@ -107,7 +107,7 @@ stock-analysis --mode walk "AI optical interconnect" --top-industry 7
 | `--top-industry` | 5 (pipeline) / 30 (screen) / 7 (walk) | 1-163 (pipeline, screen) / 1-20 (walk) | pipeline, screen, walk | Number of top sub-industries (pipeline/screen) or candidate companies (walk). Walk caps at 20 because candidates are individual companies in chokepoint layers, not GICS sub-industries. |
 | `--total-company` | 10 | 1-40 | pipeline | Total companies to deep-dive, selected by score across ALL sub-industries (not quota per sub-industry). Cap raised to 40 — performance-driven, raise only if you can wait (40 companies × 11 stages = 440 agent runs minimum). |
 
-Company distribution: top M companies are selected by score across ALL top-N sub-industries — not equally distributed. Higher-scoring sub-industries naturally contribute more companies.
+Company distribution: top companies are selected by score across ALL top sub-industries — not equally distributed. Higher-scoring sub-industries naturally contribute more companies.
 
 ### How the Pipeline Works
 
@@ -115,8 +115,8 @@ Company distribution: top M companies are selected by score across ALL top-N sub
 Stage 0:    Setup — TeamCreate stock-analysis-[RUN_ID] + tracking
 Stage 1:    Data Collection (shared data fetched ONCE)
 Stage 1.5:  Data Validation ✓
-Stage 2:    Screen all 163 GICS Level 4 → top N sub-industries
-Stage 3:    Deep-dive sub-industries + screen companies → top M
+Stage 2:    Screen all 163 GICS Level 4 → top sub-industries
+Stage 3:    Deep-dive sub-industries + screen companies → top companies
 Stage 4:    Company Screening
 Stage 4.5:  Screening Validation ✓
 Stage 5-15: Analysis branches (max 4 parallel)

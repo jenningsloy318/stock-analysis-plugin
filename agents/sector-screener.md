@@ -37,7 +37,7 @@ The screening workflow uses Level 4 as the atomic classification for company dis
 </input>
 
 <output>
-  <item>stage2.md — Sub-industry leaderboard (163 scored, top N selected) — Stage 2</item>
+  <item>stage2.md — Sub-industry leaderboard (163 scored, top selected) — Stage 2</item>
   <item>stage3-[CODE].md — Per-sub-industry deep-dive (Porter, TAM, catalysts, company universe) — Stage 3</item>
 </output>
 

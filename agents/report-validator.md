@@ -51,7 +51,7 @@ timeout_mins: 10
   <step n="2b" name="Screening Completeness Check" condition="validation_type=screening-completeness">
     Validate Stage 2-4 screening outputs:
     - Check stage2.md exists and contains at least 10 ranked sub-industries with GICS Level 4 codes
-    - Check stage3.md exists for each top-N sub-industry with Porter analysis, TAM, and key players
+    - Check stage3.md exists for each top sub-industry with Porter analysis, TAM, and key players
     - Check stage4.md exists with company watchlist containing at least 10 companies
     - Verify all companies in watchlist have stock price under $100 (US) or ¥100 (A-shares)
     - Verify 推荐标的排名 table exists with 001/002/003 format

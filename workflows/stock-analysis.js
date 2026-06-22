@@ -16,7 +16,7 @@
 
 export const meta = {
   name: 'stock-analysis',
-  description: 'Unified equity research — screen GICS Level 4 → top-M companies → 11-stage deep-dive → scoring → adversarial verify → judge panel → 3-horizon reports → completeness critic',
+  description: 'Unified equity research — screen GICS Level 4 → top companies → 11-stage deep-dive → scoring → adversarial verify → judge panel → 3-horizon reports → completeness critic',
   phases: [
     { title: 'Shared Data' },
     { title: 'Screening' },
@@ -376,7 +376,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     )
   ))
 
-  // Aggregate top-N sub-industries from the 3 batches
+  // Aggregate top sub-industries from the 3 batches
   const allSubIndustries = sectorBatchResults
     .filter(Boolean)
     .flatMap(r => r.sub_industries || [])
@@ -423,7 +423,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     )
   )
 
-  // Flatten + rank top-M across ALL sub-industries (NOT quota per sub-industry).
+  // Flatten + rank top companies across ALL sub-industries (NOT quota per sub-industry).
   // Apply listing-universe gate deterministically as a backstop — LLM screener may drift.
   const allCompanies = (watchlist || [])
     .filter(Boolean)

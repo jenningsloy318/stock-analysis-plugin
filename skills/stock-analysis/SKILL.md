@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare, walk. Single-flag dispatch via --mode <name>; or natural-language triggers."
 author: Jennings Liu
-version: "1.05.28"
+version: "1.05.29"
 license: MIT
 ---
 
@@ -16,7 +16,7 @@ license: MIT
   Use whichever value resolved to an actual path (not a literal variable name).
 </platform-paths>
 
-<purpose>Team Lead delegates the entire pipeline to a single Dynamic Workflow (`workflows/stock-analysis.js`). The workflow script runs in an isolated runtime outside the team-lead context window; all per-stage data lives in script variables, and only the compressed final result returns to team-lead. Modes: screen GICS Level 4 sub-industries → pick top M companies across top N sub-industries → deep-dive each via per-company orchestrators (Wave1: 5,7,9,13 → Wave2: 6,8,10,14 → Wave3: 11,12 → Wave4: 15 for A-share) → unified scoring → 3-horizon reports → best picks.</purpose>
+<purpose>Team Lead delegates the entire pipeline to a single Dynamic Workflow (`workflows/stock-analysis.js`). The workflow script runs in an isolated runtime outside the team-lead context window; all per-stage data lives in script variables, and only the compressed final result returns to team-lead. Modes: screen GICS Level 4 sub-industries → pick top companies across top sub-industries → deep-dive each via per-company orchestrators (Wave1: 5,7,9,13 → Wave2: 6,8,10,14 → Wave3: 11,12 → Wave4: 15 for A-share) → unified scoring → 3-horizon reports → best picks.</purpose>
 
 <triggers>
 Mode dispatch (Stage 0). Order: explicit `--mode <name>` flag > trigger phrase > default.
@@ -80,7 +80,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
 
   <stage n="2" name="Sub-Industry Screening" agent="sector-screener" modes="pipeline,screen" runs-in="workflow">Score 163 GICS Level 4 sub-industries on 11 dimensions. Processed via `parallel()` over 3 batches of ~54.</stage>
   <stage n="3" name="Sub-Industry Deep-Dive" agent="sector-screener" modes="pipeline,screen" runs-in="workflow">Top N sub-industries: Porter, TAM, catalysts, profit pools.</stage>
-  <stage n="4" name="Company Screening" agent="company-screener" modes="pipeline,screen" runs-in="workflow">Top M companies across ALL top N sub-industries. Price filter applied (US<$100, CN<¥100).</stage>
+  <stage n="4" name="Company Screening" agent="company-screener" modes="pipeline,screen" runs-in="workflow">Top companies across ALL top sub-industries. Price filter applied (US<$100, CN<¥100).</stage>
   <stage n="4.5" name="Screening Validation" agent="report-validator" modes="pipeline,screen" runs-in="workflow">Watchlist completeness + price-filter compliance.</stage>
 
   Stages 3 + 4 run as a `pipeline(top_sub_industries, deepdive, screen)` — no barrier between stages; fast sub-industries progress to company screening while slow ones are still in deep-dive.
@@ -169,7 +169,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="Run Directory">Each run creates `./reports/[RUN_ID]/` where RUN_ID = YYYYMMDDHHmm. Created by the workflow script, not team-lead.</rule>
   <rule name="Ranked Directories">Output directories use rank-prefixed names: `NNN-[TICKER]`. Pipeline/compare: rank after Stage 16. Single analyze: always 001.</rule>
   <rule name="Numbered Stock Index">Every report includes 推荐标的排名 with 001, 002, 003 format. Top-ranked MUST be 001.</rule>
-  <rule name="Company Selection">Top M companies selected by score across ALL top-N sub-industries — NOT equally distributed.</rule>
+  <rule name="Company Selection">Top companies selected by score across ALL top sub-industries — NOT equally distributed.</rule>
   <rule name="A-Share Mandatory">Stage 15 is MANDATORY for .SH/.SZ tickers. SKIP for all others. The workflow detects A-share via ticker suffix and passes `is_a_share` flag to company-orchestrator.</rule>
   <rule name="No team_name">Do NOT pass `team_name` on any `Agent` call — it is silently ignored in modern Claude Code (v2.1.178+). The implicit session team handles peer coordination.</rule>
   <rule name="no-pause" mandatory="true">team-lead never pauses to ask for confirmation. After parameter extraction, invoke the workflow immediately and run to completion. The workflow runs autonomously.</rule>
