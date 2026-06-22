@@ -17,6 +17,7 @@
 export const meta = {
   name: 'stock-analysis',
   description: 'Unified equity research — screen GICS Level 4 → top companies → 11-stage deep-dive → scoring → adversarial verify → judge panel → 3-horizon reports → completeness critic',
+  whenToUse: 'Equity research pipeline (pipeline/screen/analyze/compare/walk) — when the user wants to screen sectors, deep-dive specific tickers, compare stocks, or run a supply-chain walk. Triggered by the /stock-analysis:stock-analysis skill. Not for one-off market commentary or non-financial queries.',
   phases: [
     { title: 'Shared Data' },
     { title: 'Screening' },
@@ -870,96 +871,155 @@ await agent(
 )
 
 // -----------------------------------------------------------------------------
-// PHASE 7 — Reports (3 horizons × N companies)
+// PHASE 7 + 7b + 8 — Reports → Completeness Critic → Validation
+//
+// Gated iteration loop (cf. super-dev's _gatedLoop pattern). Each iteration:
+//   1. Write/rewrite all 3-horizon reports per company (parallel fan-out).
+//      On iter ≥ 2, prior-iteration critic + validator feedback is injected
+//      as guidance so the writer can fix specific gaps and gate failures.
+//   2. Run completeness critic over each report (parallel fan-out).
+//   3. Run validate_report.py for the report-quality gate.
+//   4. If critic shows NO FAIL verdicts AND validator passes → done.
+//      Else if iter < maxIters → loop with feedback.
+//      Else → exit with partial-quality flag.
+//
+// maxIters = 3 (same cap super-dev uses). Loop is BLOCKING: subsequent phases
+// (Best Picks) only run after the loop exits.
 // -----------------------------------------------------------------------------
-phase('Reports')
+const REPORT_MAX_ITERS = 3
+let reportIter = 0
+let priorCriticGaps = []
+let priorReportValidErrors = []
+let criticGaps = []
+let reportValid = null
+
 const reportTargets = scored.companies.flatMap(c =>
   ['long', 'mid', 'short'].map(horizon => ({ ...c, horizon }))
 )
 
-await parallel(reportTargets.map(t => () =>
-  agent(
-    `You are stock-analysis:equity-report-writer. Write ${t.horizon}-term equity research report ` +
-    `for ${t.ticker} (rank ${t.rank}) in 中文 to ${OUTPUT_DIR}/${t.rank}-${t.ticker}/` +
-    `${t.rank}-${t.ticker}_${t.horizon}_${RUN_ID}.md. Read all stage outputs from ` +
-    `${OUTPUT_DIR}/${t.rank}-${t.ticker}/. ALSO read ${OUTPUT_DIR}/verify_findings.json (adversarial ` +
-    `bear-case verdicts) and ${OUTPUT_DIR}/judge_panel.json (4-framework lens scores) — fold these ` +
-    `into the report as dedicated "对手方观点 (Bear Case)" and "多框架交叉验证" sections. Include ` +
-    `推荐标的排名, 当前股价, dimension breakdown table, methodology attribution, kill switch. ` +
-    `Composite weights: see SKILL.md composite-weights.`,
-    {
-      agentType: 'stock-analysis:equity-report-writer',
-      phase: 'Reports',
-      label: `report:${t.rank}-${t.ticker}:${t.horizon}`,
-    }
-  )
-))
+while (reportIter < REPORT_MAX_ITERS) {
+  reportIter += 1
+  log(`[reports] writer → critic → validator — iteration ${reportIter}/${REPORT_MAX_ITERS}`)
 
-// -----------------------------------------------------------------------------
-// PHASE 7b — Completeness Critic + Kill-Switch Falsifiability Check
-//
-// One critic per report (3 horizons × N companies). Reads the report and asks:
-//  1. What's missing? (modality not run, claim unverified, framework not applied)
-//  2. Is the kill switch falsifiable? (measurable + clear trigger)
-// Findings persisted to {company_dir}/critic_{horizon}.json — the validator and
-// best-picks writer read them. HIGH-severity gaps surface in final result.
-// Reference: research-report Pattern "Completeness critic" + "Kill-switch sanity".
-// -----------------------------------------------------------------------------
-phase('Completeness Critic')
-const criticFindings = await parallel(reportTargets.map(t => () =>
-  agent(
-    `You are a senior equity research editor reviewing the report at ` +
-    `${OUTPUT_DIR}/${t.rank}-${t.ticker}/${t.rank}-${t.ticker}_${t.horizon}_${RUN_ID}.md. ` +
-    `Find what's MISSING — be specific. Categories: (a) modality (a data source/analysis script ` +
-    `that should have run but didn't), (b) claim (an assertion without a citation), (c) source ` +
-    `(a citation that should exist but is absent or stale). For each gap, classify severity ` +
-    `HIGH/MEDIUM/LOW and suggest a one-line fix. ` +
-    `ALSO check the kill switch: extract the verbatim kill-switch text from the report. Is it ` +
-    `(i) PRESENT, (ii) FALSIFIABLE (measurable observation + clear trigger)? Flag if the kill ` +
-    `switch is vague ("if thesis breaks"), unmeasurable ("if sentiment turns"), or missing ` +
-    `a quantitative threshold. Return CRITIC_FINDING per schema. Set overall_quality to FAIL if ` +
-    `kill switch is missing OR ≥3 HIGH gaps; PASS_WITH_GAPS if 1-2 HIGH gaps; PASS otherwise. ` +
-    `Persist findings to ${OUTPUT_DIR}/${t.rank}-${t.ticker}/critic_${t.horizon}.json.`,
-    {
-      agentType: 'stock-analysis:report-validator',
-      schema: CRITIC_FINDING_SCHEMA,
-      phase: 'Completeness Critic',
-      label: `critic:${t.rank}-${t.ticker}:${t.horizon}`,
+  // Build per-target feedback string from previous iteration (empty on iter 1)
+  const buildFeedback = (t) => {
+    if (reportIter === 1) return ''
+    const matchingCritic = priorCriticGaps.find(c => c?.ticker === t.ticker && c?.horizon === t.horizon)
+    const gateFailures = priorReportValidErrors // global to this run, applies to all
+    const lines = []
+    if (matchingCritic?.gaps?.length) {
+      lines.push(`PRIOR CRITIC FINDINGS (iteration ${reportIter - 1}) — fix every item:`)
+      matchingCritic.gaps.forEach(g => {
+        lines.push(`  - [${g.severity}] ${g.category}: ${g.description}${g.suggested_fix ? ` (fix: ${g.suggested_fix})` : ''}`)
+      })
     }
-  )
-))
+    if (matchingCritic && matchingCritic.kill_switch_check?.falsifiable === false) {
+      lines.push(`KILL SWITCH ISSUE (iteration ${reportIter - 1}): ${matchingCritic.kill_switch_check.issues?.join('; ') || 'not falsifiable'}. Rewrite kill switch to be measurable + clear trigger.`)
+    }
+    if (gateFailures.length) {
+      lines.push(`PRIOR VALIDATOR GATE FAILURES (iteration ${reportIter - 1}):`)
+      gateFailures.forEach(e => lines.push(`  - ${e}`))
+    }
+    return lines.length ? `\n\n--- FEEDBACK FROM PRIOR ITERATION ---\n${lines.join('\n')}\n--- END FEEDBACK ---\nAddress every item literally. Do not paraphrase the gate output.\n` : ''
+  }
 
-const criticGaps = (criticFindings || []).filter(Boolean)
+  // ---- Phase 7: Reports ----
+  phase('Reports')
+  await parallel(reportTargets.map(t => () =>
+    agent(
+      `You are stock-analysis:equity-report-writer. Write ${t.horizon}-term equity research report ` +
+      `for ${t.ticker} (rank ${t.rank}) in 中文 to ${OUTPUT_DIR}/${t.rank}-${t.ticker}/` +
+      `${t.rank}-${t.ticker}_${t.horizon}_${RUN_ID}.md. Read all stage outputs from ` +
+      `${OUTPUT_DIR}/${t.rank}-${t.ticker}/. ALSO read ${OUTPUT_DIR}/verify_findings.json (adversarial ` +
+      `bear-case verdicts) and ${OUTPUT_DIR}/judge_panel.json (4-framework lens scores) — fold these ` +
+      `into the report as dedicated "对手方观点 (Bear Case)" and "多框架交叉验证" sections. Include ` +
+      `推荐标的排名, 当前股价, dimension breakdown table, methodology attribution, kill switch. ` +
+      `Composite weights: see SKILL.md composite-weights.` +
+      buildFeedback(t),
+      {
+        agentType: 'stock-analysis:equity-report-writer',
+        phase: 'Reports',
+        label: `report:${t.rank}-${t.ticker}:${t.horizon}${reportIter > 1 ? `:r${reportIter}` : ''}`,
+      }
+    )
+  ))
+
+  // ---- Phase 7b: Completeness Critic ----
+  phase('Completeness Critic')
+  const criticFindings = await parallel(reportTargets.map(t => () =>
+    agent(
+      `You are a senior equity research editor reviewing the report at ` +
+      `${OUTPUT_DIR}/${t.rank}-${t.ticker}/${t.rank}-${t.ticker}_${t.horizon}_${RUN_ID}.md. ` +
+      `Find what's MISSING — be specific. Categories: (a) modality (a data source/analysis script ` +
+      `that should have run but didn't), (b) claim (an assertion without a citation), (c) source ` +
+      `(a citation that should exist but is absent or stale). For each gap, classify severity ` +
+      `HIGH/MEDIUM/LOW and suggest a one-line fix. ` +
+      `ALSO check the kill switch: extract the verbatim kill-switch text from the report. Is it ` +
+      `(i) PRESENT, (ii) FALSIFIABLE (measurable observation + clear trigger)? Flag if the kill ` +
+      `switch is vague ("if thesis breaks"), unmeasurable ("if sentiment turns"), or missing ` +
+      `a quantitative threshold. Return CRITIC_FINDING per schema. Set overall_quality to FAIL if ` +
+      `kill switch is missing OR ≥3 HIGH gaps; PASS_WITH_GAPS if 1-2 HIGH gaps; PASS otherwise. ` +
+      `Persist findings to ${OUTPUT_DIR}/${t.rank}-${t.ticker}/critic_${t.horizon}.json.`,
+      {
+        agentType: 'stock-analysis:report-validator',
+        schema: CRITIC_FINDING_SCHEMA,
+        phase: 'Completeness Critic',
+        label: `critic:${t.rank}-${t.ticker}:${t.horizon}${reportIter > 1 ? `:r${reportIter}` : ''}`,
+      }
+    )
+  ))
+
+  criticGaps = (criticFindings || []).filter(Boolean)
+  const failedReports = criticGaps.filter(c => c.overall_quality === 'FAIL')
+
+  // ---- Phase 8: validator-side report-quality gate ----
+  phase('Validation')
+  reportValid = await agent(
+    `You are stock-analysis:report-validator. Validate all generated reports at ${OUTPUT_DIR}. ` +
+    `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
+    `--output-dir ${OUTPUT_DIR}'. 8 gates: Chinese content, required sections, current price ` +
+    `present, source attribution, framework divergence acknowledged, kill switch defined, ` +
+    `methodology attribution, no hallucinated figures.`,
+    { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: `validate:reports${reportIter > 1 ? `:r${reportIter}` : ''}`, effort: 'low' }
+  )
+
+  // Exit conditions
+  if (reportValid?.pass && failedReports.length === 0) {
+    log(`[reports] passed on iteration ${reportIter}/${REPORT_MAX_ITERS} (validator=pass, critic_failures=0)`)
+    break
+  }
+
+  // Record feedback for next iteration
+  priorCriticGaps = criticGaps
+  priorReportValidErrors = reportValid?.gates_failed || (reportValid?.reason ? [reportValid.reason] : [])
+
+  if (reportIter < REPORT_MAX_ITERS) {
+    log(`[reports] iteration ${reportIter} fail — validator.pass=${reportValid?.pass}, critic.FAIL count=${failedReports.length}. Re-spawning writers with feedback.`)
+  } else {
+    log(`[reports] exhausted ${REPORT_MAX_ITERS} iterations — validator.pass=${reportValid?.pass}, critic.FAIL count=${failedReports.length}. Proceeding with partial quality.`)
+  }
+}
+
+// Surface critic + kill-switch issues for the final result block
 const failedReports = criticGaps.filter(c => c.overall_quality === 'FAIL')
 const killSwitchIssues = criticGaps.filter(c => !c.kill_switch_check?.falsifiable)
 if (failedReports.length) {
-  log(`[WARN] completeness critic failed ${failedReports.length} reports: ${failedReports.map(c => `${c.ticker}:${c.horizon}`).join(', ')}`)
+  log(`[WARN] completeness critic FAILED ${failedReports.length} reports after ${reportIter} iter(s): ${failedReports.map(c => `${c.ticker}:${c.horizon}`).join(', ')}`)
 }
 if (killSwitchIssues.length) {
   log(`[WARN] kill-switch falsifiability issues on ${killSwitchIssues.length} reports: ${killSwitchIssues.map(c => `${c.ticker}:${c.horizon}`).join(', ')}`)
 }
 
-// Persist critic summary
+// Persist critic summary (single write at the end of the loop, not per iter)
 await agent(
   `You are stock-analysis:report-validator. Persist completeness-critic summary to ` +
   `${OUTPUT_DIR}/critic_summary.json with this content: ${JSON.stringify(criticGaps).replace(/`/g,'\\`').slice(0, 8000)}. ` +
-  `Just write the file and return {pass:true,reason:"persisted"} — no validation.`,
+  `Also record iteration count: ${reportIter}. Just write the file and return {pass:true,reason:"persisted"} — no validation.`,
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Completeness Critic', label: 'persist:critic', effort: 'low' }
 )
 
-phase('Validation')
-
-// Stage 17.5 validation
-const reportValid = await agent(
-  `You are stock-analysis:report-validator. Validate all generated reports at ${OUTPUT_DIR}. ` +
-  `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
-  `--output-dir ${OUTPUT_DIR}'. 8 gates: Chinese content, required sections, current price ` +
-  `present, source attribution, framework divergence acknowledged, kill switch defined, ` +
-  `methodology attribution, no hallucinated figures.`,
-  { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:reports', effort: 'low' }
-)
 if (!reportValid?.pass) {
-  log(`[WARN] report validation failed: ${reportValid?.reason}`)
+  log(`[WARN] report validation still failing after ${reportIter} iter(s): ${reportValid?.reason}`)
 }
 
 // -----------------------------------------------------------------------------
