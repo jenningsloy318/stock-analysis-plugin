@@ -644,6 +644,7 @@ def main():
             output = {
                 "level": "sub-industry",
                 "format": "flat_leaderboard",
+                "retrieved_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "total_sub_industries": n,
                 "computed_at": datetime.now(timezone.utc).isoformat(),
                 "ranking": scored,
@@ -660,7 +661,11 @@ def main():
             }
         else:
             # Grouped mode (original): sub-industries grouped by parent sector
-            output = {"level": "sub-industry", "sectors": {}}
+            output = {
+                "level": "sub-industry",
+                "retrieved_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "sectors": {},
+            }
 
             for sector_name in sectors_to_scan:
                 sub_map = SUB_INDUSTRY_ETFS.get(sector_name, {})
@@ -696,6 +701,7 @@ def main():
         ranking = rank_sectors(results)
         output = {
             "level": "sector",
+            "retrieved_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "individual_results": results,
             "ranking": ranking,
         }

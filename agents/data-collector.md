@@ -47,7 +47,14 @@ timeout_mins: 8
   </step>
 
   <step n="3" name="Load References">
-    - Read references/gics_taxonomy.md — extract sub-industry codes and names into ./reports/[RUN_ID]/stage1_gics.json
+    - Read references/gics_taxonomy.md — extract sub-industry codes and names into ./reports/[RUN_ID]/stage1_gics.json. The output JSON MUST include a top-level `retrieved_at` field with the current UTC time in ISO-8601 format (e.g., `"retrieved_at": "2026-06-22T06:28:00Z"`). The data-freshness validator (Stage 1.5) requires this field on every Stage 1 output. Example structure:
+      ```json
+      {
+        "retrieved_at": "2026-06-22T06:28:00Z",
+        "source": "references/gics_taxonomy.md",
+        "sub_industries": [{"code": "...", "name": "...", ...}]
+      }
+      ```
     - Read references/data_source_matrix.md — note source tiers and confidence caps for downstream use
   </step>
 
@@ -59,6 +66,7 @@ timeout_mins: 8
 <guardrails>
   <constraint>Run ALL scripts via `uv run python` — never bare `python` or `python3`</constraint>
   <constraint>ALL output files go to ./reports/[RUN_ID]/ — never to other directories</constraint>
+  <constraint>EVERY stage1_*.json file MUST include a top-level `retrieved_at` field (ISO-8601 UTC, e.g. `"2026-06-22T06:28:00Z"`). The data-freshness validator (Stage 1.5) rejects any file without it. Scripts emit this automatically; for agent-written files (e.g. stage1_gics.json) you must add it manually.</constraint>
   <constraint>If a script fails, log the error and continue — do NOT abort the entire data collection. Mark the failed data source as [UNAVAILABLE] in the summary.</constraint>
   <constraint>Never analyze the data — only fetch, organize, and summarize availability</constraint>
   <constraint>Notify team lead with status summary when complete</constraint>
