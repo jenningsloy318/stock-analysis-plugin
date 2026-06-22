@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare, walk. Single-flag dispatch via --mode <name>; or natural-language triggers."
 author: Jennings Liu
-version: "1.05.17"
+version: "1.05.22"
 license: MIT
 ---
 
@@ -43,8 +43,14 @@ Do NOT trigger on: general market commentary, non-financial queries.
 
 <note>Detailed agent protocols live in `agents/*.md` — the team-lead orchestrator loads stage-specific instructions at spawn time. Reference files in `references/*.md` are loaded lazily per-stage.</note>
 
+<tool-disambiguation>
+  All sub-agent spawning uses the harness's **`Agent`** tool (param: `subagent_type=stock-analysis:<agent-name>`, `prompt=...`, optional `run_in_background=true`). Do NOT use `TaskCreate` to spawn agents — `TaskCreate / TaskGet / TaskList / TaskOutput / TaskUpdate / TaskStop` are the **team task-tracker** (they create todo entries on the team's task list, not autonomous sub-Claude instances). The team task-tracker is optional bookkeeping; the `Agent` tool is the sole spawning mechanism.
+
+  Team scaffolding (`TeamCreate` / `TeamDelete`) is BEST-EFFORT — use it when the harness exposes the tools so peer messaging and team termination work, but on harnesses where `Agent` no longer accepts a `team_name` argument (it is deprecated / silently ignored — the session has a single implicit team) it is fine to proceed without an explicit team. Do not block the pipeline on `TeamCreate` availability.
+</tool-disambiguation>
+
 <workflow>
-  <stage n="0" name="Setup">Detect mode: if `--mode <name>` present → use it (one of: pipeline, screen, analyze, compare, walk); else trigger phrase fallback; else default pipeline. Extract parameters: --top-n (1-163), --total-m (1-40, pipeline only), tickers (positional after `--mode analyze` OR comma-list after `--mode compare`), theme (positional after `--mode walk`, quoted multi-word allowed). Create RUN_ID (YYYYMMDDHHmm), output directory (./reports/[RUN_ID]/), tracking.json. Create agent team via TeamCreate with name `stock-analysis-[RUN_ID]`. MUST complete before any data fetch or agent spawning.</stage>
+  <stage n="0" name="Setup">Detect mode: if `--mode <name>` present → use it (one of: pipeline, screen, analyze, compare, walk); else trigger phrase fallback; else default pipeline. Extract parameters: --top-n (1-163), --total-m (1-40, pipeline only), tickers (positional after `--mode analyze` OR comma-list after `--mode compare`), theme (positional after `--mode walk`, quoted multi-word allowed). Create RUN_ID (YYYYMMDDHHmm), output directory (./reports/[RUN_ID]/), tracking.json. If `TeamCreate` is available in the harness, create agent team with name `stock-analysis-[RUN_ID]` and store in tracking.json; if unavailable, proceed under the implicit team (no abort). MUST complete before any data fetch or agent spawning.</stage>
   <stage n="1" name="Data Collection" agent="data-collector">Fetch shared data ONCE: macro indicators, economic surprises, sector/sub-industry RS, market breadth, theme performance. Load references/gics_taxonomy.md and references/data_source_matrix.md. All downstream stages reuse this data.</stage>
   <stage n="1.5" name="Data Validation" agent="report-validator" modes="pipeline,screen,analyze,compare">Validate Stage 1 shared data: freshness check, source coverage, required files present. Blocks downstream stages if shared data is stale or incomplete. MUST PASS before Stages 2+.</stage>
 
@@ -73,7 +79,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <stage n="17.5" name="Report Validation" agent="report-validator">Independent validation of all generated reports: run validate_report.py (8 gates) for each report, verify Chinese content, verify required sections, verify stock price display. MUST PASS before Best Picks.</stage>
   <stage n="18" name="Best Picks Highlight" agent="equity-report-writer">After ALL reports pass validation, write HIGHLIGHTS_BEST_PICKS.md to ./reports/[RUN_ID]/. Single-file summary of the top-ranked companies with: rank, ticker, company name, current price, composite score, conviction, 2-sentence thesis, kill switch, key catalyst.</stage>
   <stage n="18.5" name="Best Picks Validation" agent="report-validator">Validate HIGHLIGHTS_BEST_PICKS.md: ranked table with required columns, kill switch for each company, 当前股价 present. MUST PASS before cleanup.</stage>
-  <stage n="19" name="Cleanup" agent="team-lead">Final cleanup: terminate all remaining agents, delete agent team via TeamDelete, remove intermediate files (stage*.md, raw-data.json, phase*.md), keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage — no work after this.</stage>
+  <stage n="19" name="Cleanup" agent="team-lead">Final cleanup: terminate all remaining agents, delete agent team via TeamDelete (only if TeamCreate succeeded in Stage 0; otherwise skip — implicit teams have no explicit teardown), remove intermediate files (stage*.md, raw-data.json, phase*.md), keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage — no work after this.</stage>
 </workflow>
 
 <dependencies>
@@ -157,7 +163,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="Numbered Stock Index">Every report includes 推荐标的排名 with 001, 002, 003 format. Top-ranked MUST be 001.</rule>
   <rule name="Company Selection">Top M companies selected by score across ALL top-N sub-industries — NOT equally distributed.</rule>
   <rule name="A-Share Mandatory">Stage 15 is MANDATORY for .SH/.SZ tickers. SKIP for all others.</rule>
-  <rule name="agent-team" mandatory="true">ALL work MUST use agent team. Create team via TeamCreate with name `stock-analysis-[RUN_ID]` in Stage 0, before spawning any agents. Delete team via TeamDelete in Stage 19 cleanup.</rule>
+  <rule name="agent-team" mandatory="false">If the harness exposes `TeamCreate` / `TeamDelete`, use them (team name = `stock-analysis-[RUN_ID]`, created in Stage 0, deleted in Stage 19). If unavailable, proceed under the implicit team — do NOT block the pipeline. Agent spawning is via the `Agent` tool (`subagent_type=stock-analysis:<agent-name>`), NEVER via `TaskCreate` (the task-tracker).</rule>
   <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER analyzes directly. Only spawns agents, coordinates, and quality-gates.</rule>
   <rule name="no-pause" mandatory="true">NEVER pause between stages to ask user for confirmation. The pipeline runs Stage 0 → 19 continuously. No "Continue?" prompts. Only stop if user explicitly asks a question.</rule>
   <rule name="no-stage-skip" mandatory="true">In pipeline mode, stages 5-15 MUST run for EVERY selected company. NEVER skip deep-dive stages because "too many companies" or "due to scale". If total-m exceeds 40, cap at 40 and proceed with all stages.</rule>
@@ -168,13 +174,13 @@ Do NOT trigger on: general market commentary, non-financial queries.
 <constraints>
   <constraint name="NEVER Analyze Directly">Team Lead NEVER runs scripts, fetches data, or performs analysis. ALL work delegated to specialist agents.</constraint>
   <constraint name="Tracking JSON Updated">Tracking JSON MUST be updated BEFORE advancing to the next stage. Both status changes (previous complete, next in_progress) in a single write.</constraint>
-  <constraint name="Team First">Team creation (TeamCreate) is the FIRST action — before any scripts or data fetches.</constraint>
+  <constraint name="Team First">If `TeamCreate` is available, run it as the FIRST action — before any scripts or data fetches. If `TeamCreate` is not exposed by the harness, skip silently and proceed; do not abort.</constraint>
   <constraint name="Data via Agents">Data-fetch scripts are run by data-collector or search-agent teammates, NOT by the team lead directly.</constraint>
   <constraint name="Max 4 Concurrent">Cap parallel agents at 4 to manage context window.</constraint>
   <constraint name="Company Orchestrator Delegation">For stages 5-15, team-lead spawns company-orchestrator agents (one per company) via an ASYNC POOL with max 4 concurrent (next company spawns as soon as any prior orchestrator finishes — no batch-edge stalls). Each orchestrator independently manages all analysis stages for its company. The team-lead NEVER spawns individual analyst agents (fundamental-analyst, industry-analyst, etc.) directly for stages 5-15.</constraint>
   <constraint name="Quality Gate">Report cannot be delivered until pre-delivery checklist passes. If any gate fails: "INCOMPLETE ANALYSIS — [reason]".</constraint>
   <constraint name="Level 4 Structure">Sub-Industry is the structural unit in reports — Level 1/2/3 appear only as context within Level 4 entries.</constraint>
-  <constraint name="Cleanup">Stage 19 cleanup: delete intermediate files (stage*.md, raw-data.json, phase*.md), terminate all remaining agents, delete team via TeamDelete. Keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage.</constraint>
+  <constraint name="Cleanup">Stage 19 cleanup: delete intermediate files (stage*.md, raw-data.json, phase*.md), terminate all remaining agents, delete team via TeamDelete (only if TeamCreate succeeded in Stage 0). Keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage.</constraint>
 </constraints>
 
 <criteria name="Skip Conditions">

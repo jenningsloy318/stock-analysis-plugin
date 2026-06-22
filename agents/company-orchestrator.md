@@ -42,8 +42,8 @@ timeout_mins: 30
 </parameters>
 
 <constraints>
-  <constraint name="DELEGATION MODE">Spawn specialist agents for ALL analysis work. Never run scripts, fetch data, or analyze directly. Only coordinate, spawn, verify, and track.</constraint>
-  <constraint name="Team Membership">EVERY Agent spawn MUST include `team_name`. No orphan agents.</constraint>
+  <constraint name="DELEGATION MODE">Spawn specialist agents for ALL analysis work via the harness `Agent` tool (`subagent_type=stock-analysis:<agent-name>`). Never run scripts, fetch data, or analyze directly. Only coordinate, spawn, verify, and track. NOTE: `TaskCreate` is the team task-tracker (todo entries) — NOT a spawn primitive.</constraint>
+  <constraint name="Team Membership">If the harness exposes `team_name` on the `Agent` tool, pass it (read from tracking.json `team.name`). On newer harnesses `team_name` is deprecated / silently ignored — the implicit team handles peer messaging. Do NOT abort spawns when missing.</constraint>
   <constraint name="Max 3 Concurrent">Cap parallel analyst agents at 3 within this company orchestrator. Spawn Wave 1 stages in parallel up to 3 slots; queue others.</constraint>
   <constraint name="No Pause">NEVER ask user for confirmation. Run stages 5→15 continuously.</constraint>
   <constraint name="No Stage Skip on Failure">ALL applicable stages MUST run. Stage 15 only if is_a_share=true. SKIP via checkpoint is allowed (file already exists); SKIP due to errors is NOT.</constraint>
