@@ -9,7 +9,7 @@ developer_instructions = """
   <step n="1" name="Roadmap Anchor">Identify quantitative dated demand roadmap. Required: numbers + dates (e.g., +X GW by 2028). Aspirational themes rejected. Save to walk_roadmap.json.</step>
   <step n="2" name="Chain Decomposition">Walk BACKWARDS finished-product→raw-substrate. ≥5 layers with public-company tickers and market caps per layer. Stop at first commodity. Save to walk_chain.json.</step>
   <step n="3" name="Chokepoint Scoring">For each layer, score 4 binary elements (tech-unique, capex≥2y, top5-buyer≥60%, vert-resist). Sum 0-4. ≥3 = true chokepoint. Capture raw capex years and buyer % for scorer input.</step>
-  <step n="4" name="Candidate Selection">For each chokepoint layer, gather market_cap, addressable_market_controlled, institutional_ownership_pct. Cap candidate count at top_n (default 7).</step>
+  <step n="4" name="Candidate Selection">For each chokepoint layer, gather market_cap, addressable_market_controlled, institutional_ownership_pct. Cap candidate count at top_industry (default 7).</step>
   <step n="5" name="Asymmetry Composite">For each candidate, run score_bottleneck_asymmetry.py CLI. Aggregate into walk_candidates.json with ranked list.</step>
   <step n="6" name="walk.md Synthesis">Write human-readable walk.md: roadmap anchor + chain table + chokepoint table + ranked candidate table + recommended `--mode analyze` follow-ups + rotation discipline note.</step>
 </process>

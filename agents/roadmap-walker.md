@@ -24,7 +24,7 @@ Handles the walk pipeline (Stages 0 → 1 → 1.5 → walk → 17 → 17.5 → 1
   <field name="run_id" required="true">YYYYMMDDHHmm</field>
   <field name="output_dir" required="true">./reports/[RUN_ID]/</field>
   <field name="theme" required="true">User-specified roadmap theme (e.g., "humanoid robotics", "AI optical interconnect", "rare-earth permanent magnets", "defense electronics")</field>
-  <field name="top_n" default="7" range="1-20">Maximum candidate companies to score and return.</field>
+  <field name="top_industry" default="7" range="1-20">Maximum candidate companies to score and return.</field>
   <field name="shared_data_path" required="true">./reports/[RUN_ID]/stage1*.json</field>
 </input>
 
@@ -106,7 +106,7 @@ Search-tool usage for inputs:
 3. SEC filings via `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` for capex disclosures
 4. `mcp__exa__web_search_exa` — "[ticker] addressable market share [layer] revenue"
 
-Cap candidate count at `top_n` (default 7). If a layer has more candidates than the cap allows, select by largest market_cap-relative-to-layer (most-likely-named-by-Street first, since they will be the primary rotation beneficiaries).</step>
+Cap candidate count at `top_industry` (default 7). If a layer has more candidates than the cap allows, select by largest market_cap-relative-to-layer (most-likely-named-by-Street first, since they will be the primary rotation beneficiaries).</step>
 
 <step n="5" name="Asymmetry Composite Scoring">For each candidate, write inputs to a temporary JSON and run the scorer:
 

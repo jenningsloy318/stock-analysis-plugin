@@ -19,13 +19,13 @@ developer_instructions = """
 </flag-dispatch>
 
 <process>
-  <step n="0" name="Setup">Detect mode via `--mode <name>` flag (pipeline|screen|analyze|compare|walk) → trigger phrase fallback → default pipeline. Extract --top-n (1-163), --total-m (1-40, pipeline only), tickers (positional after `--mode analyze` OR comma-list after `--mode compare`), theme (positional after `--mode walk`). Create RUN_ID, output directory, tracking.json, agent team.</step>
+  <step n="0" name="Setup">Detect mode via `--mode <name>` flag (pipeline|screen|analyze|compare|walk) → trigger phrase fallback → default pipeline. Extract --top-industry (1-163), --total-company (1-40, pipeline only), tickers (positional after `--mode analyze` OR comma-list after `--mode compare`), theme (positional after `--mode walk`). Create RUN_ID, output directory, tracking.json, agent team.</step>
   <step n="1" name="Data Collection">Spawn data-collector for shared data.</step>
   <step n="1.5" name="Data Validation">Spawn report-validator (data-freshness). WAIT for PASS.</step>
   <step n="2-4" name="Screening" modes="pipeline,screen">Spawn sector-screener and company-screener in parallel batches.</step>
   <step n="4.5" name="Screening Validation">Spawn report-validator (screening-completeness). WAIT for PASS.</step>
   <step n="5-15" name="Company Analysis" modes="pipeline,analyze,compare">Spawn company-orchestrators via ASYNC POOL (max 4 concurrent, run_in_background=true). As soon as ANY orchestrator returns, spawn the next pending company. Each orchestrator independently manages ALL stages 5-15 for its company.</step>
-  <step n="walk" name="Bottleneck Walk" modes="walk">Spawn ONE roadmap-walker agent with theme + top_n. Replaces stages 2-16.5. Walker writes walk_roadmap.json, walk_chain.json, walk_candidates.json, walk.md. Recommends `--mode analyze TICKER` follow-ups for tier-1/strong candidates. Ref: references/frameworks_bottleneck_investing.md.</step>
+  <step n="walk" name="Bottleneck Walk" modes="walk">Spawn ONE roadmap-walker agent with theme + top_industry. Replaces stages 2-16.5. Walker writes walk_roadmap.json, walk_chain.json, walk_candidates.json, walk.md. Recommends `--mode analyze TICKER` follow-ups for tier-1/strong candidates. Ref: references/frameworks_bottleneck_investing.md.</step>
   <step n="16" name="Scoring" modes="pipeline,analyze,compare">Spawn scorer for deterministic scoring + cross-check.</step>
   <step n="16.5" name="Score Validation" modes="pipeline,analyze,compare">Spawn report-validator (score-consistency). WAIT for PASS.</step>
   <step n="17-18" name="Reports">Spawn report writers for screening + company reports + best picks. For walk mode: write candidate-list report from walk_candidates.json.</step>

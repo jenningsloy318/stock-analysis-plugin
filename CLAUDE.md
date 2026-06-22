@@ -68,7 +68,7 @@
 
 - The `stock-analysis` skill (unified pipeline) acts as the team lead — it NEVER analyzes directly, only invokes the canonical Dynamic Workflow and surfaces its compressed result.
 - Modes: pipeline (default: screen → analyze), screen, analyze, compare, walk.
-- **Dynamic Workflows REQUIRED**: Claude Code v2.1.154+ and the `Workflow` tool. team-lead does `Workflow({scriptPath: "${PLUGIN_ROOT}/workflows/stock-analysis.js", args: {mode, run_id, plugin_root, top_n, total_m, tickers, theme}})`. The script handles ALL stage orchestration. There is no fallback path — older harnesses are not supported.
+- **Dynamic Workflows REQUIRED**: Claude Code v2.1.154+ and the `Workflow` tool. team-lead does `Workflow({scriptPath: "${PLUGIN_ROOT}/workflows/stock-analysis.js", args: {mode, run_id, plugin_root, top_industry, total_company, tickers, theme, universe}})`. The script handles ALL stage orchestration. There is no fallback path — older harnesses are not supported.
 - 24 stages (19 work stages + 5 validation gates), each handled by a dedicated specialist agent invoked from `agent()` calls inside the workflow script. Stage 19 (cleanup) is gone — the workflow runtime auto-cleans.
 - Stage 1.5, 4.5, 16.5, 17.5, 18.5: Independent validation by report-validator agent (inside the workflow).
 - Validation gates are BLOCKING — the workflow returns status='failed' if any gate fails, with the failing stage and reason. Re-run with `Workflow({scriptPath, resumeFromRunId})` to resume from cached prefix.
@@ -85,7 +85,7 @@
 - Cross-company: each company-orchestrator runs in its own isolated context; the workflow runtime caps concurrency at min(16, cpu-2). Total cap: 1000 agents per workflow run.
 - A-share (SH/SZ): Stage 15 is MANDATORY (set `is_a_share=true` in the company-orchestrator prompt), SKIP for all others.
 - **NEVER pause for user confirmation** between stages. The workflow runs autonomously. No "Continue?" prompts.
-- **NEVER skip stages 5-15** in pipeline mode. All deep-dive stages must run for every selected company. If `total_m` exceeds 40, the workflow caps at 40.
+- **NEVER skip stages 5-15** in pipeline mode. All deep-dive stages must run for every selected company. If `total_company` exceeds 40, the workflow caps at 40.
 
 ## Web Search & Data Acquisition (MUST follow)
 

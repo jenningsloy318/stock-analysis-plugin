@@ -245,8 +245,8 @@ const CRITIC_FINDING_SCHEMA = {
 const RUN_ID = args.run_id            // YYYYMMDDHHmm — set by team-lead before invocation
 const PLUGIN_ROOT = args.plugin_root  // absolute path resolved from platform-paths
 const MODE = args.mode                // pipeline | screen | analyze | compare | walk
-const TOP_N = args.top_n              // sub-industries (pipeline/screen) or candidates (walk)
-const TOTAL_M = args.total_m          // companies to deep-dive (pipeline only)
+const TOP_INDUSTRY = args.top_industry  // sub-industries (pipeline/screen) or candidates (walk)
+const TOTAL_COMPANY = args.total_company // companies to deep-dive (pipeline only)
 const TICKERS = args.tickers || []    // analyze/compare modes
 const THEME = args.theme              // walk mode
 const UNIVERSE = args.universe || 'US' // 'US' | 'CN' | 'ALL' — listing-exchange filter for screening
@@ -270,7 +270,7 @@ if (!validModes.includes(MODE)) {
   return { status: 'failed', stage: 0, reason: `Invalid mode: ${MODE}. Expected one of ${validModes.join(', ')}.` }
 }
 
-log(`[stock-analysis] mode=${MODE} run_id=${RUN_ID} top_n=${TOP_N} total_m=${TOTAL_M}`)
+log(`[stock-analysis] mode=${MODE} run_id=${RUN_ID} top_industry=${TOP_INDUSTRY} total_company=${TOTAL_COMPANY}`)
 log(`[stock-analysis] output_dir=${OUTPUT_DIR}`)
 
 // -----------------------------------------------------------------------------
@@ -313,7 +313,7 @@ if (!dataValid?.pass) {
 if (MODE === 'walk') {
   phase('Walk Chain')
   const walkResult = await agent(
-    `You are stock-analysis:roadmap-walker. Theme: "${THEME}". top_n=${TOP_N || 7}. ` +
+    `You are stock-analysis:roadmap-walker. Theme: "${THEME}". top_industry=${TOP_INDUSTRY || 7}. ` +
     `plugin_root=${PLUGIN_ROOT} output_dir=${OUTPUT_DIR} shared_data_path=${OUTPUT_DIR}/stage1.json. ` +
     `Perform top-down chain decomposition: anchor quantitative dated demand roadmap → ` +
     `reverse-walk finished-product→raw-substrate (≥5 layers) → score 4-element chokepoint ` +
@@ -381,7 +381,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     .filter(Boolean)
     .flatMap(r => r.sub_industries || [])
     .sort((a, b) => b.score - a.score)
-  const topSubIndustries = allSubIndustries.slice(0, TOP_N || (MODE === 'screen' ? 30 : 5))
+  const topSubIndustries = allSubIndustries.slice(0, TOP_INDUSTRY || (MODE === 'screen' ? 30 : 5))
 
   if (!topSubIndustries.length) {
     return { status: 'failed', stage: 2, reason: 'No sub-industries scored — sector-screener returned empty' }
@@ -431,7 +431,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     .filter(c => c.price_filter_pass !== false)
     .filter(c => passUniverse(c.ticker))
     .sort((a, b) => b.score - a.score)
-  watchlist = allCompanies.slice(0, TOTAL_M || 10).map((c, i) => ({
+  watchlist = allCompanies.slice(0, TOTAL_COMPANY || 10).map((c, i) => ({
     ...c,
     rank: String(i + 1).padStart(3, '0'),
   }))
@@ -443,7 +443,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     `You are stock-analysis:report-validator. Validate screening completeness for ${OUTPUT_DIR}. ` +
     `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate screening-completeness ` +
     `--output-dir ${OUTPUT_DIR}'. Required: sub-industry leaderboard ≥10 entries with valid GICS ` +
-    `codes, company watchlist ≥10 (or all if MODE=screen and top-n<10), price filter applied.`,
+    `codes, company watchlist ≥10 (or all if MODE=screen and top-industry<10), price filter applied.`,
     { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Screening', label: 'validate:screening', effort: 'low' }
   )
   if (!screenValid?.pass) {

@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare, walk. Single-flag dispatch via --mode <name>; or natural-language triggers."
 author: Jennings Liu
-version: "1.05.27"
+version: "1.05.28"
 license: MIT
 ---
 
@@ -27,8 +27,8 @@ Mode dispatch (Stage 0). Order: explicit `--mode <name>` flag > trigger phrase >
 - `--mode analyze TICKER [TICKER...]` → analyze mode (positional ticker(s) follow `--mode analyze`)
 - `--mode compare T1,T2[,T3,...]` → compare mode (comma-list follows `--mode compare`)
 - `--mode walk THEME` → walk mode (positional theme follows `--mode walk`; quoted multi-word allowed)
-- `--top-n N` → top-N parameter (any mode that uses it)
-- `--total-m M` → total-M parameter (pipeline only)
+- `--top-industry N` → number of top sub-industries (or walk-mode candidates) (any mode that uses it)
+- `--total-company M` → total companies to deep-dive (pipeline only)
 - `--universe US|CN|ALL` → listing-exchange filter for screening (default: US — NYSE/NASDAQ only)
 - *(no `--mode`)* → falls through to trigger phrases, then default = pipeline
 
@@ -112,8 +112,8 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <flag>--mode pipeline (or omit)</flag>
     <trigger>"find best stocks", "top stocks", "全面筛选", "screen and analyze", "top picks"</trigger>
     <parameters>
-      <parameter name="top-n" default="5" range="1-30">Number of top sub-industries after screening all 163.</parameter>
-      <parameter name="total-m" default="10" range="1-40">Total companies to deep-dive. Selected by score across ALL top-n sub-industries — NOT quota per sub-industry. Max 40: each company runs 11 analysis stages (5-15), so 40 companies = 440 agent runs minimum. Cap is performance-driven; raise only if you can wait.</parameter>
+      <parameter name="top-industry" default="5" range="1-30">Number of top sub-industries after screening all 163.</parameter>
+      <parameter name="total-company" default="10" range="1-40">Total companies to deep-dive. Selected by score across ALL top sub-industries — NOT quota per sub-industry. Max 40: each company runs 11 analysis stages (5-15), so 40 companies = 440 agent runs minimum. Cap is performance-driven; raise only if you can wait.</parameter>
     </parameters>
     <stages>0→1→1.5→2→3→4→4.5→5-15(waves)→16→16.5→17→17.5→18→18.5→19</stages>
   </mode>
@@ -122,7 +122,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <flag>--mode screen</flag>
     <trigger>"screen sectors", "筛选行业", "best industries", "industry screening"</trigger>
     <parameters>
-      <parameter name="top-n" default="30" range="1-163">Number of top sub-industries to deep-dive.</parameter>
+      <parameter name="top-industry" default="30" range="1-163">Number of top sub-industries to deep-dive.</parameter>
     </parameters>
     <stages>0→1→1.5→2→3→4→4.5→17→17.5→18→18.5→19(screening reports + validation + best picks + cleanup)</stages>
   </mode>
@@ -151,7 +151,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <trigger>"walk the chain for [theme]", "find bottleneck in [theme]", "chokepoint analysis [theme]", "supply chain bottleneck [theme]", "瓶颈分析 [行业]"</trigger>
     <parameters>
       <parameter name="theme" required="true">Universal roadmap theme (positional after `--mode walk`, quoted multi-word allowed). Examples: "humanoid robotics", "AI optical interconnect", "rare-earth permanent magnets", "defense electronics", "grid transmission", "biologic manufacturing".</parameter>
-      <parameter name="top-n" default="7" range="1-20">Maximum candidate companies to score and return.</parameter>
+      <parameter name="top-industry" default="7" range="1-20">Maximum candidate companies to score and return.</parameter>
     </parameters>
     <stages>0→1→1.5→walk(roadmap-walker)→17→17.5→18→18.5→19(walk report + validation + best picks + cleanup)</stages>
     <constraints>Universal — applies to AI infra, EV/battery, robotics, defense, solar, biopharma, grid, semi capex, advanced materials. Roadmap MUST be quantitative + dated (numbers + timeline). Output recommends `--mode analyze TICKER` follow-up for tier-1/strong candidates.</constraints>
@@ -173,7 +173,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="A-Share Mandatory">Stage 15 is MANDATORY for .SH/.SZ tickers. SKIP for all others. The workflow detects A-share via ticker suffix and passes `is_a_share` flag to company-orchestrator.</rule>
   <rule name="No team_name">Do NOT pass `team_name` on any `Agent` call — it is silently ignored in modern Claude Code (v2.1.178+). The implicit session team handles peer coordination.</rule>
   <rule name="no-pause" mandatory="true">team-lead never pauses to ask for confirmation. After parameter extraction, invoke the workflow immediately and run to completion. The workflow runs autonomously.</rule>
-  <rule name="no-stage-skip" mandatory="true">In pipeline mode, stages 5-15 MUST run for EVERY selected company. The workflow does not skip stages because "too many companies". If total-m exceeds 40, cap at 40 — the workflow enforces this.</rule>
+  <rule name="no-stage-skip" mandatory="true">In pipeline mode, stages 5-15 MUST run for EVERY selected company. The workflow does not skip stages because "too many companies". If total-company exceeds 40, cap at 40 — the workflow enforces this.</rule>
   <rule name="shared-data-once" mandatory="true">Macro, RS, breadth, theme data fetched ONCE in Stage 1 (workflow phase "Shared Data"). All downstream `agent()` calls read from `stage1.json` — never re-fetch.</rule>
   <rule name="context-eviction" mandatory="true">The workflow script's variables hold per-stage data; the team-lead context never sees raw analysis. No persist.py offloading needed — context isolation is structural.</rule>
 </rules>
@@ -191,7 +191,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
 <criteria name="Skip Conditions">
   Stage 2-4 (Screening): SKIP for analyze/compare/walk modes.
   Stage 4.5 (Screening Validation): SKIP for analyze/compare/walk modes.
-  Stage 3 (Deep-Dive): SKIP if top-n = 1 (single sub-industry).
+  Stage 3 (Deep-Dive): SKIP if top-industry = 1 (single sub-industry).
   Stage 5-15 (Per-company Deep-Dive): SKIP for screen/walk modes.
   Stage 15 (A-Share): SKIP for non-.SH/.SZ tickers.
   Stage 16-16.5 (Scoring): SKIP for screen/walk modes (no per-company composite scoring).

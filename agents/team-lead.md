@@ -38,8 +38,8 @@ timeout_mins: 60
 
 <parameters>
   <parameter name="mode">Detected from explicit `--mode <name>` flag (one of: pipeline, screen, analyze, compare, walk) OR trigger phrase. Defaults to pipeline.</parameter>
-  <parameter name="top-n" default="5" range="1-163">Number of top sub-industries (or chokepoint candidates for walk mode). Default: 5 (pipeline), 30 (screen), 7 (walk).</parameter>
-  <parameter name="total-m" default="10" range="1-40">Total companies to deep-dive. Max 40. Pipeline only.</parameter>
+  <parameter name="top-industry" default="5" range="1-163">Number of top sub-industries (or chokepoint candidates for walk mode). Default: 5 (pipeline), 30 (screen), 7 (walk). Flag: `--top-industry N`.</parameter>
+  <parameter name="total-company" default="10" range="1-40">Total companies to deep-dive. Max 40. Pipeline only. Flag: `--total-company M`.</parameter>
   <parameter name="tickers">Positional args following `--mode analyze` (space-separated) or `--mode compare` (comma-list); fallback: extracted from prompt. Analyze: 1+ tickers. Compare: 2-5 tickers.</parameter>
   <parameter name="theme">For walk mode only. Positional after `--mode walk`. Quoted multi-word strings allowed (e.g., `--mode walk "humanoid robotics"`).</parameter>
   <parameter name="universe" default="US">Listing-exchange filter for screening. One of: `US` (NYSE/NASDAQ only — default), `CN` (China A-shares .SH/.SZ only), `ALL` (no filter — accepts foreign listings). Override via `--universe <code>` flag. Applied as both an instruction to company-screener AND a deterministic JS-side gate in the workflow script. Analyze/compare modes with user-specified tickers bypass the filter (user override).</parameter>
@@ -88,8 +88,8 @@ timeout_mins: 60
 
   <step n="2" name="Resolve parameters">
     a. Detect mode from `--mode <name>` flag or trigger phrase (see flag-dispatch above).
-    b. Extract: top_n, total_m, tickers (analyze/compare), theme (walk).
-    c. Apply mode-specific defaults: top_n=5 (pipeline), 30 (screen), 7 (walk).
+    b. Extract: top_industry, total_company, tickers (analyze/compare), theme (walk).
+    c. Apply mode-specific defaults: top_industry=5 (pipeline), 30 (screen), 7 (walk).
     d. Resolve `plugin_root` from platform-paths:
        - Claude Code: `${CLAUDE_PLUGIN_ROOT}`
        - Codex: `${CLAUDE_PLUGIN_ROOT}`
@@ -106,8 +106,8 @@ timeout_mins: 60
         run_id: "<RUN_ID>",
         plugin_root: "<resolved_plugin_root>",
         mode: "<detected_mode>",
-        top_n: <number>,
-        total_m: <number>,           // pipeline only; null otherwise
+        top_industry: <number>,
+        total_company: <number>,        // pipeline only; null otherwise
         tickers: [<tickers>],        // analyze/compare only; [] otherwise
         theme: "<theme>",            // walk only; null otherwise
         universe: "<US|CN|ALL>"      // default 'US'; from --universe flag if provided
@@ -158,7 +158,7 @@ timeout_mins: 60
   <mode name="Workflow tool present but script not found">Verify `${plugin_root}/workflows/stock-analysis.js` exists. If not, the plugin is corrupted; recommend `git pull` or re-install.</mode>
   <mode name="Workflow returns status='failed'">Surface the failing stage + reason. Recommend `resumeFromRunId` for a re-run with cached prefix.</mode>
   <mode name="Workflow returns status='partial'">Some companies completed, others did not. Surface the breakdown. The valid reports are still written to disk; user can inspect and decide whether to re-run failed companies via `--mode analyze TICKER`.</mode>
-  <mode name="Token budget exceeded mid-workflow">Workflow script's `agent()` calls throw when `budget.spent() >= budget.total`. Workflow returns a partial result. Recommend re-run with larger `+Nk` directive or smaller `total_m`.</mode>
+  <mode name="Token budget exceeded mid-workflow">Workflow script's `agent()` calls throw when `budget.spent() >= budget.total`. Workflow returns a partial result. Recommend re-run with larger `+Nk` directive or smaller `total_company`.</mode>
 </failure-modes>
 
 <references>

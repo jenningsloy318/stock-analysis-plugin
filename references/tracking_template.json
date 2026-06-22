@@ -8,8 +8,8 @@
     "task_id": "wckxxxxxxxxx"
   },
   "parameters": {
-    "top_n": 5,
-    "total_m": 10,
+    "top_industry": 5,
+    "total_company": 10,
     "tickers": null,
     "theme": null
   },

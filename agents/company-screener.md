@@ -24,7 +24,7 @@ Handles Phase 3 (Company Screening).
   <field name="output_dir" required="true">./reports/[RUN_ID]/</field>
   <field name="shared_data_path" required="true">./reports/[RUN_ID]/stage1*.json</field>
   <field name="sub_industry_codes" required="true">List of top N GICS Level 4 codes from Stage 2</field>
-  <field name="total_m" required="true">Target number of companies to select</field>
+  <field name="total_company" required="true">Target number of companies to select</field>
 </input>
 
 <output>
