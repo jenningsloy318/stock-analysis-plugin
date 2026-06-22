@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare, walk. Single-flag dispatch via --mode <name>; or natural-language triggers."
 author: Jennings Liu
-version: "1.05.23"
+version: "1.05.24"
 license: MIT
 ---
 
@@ -16,7 +16,7 @@ license: MIT
   Use whichever value resolved to an actual path (not a literal variable name).
 </platform-paths>
 
-<purpose>Team Lead orchestrates specialized analyst agents — it NEVER analyzes directly, only spawns, coordinates, and quality-gates. Agents execute data collection, screening, multi-dimensional analysis, scoring, and report generation in parallel where possible. Unified equity research pipeline: screen GICS Level 4 sub-industries → pick top M companies across top N sub-industries → deep-dive each in parallel waves → unified scoring → reports.</purpose>
+<purpose>Team Lead delegates the entire pipeline to a single Dynamic Workflow (`workflows/stock-analysis.js`). The workflow script runs in an isolated runtime outside the team-lead context window; all per-stage data lives in script variables, and only the compressed final result returns to team-lead. Modes: screen GICS Level 4 sub-industries → pick top M companies across top N sub-industries → deep-dive each via per-company orchestrators (Wave1: 5,7,9,13 → Wave2: 6,8,10,14 → Wave3: 11,12 → Wave4: 15 for A-share) → unified scoring → 3-horizon reports → best picks.</purpose>
 
 <triggers>
 Mode dispatch (Stage 0). Order: explicit `--mode <name>` flag > trigger phrase > default.
@@ -44,77 +44,64 @@ Do NOT trigger on: general market commentary, non-financial queries.
 <note>Detailed agent protocols live in `agents/*.md` — the team-lead orchestrator loads stage-specific instructions at spawn time. Reference files in `references/*.md` are loaded lazily per-stage.</note>
 
 <tool-disambiguation>
-  All sub-agent spawning uses the harness's **`Agent`** tool (param: `subagent_type=stock-analysis:<agent-name>`, `prompt=...`, optional `run_in_background=true`). The `Task` tool was renamed to `Agent` in Claude Code v2.1.63 (2026-02-28); the `Task(...)` alias still works in settings/agent definitions but hook payloads emit `tool_name="Agent"`.
+  All sub-agent spawning uses the harness's **`Agent`** tool (param: `subagent_type=stock-analysis:<agent-name>`, `prompt=...`). The `Task` tool was renamed to `Agent` in Claude Code v2.1.63 (2026-02-28); the `Task(...)` alias still works in settings/agent definitions but hook payloads emit `tool_name="Agent"`.
 
   Team scaffolding is DEPRECATED in modern Claude Code:
-  - `TeamCreate` / `TeamDelete` tools were REMOVED in v2.1.178. Do not call them. Agent teams now set up implicitly when a teammate is spawned and clean up at session exit.
+  - `TeamCreate` / `TeamDelete` tools were REMOVED in v2.1.178. Do not call them.
   - `team_name` on the `Agent` tool is accepted but silently ignored. Do not pass it.
-  - `team_name` in `TaskCreated / TaskCompleted / TeammateIdle` hook payloads is deprecated (slated for removal). Do not rely on it.
-  - Agent Teams (the feature) is experimental and DOUBLE-GATED behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` env var AND an Anthropic-side GrowthBook flag — the skill must not assume the feature is enabled.
-  - The Agent tool's `resume` parameter was removed in v2.1.77 (2026-03-17). Use `SendMessage({to: agentId})` to continue a previously spawned agent (only available when Agent Teams are enabled).
+  - Agent Teams (the feature) is experimental and double-gated; the skill MUST NOT depend on it.
+  - The `Agent.resume` parameter was removed in v2.1.77. Use `SendMessage({to: agentId})` only when Agent Teams are enabled.
 </tool-disambiguation>
 
-<future-orchestration-path>
-  Claude Code v2.1.154+ (2026-05-28) ships **Dynamic Workflows** — a JavaScript-script orchestrator that runs OUTSIDE Claude's main context window. The runtime executes the script in an isolated environment; intermediate results stay in script variables instead of landing in Claude's context. Caps: 16 concurrent subagents / 1000 total agents per run.
+<orchestration-model>
+  **Dynamic Workflows REQUIRED** (Claude Code v2.1.154+ / TS Agent SDK v0.3.149+). The legacy async-pool orchestration was removed in v1.05.24 — there is no fallback path.
 
-  This is the modern replacement for the team-lead's hand-rolled async pool over `run_in_background`. Available via the TypeScript Agent SDK v0.3.149+ (the `Workflow` tool). Not yet ported to the Python Agent SDK.
+  The team-lead agent invokes ONE `Workflow` tool call with `scriptPath="${PLUGIN_ROOT}/workflows/stock-analysis.js"` and the mode/parameter args. The workflow runtime executes the script in an isolated environment outside Claude's context window. Intermediate per-stage results (financials, NLP outputs, technicals, scoring inputs) stay in JavaScript variables inside the script — they NEVER enter the team-lead context window. Only the final compressed result returns to team-lead, which relays it to the user.
 
-  When supported by the harness (and the user explicitly opts in via the `ultracode` keyword or by requesting workflow orchestration), the team-lead MAY replace its async-pool loop with a single `Workflow({script})` call that uses `pipeline(companies, ...)` or `parallel(...)` over the company list. Each per-company stage becomes a `pipeline()` stage; specialist agents are invoked from inside `agent()` calls within the script. Benefits: per-stage data never enters team-lead context, automatic resume from cached prefix on retry, built-in concurrency cap.
+  Caps: 16 concurrent subagents / 1000 total agents per workflow run (harness-enforced).
 
-  Current default remains the hand-rolled async pool — Workflow orchestration is opt-in.
-</future-orchestration-path>
+  Benefits over hand-rolled async pool:
+  1. Context isolation — team-lead sees only the final summary, not per-stage data.
+  2. Cached resume — `Workflow({scriptPath, resumeFromRunId})` replays completed `agent()` calls instantly; only failed/new agents re-run live.
+  3. Structured output — `schema:` forces validated JSON from each subagent.
+  4. Built-in concurrency + token-budget management via `budget` global.
+  5. Progress streaming via `/workflows` view + `log()` + `phase()` markers.
+
+  References: claude.com/blog/a-harness-for-every-task-dynamic-workflows-in-claude-code, code.claude.com/docs/en/workflows.md.
+</orchestration-model>
 
 <workflow>
-  <stage n="0" name="Setup">Detect mode: if `--mode <name>` present → use it (one of: pipeline, screen, analyze, compare, walk); else trigger phrase fallback; else default pipeline. Extract parameters: --top-n (1-163), --total-m (1-40, pipeline only), tickers (positional after `--mode analyze` OR comma-list after `--mode compare`), theme (positional after `--mode walk`, quoted multi-word allowed). Create RUN_ID (YYYYMMDDHHmm), output directory (./reports/[RUN_ID]/), tracking.json. Do NOT call `TeamCreate` — it was removed in Claude Code v2.1.178; the session has an implicit team. Record `team.implicit=true` in tracking.json for downstream stages. MUST complete before any data fetch or agent spawning.</stage>
-  <stage n="1" name="Data Collection" agent="data-collector">Fetch shared data ONCE: macro indicators, economic surprises, sector/sub-industry RS, market breadth, theme performance. Load references/gics_taxonomy.md and references/data_source_matrix.md. All downstream stages reuse this data.</stage>
-  <stage n="1.5" name="Data Validation" agent="report-validator" modes="pipeline,screen,analyze,compare">Validate Stage 1 shared data: freshness check, source coverage, required files present. Blocks downstream stages if shared data is stale or incomplete. MUST PASS before Stages 2+.</stage>
+  The full stage-by-stage orchestration logic lives in `workflows/stock-analysis.js` — that script is the authoritative source. Stages map to `agent()` calls inside the workflow; this table is for documentation only.
 
-  <stage n="2" name="Sub-Industry Screening" agent="sector-screener" modes="pipeline,screen">Score ALL 163 GICS Level 4 sub-industries on 11 dimensions (Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand). Process in 3 parallel batches of ~54. Select top N sub-industries.</stage>
-  <stage n="3" name="Sub-Industry Deep-Dive" agent="sector-screener" modes="pipeline,screen">Deep-dive top N sub-industries: Porter, TAM, catalysts, barriers, company universe, competitive dynamics, growth catalysts, profit pools. Process in parallel waves of max 4 agents.</stage>
-  <stage n="4" name="Company Screening" agent="company-screener" modes="pipeline,screen">Screen companies across ALL top N sub-industries. Apply filters (market cap, growth, FCF, ROIC, price <$100/¥100). Score on growth/profitability/moat/valuation/management/risk/liquidity. Select top M by score across ALL sub-industries — NOT quota per sub-industry.</stage>
-  <stage n="4.5" name="Screening Validation" agent="report-validator" modes="pipeline,screen">Validate screening outputs: sub-industry leaderboard has 10+ entries with valid GICS codes, company watchlist has 10+ companies, price filter applied, 推荐标的排名 format correct. Blocks report generation if screening is incomplete.</stage>
+  <stage n="0" name="Setup" runs-in="team-lead">team-lead detects mode, extracts parameters, generates RUN_ID, resolves plugin_root, then invokes `Workflow({scriptPath: "${PLUGIN_ROOT}/workflows/stock-analysis.js", args})`. team-lead does no other work.</stage>
+  <stage n="1" name="Data Collection" agent="data-collector" runs-in="workflow">Shared data once: macro, economic surprises, sector/sub-industry RS, market breadth, theme performance.</stage>
+  <stage n="1.5" name="Data Validation" agent="report-validator" runs-in="workflow">Freshness check + source coverage. Blocks downstream stages on failure.</stage>
 
-  <stage n="5" name="Financial Health" agent="fundamental-analyst" modes="pipeline,analyze,compare" per-company="true">DuPont 5-factor decomposition, Piotroski F-Score, Lynch categories, key ratio analysis. Scripts: fetch_financials.py, calculate_metrics.py.</stage>
-  <stage n="6" name="Earnings Quality" agent="fundamental-analyst" modes="pipeline,analyze,compare" per-company="true" depends="5">Beneish M-Score, Montier C-Score, accruals quality, cash conversion, revenue recognition, capital allocation history (Buffett retention test, buyback ROI, M&A track record). Scripts: fetch_capital_structure.py, calculate_earnings_quality.py, diff_filings.py.</stage>
-  <stage n="7" name="Industry & Competitive" agent="industry-analyst" modes="pipeline,analyze,compare" per-company="true">Porter's Five Forces, TAM/SAM/SOM, Morningstar moat assessment, BCG matrix, ecosystem mapping. REUSES industry thesis from Stage 3 if available. Scripts: fetch_peer_universe.py.</stage>
-  <stage n="8" name="Supply Chain" agent="supply-chain-analyst" modes="pipeline,analyze,compare" per-company="true" depends="7">Tier 1-3 supplier mapping, geographic concentration (HHI), chokepoint identification, disruption scenario modeling, inventory-to-sales analysis. **Step 7b**: bottleneck asymmetry composite via score_bottleneck_asymmetry.py for each chokepoint candidate. Scripts: fetch_supply_chain.py, score_bottleneck_asymmetry.py.</stage>
-  <stage n="9" name="Macro & Geopolitics" agent="macro-analyst" modes="pipeline,analyze,compare" per-company="true">Dalio economic cycle, Druckenmiller liquidity, Four-Box Framework, Fed stance, CRP country risk, sanctions exposure, currency exposure. REUSES macro data from Stage 1. Scripts: fetch_global_macro.py, fetch_currency_exposure.py.</stage>
-  <stage n="10" name="Valuation" agent="quant-analyst" modes="pipeline,analyze,compare" per-company="true" depends="5,7">DCF+Monte Carlo, comps, SOTP, LBO floor, reverse DCF, margin of safety. **Step 3c**: optionally read bottleneck_asymmetry.json from Stage 8 if already written, fold tier/asymmetry-band/earliness-band into valuation summary as ±15% qualitative adjustment (NOT a DCF replacement; not a hard dependency — Stage 10 runs in parallel with Stage 8 in Wave 2). Scripts: calculate_metrics.py, forecast.py, fetch_private_comps.py.</stage>
-  <stage n="11" name="Market Regime" agent="quant-analyst" modes="pipeline,analyze,compare" per-company="true" depends="10">Weinstein stage classification, CANSLIM, Soros reflexivity, factor attribution (Fama-French 5-factor), options signals, sentiment, institutional positioning. Scripts: fetch_technicals.py, compute_factors.py, fetch_cot.py, calculate_options.py, fetch_sentiment.py, fetch_short_interest.py, fetch_activist_exposure.py, compute_liquidity.py, compute_seasonality.py, compute_earnings_edge.py.</stage>
-  <stage n="12" name="Risk Assessment" agent="risk-analyst" modes="pipeline,analyze,compare" per-company="true" depends="10">Scenario analysis (bull/base/bear), Marks 2nd-level thinking, Burry forensic, Klarman permanent-vs-temporary, kill switch definition, correlation regime. Scripts: fetch_credit.py, fetch_behavioral.py, compute_correlation_regime.py.</stage>
-  <stage n="13" name="Alt Data & Digital" agent="alt-data-analyst" modes="pipeline,analyze,compare" per-company="true">Digital footprint (web traffic, app rankings), NLP earnings call analysis, channel checks, transaction data. Scripts: fetch_alternatives.py, fetch_news_nlp.py, calculate_candor.py.</stage>
-  <stage n="14" name="Catalyst Intelligence" agent="catalyst-analyst" modes="pipeline,analyze,compare" per-company="true" depends="13">Catalyst calendar (FDA, earnings, product launches, regulatory), event-driven probability, pre/post-event drift (PEAD), catalyst sequencing. Scripts: compute_earnings_edge.py, event_study.py.</stage>
-  <stage n="15" name="A-Share Analysis" agent="china-market-analyst" modes="pipeline,analyze,compare" per-company="true" condition="ticker ends with .SH or .SZ" depends="5-14">政策敏感性矩阵, 产业政策周期, 北向资金, 融资融券, 龙虎榜, 游资追踪. MANDATORY for .SH/.SZ tickers. SKIP for all others.</stage>
+  <stage n="2" name="Sub-Industry Screening" agent="sector-screener" modes="pipeline,screen" runs-in="workflow">Score 163 GICS Level 4 sub-industries on 11 dimensions. Processed via `parallel()` over 3 batches of ~54.</stage>
+  <stage n="3" name="Sub-Industry Deep-Dive" agent="sector-screener" modes="pipeline,screen" runs-in="workflow">Top N sub-industries: Porter, TAM, catalysts, profit pools.</stage>
+  <stage n="4" name="Company Screening" agent="company-screener" modes="pipeline,screen" runs-in="workflow">Top M companies across ALL top N sub-industries. Price filter applied (US<$100, CN<¥100).</stage>
+  <stage n="4.5" name="Screening Validation" agent="report-validator" modes="pipeline,screen" runs-in="workflow">Watchlist completeness + price-filter compliance.</stage>
 
-  <stage n="walk" name="Bottleneck Walk" agent="roadmap-walker" modes="walk">Top-down chain decomposition: anchor quantitative dated demand roadmap → reverse-walk chain finished-product→raw-substrate (≥5 layers) → score 4-element chokepoint checklist per layer → identify candidates in chokepoint layers (score ≥3) → run score_bottleneck_asymmetry.py for each → write walk_roadmap.json, walk_chain.json, walk_candidates.json, walk.md. Replaces Stages 2-16.5 in walk mode. Universal across industries (AI infra, EV, robotics, defense, solar, biopharma, grid, semi capex, materials). Recommends `--mode analyze TICKER` follow-up for tier-1/strong candidates. Reference: references/frameworks_bottleneck_investing.md.</stage>
+  Stages 3 + 4 run as a `pipeline(top_sub_industries, deepdive, screen)` — no barrier between stages; fast sub-industries progress to company screening while slow ones are still in deep-dive.
 
-  <stage n="16" name="Scoring & Cross-Check" agent="scorer" modes="pipeline,analyze,compare">Deterministic scoring (compute_scores.py) for each company. Cross-check contradictions (cross_check.py). Bayesian conviction calibration (calibrate_conviction.py). LLM agents may adjust Moat and Management ±2.0 based on qualitative findings. Rank companies by composite score.</stage>
-  <stage n="16.5" name="Score Validation" agent="report-validator" modes="pipeline,analyze,compare">Validate Stage 16 scoring: all 11 components present in 1-10 range, composite matches weighted sum, rating bracket consistent, no unresolved contradictions, ranking sorted correctly. Blocks report generation if scoring is invalid.</stage>
-  <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer">Pipeline: screening overview (3 horizons) + per-company deep-dives (3 horizons each). Screen: screening reports only. Analyze: per-company reports only. Compare: comparison reports with ranked table.</stage>
-  <stage n="17.5" name="Report Validation" agent="report-validator">Independent validation of all generated reports: run validate_report.py (8 gates) for each report, verify Chinese content, verify required sections, verify stock price display. MUST PASS before Best Picks.</stage>
-  <stage n="18" name="Best Picks Highlight" agent="equity-report-writer">After ALL reports pass validation, write HIGHLIGHTS_BEST_PICKS.md to ./reports/[RUN_ID]/. Single-file summary of the top-ranked companies with: rank, ticker, company name, current price, composite score, conviction, 2-sentence thesis, kill switch, key catalyst.</stage>
-  <stage n="18.5" name="Best Picks Validation" agent="report-validator">Validate HIGHLIGHTS_BEST_PICKS.md: ranked table with required columns, kill switch for each company, 当前股价 present. MUST PASS before cleanup.</stage>
-  <stage n="19" name="Cleanup" agent="team-lead">Final cleanup: terminate all remaining agents (verify none still running in background), remove intermediate files (stage*.md, raw-data.json, phase*.md), keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. Do NOT call `TeamDelete` — it was removed in v2.1.178; implicit teams auto-clean at session exit. MUST be the LAST stage — no work after this.</stage>
+  <stage n="5-15" name="Per-Company Deep-Dive" agent="company-orchestrator" modes="pipeline,analyze,compare" runs-in="workflow">Each company runs through one `company-orchestrator` instance via `parallel(watchlist, ...)`. The orchestrator internally manages dependency waves:
+    - Wave 1 (3 parallel): Stage 5 (financial-health), 7 (industry), 9 (macro), 13 (alt-data)
+    - Wave 2 (3 parallel, depend on Wave 1): Stage 6, 8, 10, 14
+    - Wave 3 (2 parallel, depend on Wave 2): Stage 11 (market regime), 12 (risk)
+    - Wave 4 (1, A-share only): Stage 15
+  Per-stage data stays inside the orchestrator's context; only a compressed completion summary returns to the workflow.</stage>
+
+  <stage n="walk" name="Bottleneck Walk" agent="roadmap-walker" modes="walk" runs-in="workflow">Replaces stages 2-16.5 in walk mode. Top-down chain decomposition + 4-element chokepoint scoring + bottleneck asymmetry composite. Reference: `references/frameworks_bottleneck_investing.md`.</stage>
+
+  <stage n="16" name="Scoring & Cross-Check" agent="scorer" modes="pipeline,analyze,compare" runs-in="workflow">compute_scores.py + cross_check.py + calibrate_conviction.py. Writes ranking.json.</stage>
+  <stage n="16.5" name="Score Validation" agent="report-validator" modes="pipeline,analyze,compare" runs-in="workflow">All 11 components in range, composite consistent, ranking sorted.</stage>
+  <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer" runs-in="workflow">3-horizon reports per company (long/mid/short × N companies) via `parallel()`. Screening reports for `screen` mode. Walk report for `walk` mode.</stage>
+  <stage n="17.5" name="Report Validation" agent="report-validator" runs-in="workflow">8-gate validate_report.py: Chinese content, sections, current price, sources, framework divergence, kill switch, methodology, no hallucinated figures.</stage>
+  <stage n="18" name="Best Picks Highlight" agent="equity-report-writer" runs-in="workflow">HIGHLIGHTS_BEST_PICKS.md — single-file summary of top-ranked companies.</stage>
+  <stage n="18.5" name="Best Picks Validation" agent="report-validator" runs-in="workflow">Final gate before workflow returns.</stage>
+
+  <stage n="19" name="Cleanup" runs-in="harness">Workflow auto-cleans on completion. No explicit teardown call. The session's implicit team is dismantled at session exit. team-lead surfaces the compressed result and exits.</stage>
 </workflow>
-
-<dependencies>
-  Per-company analysis stages (5-15) are delegated to company-orchestrator agents — one per company, scheduled by an ASYNC POOL with max 4 concurrent.
-
-  Each company-orchestrator independently manages the dependency DAG within its own context window:
-  <wave n="1" agents="3" stages="5,7,9,13" note="All independent — orchestrator spawns up to 3 parallel analysts" />
-  <wave n="2" agents="3" stages="6,8,10,14" note="6←5, 8←7, 10←5+7, 14←13" />
-  <wave n="3" agents="2" stages="11,12" note="11←10, 12←10" />
-  <wave n="4" agents="1" stages="15" note="15←all, A-share only" />
-
-  Team-lead scheduling (across companies) — async pool, NOT synchronous batches:
-  - Initialize: spawn first 4 company-orchestrators in parallel (run_in_background=true)
-  - When ANY orchestrator finishes (whichever first), immediately spawn the next pending company
-  - Pool stays saturated at min(4, remaining) at all times — no batch-edge stalls
-  - Loop until queue empty AND pool empty
-  This isolates per-company context, prevents team-lead context exhaustion, and avoids
-  the 20-30% wall-clock penalty of synchronous batches on heterogeneous runtimes.
-  Reference: agents/team-lead.md Phase 3 (Async Pool pattern).
-</dependencies>
 
 <modes>
   <mode name="pipeline" default="true">
@@ -168,34 +155,33 @@ Do NOT trigger on: general market commentary, non-financial queries.
 </modes>
 
 <rules>
-  <rule name="Report Language">ALL reports MUST be written in Chinese (中文). Technical terms in English. GICS names: "Semiconductors (半导体)". Source citations in original language.</rule>
-  <rule name="Price Filter" mandatory="true">Price filter applies ONLY during Stage 4 (Company Screening). ALL markets: US < $100, China A-shares < ¥100, all other markets < equivalent of $100 USD. This filter determines which companies enter the watchlist and proceed to deep-dive (Stages 5-15). After screening, do NOT re-filter or exclude companies during analysis (5-15) or report generation (17-18). Exception: if user specifies a specific ticker (analyze/compare mode), proceed regardless of price.</rule>
+  <rule name="Workflow Required" mandatory="true">Claude Code v2.1.154+ and the `Workflow` tool MUST be available. Older harnesses are not supported — there is no fallback. The team-lead agent verifies Workflow availability before invoking; on absence it aborts with an upgrade recommendation.</rule>
+  <rule name="team-lead-delegation" mandatory="true">team-lead does ONE thing: invoke `Workflow({scriptPath: "${PLUGIN_ROOT}/workflows/stock-analysis.js", args})`. It does not spawn individual analyst agents, does not run scripts, does not write tracking.json. All stage logic lives in the workflow script.</rule>
+  <rule name="Report Language">ALL reports MUST be written in Chinese (中文). Technical terms in English. GICS names: "Semiconductors (半导体)". Source citations in original language. The constraint is enforced inside the workflow script's report-writer `agent()` prompts.</rule>
+  <rule name="Price Filter" mandatory="true">Price filter applies ONLY in Stage 4 (Company Screening): US < $100, China A-shares < ¥100, all other markets < $100 USD equivalent. Encoded in the company-screener `agent()` prompt inside the workflow. After screening, do NOT re-filter during analysis (5-15) or report generation. Analyze/compare modes with user-specified tickers bypass the filter.</rule>
   <rule name="Stock Price Display">Every company in any table/list must include 当前股价. Format: "$XX.XX" or "¥XX.XX".</rule>
-  <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three.</rule>
-  <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`.</rule>
-  <rule name="Run Directory">Each run creates `./reports/[RUN_ID]/` where RUN_ID = YYYYMMDDHHmm.</rule>
+  <rule name="All 3 Horizons">Always produce long/mid/short-term reports. The workflow's report phase fans out 3 horizons × N companies via `parallel()`. Never ask the user which horizon.</rule>
+  <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Encoded in each script-running `agent()` prompt.</rule>
+  <rule name="Run Directory">Each run creates `./reports/[RUN_ID]/` where RUN_ID = YYYYMMDDHHmm. Created by the workflow script, not team-lead.</rule>
   <rule name="Ranked Directories">Output directories use rank-prefixed names: `NNN-[TICKER]`. Pipeline/compare: rank after Stage 16. Single analyze: always 001.</rule>
   <rule name="Numbered Stock Index">Every report includes 推荐标的排名 with 001, 002, 003 format. Top-ranked MUST be 001.</rule>
   <rule name="Company Selection">Top M companies selected by score across ALL top-N sub-industries — NOT equally distributed.</rule>
-  <rule name="A-Share Mandatory">Stage 15 is MANDATORY for .SH/.SZ tickers. SKIP for all others.</rule>
-  <rule name="agent-team" mandatory="false">Agent Teams are experimental and double-gated in modern Claude Code (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` + Anthropic GrowthBook flag). The skill MUST NOT depend on the feature being enabled. `TeamCreate` / `TeamDelete` were removed in v2.1.178 — do not call them. Agent spawning is always via the `Agent` tool (`subagent_type=stock-analysis:<agent-name>`).</rule>
-  <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER analyzes directly. Only spawns agents, coordinates, and quality-gates.</rule>
-  <rule name="no-pause" mandatory="true">NEVER pause between stages to ask user for confirmation. The pipeline runs Stage 0 → 19 continuously. No "Continue?" prompts. Only stop if user explicitly asks a question.</rule>
-  <rule name="no-stage-skip" mandatory="true">In pipeline mode, stages 5-15 MUST run for EVERY selected company. NEVER skip deep-dive stages because "too many companies" or "due to scale". If total-m exceeds 40, cap at 40 and proceed with all stages.</rule>
-  <rule name="shared-data-once" mandatory="true">Macro, RS, breadth, theme data fetched ONCE in Stage 1. All downstream stages reuse — never re-fetch.</rule>
-  <rule name="context-eviction" mandatory="true">After each stage: write summary → drop raw data. If context >80%, offload via persist.py.</rule>
+  <rule name="A-Share Mandatory">Stage 15 is MANDATORY for .SH/.SZ tickers. SKIP for all others. The workflow detects A-share via ticker suffix and passes `is_a_share` flag to company-orchestrator.</rule>
+  <rule name="No team_name">Do NOT pass `team_name` on any `Agent` call — it is silently ignored in modern Claude Code (v2.1.178+). The implicit session team handles peer coordination.</rule>
+  <rule name="no-pause" mandatory="true">team-lead never pauses to ask for confirmation. After parameter extraction, invoke the workflow immediately and run to completion. The workflow runs autonomously.</rule>
+  <rule name="no-stage-skip" mandatory="true">In pipeline mode, stages 5-15 MUST run for EVERY selected company. The workflow does not skip stages because "too many companies". If total-m exceeds 40, cap at 40 — the workflow enforces this.</rule>
+  <rule name="shared-data-once" mandatory="true">Macro, RS, breadth, theme data fetched ONCE in Stage 1 (workflow phase "Shared Data"). All downstream `agent()` calls read from `stage1.json` — never re-fetch.</rule>
+  <rule name="context-eviction" mandatory="true">The workflow script's variables hold per-stage data; the team-lead context never sees raw analysis. No persist.py offloading needed — context isolation is structural.</rule>
 </rules>
 
 <constraints>
-  <constraint name="NEVER Analyze Directly">Team Lead NEVER runs scripts, fetches data, or performs analysis. ALL work delegated to specialist agents.</constraint>
-  <constraint name="Tracking JSON Updated">Tracking JSON MUST be updated BEFORE advancing to the next stage. Both status changes (previous complete, next in_progress) in a single write.</constraint>
-  <constraint name="Team First">No TeamCreate call — the tool was removed in v2.1.178. The session has an implicit team and spawns join it automatically. Stage 0 must still complete (RUN_ID, output dir, tracking.json) before any agent spawning.</constraint>
-  <constraint name="Data via Agents">Data-fetch scripts are run by data-collector or search-agent teammates, NOT by the team lead directly.</constraint>
-  <constraint name="Max 4 Concurrent">Cap parallel agents at 4 to manage context window.</constraint>
-  <constraint name="Company Orchestrator Delegation">For stages 5-15, team-lead spawns company-orchestrator agents (one per company) via an ASYNC POOL with max 4 concurrent (next company spawns as soon as any prior orchestrator finishes — no batch-edge stalls). Each orchestrator independently manages all analysis stages for its company. The team-lead NEVER spawns individual analyst agents (fundamental-analyst, industry-analyst, etc.) directly for stages 5-15.</constraint>
-  <constraint name="Quality Gate">Report cannot be delivered until pre-delivery checklist passes. If any gate fails: "INCOMPLETE ANALYSIS — [reason]".</constraint>
+  <constraint name="NEVER Analyze Directly">team-lead invokes the workflow and relays its result. ALL analysis happens inside `agent()` calls within the workflow script.</constraint>
+  <constraint name="Single Tool Call">A normal pipeline run is 1 (ToolSearch verify) + 1 (Workflow invocation) + 1 (relay result) = ~3 turns in team-lead context. Beyond that means team-lead is doing work that belongs in the script.</constraint>
+  <constraint name="No Tracking JSON Writes">team-lead does not write `tracking.json`. The workflow script writes per-stage outputs to disk; the final compressed result returned to team-lead serves as the run summary.</constraint>
+  <constraint name="Max Concurrency">Workflow runtime caps at min(16, cpu-2) concurrent agents per run. Total cap: 1000 agents per workflow. The script does not need to manage its own pool.</constraint>
+  <constraint name="Quality Gate">Validation runs inside the workflow at stages 1.5 / 4.5 / 16.5 / 17.5 / 18.5. If any gate fails, the workflow returns status='failed' or 'partial' with the failing stage and reason.</constraint>
   <constraint name="Level 4 Structure">Sub-Industry is the structural unit in reports — Level 1/2/3 appear only as context within Level 4 entries.</constraint>
-  <constraint name="Cleanup">Stage 19 cleanup: delete intermediate files (stage*.md, raw-data.json, phase*.md), terminate all remaining agents, delete team via TeamDelete (only if TeamCreate succeeded in Stage 0). Keep only tracking.json + final reports + HIGHLIGHTS_BEST_PICKS.md. MUST be the LAST stage.</constraint>
+  <constraint name="Resume on Failure">If the workflow returns status='failed', users can re-run with `Workflow({scriptPath, resumeFromRunId})` to replay cached `agent()` calls and only re-run the failed stage onward.</constraint>
 </constraints>
 
 <criteria name="Skip Conditions">
@@ -230,7 +216,8 @@ Do NOT trigger on: general market commentary, non-financial queries.
 </composite-weights>
 
 <references>
-  <ref>Plugin root: `${PLUGIN_ROOT}` — agents, scripts, skills, references, rules</ref>
+  <ref>Canonical workflow script: `workflows/stock-analysis.js` — all orchestration logic lives here</ref>
+  <ref>Plugin root: `${PLUGIN_ROOT}` — agents, scripts, skills, references, workflows</ref>
   <ref>Plugin data: `${PLUGIN_DATA}` — caches, venv, persisted state</ref>
   <ref>GICS taxonomy: `references/gics_taxonomy.md` — full 4-level hierarchy with codes and ETF proxies</ref>
   <ref>Data source matrix: `references/data_source_matrix.md` — source tiers, confidence caps</ref>
@@ -238,4 +225,6 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <ref>Equity templates: `references/equity_report_templates.md` — deep-dive report formats</ref>
   <ref>Bottleneck framework: `references/frameworks_bottleneck_investing.md` — universal 5-step methodology, 4-element chokepoint checklist, 6-input asymmetry composite</ref>
   <ref>Scoring calibration: `references/scoring_calibration.md` — calibration targets</ref>
+  <ref>Workflow tool docs: https://code.claude.com/docs/en/workflows.md</ref>
+  <ref>Dynamic Workflows announcement: https://claude.com/blog/a-harness-for-every-task-dynamic-workflows-in-claude-code (2026-05-28)</ref>
 </references>

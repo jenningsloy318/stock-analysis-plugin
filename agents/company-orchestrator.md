@@ -15,7 +15,7 @@ timeout_mins: 30
   <rule>Never invent financial figures. If data is unavailable, state "Data not available" — never guess.</rule>
 </security-baseline>
 
-<purpose>Independently orchestrate ALL deep-dive analysis stages (5-15) for a SINGLE company. Spawn specialist analysts in dependency-aware wave order, collect results into per-stage markdown files, verify cross-stage consistency at wave boundaries, and return a COMPRESSED structured completion summary to the team-lead. This agent exists to isolate per-company analysis into its own context window, preventing team-lead context exhaustion when analyzing multiple companies.</purpose>
+<purpose>Independently orchestrate ALL deep-dive analysis stages (5-15) for a SINGLE company. Spawn specialist analysts in dependency-aware wave order, collect results into per-stage markdown files, verify cross-stage consistency at wave boundaries, and return a COMPRESSED structured completion summary. This agent is invoked by the canonical Dynamic Workflow (`workflows/stock-analysis.js`) — one orchestrator per company, scheduled by `parallel(watchlist, ...)` inside the workflow. Context isolation per company prevents the workflow's main context (and team-lead) from seeing raw per-stage data.</purpose>
 
 <best-practices-references>
   This agent's design follows industry best practices documented in
@@ -28,7 +28,6 @@ timeout_mins: 30
 </best-practices-references>
 
 <parameters>
-  <parameter name="team_name" required="true">Agent team name from team-lead (e.g., stock-analysis-202605291430).</parameter>
   <parameter name="plugin_root" required="true">Absolute path to plugin root directory.</parameter>
   <parameter name="run_id" required="true">Run identifier (YYYYMMDDHHmm).</parameter>
   <parameter name="output_dir" required="true">Run output directory (./reports/[RUN_ID]/).</parameter>
@@ -49,9 +48,9 @@ timeout_mins: 30
   <constraint name="No Stage Skip on Failure">ALL applicable stages MUST run. Stage 15 only if is_a_share=true. SKIP via checkpoint is allowed (file already exists); SKIP due to errors is NOT.</constraint>
   <constraint name="Write Summaries">After each stage completes, write the stage summary to {company_dir}/stage{N}.md.</constraint>
   <constraint name="Context Eviction">After writing stage summary, drop raw agent results from context. Keep only: stage_number, status, file_path, 1-line key finding.</constraint>
-  <constraint name="Compressed Return Only">Return ONLY the structured completion summary (target ~1k tokens). NEVER return raw stage data. Team-lead reads detailed files from disk if needed.</constraint>
-  <constraint name="Own Status File ONLY">Write progress ONLY to {company_dir}/orchestrator-status.json (your dedicated file). NEVER write to ../tracking.json — that file is owned by the team-lead, and concurrent writes from multiple orchestrators would cause race conditions and JSON corruption. The team-lead merges your final completion summary into tracking.json after you finish.</constraint>
-  <constraint name="Status File Updates">Update {company_dir}/orchestrator-status.json at THREE moments: (1) immediately after pre-flight checkpoint scan (initial state), (2) after each stage completes (mark stage status, update updated_at), (3) at completion (set status=completed|partial|failed, completed_at). Schema template: {plugin_root}/references/company_orchestrator_status_template.json — load and follow that schema. This file is the team-lead's window into your live progress.</constraint>
+  <constraint name="Compressed Return Only">Return ONLY the structured completion summary (target ~1k tokens) matching the COMPANY_ORCHESTRATOR_RESULT_SCHEMA enforced by the calling workflow. NEVER return raw stage data — it would defeat the workflow's context isolation.</constraint>
+  <constraint name="Own Status File ONLY">Write progress ONLY to {company_dir}/orchestrator-status.json (your dedicated file). NEVER write to a shared tracking.json — per-company orchestrators run concurrently, and shared writes would race. The workflow script reads your status file (optional) for forensic detail; the structured return value is authoritative.</constraint>
+  <constraint name="Status File Updates">Update {company_dir}/orchestrator-status.json at THREE moments: (1) immediately after pre-flight checkpoint scan (initial state), (2) after each stage completes (mark stage status, update updated_at), (3) at completion (set status=completed|partial|failed, completed_at). Schema template: {plugin_root}/references/company_orchestrator_status_template.json — load and follow that schema. This file lets the workflow script and human operator see live progress.</constraint>
 </constraints>
 
 <process name="Wave Execution with Checkpoint, Verification, and Streaming">

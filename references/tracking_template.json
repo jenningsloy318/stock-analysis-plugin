@@ -1,13 +1,17 @@
 {
+  "_note": "Optional bookkeeping file. The Dynamic Workflow at workflows/stock-analysis.js does NOT depend on this — it writes per-stage JSON outputs directly to ./reports/[RUN_ID]/. This template documents the legacy shape some agents may still emit for forensic debugging. Safe to ignore for fresh runs.",
   "run_id": "YYYYMMDDHHmm",
-  "mode": "pipeline|screen|analyze|compare",
-  "team": {
-    "name": "stock-analysis-YYYYMMDDHHmm"
+  "mode": "pipeline|screen|analyze|compare|walk",
+  "workflow": {
+    "script_path": "${PLUGIN_ROOT}/workflows/stock-analysis.js",
+    "run_id_workflow": "wf_xxxxxxxxxxxx",
+    "task_id": "wckxxxxxxxxx"
   },
   "parameters": {
     "top_n": 5,
     "total_m": 10,
-    "tickers": null
+    "tickers": null,
+    "theme": null
   },
   "plugin_root": "/absolute/path/to/plugin",
   "stages": {
@@ -34,8 +38,7 @@
     "17": {"name": "Report Generation", "status": "pending", "startedAt": null, "completedAt": null},
     "17.5": {"name": "Report Validation", "status": "pending", "startedAt": null, "completedAt": null},
     "18": {"name": "Best Picks Highlight", "status": "pending", "startedAt": null, "completedAt": null},
-    "18.5": {"name": "Best Picks Validation", "status": "pending", "startedAt": null, "completedAt": null},
-    "19": {"name": "Cleanup", "status": "pending", "startedAt": null, "completedAt": null}
+    "18.5": {"name": "Best Picks Validation", "status": "pending", "startedAt": null, "completedAt": null}
   },
   "companies": [
     {

@@ -1,13 +1,23 @@
 # Multi-Agent Orchestration Patterns Research
 ## Comprehensive Analysis for Stock-Analysis Plugin Architecture
 
-**Research Date:** May 29, 2026  
-**Report Type:** Architecture Benchmark & Pattern Analysis  
-**Scope:** Multi-agent orchestration for screening → deep-dive workflows  
+**Research Date:** May 29, 2026
+**Report Type:** Architecture Benchmark & Pattern Analysis
+**Scope:** Multi-agent orchestration for screening → deep-dive workflows
 
 ---
 
-## Executive Summary
+> ## ⚠️ HISTORICAL — superseded by Dynamic Workflows
+>
+> This document captures the design rationale for the **hand-rolled async-pool orchestration** that team-lead used through v1.05.23. **As of v1.05.24 (June 2026), that orchestration has been replaced entirely by Claude Code Dynamic Workflows** (`workflows/stock-analysis.js`).
+>
+> The patterns described below — async pool scheduling, context compression at handoff, single-writer tracking.json, progressive result streaming — are now provided structurally by the Workflow runtime: `parallel()` / `pipeline()` enforce the pool, `agent()` returns compressed schema-validated results, the workflow script holds intermediate data outside the team-lead context, and `log()` / `phase()` produce the progress stream.
+>
+> Kept for historical reference and to document why the architecture evolved. Do **not** treat this as current guidance.
+>
+> See: `agents/team-lead.md`, `workflows/stock-analysis.js`, claude.com/blog/a-harness-for-every-task-dynamic-workflows-in-claude-code.
+
+---
 
 ## Executive Summary
 
