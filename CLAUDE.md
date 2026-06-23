@@ -207,6 +207,10 @@
 | `score_bottleneck_asymmetry.py` | Universal bottleneck-investing asymmetry composite (0-100) per chokepoint candidate | 8, walk |
 | `fetch_market_breadth.py` | Market breadth: % above MAs, A/D, McClellan, VIX term structure, credit spreads | 1 |
 | `fetch_theme_performance.py` | Theme/style ETF performance, sector RS, regime summary | 1 |
+| `compute_tam_adj_peg.py` | Serenity TAM-Adj-PEG: PEG ÷ (TAM runway × quality). Category: CORE_GROWTH / HIGH_BETA_GROWTH / OPTION_LIKE / TURNAROUND / CYCLICAL | 10 |
+| `compute_bayesian_growth.py` | Bayesian 5-hypothesis intrinsic CAGR vs market-implied growth, FOMO score | 10 |
+| `compute_health_index.py` | GF-DMA Health Index 0-100: fundamental speed × DMA structure × escape ratio | 11 |
+| `analyze_alpha_elasticity.py` | Serenity-Alpha 7-dim composite: demand→revenue transmission elasticity (thematic theses only) | 13 |
 
 ## Report Quality Gates (MUST follow)
 

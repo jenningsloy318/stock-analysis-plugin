@@ -28,3 +28,6 @@ Thumbs.db
 
 # Gemini CLI local settings
 .gemini/
+
+# External reference clones (kept for browsing, not vendored)
+reference/

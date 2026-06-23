@@ -2,7 +2,7 @@
 name: stock-analysis
 description: "Unified equity research pipeline: screen top sub-industries → pick best companies → deep-dive each. Modes: pipeline (default), screen, analyze, compare, walk. Single-flag dispatch via --mode <name>; or natural-language triggers."
 author: Jennings Liu
-version: "1.05.30"
+version: "1.05.31"
 license: MIT
 ---
 
@@ -229,6 +229,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <ref>Equity templates: `references/equity_report_templates.md` — deep-dive report formats</ref>
   <ref>Bottleneck framework: `references/frameworks_bottleneck_investing.md` — universal 5-step methodology, 4-element chokepoint checklist, 6-input asymmetry composite</ref>
   <ref>Scoring calibration: `references/scoring_calibration.md` — calibration targets</ref>
+  <ref>Serenity frameworks: `references/serenity/` — TAM-Adj-PEG (`tam-adj-peg.md`), Bayesian intrinsic growth (`bayesian-intrinsic-growth.md`), GF-DMA Health Index (`gf-dma-health-index.md`), Serenity-Alpha demand-transmission (`serenity-alpha.md`), and buy-side memo template (`buy-side-memo.md`) — sourced from haskaomni/serenity-skill, wired into Stage 10/11/13 scripts</ref>
   <ref>Workflow tool docs: https://code.claude.com/docs/en/workflows.md</ref>
   <ref>Dynamic Workflows announcement: https://claude.com/blog/a-harness-for-every-task-dynamic-workflows-in-claude-code (2026-05-28)</ref>
 </references>

@@ -585,7 +585,11 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
       agent(stagePrompt(13, 'alt-data-analyst', co,
         `Focus: digital footprint (web traffic, app rankings), NLP earnings call analysis, channel checks, ` +
         `transaction data. Scripts: fetch_alternatives.py, fetch_news_nlp.py, calculate_candor.py, ` +
-        `analyze_earnings_transcript.py.`),
+        `analyze_earnings_transcript.py. ` +
+        `For thematic / catalyst-driven theses ONLY (walk-mode candidates, news-triggered analyze runs), ` +
+        `ALSO run analyze_alpha_elasticity.py to score Serenity-Alpha demand-to-financial transmission ` +
+        `(category: HIGH_ELASTICITY_ALPHA / MODERATE_ELASTICITY_ALPHA / WATCH_ONLY / NARRATIVE_ONLY). ` +
+        `SKIP for pure-fundamental deep-dives with no thematic catalyst.`),
         { agentType: 'stock-analysis:alt-data-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s13` }),
     ])
@@ -615,6 +619,9 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
         `Optionally read ${OUTPUT_DIR}/${co.rank}-${co.ticker}/bottleneck_asymmetry.json from Stage 8 ` +
         `and fold tier/asymmetry-band into valuation as ±15% qualitative adjustment. ` +
         `Scripts: calculate_metrics.py, forecast.py, fetch_private_comps.py. ` +
+        `ALSO run compute_tam_adj_peg.py (TAM-runway + quality adjusted PEG) and ` +
+        `compute_bayesian_growth.py (5-hypothesis intrinsic CAGR vs market-implied) — ` +
+        `fold their category/verdict into the valuation summary as Serenity cross-checks. ` +
         `Read stage5.json and stage7.json first.`),
         { agentType: 'stock-analysis:quant-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s10` }),
@@ -640,6 +647,9 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
         `activist exposure, liquidity (Amihud), seasonality. Scripts: fetch_technicals.py, compute_factors.py, ` +
         `fetch_cot.py, calculate_options.py, fetch_sentiment.py, fetch_short_interest.py, ` +
         `fetch_activist_exposure.py, compute_liquidity.py, compute_seasonality.py, compute_earnings_edge.py. ` +
+        `ALSO run compute_health_index.py (GF-DMA Health Index — fundamental speed × DMA structure × ` +
+        `escape ratio) and fold the band (ELITE_HEALTHY / HEALTHY / MIXED / OVERHEATED / UNHEALTHY) ` +
+        `alongside Weinstein stage classification. ` +
         `Read stage10.json first.`),
         { agentType: 'stock-analysis:quant-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s11` }),
