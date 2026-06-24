@@ -240,6 +240,49 @@ const CRITIC_FINDING_SCHEMA = {
   },
 }
 
+// Equity report writer — structured confirmation so null-on-failure is detectable
+const REPORT_RESULT_SCHEMA = {
+  type: 'object',
+  required: ['ticker', 'horizon', 'status', 'file_path'],
+  properties: {
+    ticker: { type: 'string' },
+    horizon: { type: 'string', enum: ['long', 'mid', 'short'] },
+    status: { type: 'string', enum: ['written', 'partial', 'failed'] },
+    file_path: { type: 'string' },              // absolute or relative path of the written .md report
+    sections_written: { type: 'number' },       // count of major sections successfully populated
+    sections_total: { type: 'number' },         // 24 for full report (per template)
+    missing_sections: {                         // sections that could not be populated
+      type: 'array',
+      items: { type: 'string' },
+    },
+    conviction_score: { type: 'number' },       // final composite score 1-10
+    rating: { type: 'string' },                 // Strong Buy / Buy / Hold / Sell / Strong Sell
+    kill_switch: { type: 'string' },            // verbatim kill switch text from the report
+    validation_passed: { type: 'boolean' },     // did validate_report.py pass?
+    validation_errors: {                        // gate failures if validation_passed=false
+      type: 'array',
+      items: { type: 'string' },
+    },
+    notes: { type: 'string' },                  // any issues or warnings during generation
+  },
+}
+
+// Best Picks highlight — structured confirmation
+const BEST_PICKS_RESULT_SCHEMA = {
+  type: 'object',
+  required: ['status', 'file_path', 'companies_included'],
+  properties: {
+    status: { type: 'string', enum: ['written', 'failed'] },
+    file_path: { type: 'string' },
+    companies_included: { type: 'number' },     // how many companies in the highlights table
+    has_bear_case_column: { type: 'boolean' },
+    has_panel_consensus_column: { type: 'boolean' },
+    has_kill_switch: { type: 'boolean' },
+    has_current_price: { type: 'boolean' },
+    notes: { type: 'string' },
+  },
+}
+
 // =============================================================================
 // MAIN
 // =============================================================================
@@ -935,7 +978,7 @@ while (reportIter < REPORT_MAX_ITERS) {
 
   // ---- Phase 7: Reports ----
   phase('Reports')
-  await parallel(reportTargets.map(t => () =>
+  const reportResults = await parallel(reportTargets.map(t => () =>
     agent(
       `You are stock-analysis:equity-report-writer. Write ${t.horizon}-term equity research report ` +
       `for ${t.ticker} (rank ${t.rank}) in 中文 to ${OUTPUT_DIR}/${t.rank}-${t.ticker}/` +
@@ -944,15 +987,39 @@ while (reportIter < REPORT_MAX_ITERS) {
       `bear-case verdicts) and ${OUTPUT_DIR}/judge_panel.json (4-framework lens scores) — fold these ` +
       `into the report as dedicated "对手方观点 (Bear Case)" and "多框架交叉验证" sections. Include ` +
       `推荐标的排名, 当前股价, dimension breakdown table, methodology attribution, kill switch. ` +
-      `Composite weights: see SKILL.md composite-weights.` +
+      `Composite weights: see SKILL.md composite-weights.\n\n` +
+      `After writing the report file, run validate_report.py and return a structured result per schema:\n` +
+      `- ticker: "${t.ticker}"\n` +
+      `- horizon: "${t.horizon}"\n` +
+      `- status: "written" if report file saved successfully, "partial" if some sections missing, "failed" if unable to write\n` +
+      `- file_path: the full path of the written .md file\n` +
+      `- sections_written / sections_total: count of populated vs total template sections (24 max)\n` +
+      `- missing_sections: list any section names you could not populate from available data\n` +
+      `- conviction_score: the final composite score from scores.json\n` +
+      `- rating: the mapped rating (Strong Buy / Buy / Hold / Sell / Strong Sell)\n` +
+      `- kill_switch: the VERBATIM kill switch text you wrote in the report\n` +
+      `- validation_passed: result of validate_report.py\n` +
+      `- validation_errors: list of failing gates if any\n` +
+      `- notes: any issues encountered` +
       buildFeedback(t),
       {
         agentType: 'stock-analysis:equity-report-writer',
+        schema: REPORT_RESULT_SCHEMA,
         phase: 'Reports',
         label: `report:${t.rank}-${t.ticker}:${t.horizon}${reportIter > 1 ? `:r${reportIter}` : ''}`,
       }
     )
   ))
+
+  // Log report outcomes — detect null returns (agent died on terminal API error)
+  const reportSuccesses = (reportResults || []).filter(Boolean).filter(r => r.status === 'written' || r.status === 'partial')
+  const reportFailures = (reportResults || []).filter(r => !r || r?.status === 'failed')
+  if (reportFailures.length) {
+    log(`[reports] ${reportFailures.length}/${reportTargets.length} report agents returned null/failed — will still run critic on available reports`)
+  }
+  if (reportSuccesses.length) {
+    log(`[reports] ${reportSuccesses.length}/${reportTargets.length} reports written (${reportSuccesses.filter(r => r.status === 'partial').length} partial)`)
+  }
 
   // ---- Phase 7b: Completeness Critic ----
   phase('Completeness Critic')
@@ -1036,7 +1103,7 @@ if (!reportValid?.pass) {
 // PHASE 8 — Best Picks Highlight
 // -----------------------------------------------------------------------------
 phase('Best Picks')
-await agent(
+const bestPicksResult = await agent(
   `You are stock-analysis:equity-report-writer. Write HIGHLIGHTS_BEST_PICKS.md in 中文 to ` +
   `${OUTPUT_DIR}/HIGHLIGHTS_BEST_PICKS.md. Read ${OUTPUT_DIR}/ranking.json AND ` +
   `${OUTPUT_DIR}/verify_findings.json (adversarial bear-case verdicts) AND ` +
@@ -1047,9 +1114,15 @@ await agent(
   `ALSO add columns: 对手方验证 (bear_case_survives — ✅ if survived adversarial verify, ⚠️ if flagged), ` +
   `多框架共识 (panel_consensus — HIGH_CONSENSUS_BUY / MIXED / LOW_CONSENSUS / HIGH_CONSENSUS_AVOID). ` +
   `For any company where bear_case_survives=false OR panel_consensus contains AVOID, surface a ` +
-  `⚠️ caution note with the strongest_refutation text. Ranked table format.`,
-  { agentType: 'stock-analysis:equity-report-writer', phase: 'Best Picks', label: 'best-picks' }
+  `⚠️ caution note with the strongest_refutation text. Ranked table format.\n\n` +
+  `Return structured result: status="written" if file saved, companies_included=N, and boolean flags ` +
+  `confirming required columns (bear_case, panel_consensus, kill_switch, current_price) are present.`,
+  { agentType: 'stock-analysis:equity-report-writer', schema: BEST_PICKS_RESULT_SCHEMA, phase: 'Best Picks', label: 'best-picks' }
 )
+
+if (!bestPicksResult || bestPicksResult.status === 'failed') {
+  log(`[WARN] Best Picks report writer returned null/failed — skipping validation`)
+}
 
 const bestPicksValid = await agent(
   `You are stock-analysis:report-validator. Validate HIGHLIGHTS_BEST_PICKS.md at ${OUTPUT_DIR}. ` +
