@@ -287,21 +287,6 @@ const BEST_PICKS_RESULT_SCHEMA = {
 // MAIN
 // =============================================================================
 
-// Retry wrapper — retries agentWithRetry() calls up to MAX_RETRIES on null returns
-// (null = agent died on terminal API error after internal retries)
-const MAX_RETRIES = 10
-const agentWithRetry = async (prompt, opts) => {
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const result = await agent(prompt, opts)
-    if (result !== null && result !== undefined) return result
-    if (attempt < MAX_RETRIES) {
-      log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying...`)
-    }
-  }
-  log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`)
-  return null
-}
-
 const RUN_ID = args.run_id            // YYYYMMDDHHmm — set by team-lead before invocation
 const PLUGIN_ROOT = args.plugin_root  // absolute path resolved from platform-paths
 const MODE = args.mode                // pipeline | screen | analyze | compare | walk
@@ -333,10 +318,141 @@ if (!validModes.includes(MODE)) {
 log(`[stock-analysis] mode=${MODE} run_id=${RUN_ID} top_industry=${TOP_INDUSTRY} total_company=${TOTAL_COMPANY}`)
 log(`[stock-analysis] output_dir=${OUTPUT_DIR}`)
 
+// =============================================================================
+// WORKFLOW TRACKING — persistent state file at ${OUTPUT_DIR}/workflow-tracking.json
+// Updated at each phase start/end for observability and resume support.
+// =============================================================================
+const TRACKING_PATH = `${OUTPUT_DIR}/workflow-tracking.json`
+
+// Phase registry — maps phase names to IDs for consistent ordering
+const PHASE_REGISTRY = {
+  'Shared Data': 1,
+  'Walk Chain': 2,
+  'Screening': 3,
+  'Per-Company Analysis': 4,
+  'Scoring': 5,
+  'Adversarial Verify': 6,
+  'Judge Panel': 7,
+  'Reports': 8,
+  'Completeness Critic': 9,
+  'Validation': 10,
+  'Best Picks': 11,
+}
+
+// Determine which phases apply based on mode
+const getPhasesForMode = (mode) => {
+  if (mode === 'walk') return ['Shared Data', 'Walk Chain', 'Reports', 'Validation']
+  if (mode === 'screen') return ['Shared Data', 'Screening', 'Reports', 'Validation', 'Best Picks']
+  // pipeline, analyze, compare
+  return ['Shared Data', 'Screening', 'Per-Company Analysis', 'Scoring', 'Adversarial Verify', 'Judge Panel', 'Reports', 'Completeness Critic', 'Validation', 'Best Picks']
+}
+
+const tracking = {
+  run_id: RUN_ID,
+  mode: MODE,
+  universe: UNIVERSE,
+  tickers: TICKERS.length ? TICKERS : [],
+  theme: THEME || null,
+  startedAt: args.started_at || null,   // ISO timestamp passed from team-lead
+  completedAt: null,
+  status: 'running',
+  phases: getPhasesForMode(MODE).map(name => ({
+    id: PHASE_REGISTRY[name],
+    name,
+    status: 'pending',
+    startedAt: null,
+    completedAt: null,
+    agents_spawned: 0,
+    agents_succeeded: 0,
+    agents_failed: 0,
+    result_summary: null,
+  })),
+  companies: [],
+  reports: [],
+  validation_gates: {
+    data_freshness: null,
+    screening: null,
+    scoring: null,
+    reports: null,
+    best_picks: null,
+  },
+  metrics: {
+    total_agents_spawned: 0,
+    total_agents_succeeded: 0,
+    total_agents_failed: 0,
+    total_retries: 0,
+    report_iterations: 0,
+  },
+  errors: [],
+}
+
+// Helper: find phase entry by name
+const getPhase = (name) => tracking.phases.find(p => p.name === name)
+
+// Helper: mark phase as started
+const trackPhaseStart = (name) => {
+  const p = getPhase(name)
+  if (p) {
+    p.status = 'in_progress'
+    p.startedAt = args.started_at ? new Date(args.started_at).toISOString() : null  // workflow can't call Date.now()
+  }
+}
+
+// Helper: mark phase as completed with stats
+const trackPhaseEnd = (name, opts) => {
+  const p = getPhase(name)
+  if (p) {
+    p.status = opts?.failed ? 'failed' : 'completed'
+    p.completedAt = p.startedAt  // best-effort — can't access clock
+    p.agents_spawned = opts?.spawned ?? p.agents_spawned
+    p.agents_succeeded = opts?.succeeded ?? p.agents_succeeded
+    p.agents_failed = opts?.failed_count ?? p.agents_failed
+    p.result_summary = opts?.summary ?? null
+    // Roll up into metrics
+    tracking.metrics.total_agents_spawned += (opts?.spawned ?? 0)
+    tracking.metrics.total_agents_succeeded += (opts?.succeeded ?? 0)
+    tracking.metrics.total_agents_failed += (opts?.failed_count ?? 0)
+  }
+}
+
+// Helper: persist tracking JSON to disk via a low-effort agent
+const persistTracking = async () => {
+  const json = JSON.stringify(tracking, null, 2)
+  // Truncate to avoid prompt overflow — 12k char limit for the JSON payload
+  const payload = json.length > 12000 ? json.slice(0, 12000) + '\n... (truncated)' : json
+  await agent(
+    `Write the following JSON content to the file ${TRACKING_PATH}. ` +
+    `Create the directory if needed. Write EXACTLY this content, no modifications:\n\n${payload}`,
+    { label: 'persist:tracking', effort: 'low' }
+  )
+}
+
+// Retry wrapper — retries agent() calls up to MAX_RETRIES on null returns
+// (null = agent died on terminal API error after internal retries)
+const MAX_RETRIES = 10
+const agentWithRetry = async (prompt, opts) => {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const result = await agent(prompt, opts)
+    if (result !== null && result !== undefined) return result
+    if (attempt < MAX_RETRIES) {
+      log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying...`)
+      tracking.metrics.total_retries += 1
+    }
+  }
+  log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`)
+  tracking.metrics.total_retries += 1
+  tracking.errors.push({ phase: opts?.phase || 'unknown', agent_label: opts?.label || 'unknown', error: `exhausted ${MAX_RETRIES} retries`, fatal: false })
+  return null
+}
+
+// Initial persist — create the tracking file at workflow start
+await persistTracking()
+
 // -----------------------------------------------------------------------------
 // PHASE 1 — Shared Data Collection (all modes)
 // -----------------------------------------------------------------------------
 phase('Shared Data')
+trackPhaseStart('Shared Data')
 const sharedData = await agentWithRetry(
   `You are stock-analysis:data-collector. Fetch macro indicators, economic surprises, ` +
   `sector/sub-industry relative strength, market breadth, theme performance. ` +
@@ -353,6 +469,10 @@ const sharedData = await agentWithRetry(
 )
 
 if (!sharedData || sharedData.status === 'failed') {
+  trackPhaseEnd('Shared Data', { spawned: 1, succeeded: 0, failed_count: 1, summary: 'failed — data collection error', failed: true })
+  tracking.status = 'failed'
+  tracking.errors.push({ phase: 'Shared Data', agent_label: 'data-collector', error: sharedData?.notes || 'returned null', fatal: true })
+  await persistTracking()
   return { status: 'failed', stage: 1, reason: 'Shared data collection failed', detail: sharedData?.notes }
 }
 
@@ -363,15 +483,23 @@ const dataValid = await agentWithRetry(
   `--output-dir ${OUTPUT_DIR}'. Return {pass, reason, gates_failed} per schema.`,
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Shared Data', label: 'validate:data', effort: 'low' }
 )
+tracking.validation_gates.data_freshness = dataValid?.pass ?? false
 if (!dataValid?.pass) {
+  trackPhaseEnd('Shared Data', { spawned: 2, succeeded: 1, failed_count: 1, summary: `failed — validation: ${dataValid?.reason}`, failed: true })
+  tracking.status = 'failed'
+  tracking.errors.push({ phase: 'Shared Data', agent_label: 'validate:data', error: dataValid?.reason || 'validation failed', fatal: true })
+  await persistTracking()
   return { status: 'failed', stage: 1.5, reason: dataValid?.reason || 'Data validation failed' }
 }
+trackPhaseEnd('Shared Data', { spawned: 2, succeeded: 2, failed_count: 0, summary: `ok — ${sharedData.files?.length || 0} files written` })
+await persistTracking()
 
 // -----------------------------------------------------------------------------
 // PHASE 2 — Walk Mode (early branch, replaces screening + per-company)
 // -----------------------------------------------------------------------------
 if (MODE === 'walk') {
   phase('Walk Chain')
+  trackPhaseStart('Walk Chain')
   const walkResult = await agentWithRetry(
     `You are stock-analysis:roadmap-walker. Theme: "${THEME}". top_industry=${TOP_INDUSTRY || 7}. ` +
     `plugin_root=${PLUGIN_ROOT} output_dir=${OUTPUT_DIR} shared_data_path=${OUTPUT_DIR}/stage1.json. ` +
@@ -383,25 +511,36 @@ if (MODE === 'walk') {
   )
 
   if (!walkResult) {
+    trackPhaseEnd('Walk Chain', { spawned: 1, succeeded: 0, failed_count: 1, summary: 'failed — walker returned null', failed: true })
+    tracking.status = 'failed'
+    await persistTracking()
     return { status: 'failed', stage: 'walk', reason: 'roadmap-walker returned null' }
   }
+  trackPhaseEnd('Walk Chain', { spawned: 1, succeeded: 1, failed_count: 0, summary: `ok — ${walkResult.candidates?.length || 0} candidates found` })
 
   // Walk-mode reports (3 horizons not applicable — single walk report)
   phase('Reports')
+  trackPhaseStart('Reports')
   await agentWithRetry(
     `You are stock-analysis:screening-report-writer. Write final walk report in 中文 ` +
     `to ${OUTPUT_DIR}/WALK_${THEME.replace(/\s+/g,'_')}_${RUN_ID}.md. Read walk_roadmap.json, ` +
     `walk_chain.json, walk_candidates.json. Include 当前股价 for each candidate.`,
     { agentType: 'stock-analysis:screening-report-writer', phase: 'Reports', label: 'walk-report' }
   )
+  trackPhaseEnd('Reports', { spawned: 1, succeeded: 1, failed_count: 0, summary: 'walk report written' })
 
   phase('Validation')
+  trackPhaseStart('Validation')
   const walkValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate walk report at ${OUTPUT_DIR}. ` +
     `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
     `--output-dir ${OUTPUT_DIR}'.`,
     { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:walk' }
   )
+  trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: walkValid?.pass ? 'passed' : `failed — ${walkValid?.reason}` })
+  tracking.status = walkValid?.pass ? 'completed' : 'partial'
+  tracking.completedAt = tracking.startedAt  // best-effort timestamp
+  await persistTracking()
   return {
     status: walkValid?.pass ? 'completed' : 'partial',
     mode: 'walk',
@@ -418,6 +557,7 @@ if (MODE === 'walk') {
 let watchlist = []
 if (MODE === 'pipeline' || MODE === 'screen') {
   phase('Screening')
+  trackPhaseStart('Screening')
 
   // Stage 2: sector screener over 3 parallel batches of ~54 GICS Level 4 sub-industries
   const batches = ['0-54', '55-108', '109-163']
@@ -510,6 +650,13 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     log(`[WARN] screening validation: ${screenValid?.reason}`)
     // Non-fatal — proceed but flag in final result
   }
+  tracking.validation_gates.screening = screenValid?.pass ?? false
+  const screenAgents = 3 + topSubIndustries.length * 2 + 1  // batches + pipeline(deepdive+screen) + validator
+  const screenFailed = sectorBatchResults.filter(r => !r).length + (watchlist || []).filter(r => !r).length
+  trackPhaseEnd('Screening', { spawned: screenAgents, succeeded: screenAgents - screenFailed, failed_count: screenFailed, summary: `${watchlist.length} companies selected from ${topSubIndustries.length} sub-industries` })
+  // Populate tracking.companies for pipeline mode
+  tracking.companies = watchlist.map(c => ({ ticker: c.ticker, rank: c.rank, status: 'pending', stages_completed: [], stages_failed: [], current_stage: null }))
+  await persistTracking()
 }
 
 // In analyze/compare modes, watchlist comes directly from args.tickers
@@ -528,6 +675,7 @@ if (MODE === 'analyze' || MODE === 'compare') {
 // -----------------------------------------------------------------------------
 if (MODE === 'screen') {
   phase('Reports')
+  trackPhaseStart('Reports')
   const horizons = ['long', 'mid', 'short']
   await parallel(horizons.map(h => () =>
     agentWithRetry(
@@ -537,22 +685,30 @@ if (MODE === 'screen') {
       { agentType: 'stock-analysis:screening-report-writer', phase: 'Reports', label: `report:screen:${h}` }
     )
   ))
+  trackPhaseEnd('Reports', { spawned: 3, succeeded: 3, failed_count: 0, summary: '3 screening reports written' })
 
   phase('Validation')
+  trackPhaseStart('Validation')
   const reportsValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate screening reports at ${OUTPUT_DIR}. ` +
     `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
     `--output-dir ${OUTPUT_DIR}'.`,
     { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:screen-reports' }
   )
+  trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: reportsValid?.pass ? 'passed' : `failed — ${reportsValid?.reason}` })
 
   phase('Best Picks')
+  trackPhaseStart('Best Picks')
   await agentWithRetry(
     `You are stock-analysis:equity-report-writer. Write HIGHLIGHTS_BEST_PICKS.md in 中文 to ` +
     `${OUTPUT_DIR}/HIGHLIGHTS_BEST_PICKS.md. Top 5 sub-industries with kill switch and 当前股价.`,
     { agentType: 'stock-analysis:equity-report-writer', phase: 'Best Picks', label: 'best-picks' }
   )
+  trackPhaseEnd('Best Picks', { spawned: 1, succeeded: 1, failed_count: 0, summary: 'best picks written' })
 
+  tracking.status = reportsValid?.pass ? 'completed' : 'partial'
+  tracking.completedAt = tracking.startedAt
+  await persistTracking()
   return {
     status: reportsValid?.pass ? 'completed' : 'partial',
     mode: 'screen',
@@ -585,6 +741,7 @@ if (MODE === 'screen') {
 //   {company_dir}/stage{N}.md and {company_dir}/stage{N}.json
 // -----------------------------------------------------------------------------
 phase('Per-Company Analysis')
+trackPhaseStart('Per-Company Analysis')
 
 const sharedDataPath = `${OUTPUT_DIR}/stage1.json`
 
@@ -770,7 +927,30 @@ const completedCompanies = flattened.map(co => {
 const failedCount = watchlist.length - completedCompanies.filter(c => c.status !== 'failed').length
 log(`[analysis] ${completedCompanies.filter(c => c.status === 'completed').length}/${watchlist.length} companies fully completed, ${completedCompanies.filter(c => c.status === 'partial').length} partial, ${failedCount} failed`)
 
+// Update tracking for per-company analysis
+const pcCompleted = completedCompanies.filter(c => c.status === 'completed').length
+const pcPartial = completedCompanies.filter(c => c.status === 'partial').length
+trackPhaseEnd('Per-Company Analysis', {
+  spawned: watchlist.length,
+  succeeded: pcCompleted + pcPartial,
+  failed_count: failedCount,
+  summary: `${pcCompleted} completed, ${pcPartial} partial, ${failedCount} failed out of ${watchlist.length}`,
+})
+// Update per-company tracking
+tracking.companies = completedCompanies.map(c => ({
+  ticker: c.ticker,
+  rank: c.rank,
+  status: c.status,
+  stages_completed: c.stages_completed || [],
+  stages_failed: c.stages_failed || [],
+  current_stage: null,
+}))
+await persistTracking()
+
 if (completedCompanies.filter(c => c.status !== 'failed').length === 0) {
+  tracking.status = 'failed'
+  tracking.errors.push({ phase: 'Per-Company Analysis', agent_label: 'all', error: 'All company analyses failed', fatal: true })
+  await persistTracking()
   return { status: 'failed', stage: 'per-company', reason: 'All company analyses failed — check {company_dir}/stage*.md for analyst-side errors' }
 }
 
@@ -778,6 +958,7 @@ if (completedCompanies.filter(c => c.status !== 'failed').length === 0) {
 // PHASE 6 — Scoring & Cross-Check
 // -----------------------------------------------------------------------------
 phase('Scoring')
+trackPhaseStart('Scoring')
 const companyDirs = completedCompanies.map(c => c.company_dir).filter(Boolean)
 const scored = await agentWithRetry(
   `You are stock-analysis:scorer. Read all company outputs from these dirs: ` +
@@ -789,6 +970,10 @@ const scored = await agentWithRetry(
 )
 
 if (!scored?.companies?.length) {
+  trackPhaseEnd('Scoring', { spawned: 1, succeeded: 0, failed_count: 1, summary: 'failed — no ranked companies', failed: true })
+  tracking.status = 'failed'
+  tracking.errors.push({ phase: 'Scoring', agent_label: 'scorer', error: 'returned no ranked companies', fatal: true })
+  await persistTracking()
   return { status: 'failed', stage: 16, reason: 'Scorer returned no ranked companies' }
 }
 
@@ -803,6 +988,9 @@ const scoreValid = await agentWithRetry(
 if (!scoreValid?.pass) {
   log(`[WARN] score validation: ${scoreValid?.reason}`)
 }
+tracking.validation_gates.scoring = scoreValid?.pass ?? false
+trackPhaseEnd('Scoring', { spawned: 2, succeeded: 2, failed_count: 0, summary: `${scored.companies.length} companies ranked` })
+await persistTracking()
 
 // -----------------------------------------------------------------------------
 // PHASE 6b — Adversarial Verification (top-5 picks only)
@@ -814,6 +1002,7 @@ if (!scoreValid?.pass) {
 // Reference: research-report Pattern "Adversarial verify" + "Perspective-diverse verify".
 // -----------------------------------------------------------------------------
 phase('Adversarial Verify')
+trackPhaseStart('Adversarial Verify')
 const TOP_FOR_VERIFY = Math.min(5, scored.companies.length)
 const verifyTargets = scored.companies.slice(0, TOP_FOR_VERIFY)
 const LENSES = [
@@ -866,6 +1055,9 @@ await agentWithRetry(
   `Just write the file and return {pass:true,reason:"persisted"} — no validation needed.`,
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Adversarial Verify', label: 'persist:verify', effort: 'low' }
 )
+const verifyAgentsTotal = TOP_FOR_VERIFY * LENSES.length + 1  // skeptics + persist
+trackPhaseEnd('Adversarial Verify', { spawned: verifyAgentsTotal, succeeded: verifyAgentsTotal, failed_count: 0, summary: `${flaggedPicks.length}/${TOP_FOR_VERIFY} flagged` })
+await persistTracking()
 
 // -----------------------------------------------------------------------------
 // PHASE 6c — Judge Panel (multi-framework cross-check on top picks)
@@ -878,6 +1070,7 @@ await agentWithRetry(
 // Reference: research-report Pattern "Judge panel".
 // -----------------------------------------------------------------------------
 phase('Judge Panel')
+trackPhaseStart('Judge Panel')
 const FRAMEWORK_LENSES = [
   { lens: 'buffett',      focus: 'durable moat, ROIC vs WACC, reinvestment runway, owner earnings, capital allocation, predictability of FCF over 10y. Conservative on growth.' },
   { lens: 'lynch',        focus: 'category fit (slow grower, stalwart, fast grower, cyclical, turnaround, asset play), PEG, earnings growth durability, niche advantage, simplicity of business' },
@@ -938,6 +1131,9 @@ await agentWithRetry(
   `Just write the file and return {pass:true,reason:"persisted"} — no validation.`,
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Judge Panel', label: 'persist:judge', effort: 'low' }
 )
+const judgeAgentsTotal = TOP_FOR_VERIFY * FRAMEWORK_LENSES.length + 1  // judges + persist
+trackPhaseEnd('Judge Panel', { spawned: judgeAgentsTotal, succeeded: judgeAgentsTotal, failed_count: 0, summary: `${disagreements.length} disagreements (spread≥3)` })
+await persistTracking()
 
 // -----------------------------------------------------------------------------
 // PHASE 7 + 7b + 8 — Reports → Completeness Critic → Validation
@@ -965,6 +1161,12 @@ let reportValid = null
 const reportTargets = scored.companies.flatMap(c =>
   ['long', 'mid', 'short'].map(horizon => ({ ...c, horizon }))
 )
+
+// Initialize report tracking entries
+tracking.reports = reportTargets.map(t => ({
+  ticker: t.ticker, horizon: t.horizon, status: 'pending', file_path: null, iteration: 0, validation_passed: null, critic_quality: null
+}))
+trackPhaseStart('Reports')
 
 while (reportIter < REPORT_MAX_ITERS) {
   reportIter += 1
@@ -1103,6 +1305,23 @@ if (killSwitchIssues.length) {
   log(`[WARN] kill-switch falsifiability issues on ${killSwitchIssues.length} reports: ${killSwitchIssues.map(c => `${c.ticker}:${c.horizon}`).join(', ')}`)
 }
 
+// Update report tracking with final critic results
+criticGaps.forEach(c => {
+  const rt = tracking.reports.find(r => r.ticker === c?.ticker && r.horizon === c?.horizon)
+  if (rt) rt.critic_quality = c.overall_quality
+})
+tracking.metrics.report_iterations = reportIter
+tracking.validation_gates.reports = reportValid?.pass ?? false
+trackPhaseEnd('Reports', {
+  spawned: reportTargets.length * reportIter,
+  succeeded: reportTargets.length * reportIter - failedReports.length,
+  failed_count: failedReports.length,
+  summary: `${reportIter} iteration(s), ${failedReports.length} critic-FAILed`,
+})
+trackPhaseEnd('Completeness Critic', { spawned: reportTargets.length * reportIter, succeeded: reportTargets.length * reportIter, failed_count: 0, summary: `${criticGaps.length} findings` })
+trackPhaseEnd('Validation', { spawned: reportIter, succeeded: reportIter, failed_count: 0, summary: reportValid?.pass ? 'passed' : `failed — ${reportValid?.reason}` })
+await persistTracking()
+
 // Persist critic summary (single write at the end of the loop, not per iter)
 await agentWithRetry(
   `You are stock-analysis:report-validator. Persist completeness-critic summary to ` +
@@ -1119,6 +1338,7 @@ if (!reportValid?.pass) {
 // PHASE 8 — Best Picks Highlight
 // -----------------------------------------------------------------------------
 phase('Best Picks')
+trackPhaseStart('Best Picks')
 const bestPicksResult = await agentWithRetry(
   `You are stock-analysis:equity-report-writer. Write HIGHLIGHTS_BEST_PICKS.md in 中文 to ` +
   `${OUTPUT_DIR}/HIGHLIGHTS_BEST_PICKS.md. Read ${OUTPUT_DIR}/ranking.json AND ` +
@@ -1147,6 +1367,13 @@ const bestPicksValid = await agentWithRetry(
   `company, 当前股价 present.`,
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:best-picks', effort: 'low' }
 )
+tracking.validation_gates.best_picks = bestPicksValid?.pass ?? false
+trackPhaseEnd('Best Picks', { spawned: 2, succeeded: 2, failed_count: 0, summary: bestPicksValid?.pass ? 'passed' : `failed — ${bestPicksValid?.reason}` })
+
+// Final tracking update
+tracking.status = (reportValid?.pass && bestPicksValid?.pass && failedCount === 0 && failedReports.length === 0) ? 'completed' : 'partial'
+tracking.completedAt = tracking.startedAt  // best-effort — workflow can't call Date.now()
+await persistTracking()
 
 // =============================================================================
 // FINAL — compressed return value (the ONLY thing the team-lead context sees)
