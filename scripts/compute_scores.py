@@ -1695,6 +1695,84 @@ def compute_canslim(
 
 
 # ---------------------------------------------------------------------------
+# 12. Ecosystem Momentum Score (1-10)
+# ---------------------------------------------------------------------------
+
+
+def compute_ecosystem_momentum(ecosystem_data: dict | None) -> dict:
+    """Score supply chain ecosystem health from fetch_supply_chain_ecosystem.py output.
+
+    Measures whether upstream suppliers and downstream customers are thriving
+    or collapsing — a leading indicator of future company performance.
+
+    Score = ecosystem_momentum.score from fetch script, adjusted for propagation risks.
+    Penalty: -0.5 per HIGH-severity propagation risk (min floor 1.0).
+    """
+    if not ecosystem_data:
+        return {
+            "score": None,
+            "rationale": "No ecosystem data available",
+            "sub_scores": {},
+        }
+
+    eco = ecosystem_data.get("ecosystem_momentum", {})
+    base_score = eco.get("score")
+    if base_score is None:
+        upstream = ecosystem_data.get("upstream", {}).get("health_score")
+        downstream = ecosystem_data.get("downstream", {}).get("health_score")
+        if upstream is not None and downstream is not None:
+            base_score = (upstream + downstream) / 2.0
+        elif upstream is not None:
+            base_score = upstream
+        elif downstream is not None:
+            base_score = downstream
+        else:
+            return {
+                "score": None,
+                "rationale": "No upstream or downstream health scores available",
+                "sub_scores": {},
+            }
+
+    # Apply propagation risk penalty
+    risks = ecosystem_data.get("propagation_risks", [])
+    high_risks = [r for r in risks if r.get("severity") == "HIGH"]
+    penalty = len(high_risks) * 0.5
+
+    final_score = max(1.0, round(base_score - penalty, 1))
+
+    # Build rationale
+    direction = eco.get("direction", "unknown")
+    upstream_health = ecosystem_data.get("upstream", {}).get("health_score")
+    downstream_health = ecosystem_data.get("downstream", {}).get("health_score")
+    upstream_trend = ecosystem_data.get("upstream", {}).get("trend", "unknown")
+    downstream_trend = ecosystem_data.get("downstream", {}).get("trend", "unknown")
+
+    parts = []
+    if upstream_health is not None:
+        parts.append(f"upstream={upstream_health:.1f}({upstream_trend})")
+    if downstream_health is not None:
+        parts.append(f"downstream={downstream_health:.1f}({downstream_trend})")
+    if high_risks:
+        parts.append(f"{len(high_risks)} HIGH propagation risks (-{penalty:.1f})")
+    parts.append(f"direction={direction}")
+
+    rationale = "; ".join(parts)
+
+    return {
+        "score": _clamp(final_score),
+        "rationale": rationale,
+        "sub_scores": {
+            "upstream_health": upstream_health,
+            "downstream_health": downstream_health,
+            "propagation_risk_penalty": -penalty if penalty > 0 else 0,
+        },
+        "direction": direction,
+        "convergence": eco.get("convergence", False),
+        "high_risk_count": len(high_risks),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Directional conviction count (Pitfall 5: capped-upside vs conviction)
 # ---------------------------------------------------------------------------
 
@@ -2035,32 +2113,35 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
     weights = {
         "long": {
             "financial_health": 0.15,
-            "moat_quality": 0.20,
+            "moat_quality": 0.15,
             "management_quality": 0.15,
             "valuation_attractiveness": 0.20,
             "capital_structure": 0.10,
             "macro_tailwind": 0.05,
             "risk_profile": 0.10,
             "weinstein_alignment": 0.05,
+            "ecosystem_momentum": 0.05,
         },
         "mid": {
             "financial_health": 0.10,
             "moat_quality": 0.10,
             "management_quality": 0.10,
             "valuation_attractiveness": 0.20,
-            "macro_tailwind": 0.20,
+            "macro_tailwind": 0.15,
             "risk_profile": 0.10,
             "weinstein_alignment": 0.10,
             "canslim": 0.10,
+            "ecosystem_momentum": 0.05,
         },
         "short": {
             "valuation_attractiveness": 0.10,
             "macro_tailwind": 0.10,
             "risk_profile": 0.10,
-            "alternative_alignment": 0.25,
+            "alternative_alignment": 0.20,
             "technical_setup": 0.20,
-            "weinstein_alignment": 0.15,
+            "weinstein_alignment": 0.10,
             "canslim": 0.10,
+            "ecosystem_momentum": 0.10,
         },
         "quick": {
             "financial_health": 0.20,
@@ -2088,6 +2169,7 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
             "technical_setup": "technical_setup",
             "weinstein_alignment": "weinstein_alignment",
             "canslim": "canslim",
+            "ecosystem_momentum": "ecosystem_momentum",
         }
         score_obj = scores.get(key_map[comp], {})
         component_scores[comp] = score_obj.get("score")
@@ -2229,6 +2311,9 @@ def main():
     parser.add_argument(
         "--ticker", default="UNKNOWN", help="Ticker symbol for output labeling"
     )
+    parser.add_argument(
+        "--ecosystem", help="Path to fetch_supply_chain_ecosystem.py output JSON"
+    )
     args = parser.parse_args()
 
     # Load inputs
@@ -2300,6 +2385,16 @@ def main():
     scores["capital_structure"] = compute_capital_structure(capital_data)
     scores["weinstein_alignment"] = compute_weinstein_alignment(technicals)
     scores["canslim"] = compute_canslim(metrics, technicals, sentiment)
+
+    # Ecosystem momentum (supply chain health)
+    ecosystem_data = {}
+    if args.ecosystem:
+        try:
+            with open(args.ecosystem) as f:
+                ecosystem_data = json.load(f)
+        except (IOError, json.JSONDecodeError) as e:
+            sys.stderr.write(f"Warning: could not load ecosystem data: {e}\n")
+    scores["ecosystem_momentum"] = compute_ecosystem_momentum(ecosystem_data or None)
 
     # Framework divergence detection
     scores["framework_divergence"] = detect_framework_divergence(scores)

@@ -116,9 +116,57 @@ const COMPANY_LIST_SCHEMA = {
           score: { type: 'number' },          // composite 0-100
           current_price: { type: 'number' },
           price_filter_pass: { type: 'boolean' },
+          chain_health_adj: { type: 'number' },  // ±0.10 ecosystem bonus/penalty applied at screening
         },
       },
     },
+  },
+}
+
+// Supply chain ecosystem health — lightweight check during screening + deep analysis in Stage 8
+const ECOSYSTEM_HEALTH_SCHEMA = {
+  type: 'object',
+  required: ['ticker', 'ecosystem_momentum'],
+  properties: {
+    ticker: { type: 'string' },
+    upstream: {
+      type: 'object',
+      properties: {
+        health_score: { type: 'number' },           // 1-10
+        trend: { type: 'string', enum: ['positive', 'negative', 'mixed', 'unknown'] },
+        companies_checked: { type: 'number' },
+      },
+    },
+    downstream: {
+      type: 'object',
+      properties: {
+        health_score: { type: 'number' },           // 1-10
+        trend: { type: 'string', enum: ['positive', 'negative', 'mixed', 'unknown'] },
+        companies_checked: { type: 'number' },
+      },
+    },
+    ecosystem_momentum: {
+      type: 'object',
+      required: ['score', 'direction'],
+      properties: {
+        score: { type: 'number' },                  // 1-10 composite
+        direction: { type: 'string', enum: ['positive', 'negative', 'mixed', 'divergent'] },
+        convergence: { type: 'boolean' },           // true if upstream+downstream agree
+      },
+    },
+    propagation_risks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          direction: { type: 'string', enum: ['upstream', 'downstream'] },
+          company: { type: 'string' },
+          risk: { type: 'string' },
+          severity: { type: 'string', enum: ['HIGH', 'MEDIUM', 'LOW'] },
+        },
+      },
+    },
+    chain_health_adjustment: { type: 'number' },    // ±0.10 screening bonus/penalty
   },
 }
 
@@ -613,6 +661,10 @@ if (MODE === 'pipeline' || MODE === 'screen') {
                             `Accept any listing exchange. `) +
       `Apply price filter (US < $100, China A-shares < ¥100, all other markets < $100 USD equiv). ` +
       `Score growth/profitability/moat/valuation/management/risk/liquidity. ` +
+      `ALSO run 'uv run python ${PLUGIN_ROOT}/scripts/fetch_supply_chain_ecosystem.py [TICKER]' ` +
+      `for each top-5 candidate to get ecosystem health. Apply chain_health_adj (±10% score bonus/penalty): ` +
+      `ecosystem_momentum.score>=7 → +5-10% bonus, <=4 → -5-10% penalty, 4-7 → no adjustment. ` +
+      `Include chain_health_adj in the company output. ` +
       `Write to ${OUTPUT_DIR}/stage4-${deepdive.code}.json.`,
       {
         agentType: 'stock-analysis:company-screener',
@@ -826,7 +878,13 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
       agentWithRetry(stagePrompt(8, 'supply-chain-analyst', co,
         `Focus: Tier 1-3 supplier mapping, geographic concentration (HHI), chokepoint identification, ` +
         `disruption scenario modeling, inventory-to-sales analysis. Step 7b: bottleneck asymmetry composite. ` +
-        `Scripts: fetch_supply_chain.py, score_bottleneck_asymmetry.py. ` +
+        `ALSO run 'uv run python ${PLUGIN_ROOT}/scripts/fetch_supply_chain_ecosystem.py ${co.ticker} ` +
+        `--supply-chain-file ${OUTPUT_DIR}/${co.rank}-${co.ticker}/supply_chain.json ` +
+        `--output ${OUTPUT_DIR}/${co.rank}-${co.ticker}/sc_ecosystem.json' — assess upstream supplier ` +
+        `and downstream customer financial health (revenue growth, margins, stock momentum). ` +
+        `Write ecosystem findings to sc_ecosystem.json. Flag propagation risks: if top supplier margin ` +
+        `contracting >500bps or top customer rev declining >10% YoY → HIGH propagation risk. ` +
+        `Scripts: fetch_supply_chain.py, fetch_supply_chain_ecosystem.py, score_bottleneck_asymmetry.py. ` +
         `Read ${OUTPUT_DIR}/${co.rank}-${co.ticker}/stage7.json first.`),
         { agentType: 'stock-analysis:supply-chain-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s8` }),
@@ -963,9 +1021,10 @@ const companyDirs = completedCompanies.map(c => c.company_dir).filter(Boolean)
 const scored = await agentWithRetry(
   `You are stock-analysis:scorer. Read all company outputs from these dirs: ` +
   `${JSON.stringify(companyDirs)}. Run 'uv run python ${PLUGIN_ROOT}/scripts/compute_scores.py' ` +
-  `for each. Run cross_check.py for contradictions. Run calibrate_conviction.py for Bayesian ` +
-  `conviction calibration. Rank by composite score. Write ${OUTPUT_DIR}/ranking.json. ` +
-  `mode=${MODE}.`,
+  `for each — pass --ecosystem [company_dir]/sc_ecosystem.json to include the Ecosystem Momentum ` +
+  `dimension (upstream/downstream health). Run cross_check.py for contradictions. ` +
+  `Run calibrate_conviction.py for Bayesian conviction calibration. Rank by composite score. ` +
+  `Write ${OUTPUT_DIR}/ranking.json. mode=${MODE}.`,
   { agentType: 'stock-analysis:scorer', schema: SCORING_RESULT_SCHEMA, phase: 'Scoring', label: 'scorer' }
 )
 

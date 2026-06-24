@@ -105,7 +105,17 @@
       "status": { "$type": "string", "$enum": ["pending", "in_progress", "completed", "partial", "failed"] },
       "stages_completed": { "$type": "array of numbers", "$example": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14] },
       "stages_failed": { "$type": "array of numbers" },
-      "current_stage": { "$type": "number | null" }
+      "current_stage": { "$type": "number | null" },
+      "ecosystem_health": {
+        "$type": "object | null",
+        "$description": "Supply chain ecosystem health scores from Stage 8 (sc_ecosystem.json). Null if not yet computed.",
+        "upstream_health": { "$type": "number | null", "$description": "1-10 score of supplier financial performance" },
+        "downstream_health": { "$type": "number | null", "$description": "1-10 score of customer financial performance" },
+        "ecosystem_momentum": { "$type": "number | null", "$description": "1-10 composite ecosystem score" },
+        "direction": { "$type": "string | null", "$enum": [null, "positive", "negative", "mixed", "divergent"] },
+        "propagation_risks_count": { "$type": "number", "$description": "Count of HIGH-severity propagation risks" },
+        "chain_health_adj_applied": { "$type": "number | null", "$description": "±0.10 screening adjustment that was applied" }
+      }
     }
   },
 

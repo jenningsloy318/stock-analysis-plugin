@@ -9,25 +9,33 @@ Conviction = (Financial_Health × 0.10) + (Capital_Allocation × 0.10) +
              (Management_Quality × 0.10) + (Supply_Chain_Resilience × 0.05) +
              (Valuation_Attractiveness × 0.15) + (Macro_Tailwind × 0.05) +
              (Risk_Profile × 0.10) + (ESG_Sustainability × 0.05) +
-             (Catalyst_Alignment × 0.05) + (Weinstein_Alignment × 0.05)
+             (Catalyst_Alignment × 0.05) + (Weinstein_Alignment × 0.05) +
+             (Ecosystem_Momentum × 0.05)
 ```
+Note: Ecosystem_Momentum = upstream supplier health + downstream customer health composite.
+Weight source: 0.05 carved from Moat_Quality (was 0.15, no real overlap — ecosystem is external signal).
 
 ### Mid-term Report Conviction
 ```
 Conviction = (Financial_Health × 0.05) + (Capital_Allocation × 0.05) +
              (Moat_Quality × 0.10) + (Valuation_Attractiveness × 0.15) +
-             (Macro_Tailwind × 0.15) + (Supply_Chain_Resilience × 0.05) +
+             (Macro_Tailwind × 0.10) + (Supply_Chain_Resilience × 0.05) +
              (Risk_Profile × 0.10) + (ESG_Sustainability × 0.05) +
-             (Catalyst_Alignment × 0.10) + (Weinstein_Alignment × 0.10) + (CANSLIM × 0.10)
+             (Catalyst_Alignment × 0.10) + (Weinstein_Alignment × 0.10) +
+             (CANSLIM × 0.10) + (Ecosystem_Momentum × 0.05)
 ```
+Note: 0.05 carved from Macro_Tailwind (was 0.15 — ecosystem captures demand-side macro via customer health).
 
 ### Short-term Report Conviction
 ```
 Conviction = (Valuation_Attractiveness × 0.10) + (Macro_Tailwind × 0.10) +
-             (Risk_Profile × 0.10) + (Alternative_Alignment × 0.15) +
+             (Risk_Profile × 0.10) + (Alternative_Alignment × 0.10) +
              (Catalyst_Alignment × 0.15) + (Technical_Setup × 0.15) +
-             (Weinstein_Alignment × 0.15) + (CANSLIM × 0.10)
+             (Weinstein_Alignment × 0.10) + (CANSLIM × 0.10) +
+             (Ecosystem_Momentum × 0.10)
 ```
+Note: 0.10 carved from Alternative_Alignment (was 0.15) + Weinstein (was 0.15). Ecosystem momentum
+is a strong short-term signal — supplier/customer stock performance leads earnings by 1-2 quarters.
 
 ## Component Scoring (1-10 Scale)
 
@@ -47,6 +55,7 @@ Conviction = (Valuation_Attractiveness × 0.10) + (Macro_Tailwind × 0.10) +
 | Capital Allocation | Retention ratio <0.5x, value-destructive buybacks, SBC >10% | Retention ratio 0.5-1.0x, neutral buybacks, moderate SBC | Retention ratio >1.5x, buybacks at discount, SBC <5% |
 | Earnings Quality | Beneish > -1.78, OCF/NI <0.5, aggressive revenue recognition | Beneish -2.22 to -1.78, OCF/NI 0.5-0.9 | Beneish < -2.22, OCF/NI >0.9, clean accruals |
 | Supply Chain Resilience | HHI >5,000, single-source critical inputs, no contingency plan | HHI 2,500-5,000, dual-source, some buffer | HHI <2,500, multi-source, documented contingency plans |
+| Ecosystem Momentum | Top supplier/customer rev declining >10%, margins contracting, stock down >20% 6M | Mixed signals, some up some down, no clear trend | Top supplier/customer rev growing >10%, margins expanding, stock up >15% 6M |
 | ESG & Sustainability | MSCI red-flag controversy, <25% TCFD aligned, high carbon intensity | No controversies, partially TCFD aligned, moderate carbon | Leader in ESG, fully TCFD aligned, net-zero pathway |
 | Catalyst Alignment | No positive catalysts, 1+ negative binary event upcoming | Mixed catalysts, uncertain timing | 2+ positive catalysts, at least 1 hard catalyst with timeline |
 | China Policy Alignment* | Regulatory headwinds, policy tightening, no 专精特新 designation | Neutral policy, stable regulation | Strong policy support, 专精特新, 国产替代 beneficiary |
