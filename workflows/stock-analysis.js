@@ -286,6 +286,22 @@ const BEST_PICKS_RESULT_SCHEMA = {
 // =============================================================================
 // MAIN
 // =============================================================================
+
+// Retry wrapper — retries agentWithRetry() calls up to MAX_RETRIES on null returns
+// (null = agent died on terminal API error after internal retries)
+const MAX_RETRIES = 10
+const agentWithRetry = async (prompt, opts) => {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const result = await agent(prompt, opts)
+    if (result !== null && result !== undefined) return result
+    if (attempt < MAX_RETRIES) {
+      log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying...`)
+    }
+  }
+  log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`)
+  return null
+}
+
 const RUN_ID = args.run_id            // YYYYMMDDHHmm — set by team-lead before invocation
 const PLUGIN_ROOT = args.plugin_root  // absolute path resolved from platform-paths
 const MODE = args.mode                // pipeline | screen | analyze | compare | walk
@@ -321,7 +337,7 @@ log(`[stock-analysis] output_dir=${OUTPUT_DIR}`)
 // PHASE 1 — Shared Data Collection (all modes)
 // -----------------------------------------------------------------------------
 phase('Shared Data')
-const sharedData = await agent(
+const sharedData = await agentWithRetry(
   `You are stock-analysis:data-collector. Fetch macro indicators, economic surprises, ` +
   `sector/sub-industry relative strength, market breadth, theme performance. ` +
   `plugin_root=${PLUGIN_ROOT} output_dir=${OUTPUT_DIR}. Run scripts via ` +
@@ -341,7 +357,7 @@ if (!sharedData || sharedData.status === 'failed') {
 }
 
 // Stage 1.5 validation
-const dataValid = await agent(
+const dataValid = await agentWithRetry(
   `You are stock-analysis:report-validator. Validate shared data freshness for ${OUTPUT_DIR}. ` +
   `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate data-freshness ` +
   `--output-dir ${OUTPUT_DIR}'. Return {pass, reason, gates_failed} per schema.`,
@@ -356,7 +372,7 @@ if (!dataValid?.pass) {
 // -----------------------------------------------------------------------------
 if (MODE === 'walk') {
   phase('Walk Chain')
-  const walkResult = await agent(
+  const walkResult = await agentWithRetry(
     `You are stock-analysis:roadmap-walker. Theme: "${THEME}". top_industry=${TOP_INDUSTRY || 7}. ` +
     `plugin_root=${PLUGIN_ROOT} output_dir=${OUTPUT_DIR} shared_data_path=${OUTPUT_DIR}/stage1.json. ` +
     `Perform top-down chain decomposition: anchor quantitative dated demand roadmap → ` +
@@ -372,7 +388,7 @@ if (MODE === 'walk') {
 
   // Walk-mode reports (3 horizons not applicable — single walk report)
   phase('Reports')
-  await agent(
+  await agentWithRetry(
     `You are stock-analysis:screening-report-writer. Write final walk report in 中文 ` +
     `to ${OUTPUT_DIR}/WALK_${THEME.replace(/\s+/g,'_')}_${RUN_ID}.md. Read walk_roadmap.json, ` +
     `walk_chain.json, walk_candidates.json. Include 当前股价 for each candidate.`,
@@ -380,7 +396,7 @@ if (MODE === 'walk') {
   )
 
   phase('Validation')
-  const walkValid = await agent(
+  const walkValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate walk report at ${OUTPUT_DIR}. ` +
     `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
     `--output-dir ${OUTPUT_DIR}'.`,
@@ -406,7 +422,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
   // Stage 2: sector screener over 3 parallel batches of ~54 GICS Level 4 sub-industries
   const batches = ['0-54', '55-108', '109-163']
   const sectorBatchResults = await parallel(batches.map((range, i) => () =>
-    agent(
+    agentWithRetry(
       `You are stock-analysis:sector-screener. Process GICS Level 4 batch ${range} (i=${i}). ` +
       `Read shared data from ${OUTPUT_DIR}/stage1.json. Score 11 dimensions (Growth, Profitability, ` +
       `Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent ` +
@@ -437,7 +453,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
   // block fast ones from progressing to company screening.
   watchlist = await pipeline(
     topSubIndustries,
-    si => agent(
+    si => agentWithRetry(
       `You are stock-analysis:sector-screener. Deep-dive sub-industry ${si.code} (${si.name}). ` +
       `Porter's Five Forces, TAM/SAM/SOM, catalysts, barriers, company universe, profit pools. ` +
       `Read shared data from ${OUTPUT_DIR}/stage1.json. Write to ${OUTPUT_DIR}/stage3-${si.code}.json.`,
@@ -448,7 +464,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
         label: `deepdive:${si.code}`,
       }
     ),
-    deepdive => agent(
+    deepdive => agentWithRetry(
       `You are stock-analysis:company-screener. Screen companies in sub-industry ${deepdive.code} ` +
       `(${deepdive.companies?.length || 0} candidates). LISTING UNIVERSE: ${UNIVERSE} — ` +
       (UNIVERSE === 'US' ? `INCLUDE ONLY tickers listed on NYSE/NASDAQ (bare A-Z symbols, e.g. AAPL, BRK.B). ` +
@@ -483,7 +499,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
   log(`[screening] selected top ${watchlist.length} companies for deep-dive (universe=${UNIVERSE})`)
 
   // Stage 4.5 validation
-  const screenValid = await agent(
+  const screenValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate screening completeness for ${OUTPUT_DIR}. ` +
     `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate screening-completeness ` +
     `--output-dir ${OUTPUT_DIR}'. Required: sub-industry leaderboard ≥10 entries with valid GICS ` +
@@ -514,7 +530,7 @@ if (MODE === 'screen') {
   phase('Reports')
   const horizons = ['long', 'mid', 'short']
   await parallel(horizons.map(h => () =>
-    agent(
+    agentWithRetry(
       `You are stock-analysis:screening-report-writer. Write ${h}-term screening report in 中文 ` +
       `to ${OUTPUT_DIR}/SCREEN_${h}_${RUN_ID}.md. Read stage2 sector scores + stage3 deep-dives + ` +
       `stage4 company watchlist. Include 推荐标的排名 (001, 002, ...) and 当前股价 for each company.`,
@@ -523,7 +539,7 @@ if (MODE === 'screen') {
   ))
 
   phase('Validation')
-  const reportsValid = await agent(
+  const reportsValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate screening reports at ${OUTPUT_DIR}. ` +
     `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
     `--output-dir ${OUTPUT_DIR}'.`,
@@ -531,7 +547,7 @@ if (MODE === 'screen') {
   )
 
   phase('Best Picks')
-  await agent(
+  await agentWithRetry(
     `You are stock-analysis:equity-report-writer. Write HIGHLIGHTS_BEST_PICKS.md in 中文 to ` +
     `${OUTPUT_DIR}/HIGHLIGHTS_BEST_PICKS.md. Top 5 sub-industries with kill switch and 当前股价.`,
     { agentType: 'stock-analysis:equity-report-writer', phase: 'Best Picks', label: 'best-picks' }
@@ -610,22 +626,22 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
   async (co) => {
     const isAShare = (co.ticker || '').match(/\.(SH|SZ)$/) ? true : false
     const [s5, s7, s9, s13] = await Promise.all([
-      agent(stagePrompt(5, 'fundamental-analyst', co,
+      agentWithRetry(stagePrompt(5, 'fundamental-analyst', co,
         `Focus: financial health — DuPont 5-factor, Piotroski F-Score, Lynch category, key ratios. ` +
         `Scripts: fetch_financials.py, calculate_metrics.py.`),
         { agentType: 'stock-analysis:fundamental-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s5` }),
-      agent(stagePrompt(7, 'industry-analyst', co,
+      agentWithRetry(stagePrompt(7, 'industry-analyst', co,
         `Focus: Porter's Five Forces, TAM/SAM/SOM, moat assessment, BCG matrix, ecosystem mapping. ` +
         `REUSE industry thesis from ${OUTPUT_DIR}/stage3-*.json if present. Scripts: fetch_peer_universe.py.`),
         { agentType: 'stock-analysis:industry-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s7` }),
-      agent(stagePrompt(9, 'macro-analyst', co,
+      agentWithRetry(stagePrompt(9, 'macro-analyst', co,
         `Focus: Dalio economic cycle, Druckenmiller liquidity, Four-Box, Fed stance, CRP, FX exposure. ` +
         `REUSE macro data from ${sharedDataPath}. Scripts: fetch_global_macro.py, fetch_currency_exposure.py.`),
         { agentType: 'stock-analysis:macro-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s9` }),
-      agent(stagePrompt(13, 'alt-data-analyst', co,
+      agentWithRetry(stagePrompt(13, 'alt-data-analyst', co,
         `Focus: digital footprint (web traffic, app rankings), NLP earnings call analysis, channel checks, ` +
         `transaction data. Scripts: fetch_alternatives.py, fetch_news_nlp.py, calculate_candor.py, ` +
         `analyze_earnings_transcript.py. ` +
@@ -643,21 +659,21 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
   // Stages 6 (←5), 8 (←7), 10 (←5+7), 14 (←13)
   async (co) => {
     const [s6, s8, s10, s14] = await Promise.all([
-      agent(stagePrompt(6, 'fundamental-analyst', co,
+      agentWithRetry(stagePrompt(6, 'fundamental-analyst', co,
         `Focus: earnings quality — Beneish M-Score, Montier C-Score, accruals quality, cash conversion, ` +
         `capital allocation (Buffett retention test, buyback ROI, M&A track record), CEO quality score. ` +
         `Scripts: fetch_capital_structure.py, calculate_earnings_quality.py, diff_filings.py, ` +
         `audit_capital_allocation.py, score_ceo_quality.py. Read ${OUTPUT_DIR}/${co.rank}-${co.ticker}/stage5.json first.`),
         { agentType: 'stock-analysis:fundamental-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s6` }),
-      agent(stagePrompt(8, 'supply-chain-analyst', co,
+      agentWithRetry(stagePrompt(8, 'supply-chain-analyst', co,
         `Focus: Tier 1-3 supplier mapping, geographic concentration (HHI), chokepoint identification, ` +
         `disruption scenario modeling, inventory-to-sales analysis. Step 7b: bottleneck asymmetry composite. ` +
         `Scripts: fetch_supply_chain.py, score_bottleneck_asymmetry.py. ` +
         `Read ${OUTPUT_DIR}/${co.rank}-${co.ticker}/stage7.json first.`),
         { agentType: 'stock-analysis:supply-chain-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s8` }),
-      agent(stagePrompt(10, 'quant-analyst', co,
+      agentWithRetry(stagePrompt(10, 'quant-analyst', co,
         `Focus: valuation — DCF+Monte Carlo, comps, SOTP, LBO floor, reverse DCF, margin of safety. ` +
         `Optionally read ${OUTPUT_DIR}/${co.rank}-${co.ticker}/bottleneck_asymmetry.json from Stage 8 ` +
         `and fold tier/asymmetry-band into valuation as ±15% qualitative adjustment. ` +
@@ -668,7 +684,7 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
         `Read stage5.json and stage7.json first.`),
         { agentType: 'stock-analysis:quant-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s10` }),
-      agent(stagePrompt(14, 'catalyst-analyst', co,
+      agentWithRetry(stagePrompt(14, 'catalyst-analyst', co,
         `Focus: catalyst calendar (FDA, earnings, product launches, regulatory), event-driven probability, ` +
         `pre/post-event drift (PEAD), catalyst sequencing. Use loop-until-dry catalyst discovery (see ` +
         `agent system prompt — up to 6 search rounds, exit on 2 consecutive empty rounds). ` +
@@ -684,7 +700,7 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
   // Stages 11 (←10), 12 (←10)
   async (co) => {
     const [s11, s12] = await Promise.all([
-      agent(stagePrompt(11, 'quant-analyst', co,
+      agentWithRetry(stagePrompt(11, 'quant-analyst', co,
         `Focus: market regime — Weinstein stage, CANSLIM, Soros reflexivity, Fama-French 5-factor attribution, ` +
         `options signals (IV, max pain, put/call), sentiment, institutional positioning, short interest, ` +
         `activist exposure, liquidity (Amihud), seasonality. Scripts: fetch_technicals.py, compute_factors.py, ` +
@@ -696,7 +712,7 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
         `Read stage10.json first.`),
         { agentType: 'stock-analysis:quant-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s11` }),
-      agent(stagePrompt(12, 'risk-analyst', co,
+      agentWithRetry(stagePrompt(12, 'risk-analyst', co,
         `Focus: scenario analysis (bull/base/bear), Marks 2nd-level thinking, Burry forensic, ` +
         `Klarman permanent-vs-temporary, kill switch definition (THESIS-falsifiable observation — NOT ` +
         `pipeline meta-state), correlation regime, credit spreads, narrative economics. ` +
@@ -714,7 +730,7 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
     if (!co.isAShare) {
       return { ...co, stages: { ...co.stages, 15: { stage: 15, status: 'skipped', notes: 'non A-share' } } }
     }
-    const s15 = await agent(stagePrompt(15, 'china-market-analyst', co,
+    const s15 = await agentWithRetry(stagePrompt(15, 'china-market-analyst', co,
       `Focus (MANDATORY for .SH/.SZ): 政策敏感性矩阵, 产业政策周期, 北向资金, 融资融券, 龙虎榜, 游资追踪. ` +
       `Read stage5-12 outputs first.`),
       { agentType: 'stock-analysis:china-market-analyst', schema: STAGE_RESULT_SCHEMA,
@@ -763,7 +779,7 @@ if (completedCompanies.filter(c => c.status !== 'failed').length === 0) {
 // -----------------------------------------------------------------------------
 phase('Scoring')
 const companyDirs = completedCompanies.map(c => c.company_dir).filter(Boolean)
-const scored = await agent(
+const scored = await agentWithRetry(
   `You are stock-analysis:scorer. Read all company outputs from these dirs: ` +
   `${JSON.stringify(companyDirs)}. Run 'uv run python ${PLUGIN_ROOT}/scripts/compute_scores.py' ` +
   `for each. Run cross_check.py for contradictions. Run calibrate_conviction.py for Bayesian ` +
@@ -777,7 +793,7 @@ if (!scored?.companies?.length) {
 }
 
 // Stage 16.5 validation
-const scoreValid = await agent(
+const scoreValid = await agentWithRetry(
   `You are stock-analysis:report-validator. Validate scoring consistency for ${OUTPUT_DIR}/ranking.json. ` +
   `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate score-consistency ` +
   `--output-dir ${OUTPUT_DIR}'. Required: all 11 components present in 1-10 range, composite ` +
@@ -808,7 +824,7 @@ const LENSES = [
 
 const verifyResults = await parallel(verifyTargets.map(c => () =>
   parallel(LENSES.map(lens => () =>
-    agent(
+    agentWithRetry(
       `You are an adversarial bear-case analyst. Try to REFUTE the bull thesis for ${c.ticker} ` +
       `(composite score ${c.composite_score}, conviction ${c.conviction}) through the ${lens.key.toUpperCase()} lens. ` +
       `Focus areas: ${lens.focus}. Read ${OUTPUT_DIR}/${c.rank}-${c.ticker}/stage*.md for evidence. ` +
@@ -844,7 +860,7 @@ if (flaggedPicks.length) {
 }
 
 // Persist verify findings — equity-report-writer reads them to add a "Bear Case" section
-await agent(
+await agentWithRetry(
   `You are stock-analysis:report-validator. Persist adversarial verification results to ` +
   `${OUTPUT_DIR}/verify_findings.json with this content: ${JSON.stringify(verifyResults || []).replace(/`/g,'\\`').slice(0, 4000)}. ` +
   `Just write the file and return {pass:true,reason:"persisted"} — no validation needed.`,
@@ -871,7 +887,7 @@ const FRAMEWORK_LENSES = [
 
 const judgeResults = await parallel(verifyTargets.map(c => () =>
   parallel(FRAMEWORK_LENSES.map(L => () =>
-    agent(
+    agentWithRetry(
       `You are an investment analyst applying the ${L.lens.toUpperCase()} framework strictly. ` +
       `Score ${c.ticker} on a 0-10 scale from this lens ONLY. ` +
       `Focus: ${L.focus}. Read ${OUTPUT_DIR}/${c.rank}-${c.ticker}/stage*.md and ${OUTPUT_DIR}/ranking.json. ` +
@@ -916,7 +932,7 @@ if (disagreements.length) {
 }
 
 // Persist judge findings
-await agent(
+await agentWithRetry(
   `You are stock-analysis:report-validator. Persist judge-panel results to ` +
   `${OUTPUT_DIR}/judge_panel.json with this content: ${JSON.stringify(judgeResults || []).replace(/`/g,'\\`').slice(0, 8000)}. ` +
   `Just write the file and return {pass:true,reason:"persisted"} — no validation.`,
@@ -979,7 +995,7 @@ while (reportIter < REPORT_MAX_ITERS) {
   // ---- Phase 7: Reports ----
   phase('Reports')
   const reportResults = await parallel(reportTargets.map(t => () =>
-    agent(
+    agentWithRetry(
       `You are stock-analysis:equity-report-writer. Write ${t.horizon}-term equity research report ` +
       `for ${t.ticker} (rank ${t.rank}) in 中文 to ${OUTPUT_DIR}/${t.rank}-${t.ticker}/` +
       `${t.rank}-${t.ticker}_${t.horizon}_${RUN_ID}.md. Read all stage outputs from ` +
@@ -1024,7 +1040,7 @@ while (reportIter < REPORT_MAX_ITERS) {
   // ---- Phase 7b: Completeness Critic ----
   phase('Completeness Critic')
   const criticFindings = await parallel(reportTargets.map(t => () =>
-    agent(
+    agentWithRetry(
       `You are a senior equity research editor reviewing the report at ` +
       `${OUTPUT_DIR}/${t.rank}-${t.ticker}/${t.rank}-${t.ticker}_${t.horizon}_${RUN_ID}.md. ` +
       `Find what's MISSING — be specific. Categories: (a) modality (a data source/analysis script ` +
@@ -1051,7 +1067,7 @@ while (reportIter < REPORT_MAX_ITERS) {
 
   // ---- Phase 8: validator-side report-quality gate ----
   phase('Validation')
-  reportValid = await agent(
+  reportValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate all generated reports at ${OUTPUT_DIR}. ` +
     `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
     `--output-dir ${OUTPUT_DIR}'. 8 gates: Chinese content, required sections, current price ` +
@@ -1088,7 +1104,7 @@ if (killSwitchIssues.length) {
 }
 
 // Persist critic summary (single write at the end of the loop, not per iter)
-await agent(
+await agentWithRetry(
   `You are stock-analysis:report-validator. Persist completeness-critic summary to ` +
   `${OUTPUT_DIR}/critic_summary.json with this content: ${JSON.stringify(criticGaps).replace(/`/g,'\\`').slice(0, 8000)}. ` +
   `Also record iteration count: ${reportIter}. Just write the file and return {pass:true,reason:"persisted"} — no validation.`,
@@ -1103,7 +1119,7 @@ if (!reportValid?.pass) {
 // PHASE 8 — Best Picks Highlight
 // -----------------------------------------------------------------------------
 phase('Best Picks')
-const bestPicksResult = await agent(
+const bestPicksResult = await agentWithRetry(
   `You are stock-analysis:equity-report-writer. Write HIGHLIGHTS_BEST_PICKS.md in 中文 to ` +
   `${OUTPUT_DIR}/HIGHLIGHTS_BEST_PICKS.md. Read ${OUTPUT_DIR}/ranking.json AND ` +
   `${OUTPUT_DIR}/verify_findings.json (adversarial bear-case verdicts) AND ` +
@@ -1124,7 +1140,7 @@ if (!bestPicksResult || bestPicksResult.status === 'failed') {
   log(`[WARN] Best Picks report writer returned null/failed — skipping validation`)
 }
 
-const bestPicksValid = await agent(
+const bestPicksValid = await agentWithRetry(
   `You are stock-analysis:report-validator. Validate HIGHLIGHTS_BEST_PICKS.md at ${OUTPUT_DIR}. ` +
   `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate best-picks ` +
   `--output-dir ${OUTPUT_DIR}'. Required: ranked table with required columns, kill switch per ` +
