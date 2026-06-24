@@ -80,10 +80,10 @@ Also load {plugin_root}/references/data_source_matrix.md for coverage caps and {
   
   DIMENSION TRANSPARENCY REQUIREMENTS:
   - Include a "投资评分维度分解" (Conviction Score Decomposition) section showing ALL scoring dimensions with individual numeric scores and weights
-  - Long-term: Financial_Health(0.15) | Moat(0.15) | Management(0.15) | Valuation(0.20) | CapStructure(0.10) | Macro(0.05) | Risk(0.10) | Weinstein(0.05) | Ecosystem_Momentum(0.05) — show each score
-  - Mid-term: Financial_Health(0.10) | Moat(0.10) | Management(0.10) | Valuation(0.20) | Macro(0.15) | Risk(0.10) | Weinstein(0.10) | CANSLIM(0.10) | Ecosystem_Momentum(0.05) — show each score
-  - Short-term: Valuation(0.10) | Macro(0.10) | Risk(0.10) | Alt_Alignment(0.20) | Technical(0.20) | Weinstein(0.10) | CANSLIM(0.10) | Ecosystem_Momentum(0.10) — show each score
-  - For each dimension, include a 1-sentence explanation of WHY it scored high/low (e.g., "Moat: 8.5/10 — 强网络效应 + 高转换成本，客户留存率95%", "Ecosystem_Momentum: 7.2/10 — 上游供应商营收增长15%+，下游客户毛利扩张")
+  - Long-term: Financial_Health(0.15) | Moat(0.15) | Management(0.15) | Valuation(0.15) | CapStructure(0.10) | Macro(0.05) | Risk(0.10) | Weinstein(0.05) | Ecosystem_Momentum(0.05) | Industry_Trajectory(0.05) — show each score
+  - Mid-term: Financial_Health(0.10) | Moat(0.10) | Management(0.10) | Valuation(0.15) | Macro(0.15) | Risk(0.10) | Weinstein(0.10) | CANSLIM(0.10) | Ecosystem_Momentum(0.05) | Industry_Trajectory(0.05) — show each score
+  - Short-term: Valuation(0.10) | Macro(0.10) | Risk(0.10) | Alt_Alignment(0.20) | Technical(0.15) | Weinstein(0.10) | CANSLIM(0.10) | Ecosystem_Momentum(0.10) | Industry_Trajectory(0.05) — show each score
+  - For each dimension, include a 1-sentence explanation of WHY it scored high/low (e.g., "Moat: 8.5/10 — 强网络效应 + 高转换成本，客户留存率95%", "Ecosystem_Momentum: 7.2/10 — 上游供应商营收增长15%+，下游客户毛利扩张", "Industry_Trajectory: 8.0/10 — 行业营收加速+利润扩张+资金流入,处于早期周期")
   - Include "关键决定维度" (Key Decisive Dimensions) paragraph explaining which 2-3 dimensions MOST influenced the final conviction rating and WHY
   - If peer comparisons exist, show dimension-by-dimension comparison table vs peers to explain relative positioning
   - Never present only the final composite score — always decompose into dimensions with figures</step>
@@ -117,9 +117,9 @@ The orchestrator provides the full output path and rank prefix.</step>
 
 ### Conviction Scoring
 Use the scores.json output from the orchestrator's designated directory.
-Long-term: Financial_Health(0.15) + Moat(0.15) + Management(0.15) + Valuation(0.20) + CapStructure(0.10) + Macro(0.05) + Risk(0.10) + Weinstein(0.05) + Ecosystem_Momentum(0.05)
-Mid-term: Financial_Health(0.10) + Moat(0.10) + Management(0.10) + Valuation(0.20) + Macro(0.15) + Risk(0.10) + Weinstein(0.10) + CANSLIM(0.10) + Ecosystem_Momentum(0.05)
-Short-term: Valuation(0.10) + Macro(0.10) + Risk(0.10) + Alt_Alignment(0.20) + Technical(0.20) + Weinstein(0.10) + CANSLIM(0.10) + Ecosystem_Momentum(0.10)
+Long-term: Financial_Health(0.15) + Moat(0.15) + Management(0.15) + Valuation(0.15) + CapStructure(0.10) + Macro(0.05) + Risk(0.10) + Weinstein(0.05) + Ecosystem_Momentum(0.05) + Industry_Trajectory(0.05)
+Mid-term: Financial_Health(0.10) + Moat(0.10) + Management(0.10) + Valuation(0.15) + Macro(0.15) + Risk(0.10) + Weinstein(0.10) + CANSLIM(0.10) + Ecosystem_Momentum(0.05) + Industry_Trajectory(0.05)
+Short-term: Valuation(0.10) + Macro(0.10) + Risk(0.10) + Alt_Alignment(0.20) + Technical(0.15) + Weinstein(0.10) + CANSLIM(0.10) + Ecosystem_Momentum(0.10) + Industry_Trajectory(0.05)
 
 ### Pre-Delivery Validation
 Run `{plugin_root}/scripts/validate_report.py ./reports/[RUN_ID]/NNN-[TICKER]/ --report-type [TYPE]` before delivering any report.
