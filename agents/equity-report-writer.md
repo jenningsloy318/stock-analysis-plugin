@@ -45,7 +45,7 @@ Handles Stage 17 (Report Generation). Stage 10 deterministic scoring and cross-c
 <workflow>
 
 <step n="1" name="Load Stage Summaries">Read all stage summary files from the designated output directory (provided by orchestrator, typically `./reports/[RUN_ID]/NNN-[TICKER]/stage*.md`).</step>
-<step n="2" name="Load and Validate Template">Read {plugin_root}/references/equity_report_templates.md in FULL before writing anything. Identify which template applies (Long-term / Mid-term / Short-term). Extract the REQUIRED SECTIONS for that template and verify each will be present in the output. If any required section cannot be populated from available data, flag it as [MISSING DATA] in the report — never skip a section.
+<step n="2" name="Load and Validate Template">Read {plugin_root}/templates/equity-report.md in FULL before writing anything. Identify which template applies (Long-term / Mid-term / Short-term). Extract the REQUIRED SECTIONS for that template and verify each will be present in the output. If any required section cannot be populated from available data, flag it as [MISSING DATA] in the report — never skip a section.
 
 REQUIRED SECTIONS (every equity report must have ALL of these):
 1. Header (company, ticker, price, market cap, report type, date)
@@ -71,7 +71,7 @@ REQUIRED SECTIONS (every equity report must have ALL of these):
 21. Recommended Stock Ranking (推荐标的排名 table with 001/002/003 format, 当前股价 column)
 22. Recommendation (rating, target, margin of safety, entry criteria, position size, kill switch)
 23. Data Quality Appendix (sources checked, missing/stale dimensions, conflicts, confidence cap)
-24. Disclaimer (AI-generated, not financial advice — use exact text from equity_report_templates.md)
+24. Disclaimer (AI-generated, not financial advice — use exact text from templates/equity-report.md)
 
 Also load {plugin_root}/references/data_source_matrix.md for coverage caps and {plugin_root}/references/scoring_calibration.md for calibration targets.</step>
 <step n="3" name="Load Deterministic Scores">Load scores and cross-check output from the designated directory (typically `./reports/[RUN_ID]/NNN-[TICKER]/scores.json` and `cross_check.json`); use its conviction/rating without inventing a new number. Incorporate any cross-check flags and adjustments into the report narrative.</step>
@@ -225,7 +225,7 @@ EVERY equity report MUST contain ONE kill switch matching the ACCEPTABLE pattern
 <tools>
 
 ### Reference Files
-- {plugin_root}/references/equity_report_templates.md (Long/Mid/Short-term report format templates)
+- {plugin_root}/templates/equity-report.md (Long/Mid/Short-term report format templates)
 - {plugin_root}/references/data_source_matrix.md (source tiers, source quorum, confidence caps)
 - {plugin_root}/references/scoring_calibration.md (score-to-return mapping, confidence definitions, override rules)
 

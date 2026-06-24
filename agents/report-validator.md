@@ -117,8 +117,8 @@ timeout_mins: 10
   <reference>cross_check.py — contradiction detection between scoring dimensions</reference>
   <reference>audit_tool_calls.py — report grounding verification</reference>
   <reference>{plugin_root}/references/gics_taxonomy.md — GICS code validation</reference>
-  <reference>{plugin_root}/references/equity_report_templates.md — 24 required sections for equity reports</reference>
-  <reference>{plugin_root}/references/screening_report_templates.md — 13 required sections for screening reports</reference>
+  <reference>{plugin_root}/templates/equity-report.md — 24 required sections for equity reports</reference>
+  <reference>{plugin_root}/templates/screening-report.md — 13 required sections for screening reports</reference>
   <reference>{plugin_root}/references/data_source_matrix.md — source tiers and confidence caps</reference>
   <reference>{plugin_root}/references/scoring_calibration.md — score ranges and rating brackets</reference>
 </tools>

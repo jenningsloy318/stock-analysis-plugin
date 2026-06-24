@@ -282,7 +282,7 @@ def post_earnings_continuation_gate(
 
     Returns 4-factor gate verdict + recommended bias (continuation | fade | neutral).
 
-    See: references/pitfalls/20 (or our equivalent post-earnings rule)
+    See: references/pitfalls/13-post-earnings-momentum-vs-fade.md
     """
     bullish_count = 0
     factors_evaluated = 0

@@ -67,7 +67,7 @@ If no quantitative dated roadmap can be identified for the industry, write `{the
 - references/frameworks_bottleneck_investing.md (universal roadmap-anchor methodology — drives Step 6b)
 - references/sector_metrics.md (sector-specific competitive metrics + Extended Industry Verticals table)
 - references/international_markets.md (for non-US companies: structural adjustments)
-- Load the relevant industry deep-dive file from `references/sector_metrics.md` Extended Industry Verticals table based on GICS classification (e.g., industry_saas.md for SaaS, industry_healthcare.md for MedTech, industry_consumer.md for Retail)
+- templates/industry-trajectory.md.j2 (industry trajectory report format for compute_industry_trajectory.py output)
 
 ### Data Acquisition & Scripts
 Run `{plugin_root}/scripts/fetch_peer_universe.py [TICKER] --output ./reports/[TICKER]/peers.json` for automated peer identification via GICS + ETF holdings + description similarity matching.
