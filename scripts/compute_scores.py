@@ -1773,6 +1773,69 @@ def compute_ecosystem_momentum(ecosystem_data: dict | None) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# 13. Industry Trajectory Score (1-10)
+# ---------------------------------------------------------------------------
+
+
+def compute_industry_trajectory(trajectory_data: dict | None) -> dict:
+    """Score industry trajectory from compute_industry_trajectory.py output.
+
+    Measures whether the company's industry is getting better or worse —
+    revenue acceleration, margin direction, RS momentum, fund flows,
+    valuation change, and capital cycle position.
+    """
+    if not trajectory_data:
+        return {
+            "score": None,
+            "rationale": "No industry trajectory data available",
+            "sub_scores": {},
+        }
+
+    # Handle both single-trajectory and multi-trajectory formats
+    traj = trajectory_data.get("trajectories", trajectory_data)
+    if isinstance(traj, list):
+        traj = traj[0] if traj else {}
+
+    base_score = traj.get("trajectory_score")
+    if base_score is None:
+        return {
+            "score": None,
+            "rationale": "Trajectory score not computed",
+            "sub_scores": {},
+        }
+
+    direction = traj.get("trajectory_direction", "unknown")
+    positive = traj.get("positive_signals", 0)
+    negative = traj.get("negative_signals", 0)
+
+    # Extract dimension sub-scores
+    dims = traj.get("dimensions", {})
+    sub_scores = {}
+    for dim_name, dim_data in dims.items():
+        if isinstance(dim_data, dict) and dim_data.get("score") is not None:
+            sub_scores[dim_name] = dim_data["score"]
+
+    # Build rationale
+    parts = [f"direction={direction}"]
+    parts.append(f"+signals={positive}, -signals={negative}")
+    if dims.get("revenue_acceleration", {}).get("direction"):
+        parts.append(f"rev={dims['revenue_acceleration']['direction']}")
+    if dims.get("margin_direction", {}).get("direction"):
+        parts.append(f"margin={dims['margin_direction']['direction']}")
+    if dims.get("capital_cycle", {}).get("position"):
+        parts.append(f"cycle={dims['capital_cycle']['position']}")
+
+    return {
+        "score": _clamp(base_score),
+        "rationale": "; ".join(parts),
+        "sub_scores": sub_scores,
+        "direction": direction,
+        "positive_signals": positive,
+        "negative_signals": negative,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Directional conviction count (Pitfall 5: capped-upside vs conviction)
 # ---------------------------------------------------------------------------
 
@@ -2115,33 +2178,36 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
             "financial_health": 0.15,
             "moat_quality": 0.15,
             "management_quality": 0.15,
-            "valuation_attractiveness": 0.20,
+            "valuation_attractiveness": 0.15,
             "capital_structure": 0.10,
             "macro_tailwind": 0.05,
             "risk_profile": 0.10,
             "weinstein_alignment": 0.05,
             "ecosystem_momentum": 0.05,
+            "industry_trajectory": 0.05,
         },
         "mid": {
             "financial_health": 0.10,
             "moat_quality": 0.10,
             "management_quality": 0.10,
-            "valuation_attractiveness": 0.20,
+            "valuation_attractiveness": 0.15,
             "macro_tailwind": 0.15,
             "risk_profile": 0.10,
             "weinstein_alignment": 0.10,
             "canslim": 0.10,
             "ecosystem_momentum": 0.05,
+            "industry_trajectory": 0.05,
         },
         "short": {
             "valuation_attractiveness": 0.10,
             "macro_tailwind": 0.10,
             "risk_profile": 0.10,
             "alternative_alignment": 0.20,
-            "technical_setup": 0.20,
+            "technical_setup": 0.15,
             "weinstein_alignment": 0.10,
             "canslim": 0.10,
             "ecosystem_momentum": 0.10,
+            "industry_trajectory": 0.05,
         },
         "quick": {
             "financial_health": 0.20,
@@ -2170,6 +2236,7 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
             "weinstein_alignment": "weinstein_alignment",
             "canslim": "canslim",
             "ecosystem_momentum": "ecosystem_momentum",
+            "industry_trajectory": "industry_trajectory",
         }
         score_obj = scores.get(key_map[comp], {})
         component_scores[comp] = score_obj.get("score")
@@ -2314,6 +2381,9 @@ def main():
     parser.add_argument(
         "--ecosystem", help="Path to fetch_supply_chain_ecosystem.py output JSON"
     )
+    parser.add_argument(
+        "--trajectory", help="Path to compute_industry_trajectory.py output JSON"
+    )
     args = parser.parse_args()
 
     # Load inputs
@@ -2395,6 +2465,16 @@ def main():
         except (IOError, json.JSONDecodeError) as e:
             sys.stderr.write(f"Warning: could not load ecosystem data: {e}\n")
     scores["ecosystem_momentum"] = compute_ecosystem_momentum(ecosystem_data or None)
+
+    # Industry trajectory
+    trajectory_data = {}
+    if args.trajectory:
+        try:
+            with open(args.trajectory) as f:
+                trajectory_data = json.load(f)
+        except (IOError, json.JSONDecodeError) as e:
+            sys.stderr.write(f"Warning: could not load trajectory data: {e}\n")
+    scores["industry_trajectory"] = compute_industry_trajectory(trajectory_data or None)
 
     # Framework divergence detection
     scores["framework_divergence"] = detect_framework_divergence(scores)

@@ -115,6 +115,14 @@
         "direction": { "$type": "string | null", "$enum": [null, "positive", "negative", "mixed", "divergent"] },
         "propagation_risks_count": { "$type": "number", "$description": "Count of HIGH-severity propagation risks" },
         "chain_health_adj_applied": { "$type": "number | null", "$description": "±0.10 screening adjustment that was applied" }
+      },
+      "industry_trajectory": {
+        "$type": "object | null",
+        "$description": "Industry trajectory scores from Stage 7 (industry_trajectory.json). Null if not yet computed.",
+        "trajectory_score": { "$type": "number | null", "$description": "1-10 composite trajectory score" },
+        "trajectory_direction": { "$type": "string | null", "$enum": [null, "strong_improvement", "improving", "mixed", "deteriorating", "strong_deterioration"] },
+        "positive_signals": { "$type": "number", "$description": "Count of improving dimensions (0-6)" },
+        "negative_signals": { "$type": "number", "$description": "Count of deteriorating dimensions (0-6)" }
       }
     }
   },

@@ -170,6 +170,20 @@ const ECOSYSTEM_HEALTH_SCHEMA = {
   },
 }
 
+// Industry Trajectory — is the sector/sub-industry getting better or worse?
+const INDUSTRY_TRAJECTORY_SCHEMA = {
+  type: 'object',
+  required: ['trajectory_score', 'trajectory_direction'],
+  properties: {
+    etf: { type: 'string' },
+    trajectory_score: { type: 'number' },           // 1-10 composite
+    trajectory_direction: { type: 'string', enum: ['strong_improvement', 'improving', 'mixed', 'deteriorating', 'strong_deterioration', 'unknown'] },
+    positive_signals: { type: 'number' },
+    negative_signals: { type: 'number' },
+    dimensions: { type: 'object' },                 // per-dimension breakdown
+  },
+}
+
 const COMPANY_ORCHESTRATOR_RESULT_SCHEMA = {
   type: 'object',
   required: ['ticker', 'status', 'stages_completed'],
@@ -612,9 +626,14 @@ if (MODE === 'pipeline' || MODE === 'screen') {
   const sectorBatchResults = await parallel(batches.map((range, i) => () =>
     agentWithRetry(
       `You are stock-analysis:sector-screener. Process GICS Level 4 batch ${range} (i=${i}). ` +
-      `Read shared data from ${OUTPUT_DIR}/stage1.json. Score 11 dimensions (Growth, Profitability, ` +
+      `Read shared data from ${OUTPUT_DIR}/stage1.json. Score 12 dimensions (Growth, Profitability, ` +
       `Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent ` +
-      `Quality, Supply/Demand). Write to ${OUTPUT_DIR}/stage2-batch-${i}.json.`,
+      `Quality, Supply/Demand, Industry Trajectory). ` +
+      `For Industry Trajectory: run 'uv run python ${PLUGIN_ROOT}/scripts/compute_industry_trajectory.py ` +
+      `--etf [SUB_INDUSTRY_ETF]' for each sub-industry ETF proxy to assess whether the industry ` +
+      `is improving or deteriorating (revenue acceleration, margin direction, RS momentum, fund flows, ` +
+      `valuation change, capital cycle position). Factor trajectory_score into the composite. ` +
+      `Write to ${OUTPUT_DIR}/stage2-batch-${i}.json.`,
       {
         agentType: 'stock-analysis:sector-screener',
         schema: SECTOR_SCORES_SCHEMA,
@@ -842,7 +861,13 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s5` }),
       agentWithRetry(stagePrompt(7, 'industry-analyst', co,
         `Focus: Porter's Five Forces, TAM/SAM/SOM, moat assessment, BCG matrix, ecosystem mapping. ` +
-        `REUSE industry thesis from ${OUTPUT_DIR}/stage3-*.json if present. Scripts: fetch_peer_universe.py.`),
+        `ALSO run 'uv run python ${PLUGIN_ROOT}/scripts/compute_industry_trajectory.py ` +
+        `--etf [INDUSTRY_ETF_PROXY] --output ${OUTPUT_DIR}/${co.rank}-${co.ticker}/industry_trajectory.json' ` +
+        `to compute Industry Trajectory Score (是行业在变好还是变坏): revenue acceleration, margin direction, ` +
+        `RS momentum, fund flows, valuation expansion/compression, capital cycle position. ` +
+        `Explicitly state the industry life-cycle stage (emerging/growth/mature/declining) and ` +
+        `capital cycle position (under-invested/mid-cycle/over-invested). ` +
+        `REUSE industry thesis from ${OUTPUT_DIR}/stage3-*.json if present. Scripts: fetch_peer_universe.py, compute_industry_trajectory.py.`),
         { agentType: 'stock-analysis:industry-analyst', schema: STAGE_RESULT_SCHEMA,
           phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s7` }),
       agentWithRetry(stagePrompt(9, 'macro-analyst', co,
@@ -1021,8 +1046,9 @@ const companyDirs = completedCompanies.map(c => c.company_dir).filter(Boolean)
 const scored = await agentWithRetry(
   `You are stock-analysis:scorer. Read all company outputs from these dirs: ` +
   `${JSON.stringify(companyDirs)}. Run 'uv run python ${PLUGIN_ROOT}/scripts/compute_scores.py' ` +
-  `for each — pass --ecosystem [company_dir]/sc_ecosystem.json to include the Ecosystem Momentum ` +
-  `dimension (upstream/downstream health). Run cross_check.py for contradictions. ` +
+  `for each — pass --ecosystem [company_dir]/sc_ecosystem.json to include Ecosystem Momentum ` +
+  `and --trajectory [company_dir]/industry_trajectory.json to include Industry Trajectory ` +
+  `dimension (行业趋势变化: improving/deteriorating). Run cross_check.py for contradictions. ` +
   `Run calibrate_conviction.py for Bayesian conviction calibration. Rank by composite score. ` +
   `Write ${OUTPUT_DIR}/ranking.json. mode=${MODE}.`,
   { agentType: 'stock-analysis:scorer', schema: SCORING_RESULT_SCHEMA, phase: 'Scoring', label: 'scorer' }

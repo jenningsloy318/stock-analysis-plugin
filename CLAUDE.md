@@ -172,6 +172,7 @@
 | `fetch_esg_carbon.py` | ESG materiality, carbon pricing scenarios, stranded assets, transition risk | 12 |
 | `fetch_supply_chain.py` | Supply chain concentration, geographic HHI, sector chokepoints, resilience score | 3, 8 |
 | `fetch_supply_chain_ecosystem.py` | Upstream supplier + downstream customer financial health (rev growth, margins, stock perf, FCF), ecosystem momentum score, propagation risk detection | 4, 8 |
+| `compute_industry_trajectory.py` | Industry trajectory: revenue acceleration, margin direction, RS momentum, fund flows, valuation change, capital cycle position — is the industry improving or deteriorating? | 2, 7 |
 | `fetch_currency_exposure.py` | ADR detection, geographic revenue mix, DXY correlation, FX EPS impact | 9 |
 | `calculate_metrics.py` | Ratios, DCF, RIM, DDM, Piotroski F-Score, Beneish, Altman Z, peer comparison, Monte Carlo | 5, 10 |
 | `calculate_earnings_quality.py` | Accruals quality, cash conversion, revenue quality, expense signals, persistence | 6 |
