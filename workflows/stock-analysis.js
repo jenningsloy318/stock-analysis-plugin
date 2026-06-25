@@ -522,9 +522,9 @@ const trackPhaseStart = async (name) => {
   const p = getPhase(name)
   if (p) {
     p.status = 'in_progress'
-    p.startedAt = args.started_at ? new Date(args.started_at).toISOString() : null  // workflow can't call Date.now()
+    p.startedAt = args.started_at ? new Date(args.started_at).toISOString() : null
   }
-  await persistTracking()
+  await persistTracking(`tracking:${name}:in_progress`, name)
 }
 
 // Helper: mark phase as completed with stats + auto-persist to disk
@@ -542,18 +542,17 @@ const trackPhaseEnd = async (name, opts) => {
     tracking.metrics.total_agents_succeeded += (opts?.succeeded ?? 0)
     tracking.metrics.total_agents_failed += (opts?.failed_count ?? 0)
   }
-  await persistTracking()
+  await persistTracking(`tracking:${name}:${opts?.failed ? 'failed' : 'complete'}`, name)
 }
 
 // Helper: persist tracking JSON to disk via a low-effort agent
-const persistTracking = async () => {
+const persistTracking = async (labelOverride, phaseName) => {
   const json = JSON.stringify(tracking, null, 2)
-  // Truncate to avoid prompt overflow — 12k char limit for the JSON payload
   const payload = json.length > 12000 ? json.slice(0, 12000) + '\n... (truncated)' : json
   await agent(
     `Write the following JSON content to the file ${TRACKING_PATH}. ` +
     `Create the directory if needed. Write EXACTLY this content, no modifications:\n\n${payload}`,
-    { label: 'persist:tracking', effort: 'low' }
+    { label: labelOverride || 'persist:tracking', phase: phaseName || undefined, effort: 'low' }
   )
 }
 
