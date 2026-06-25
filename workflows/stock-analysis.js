@@ -524,7 +524,8 @@ const trackPhaseStart = async (name) => {
     p.status = 'in_progress'
     p.startedAt = args.started_at ? new Date(args.started_at).toISOString() : null
   }
-  await persistTracking(`tracking:${name}:in_progress`, name)
+  const id = PHASE_REGISTRY[name] ?? '?'
+  await persistTracking(`tracking:s${id}:in_progress`, name)
 }
 
 // Helper: mark phase as completed with stats + auto-persist to disk
@@ -542,14 +543,15 @@ const trackPhaseEnd = async (name, opts) => {
     tracking.metrics.total_agents_succeeded += (opts?.succeeded ?? 0)
     tracking.metrics.total_agents_failed += (opts?.failed_count ?? 0)
   }
-  await persistTracking(`tracking:${name}:${opts?.failed ? 'failed' : 'complete'}`, name)
+  const id = PHASE_REGISTRY[name] ?? '?'
+  await persistTracking(`tracking:s${id}:${opts?.failed ? 'failed' : 'complete'}`, name)
 }
 
 // Helper: persist tracking JSON to disk via a low-effort agent
 const persistTracking = async (labelOverride, phaseName) => {
   const json = JSON.stringify(tracking, null, 2)
   const payload = json.length > 12000 ? json.slice(0, 12000) + '\n... (truncated)' : json
-  await agent(
+  await agentWithRetry(
     `Write the following JSON content to the file ${TRACKING_PATH}. ` +
     `Create the directory if needed. Write EXACTLY this content, no modifications:\n\n${payload}`,
     { label: labelOverride || 'persist:tracking', phase: phaseName || undefined, effort: 'low' }
