@@ -349,15 +349,64 @@ const BEST_PICKS_RESULT_SCHEMA = {
 // MAIN
 // =============================================================================
 
-const RUN_ID = args.run_id            // YYYYMMDDHHmm — set by team-lead before invocation
-const PLUGIN_ROOT = args.plugin_root  // absolute path resolved from platform-paths
-const MODE = args.mode                // pipeline | screen | analyze | compare | walk
-const TOP_INDUSTRY = args.top_industry  // sub-industries (pipeline/screen) or candidates (walk)
-const TOTAL_COMPANY = args.total_company // companies to deep-dive (pipeline only)
-const TICKERS = args.tickers || []    // analyze/compare modes
-const THEME = args.theme              // walk mode
-const UNIVERSE = args.universe || 'US' // 'US' | 'CN' | 'ALL' — listing-exchange filter for screening
+// Phase must be declared before any agent() call
+phase('Shared Data')
+
+// ---------------------------------------------------------------------------
+// Args normalization — handle string/undefined args gracefully.
+// The team-lead agent should pass a proper object but sometimes passes a string.
+// ---------------------------------------------------------------------------
+let _args = args
+if (typeof _args === 'string') {
+  log(`[args] received string — attempting to parse as mode/tickers`)
+  // Try to extract mode and tickers from the string
+  const modeMatch = _args.match(/--mode\s+(\w+)/)
+  const tickerMatch = _args.match(/(?:analyze|compare)\s+([A-Z,.]+)/i)
+  _args = {
+    request: _args,
+    mode: modeMatch ? modeMatch[1] : 'pipeline',
+    tickers: tickerMatch ? tickerMatch[1].split(',').map(t => t.trim()) : [],
+  }
+}
+if (!_args || typeof _args !== 'object') {
+  _args = {}
+}
+
+// Auto-discover plugin_root if missing
+if (!_args.plugin_root) {
+  log(`[args] plugin_root missing — auto-discovering`)
+  const discovery = await agent(
+    `Run: find ~/.claude/plugins -name "stock-analysis.js" -path "*/workflows/*" 2>/dev/null | head -1 | xargs dirname | xargs dirname\n` +
+    `Return JSON: {"plugin_root": "<result>"}`,
+    { label: 'discover-plugin-root', phase: 'Shared Data', agentType: 'general-purpose',
+      schema: { type: 'object', required: ['plugin_root'], properties: { plugin_root: { type: 'string' } } } }
+  )
+  if (discovery?.plugin_root) _args.plugin_root = discovery.plugin_root
+}
+
+// Generate RUN_ID if missing
+if (!_args.run_id) {
+  const now = await agent(
+    `Run: date -u +%Y%m%d%H%M\nReturn JSON: {"run_id": "<result>"}`,
+    { label: 'generate-run-id', phase: 'Shared Data', agentType: 'general-purpose',
+      schema: { type: 'object', required: ['run_id'], properties: { run_id: { type: 'string' } } } }
+  )
+  _args.run_id = now?.run_id || '000000000000'
+}
+
+const RUN_ID = _args.run_id
+const PLUGIN_ROOT = _args.plugin_root || ''
+const MODE = _args.mode || 'pipeline'
+const TOP_INDUSTRY = _args.top_industry
+const TOTAL_COMPANY = _args.total_company
+const TICKERS = _args.tickers || []
+const THEME = _args.theme
+const UNIVERSE = _args.universe || 'US'
 const OUTPUT_DIR = `./reports/${RUN_ID}`
+
+if (!PLUGIN_ROOT) {
+  return { status: 'failed', stage: 0, reason: `Could not resolve plugin_root. Pass it in args or ensure the plugin is installed under ~/.claude/plugins/.` }
+}
 
 // Listing-universe filter — deterministic JS-side gate so the LLM screener can't drift.
 // US tickers: bare letters [A-Z]{1,5}, optional class suffix (e.g. BRK.B). NOT .TO/.HK/.SH/.SZ/.T/.L/etc.
@@ -513,7 +562,6 @@ await persistTracking()
 // -----------------------------------------------------------------------------
 // PHASE 1 — Shared Data Collection (all modes)
 // -----------------------------------------------------------------------------
-phase('Shared Data')
 trackPhaseStart('Shared Data')
 const sharedData = await agentWithRetry(
   `You are stock-analysis:data-collector. Fetch macro indicators, economic surprises, ` +
