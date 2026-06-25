@@ -517,13 +517,14 @@ const tracking = {
 // Helper: find phase entry by name
 const getPhase = (name) => tracking.phases.find(p => p.name === name)
 
-// Helper: mark phase as started
-const trackPhaseStart = (name) => {
+// Helper: mark phase as started + auto-persist
+const trackPhaseStart = async (name) => {
   const p = getPhase(name)
   if (p) {
     p.status = 'in_progress'
     p.startedAt = args.started_at ? new Date(args.started_at).toISOString() : null  // workflow can't call Date.now()
   }
+  await persistTracking()
 }
 
 // Helper: mark phase as completed with stats + auto-persist to disk
@@ -575,7 +576,7 @@ const agentWithRetry = async (prompt, opts) => {
 }
 
 // Setup phase complete
-trackPhaseStart('Setup')
+await trackPhaseStart('Setup')
 await trackPhaseEnd('Setup', { spawned: 0, succeeded: 0, failed_count: 0, summary: `mode=${MODE} run_id=${RUN_ID}` })
 log(`[setup] complete: mode=${MODE}, run_id=${RUN_ID}, plugin_root=${PLUGIN_ROOT}`)
 
@@ -583,7 +584,7 @@ log(`[setup] complete: mode=${MODE}, run_id=${RUN_ID}, plugin_root=${PLUGIN_ROOT
 // PHASE 1 — Shared Data Collection (all modes)
 // -----------------------------------------------------------------------------
 phase('Shared Data')
-trackPhaseStart('Shared Data')
+await trackPhaseStart('Shared Data')
 const sharedData = await agentWithRetry(
   `You are stock-analysis:data-collector. Fetch macro indicators, economic surprises, ` +
   `sector/sub-industry relative strength, market breadth, theme performance. ` +
@@ -630,7 +631,7 @@ await persistTracking()
 // -----------------------------------------------------------------------------
 if (MODE === 'walk') {
   phase('Walk Chain')
-  trackPhaseStart('Walk Chain')
+  await trackPhaseStart('Walk Chain')
   const walkResult = await agentWithRetry(
     `You are stock-analysis:roadmap-walker. Theme: "${THEME}". top_industry=${TOP_INDUSTRY || 7}. ` +
     `plugin_root=${PLUGIN_ROOT} output_dir=${OUTPUT_DIR} shared_data_path=${OUTPUT_DIR}/stage1.json. ` +
@@ -651,7 +652,7 @@ if (MODE === 'walk') {
 
   // Walk-mode reports (3 horizons not applicable — single walk report)
   phase('Reports')
-  trackPhaseStart('Reports')
+  await trackPhaseStart('Reports')
   await agentWithRetry(
     `You are stock-analysis:screening-report-writer. Write final walk report in 中文 ` +
     `to ${OUTPUT_DIR}/WALK_${THEME.replace(/\s+/g,'_')}_${RUN_ID}.md. Read walk_roadmap.json, ` +
@@ -661,7 +662,7 @@ if (MODE === 'walk') {
   await trackPhaseEnd('Reports', { spawned: 1, succeeded: 1, failed_count: 0, summary: 'walk report written' })
 
   phase('Validation')
-  trackPhaseStart('Validation')
+  await trackPhaseStart('Validation')
   const walkValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate walk report at ${OUTPUT_DIR}. ` +
     `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
@@ -688,7 +689,7 @@ if (MODE === 'walk') {
 let watchlist = []
 if (MODE === 'pipeline' || MODE === 'screen') {
   phase('Screening')
-  trackPhaseStart('Screening')
+  await trackPhaseStart('Screening')
 
   // Stage 2: sector screener over 3 parallel batches of ~54 GICS Level 4 sub-industries
   const batches = ['0-54', '55-108', '109-163']
@@ -815,7 +816,7 @@ if (MODE === 'analyze' || MODE === 'compare') {
 // -----------------------------------------------------------------------------
 if (MODE === 'screen') {
   phase('Reports')
-  trackPhaseStart('Reports')
+  await trackPhaseStart('Reports')
   const horizons = ['long', 'mid', 'short']
   await parallel(horizons.map(h => () =>
     agentWithRetry(
@@ -828,7 +829,7 @@ if (MODE === 'screen') {
   await trackPhaseEnd('Reports', { spawned: 3, succeeded: 3, failed_count: 0, summary: '3 screening reports written' })
 
   phase('Validation')
-  trackPhaseStart('Validation')
+  await trackPhaseStart('Validation')
   const reportsValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate screening reports at ${OUTPUT_DIR}. ` +
     `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
@@ -838,7 +839,7 @@ if (MODE === 'screen') {
   await trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: reportsValid?.pass ? 'passed' : `failed — ${reportsValid?.reason}` })
 
   phase('Best Picks')
-  trackPhaseStart('Best Picks')
+  await trackPhaseStart('Best Picks')
   await agentWithRetry(
     `You are stock-analysis:equity-report-writer. Write HIGHLIGHTS_BEST_PICKS.md in 中文 to ` +
     `${OUTPUT_DIR}/HIGHLIGHTS_BEST_PICKS.md. Top 5 sub-industries with kill switch and 当前股价.`,
@@ -881,7 +882,7 @@ if (MODE === 'screen') {
 //   {company_dir}/stage{N}.md and {company_dir}/stage{N}.json
 // -----------------------------------------------------------------------------
 phase('Per-Company Analysis')
-trackPhaseStart('Per-Company Analysis')
+await trackPhaseStart('Per-Company Analysis')
 
 const sharedDataPath = `${OUTPUT_DIR}/stage1.json`
 
@@ -1110,7 +1111,7 @@ if (completedCompanies.filter(c => c.status !== 'failed').length === 0) {
 // PHASE 6 — Scoring & Cross-Check
 // -----------------------------------------------------------------------------
 phase('Scoring')
-trackPhaseStart('Scoring')
+await trackPhaseStart('Scoring')
 const companyDirs = completedCompanies.map(c => c.company_dir).filter(Boolean)
 const scored = await agentWithRetry(
   `You are stock-analysis:scorer. Read all company outputs from these dirs: ` +
@@ -1156,7 +1157,7 @@ await persistTracking()
 // Reference: research-report Pattern "Adversarial verify" + "Perspective-diverse verify".
 // -----------------------------------------------------------------------------
 phase('Adversarial Verify')
-trackPhaseStart('Adversarial Verify')
+await trackPhaseStart('Adversarial Verify')
 const TOP_FOR_VERIFY = Math.min(5, scored.companies.length)
 const verifyTargets = scored.companies.slice(0, TOP_FOR_VERIFY)
 const LENSES = [
@@ -1224,7 +1225,7 @@ await persistTracking()
 // Reference: research-report Pattern "Judge panel".
 // -----------------------------------------------------------------------------
 phase('Judge Panel')
-trackPhaseStart('Judge Panel')
+await trackPhaseStart('Judge Panel')
 const FRAMEWORK_LENSES = [
   { lens: 'buffett',      focus: 'durable moat, ROIC vs WACC, reinvestment runway, owner earnings, capital allocation, predictability of FCF over 10y. Conservative on growth.' },
   { lens: 'lynch',        focus: 'category fit (slow grower, stalwart, fast grower, cyclical, turnaround, asset play), PEG, earnings growth durability, niche advantage, simplicity of business' },
@@ -1320,7 +1321,7 @@ const reportTargets = scored.companies.flatMap(c =>
 tracking.reports = reportTargets.map(t => ({
   ticker: t.ticker, horizon: t.horizon, status: 'pending', file_path: null, iteration: 0, validation_passed: null, critic_quality: null
 }))
-trackPhaseStart('Reports')
+await trackPhaseStart('Reports')
 
 while (reportIter < REPORT_MAX_ITERS) {
   reportIter += 1
@@ -1492,7 +1493,7 @@ if (!reportValid?.pass) {
 // PHASE 8 — Best Picks Highlight
 // -----------------------------------------------------------------------------
 phase('Best Picks')
-trackPhaseStart('Best Picks')
+await trackPhaseStart('Best Picks')
 const bestPicksResult = await agentWithRetry(
   `You are stock-analysis:equity-report-writer. Write HIGHLIGHTS_BEST_PICKS.md in 中文 to ` +
   `${OUTPUT_DIR}/HIGHLIGHTS_BEST_PICKS.md. Read ${OUTPUT_DIR}/ranking.json AND ` +
