@@ -19,6 +19,7 @@ export const meta = {
   description: 'Unified equity research — screen GICS Level 4 → top companies → 11-stage deep-dive → scoring → adversarial verify → judge panel → 3-horizon reports → completeness critic',
   whenToUse: 'Equity research pipeline (pipeline/screen/analyze/compare/walk) — when the user wants to screen sectors, deep-dive specific tickers, compare stocks, or run a supply-chain walk. Triggered by the /stock-analysis:stock-analysis skill. Not for one-off market commentary or non-financial queries.',
   phases: [
+    { title: 'Setup' },
     { title: 'Shared Data' },
     { title: 'Screening' },
     { title: 'Walk Chain' },
@@ -350,7 +351,7 @@ const BEST_PICKS_RESULT_SCHEMA = {
 // =============================================================================
 
 // Phase must be declared before any agent() call
-phase('Shared Data')
+phase('Setup')
 
 // ---------------------------------------------------------------------------
 // Args normalization — handle string/undefined args gracefully.
@@ -387,7 +388,7 @@ if (!_args.plugin_root) {
   const discovery = await agent(
     `Run: find ~/.claude/plugins -name "stock-analysis.js" -path "*/workflows/*" 2>/dev/null | head -1 | xargs dirname | xargs dirname\n` +
     `Return JSON: {"plugin_root": "<result>"}`,
-    { label: 'discover-plugin-root', phase: 'Shared Data', agentType: 'general-purpose',
+    { label: 'discover-plugin-root', phase: 'Setup', agentType: 'general-purpose',
       schema: { type: 'object', required: ['plugin_root'], properties: { plugin_root: { type: 'string' } } } }
   )
   if (discovery?.plugin_root) {
@@ -403,7 +404,7 @@ if (!_args.plugin_root) {
 if (!_args.run_id) {
   const now = await agent(
     `Run: date -u +%Y%m%d%H%M\nReturn JSON: {"run_id": "<result>"}`,
-    { label: 'generate-run-id', phase: 'Shared Data', agentType: 'general-purpose',
+    { label: 'generate-run-id', phase: 'Setup', agentType: 'general-purpose',
       schema: { type: 'object', required: ['run_id'], properties: { run_id: { type: 'string' } } } }
   )
   _args.run_id = now?.run_id || '202606250000'
@@ -452,6 +453,7 @@ const TRACKING_PATH = `${OUTPUT_DIR}/workflow-tracking.json`
 
 // Phase registry — maps phase names to IDs for consistent ordering
 const PHASE_REGISTRY = {
+  'Setup': 0,
   'Shared Data': 1,
   'Walk Chain': 2,
   'Screening': 3,
@@ -467,10 +469,10 @@ const PHASE_REGISTRY = {
 
 // Determine which phases apply based on mode
 const getPhasesForMode = (mode) => {
-  if (mode === 'walk') return ['Shared Data', 'Walk Chain', 'Reports', 'Validation']
-  if (mode === 'screen') return ['Shared Data', 'Screening', 'Reports', 'Validation', 'Best Picks']
+  if (mode === 'walk') return ['Setup', 'Shared Data', 'Walk Chain', 'Reports', 'Validation']
+  if (mode === 'screen') return ['Setup', 'Shared Data', 'Screening', 'Reports', 'Validation', 'Best Picks']
   // pipeline, analyze, compare
-  return ['Shared Data', 'Screening', 'Per-Company Analysis', 'Scoring', 'Adversarial Verify', 'Judge Panel', 'Reports', 'Completeness Critic', 'Validation', 'Best Picks']
+  return ['Setup', 'Shared Data', 'Screening', 'Per-Company Analysis', 'Scoring', 'Adversarial Verify', 'Judge Panel', 'Reports', 'Completeness Critic', 'Validation', 'Best Picks']
 }
 
 const tracking = {
@@ -573,10 +575,12 @@ const agentWithRetry = async (prompt, opts) => {
 
 // Initial persist — create the tracking file at workflow start
 await persistTracking()
+log(`[setup] complete: mode=${MODE}, run_id=${RUN_ID}, plugin_root=${PLUGIN_ROOT}`)
 
 // -----------------------------------------------------------------------------
 // PHASE 1 — Shared Data Collection (all modes)
 // -----------------------------------------------------------------------------
+phase('Shared Data')
 trackPhaseStart('Shared Data')
 const sharedData = await agentWithRetry(
   `You are stock-analysis:data-collector. Fetch macro indicators, economic surprises, ` +
