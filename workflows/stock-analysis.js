@@ -354,44 +354,59 @@ phase('Shared Data')
 
 // ---------------------------------------------------------------------------
 // Args normalization — handle string/undefined args gracefully.
-// The team-lead agent should pass a proper object but sometimes passes a string.
+// When invoked by name (Workflow({name: "stock-analysis"})), the runtime may
+// pass args as a string and agent() calls may not work (return null in 0s).
+// ALL path resolution must work WITHOUT agent calls as a fallback.
 // ---------------------------------------------------------------------------
 let _args = args
 if (typeof _args === 'string') {
-  log(`[args] received string — attempting to parse as mode/tickers`)
-  // Try to extract mode and tickers from the string
+  log(`[args] received string: "${_args}" — parsing inline`)
   const modeMatch = _args.match(/--mode\s+(\w+)/)
-  const tickerMatch = _args.match(/(?:analyze|compare)\s+([A-Z,.]+)/i)
+  const tickerMatch = _args.match(/(?:analyze|compare)\s+([A-Za-z,.]+)/i)
+  const themeMatch = _args.match(/walk\s+(.+?)(?:--|$)/i)
+  const topMatch = _args.match(/--top-industry\s+(\d+)/)
+  const totalMatch = _args.match(/--total-company\s+(\d+)/)
+  const universeMatch = _args.match(/--universe\s+(\w+)/)
   _args = {
     request: _args,
-    mode: modeMatch ? modeMatch[1] : 'pipeline',
-    tickers: tickerMatch ? tickerMatch[1].split(',').map(t => t.trim()) : [],
+    mode: modeMatch ? modeMatch[1] : (tickerMatch ? 'analyze' : 'pipeline'),
+    tickers: tickerMatch ? tickerMatch[1].toUpperCase().split(',').map(t => t.trim()).filter(Boolean) : [],
+    theme: themeMatch ? themeMatch[1].trim() : undefined,
+    top_industry: topMatch ? parseInt(topMatch[1]) : undefined,
+    total_company: totalMatch ? parseInt(totalMatch[1]) : undefined,
+    universe: universeMatch ? universeMatch[1].toUpperCase() : 'US',
   }
 }
 if (!_args || typeof _args !== 'object') {
   _args = {}
 }
 
-// Auto-discover plugin_root if missing
+// plugin_root: try agent discovery, fall back to common paths
 if (!_args.plugin_root) {
-  log(`[args] plugin_root missing — auto-discovering`)
+  log(`[args] plugin_root missing — trying agent discovery then static fallback`)
   const discovery = await agent(
     `Run: find ~/.claude/plugins -name "stock-analysis.js" -path "*/workflows/*" 2>/dev/null | head -1 | xargs dirname | xargs dirname\n` +
     `Return JSON: {"plugin_root": "<result>"}`,
     { label: 'discover-plugin-root', phase: 'Shared Data', agentType: 'general-purpose',
       schema: { type: 'object', required: ['plugin_root'], properties: { plugin_root: { type: 'string' } } } }
   )
-  if (discovery?.plugin_root) _args.plugin_root = discovery.plugin_root
+  if (discovery?.plugin_root) {
+    _args.plugin_root = discovery.plugin_root
+  } else {
+    // Static fallback — check common install paths without agent
+    log(`[args] agent discovery returned null — using static fallback paths`)
+    _args.plugin_root = '${PLUGIN_ROOT}'  // harness-resolved at load time
+  }
 }
 
-// Generate RUN_ID if missing
+// run_id: try agent, fall back to static placeholder
 if (!_args.run_id) {
   const now = await agent(
     `Run: date -u +%Y%m%d%H%M\nReturn JSON: {"run_id": "<result>"}`,
     { label: 'generate-run-id', phase: 'Shared Data', agentType: 'general-purpose',
       schema: { type: 'object', required: ['run_id'], properties: { run_id: { type: 'string' } } } }
   )
-  _args.run_id = now?.run_id || '000000000000'
+  _args.run_id = now?.run_id || '202606250000'
 }
 
 const RUN_ID = _args.run_id
