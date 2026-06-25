@@ -526,8 +526,8 @@ const trackPhaseStart = (name) => {
   }
 }
 
-// Helper: mark phase as completed with stats
-const trackPhaseEnd = (name, opts) => {
+// Helper: mark phase as completed with stats + auto-persist to disk
+const trackPhaseEnd = async (name, opts) => {
   const p = getPhase(name)
   if (p) {
     p.status = opts?.failed ? 'failed' : 'completed'
@@ -541,6 +541,7 @@ const trackPhaseEnd = (name, opts) => {
     tracking.metrics.total_agents_succeeded += (opts?.succeeded ?? 0)
     tracking.metrics.total_agents_failed += (opts?.failed_count ?? 0)
   }
+  await persistTracking()
 }
 
 // Helper: persist tracking JSON to disk via a low-effort agent
@@ -573,8 +574,9 @@ const agentWithRetry = async (prompt, opts) => {
   return null
 }
 
-// Initial persist — create the tracking file at workflow start
-await persistTracking()
+// Setup phase complete
+trackPhaseStart('Setup')
+await trackPhaseEnd('Setup', { spawned: 0, succeeded: 0, failed_count: 0, summary: `mode=${MODE} run_id=${RUN_ID}` })
 log(`[setup] complete: mode=${MODE}, run_id=${RUN_ID}, plugin_root=${PLUGIN_ROOT}`)
 
 // -----------------------------------------------------------------------------
@@ -598,7 +600,7 @@ const sharedData = await agentWithRetry(
 )
 
 if (!sharedData || sharedData.status === 'failed') {
-  trackPhaseEnd('Shared Data', { spawned: 1, succeeded: 0, failed_count: 1, summary: 'failed — data collection error', failed: true })
+  await trackPhaseEnd('Shared Data', { spawned: 1, succeeded: 0, failed_count: 1, summary: 'failed — data collection error', failed: true })
   tracking.status = 'failed'
   tracking.errors.push({ phase: 'Shared Data', agent_label: 'data-collector', error: sharedData?.notes || 'returned null', fatal: true })
   await persistTracking()
@@ -614,13 +616,13 @@ const dataValid = await agentWithRetry(
 )
 tracking.validation_gates.data_freshness = dataValid?.pass ?? false
 if (!dataValid?.pass) {
-  trackPhaseEnd('Shared Data', { spawned: 2, succeeded: 1, failed_count: 1, summary: `failed — validation: ${dataValid?.reason}`, failed: true })
+  await trackPhaseEnd('Shared Data', { spawned: 2, succeeded: 1, failed_count: 1, summary: `failed — validation: ${dataValid?.reason}`, failed: true })
   tracking.status = 'failed'
   tracking.errors.push({ phase: 'Shared Data', agent_label: 'validate:data', error: dataValid?.reason || 'validation failed', fatal: true })
   await persistTracking()
   return { status: 'failed', stage: 1.5, reason: dataValid?.reason || 'Data validation failed' }
 }
-trackPhaseEnd('Shared Data', { spawned: 2, succeeded: 2, failed_count: 0, summary: `ok — ${sharedData.files?.length || 0} files written` })
+await trackPhaseEnd('Shared Data', { spawned: 2, succeeded: 2, failed_count: 0, summary: `ok — ${sharedData.files?.length || 0} files written` })
 await persistTracking()
 
 // -----------------------------------------------------------------------------
@@ -640,12 +642,12 @@ if (MODE === 'walk') {
   )
 
   if (!walkResult) {
-    trackPhaseEnd('Walk Chain', { spawned: 1, succeeded: 0, failed_count: 1, summary: 'failed — walker returned null', failed: true })
+    await trackPhaseEnd('Walk Chain', { spawned: 1, succeeded: 0, failed_count: 1, summary: 'failed — walker returned null', failed: true })
     tracking.status = 'failed'
     await persistTracking()
     return { status: 'failed', stage: 'walk', reason: 'roadmap-walker returned null' }
   }
-  trackPhaseEnd('Walk Chain', { spawned: 1, succeeded: 1, failed_count: 0, summary: `ok — ${walkResult.candidates?.length || 0} candidates found` })
+  await trackPhaseEnd('Walk Chain', { spawned: 1, succeeded: 1, failed_count: 0, summary: `ok — ${walkResult.candidates?.length || 0} candidates found` })
 
   // Walk-mode reports (3 horizons not applicable — single walk report)
   phase('Reports')
@@ -656,7 +658,7 @@ if (MODE === 'walk') {
     `walk_chain.json, walk_candidates.json. Include 当前股价 for each candidate.`,
     { agentType: 'stock-analysis:screening-report-writer', phase: 'Reports', label: 'walk-report' }
   )
-  trackPhaseEnd('Reports', { spawned: 1, succeeded: 1, failed_count: 0, summary: 'walk report written' })
+  await trackPhaseEnd('Reports', { spawned: 1, succeeded: 1, failed_count: 0, summary: 'walk report written' })
 
   phase('Validation')
   trackPhaseStart('Validation')
@@ -666,7 +668,7 @@ if (MODE === 'walk') {
     `--output-dir ${OUTPUT_DIR}'.`,
     { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:walk' }
   )
-  trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: walkValid?.pass ? 'passed' : `failed — ${walkValid?.reason}` })
+  await trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: walkValid?.pass ? 'passed' : `failed — ${walkValid?.reason}` })
   tracking.status = walkValid?.pass ? 'completed' : 'partial'
   tracking.completedAt = tracking.startedAt  // best-effort timestamp
   await persistTracking()
@@ -791,7 +793,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
   tracking.validation_gates.screening = screenValid?.pass ?? false
   const screenAgents = 3 + topSubIndustries.length * 2 + 1  // batches + pipeline(deepdive+screen) + validator
   const screenFailed = sectorBatchResults.filter(r => !r).length + (watchlist || []).filter(r => !r).length
-  trackPhaseEnd('Screening', { spawned: screenAgents, succeeded: screenAgents - screenFailed, failed_count: screenFailed, summary: `${watchlist.length} companies selected from ${topSubIndustries.length} sub-industries` })
+  await trackPhaseEnd('Screening', { spawned: screenAgents, succeeded: screenAgents - screenFailed, failed_count: screenFailed, summary: `${watchlist.length} companies selected from ${topSubIndustries.length} sub-industries` })
   // Populate tracking.companies for pipeline mode
   tracking.companies = watchlist.map(c => ({ ticker: c.ticker, rank: c.rank, status: 'pending', stages_completed: [], stages_failed: [], current_stage: null }))
   await persistTracking()
@@ -823,7 +825,7 @@ if (MODE === 'screen') {
       { agentType: 'stock-analysis:screening-report-writer', phase: 'Reports', label: `report:screen:${h}` }
     )
   ))
-  trackPhaseEnd('Reports', { spawned: 3, succeeded: 3, failed_count: 0, summary: '3 screening reports written' })
+  await trackPhaseEnd('Reports', { spawned: 3, succeeded: 3, failed_count: 0, summary: '3 screening reports written' })
 
   phase('Validation')
   trackPhaseStart('Validation')
@@ -833,7 +835,7 @@ if (MODE === 'screen') {
     `--output-dir ${OUTPUT_DIR}'.`,
     { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:screen-reports' }
   )
-  trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: reportsValid?.pass ? 'passed' : `failed — ${reportsValid?.reason}` })
+  await trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: reportsValid?.pass ? 'passed' : `failed — ${reportsValid?.reason}` })
 
   phase('Best Picks')
   trackPhaseStart('Best Picks')
@@ -842,7 +844,7 @@ if (MODE === 'screen') {
     `${OUTPUT_DIR}/HIGHLIGHTS_BEST_PICKS.md. Top 5 sub-industries with kill switch and 当前股价.`,
     { agentType: 'stock-analysis:equity-report-writer', phase: 'Best Picks', label: 'best-picks' }
   )
-  trackPhaseEnd('Best Picks', { spawned: 1, succeeded: 1, failed_count: 0, summary: 'best picks written' })
+  await trackPhaseEnd('Best Picks', { spawned: 1, succeeded: 1, failed_count: 0, summary: 'best picks written' })
 
   tracking.status = reportsValid?.pass ? 'completed' : 'partial'
   tracking.completedAt = tracking.startedAt
@@ -1080,7 +1082,7 @@ log(`[analysis] ${completedCompanies.filter(c => c.status === 'completed').lengt
 // Update tracking for per-company analysis
 const pcCompleted = completedCompanies.filter(c => c.status === 'completed').length
 const pcPartial = completedCompanies.filter(c => c.status === 'partial').length
-trackPhaseEnd('Per-Company Analysis', {
+await trackPhaseEnd('Per-Company Analysis', {
   spawned: watchlist.length,
   succeeded: pcCompleted + pcPartial,
   failed_count: failedCount,
@@ -1122,7 +1124,7 @@ const scored = await agentWithRetry(
 )
 
 if (!scored?.companies?.length) {
-  trackPhaseEnd('Scoring', { spawned: 1, succeeded: 0, failed_count: 1, summary: 'failed — no ranked companies', failed: true })
+  await trackPhaseEnd('Scoring', { spawned: 1, succeeded: 0, failed_count: 1, summary: 'failed — no ranked companies', failed: true })
   tracking.status = 'failed'
   tracking.errors.push({ phase: 'Scoring', agent_label: 'scorer', error: 'returned no ranked companies', fatal: true })
   await persistTracking()
@@ -1141,7 +1143,7 @@ if (!scoreValid?.pass) {
   log(`[WARN] score validation: ${scoreValid?.reason}`)
 }
 tracking.validation_gates.scoring = scoreValid?.pass ?? false
-trackPhaseEnd('Scoring', { spawned: 2, succeeded: 2, failed_count: 0, summary: `${scored.companies.length} companies ranked` })
+await trackPhaseEnd('Scoring', { spawned: 2, succeeded: 2, failed_count: 0, summary: `${scored.companies.length} companies ranked` })
 await persistTracking()
 
 // -----------------------------------------------------------------------------
@@ -1208,7 +1210,7 @@ await agentWithRetry(
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Adversarial Verify', label: 'persist:verify', effort: 'low' }
 )
 const verifyAgentsTotal = TOP_FOR_VERIFY * LENSES.length + 1  // skeptics + persist
-trackPhaseEnd('Adversarial Verify', { spawned: verifyAgentsTotal, succeeded: verifyAgentsTotal, failed_count: 0, summary: `${flaggedPicks.length}/${TOP_FOR_VERIFY} flagged` })
+await trackPhaseEnd('Adversarial Verify', { spawned: verifyAgentsTotal, succeeded: verifyAgentsTotal, failed_count: 0, summary: `${flaggedPicks.length}/${TOP_FOR_VERIFY} flagged` })
 await persistTracking()
 
 // -----------------------------------------------------------------------------
@@ -1284,7 +1286,7 @@ await agentWithRetry(
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Judge Panel', label: 'persist:judge', effort: 'low' }
 )
 const judgeAgentsTotal = TOP_FOR_VERIFY * FRAMEWORK_LENSES.length + 1  // judges + persist
-trackPhaseEnd('Judge Panel', { spawned: judgeAgentsTotal, succeeded: judgeAgentsTotal, failed_count: 0, summary: `${disagreements.length} disagreements (spread≥3)` })
+await trackPhaseEnd('Judge Panel', { spawned: judgeAgentsTotal, succeeded: judgeAgentsTotal, failed_count: 0, summary: `${disagreements.length} disagreements (spread≥3)` })
 await persistTracking()
 
 // -----------------------------------------------------------------------------
@@ -1464,14 +1466,14 @@ criticGaps.forEach(c => {
 })
 tracking.metrics.report_iterations = reportIter
 tracking.validation_gates.reports = reportValid?.pass ?? false
-trackPhaseEnd('Reports', {
+await trackPhaseEnd('Reports', {
   spawned: reportTargets.length * reportIter,
   succeeded: reportTargets.length * reportIter - failedReports.length,
   failed_count: failedReports.length,
   summary: `${reportIter} iteration(s), ${failedReports.length} critic-FAILed`,
 })
-trackPhaseEnd('Completeness Critic', { spawned: reportTargets.length * reportIter, succeeded: reportTargets.length * reportIter, failed_count: 0, summary: `${criticGaps.length} findings` })
-trackPhaseEnd('Validation', { spawned: reportIter, succeeded: reportIter, failed_count: 0, summary: reportValid?.pass ? 'passed' : `failed — ${reportValid?.reason}` })
+await trackPhaseEnd('Completeness Critic', { spawned: reportTargets.length * reportIter, succeeded: reportTargets.length * reportIter, failed_count: 0, summary: `${criticGaps.length} findings` })
+await trackPhaseEnd('Validation', { spawned: reportIter, succeeded: reportIter, failed_count: 0, summary: reportValid?.pass ? 'passed' : `failed — ${reportValid?.reason}` })
 await persistTracking()
 
 // Persist critic summary (single write at the end of the loop, not per iter)
@@ -1520,7 +1522,7 @@ const bestPicksValid = await agentWithRetry(
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:best-picks', effort: 'low' }
 )
 tracking.validation_gates.best_picks = bestPicksValid?.pass ?? false
-trackPhaseEnd('Best Picks', { spawned: 2, succeeded: 2, failed_count: 0, summary: bestPicksValid?.pass ? 'passed' : `failed — ${bestPicksValid?.reason}` })
+await trackPhaseEnd('Best Picks', { spawned: 2, succeeded: 2, failed_count: 0, summary: bestPicksValid?.pass ? 'passed' : `failed — ${bestPicksValid?.reason}` })
 
 // Final tracking update
 tracking.status = (reportValid?.pass && bestPicksValid?.pass && failedCount === 0 && failedReports.length === 0) ? 'completed' : 'partial'
