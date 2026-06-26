@@ -359,7 +359,7 @@ phase('Setup')
 // pass args as a string and agent() calls may not work (return null in 0s).
 // ALL path resolution must work WITHOUT agent calls as a fallback.
 // ---------------------------------------------------------------------------
-let _args = args
+let _args = args || {}
 if (typeof _args === 'string') {
   log(`[args] received string: "${_args}" — parsing inline`)
   const modeMatch = _args.match(/--mode\s+(\w+)/)
@@ -481,7 +481,7 @@ const tracking = {
   universe: UNIVERSE,
   tickers: TICKERS.length ? TICKERS : [],
   theme: THEME || null,
-  startedAt: args.started_at || null,   // ISO timestamp passed from team-lead
+  startedAt: (_args && _args.started_at) || null,   // ISO timestamp passed from team-lead
   completedAt: null,
   status: 'running',
   phases: getPhasesForMode(MODE).map(name => ({
@@ -522,7 +522,7 @@ const trackPhaseStart = async (name) => {
   const p = getPhase(name)
   if (p) {
     p.status = 'in_progress'
-    p.startedAt = args.started_at ? new Date(args.started_at).toISOString() : null
+    p.startedAt = (_args && _args.started_at) ? _args.started_at : null
   }
   const id = PHASE_REGISTRY[name] ?? '?'
   await persistTracking(`tracking:s${id}:in_progress`, name)
