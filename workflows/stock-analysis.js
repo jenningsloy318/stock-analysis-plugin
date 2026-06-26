@@ -416,9 +416,9 @@ const PLUGIN_ROOT = _args.plugin_root || ''
 const MODE = _args.mode || 'pipeline'
 const TOP_INDUSTRY = _args.top_industry
 const TOTAL_COMPANY = _args.total_company
-const TICKERS = _args.tickers || []
+let TICKERS = _args.tickers || []
 const THEME = _args.theme
-const UNIVERSE = _args.universe || 'US'
+let UNIVERSE = _args.universe || 'US'
 const OUTPUT_DIR = `./reports/${RUN_ID}`
 
 if (!PLUGIN_ROOT) {
@@ -427,15 +427,89 @@ if (!PLUGIN_ROOT) {
 
 // Listing-universe filter — deterministic JS-side gate so the LLM screener can't drift.
 // US tickers: bare letters [A-Z]{1,5}, optional class suffix (e.g. BRK.B). NOT .TO/.HK/.SH/.SZ/.T/.L/etc.
-// CN tickers: .SH or .SZ suffix.
+// CN tickers: .SH, .SZ, or .BJ suffix.
 // ALL: everything passes.
 const isUSTicker = (t) => /^[A-Z]{1,5}(\.[A-Z])?$/.test(t || '')
-const isCNTicker = (t) => /\.(SH|SZ)$/i.test(t || '')
+const isCNTicker = (t) => /\.(SH|SZ|BJ)$/i.test(t || '')
 const passUniverse = (t) => {
   if (UNIVERSE === 'ALL') return true
   if (UNIVERSE === 'US')  return isUSTicker(t)
   if (UNIVERSE === 'CN')  return isCNTicker(t)
   return true
+}
+
+// ---------------------------------------------------------------------------
+// A-share ticker normalization — convert bare 6-digit codes to proper .SH/.SZ
+// format. Chinese stock names are flagged for agent resolution downstream.
+// Rules:  6xxxxx → .SH (Shanghai)
+//         0xxxxx → .SZ (Shenzhen main board)
+//         3xxxxx → .SZ (Shenzhen ChiNext/创业板)
+//         8xxxxx/4xxxxx → .BJ (Beijing Stock Exchange/北交所)
+// ---------------------------------------------------------------------------
+const isBare6Digit = (t) => /^\d{6}$/.test(t || '')
+const isChinese = (t) => /[一-鿿]/.test(t || '')
+
+function normalizeCNTicker(t) {
+  if (!t) return t
+  if (isCNTicker(t)) return t.toUpperCase()  // already has .SH/.SZ suffix
+  if (isBare6Digit(t)) {
+    const prefix = t[0]
+    if (prefix === '6') return `${t}.SH`
+    if (prefix === '0' || prefix === '3') return `${t}.SZ`
+    if (prefix === '8' || prefix === '4') return `${t}.BJ`  // Beijing Stock Exchange
+    // Fallback for other prefixes (rare): assume SH
+    return `${t}.SH`
+  }
+  // Chinese name — cannot resolve deterministically here; mark for agent resolution
+  return t
+}
+
+// Detect if a raw ticker looks like a CN input (bare digits or Chinese characters)
+const looksLikeCNInput = (t) => isBare6Digit(t) || isChinese(t) || isCNTicker(t)
+
+// ---------------------------------------------------------------------------
+// Apply A-share normalization to TICKERS array.
+// 1. Bare 6-digit codes → append .SH/.SZ/.BJ deterministically.
+// 2. Chinese names → resolve via lightweight agent call.
+// 3. Auto-upgrade UNIVERSE to 'CN' if ALL tickers are CN inputs.
+// ---------------------------------------------------------------------------
+if (TICKERS.length > 0) {
+  const chineseNames = TICKERS.filter(t => isChinese(t))
+  const normalizedDirect = TICKERS.map(t => isChinese(t) ? t : normalizeCNTicker(t))
+
+  // Resolve Chinese names via agent (e.g., "贵州茅台" → "600519.SH")
+  if (chineseNames.length > 0) {
+    log(`[normalize] Resolving ${chineseNames.length} Chinese name(s): ${chineseNames.join(', ')}`)
+    const resolved = await agent(
+      `Resolve these Chinese stock names to their 6-digit A-share ticker codes with exchange suffix.\n` +
+      `Names: ${chineseNames.join(', ')}\n` +
+      `Rules: Shanghai (6xxxxx) → .SH, Shenzhen main (0xxxxx) → .SZ, ChiNext (3xxxxx) → .SZ, BSE (8xxxxx/4xxxxx) → .BJ.\n` +
+      `Return JSON mapping each name to its normalized ticker. Example: {"贵州茅台": "600519.SH", "比亚迪": "002594.SZ"}`,
+      { label: 'resolve-cn-names', phase: 'Setup', agentType: 'general-purpose',
+        schema: { type: 'object', additionalProperties: { type: 'string', pattern: '^\\d{6}\\.(SH|SZ|BJ)$' } } }
+    )
+    if (resolved) {
+      TICKERS = normalizedDirect.map(t => {
+        if (isChinese(t) && resolved[t]) return resolved[t]
+        return t
+      })
+      log(`[normalize] Resolved tickers: ${TICKERS.join(', ')}`)
+    } else {
+      TICKERS = normalizedDirect
+      log(`[normalize] Agent resolution failed — using direct normalization only: ${TICKERS.join(', ')}`)
+    }
+  } else {
+    TICKERS = normalizedDirect
+  }
+
+  // Auto-detect universe: if ALL tickers are CN, switch UNIVERSE to 'CN'
+  const allCN = TICKERS.every(t => isCNTicker(t))
+  if (allCN && UNIVERSE === 'US') {
+    UNIVERSE = 'CN'
+    log(`[normalize] All tickers are A-shares — auto-switching UNIVERSE to CN`)
+  }
+
+  log(`[normalize] Final tickers: ${TICKERS.join(', ')} | universe: ${UNIVERSE}`)
 }
 
 const validModes = ['pipeline', 'screen', 'analyze', 'compare', 'walk']
@@ -845,8 +919,8 @@ if (MODE === 'pipeline' || MODE === 'screen') {
       `You are stock-analysis:company-screener. Screen companies in sub-industry ${deepdive.code} ` +
       `(${deepdive.companies?.length || 0} candidates). LISTING UNIVERSE: ${UNIVERSE} — ` +
       (UNIVERSE === 'US' ? `INCLUDE ONLY tickers listed on NYSE/NASDAQ (bare A-Z symbols, e.g. AAPL, BRK.B). ` +
-        `EXCLUDE non-US listings: .T (Tokyo), .HK (Hong Kong), .SH/.SZ (China A-shares), .L (London), .TO (Toronto), .DE/.PA/.AS (Europe), .AX (Australia). ` :
-       UNIVERSE === 'CN' ? `INCLUDE ONLY .SH and .SZ tickers (China A-shares). EXCLUDE all others. ` :
+        `EXCLUDE non-US listings: .T (Tokyo), .HK (Hong Kong), .SH/.SZ/.BJ (China A-shares), .L (London), .TO (Toronto), .DE/.PA/.AS (Europe), .AX (Australia). ` :
+       UNIVERSE === 'CN' ? `INCLUDE ONLY .SH, .SZ, and .BJ tickers (China A-shares). EXCLUDE all others. ` :
                             `Accept any listing exchange. `) +
       `Apply price filter (US < $100, China A-shares < ¥100, all other markets < $100 USD equiv). ` +
       `Score growth/profitability/moat/valuation/management/risk/liquidity. ` +
@@ -1022,7 +1096,7 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
   // ─────────────────────────── Wave 1 ───────────────────────────
   // Stages 5, 7, 9, 13 — all independent. Run inside one company in parallel.
   async (co) => {
-    const isAShare = (co.ticker || '').match(/\.(SH|SZ)$/) ? true : false
+    const isAShare = (co.ticker || '').match(/\.(SH|SZ|BJ)$/) ? true : false
     const [s5, s7, s9, s13] = await Promise.all([
       agentWithRetry(stagePrompt(5, 'fundamental-analyst', co,
         `Focus: financial health — DuPont 5-factor, Piotroski F-Score, Lynch category, key ratios. ` +
@@ -1135,13 +1209,13 @@ const companyResults = await parallel(watchlist.map(c => () => pipeline(
   },
 
   // ─────────────────────────── Wave 4 — A-share only ───────────────────────────
-  // Stage 15 — depends on all prior. SKIP for non-.SH/.SZ tickers.
+  // Stage 15 — depends on all prior. SKIP for non-.SH/.SZ/.BJ tickers.
   async (co) => {
     if (!co.isAShare) {
       return { ...co, stages: { ...co.stages, 15: { stage: 15, status: 'skipped', notes: 'non A-share' } } }
     }
     const s15 = await agentWithRetry(stagePrompt(15, 'china-market-analyst', co,
-      `Focus (MANDATORY for .SH/.SZ): 政策敏感性矩阵, 产业政策周期, 北向资金, 融资融券, 龙虎榜, 游资追踪. ` +
+      `Focus (MANDATORY for .SH/.SZ/.BJ): 政策敏感性矩阵, 产业政策周期, 北向资金, 融资融券, 龙虎榜, 游资追踪. ` +
       `Read stage5-12 outputs first.`),
       { agentType: 'stock-analysis:china-market-analyst', schema: STAGE_RESULT_SCHEMA,
         phase: 'Per-Company Analysis', label: `${co.rank}-${co.ticker}:s15` })
