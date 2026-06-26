@@ -161,8 +161,13 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 | Capital Structure | 10% | X.X | X.XX | Buyback ROI: XX%, SBC: X%, D/E: X.X | [1-sentence: why this score] |
 | Macro Tailwind | 5% | X.X | X.XX | [Key tailwind/headwind with data] | [1-sentence: why this score] |
 | Risk Profile | 10% | X.X | X.XX | Red flags: X, Z-Score: X.X, litigation: [Y/N] | [1-sentence: why this score] |
-| Weinstein | 5% | X.X | X.XX | Stage: X, RS: X.XX, 30W MA: [direction] | [1-sentence: why this score] |
+| Weinstein | 5% | X.X | X.XX | Stage: X, decay-wtd RS: X.XX, 30W MA: [direction] | [1-sentence: why this score] |
+| Ecosystem Momentum | — | X.X | — | Upstream: [X.X], downstream: [X.X], direction: [up/flat/down] | [1-sentence] |
+| Industry Trajectory | — | X.X | — | Rev accel: [Y/N], margin: [expanding/flat/contracting], fund flows: [in/out] | [1-sentence] |
 | **TOTAL** | 100% | — | **X.XX** | — | — |
+
+**Three-Layer Alignment**: [fully_aligned/partially_aligned/divergent] — Stock([X.X]) × Industry([X.X]) × Macro([X.X]) → adj: [+0.5/0/-0.5]
+**Analyst Revision Momentum**: [X.X]/10 ([upgrade/neutral/downgrade]) — CANSLIM I-factor adj: [±X.X]
 
 ### 关键决定维度 (Key Decisive Dimensions)
 [Which 2-3 dimensions MOST influenced the final conviction. State which scored highest/lowest and WHY.
@@ -344,8 +349,10 @@ State explicitly: **widening / stable / narrowing** with specific 12-24 month ev
 | Valuation | 20% | X.X | X.XX | P/E: XX.X vs peer XX.X, PEG: X.X | [1-sentence] |
 | Macro Tailwind | 20% | X.X | X.XX | [Rates/GDP/PMI direction + impact] | [1-sentence] |
 | Risk Profile | 10% | X.X | X.XX | Red flags: X, maturity wall: [Y/N] | [1-sentence] |
-| Weinstein | 10% | X.X | X.XX | Stage: X, RS rank: top X% | [1-sentence] |
-| CANSLIM | 10% | X.X | X.XX | [X/7 pass]: C[P/F] A[P/F] N[P/F] S[P/F] L[P/F] I[P/F] M[P/F] | [1-sentence] |
+| Weinstein | 10% | X.X | X.XX | Stage: X, RS rank: top X%, decay-wtd RS: X.XX | [1-sentence] |
+| CANSLIM | 10% | X.X | X.XX | [X/7 pass]: C[P/F] A[P/F] N[P/F] S[P/F] L[P/F] I[P/F(rev momentum ±adj)] M[P/F] | [1-sentence] |
+| Ecosystem Momentum | 5% | X.X | X.XX | Upstream: [healthy/mixed/weak], downstream: [healthy/mixed/weak] | [1-sentence] |
+| Industry Trajectory | 5% | X.X | X.XX | Direction: [improving/stable/deteriorating], fund flows: [inflow/outflow] | [1-sentence] |
 | **TOTAL** | 100% | — | **X.XX** | — | — |
 
 ### 关键决定维度 (Key Decisive Dimensions — Mid-term)
@@ -403,6 +410,20 @@ For full $10B counterfactual + anti-pattern checks + peer-pair table, refer to t
 **Weinstein Stage**: [1/2/3/4] — [Evidence: 30-week MA direction, volume pattern, RS rank]
 **CANSLIM Score**: [X/7 pass] — C:[P/F] A:[P/F] N:[P/F] S:[P/F] L:[P/F] I:[P/F] M:[P/F]
 [Stage 2 breakout confirmed? Volume confirmation? Relative strength rank position.]
+
+### Analyst Revision Momentum
+- **Momentum Score**: [X.X]/10 — Direction: [strong_upgrade_trend / moderate_upgrade / neutral / moderate_downgrade / strong_downgrade_trend]
+- **Slope**: [X.XXXX]/month — Consistency (R²): [X.XX]
+- **Acceleration**: [Accelerating / Steady / Decelerating]
+- [Interpretation: "Analysts upgrading/downgrading at X%/month with X% consistency"]
+
+### Multi-Layer Alignment (Stock × Industry × Macro)
+- **Alignment Status**: [fully_aligned / partially_aligned / divergent]
+- Stock (Technical): [X.X] — [bullish/neutral/bearish]
+- Industry (Trajectory): [X.X] — [bullish/neutral/bearish]
+- Macro (Tailwind): [X.X] — [bullish/neutral/bearish]
+- **Conviction Adjustment**: [+0.5 (all aligned) / 0 / -0.5 (divergent warning)]
+- [If divergent: 1-paragraph explaining why stock deviates from environment — outlier leader or swimming against tide?]
 
 ## 6. Macro Tailwinds/Headwinds
 [Tailwinds: 1-3 factors. Headwinds: 1-3 factors. Net assessment.]
@@ -494,9 +515,11 @@ For full $10B counterfactual + anti-pattern checks + peer-pair table, refer to t
 | Macro Tailwind | 10% | X.X | X.XX | [Rate direction, PMI trend, sector rotation] | [1-sentence] |
 | Risk Profile | 10% | X.X | X.XX | Earnings in X days, event risk: [low/med/high] | [1-sentence] |
 | Alt Alignment | 25% | X.X | X.XX | Web traffic: +X%, app rank: #X, social: [bullish/bearish] | [1-sentence] |
-| Technical Setup | 20% | X.X | X.XX | RSI: XX, MACD: [signal], above/below MA: [Y/N] | [1-sentence] |
+| Technical Setup | 20% | X.X | X.XX | RSI: XX, MACD: [signal], decay-wtd RS: X.XX, above MA: [Y/N] | [1-sentence] |
 | Weinstein | 15% | X.X | X.XX | Stage: X, breakout: [confirmed/pending], volume: [X vs avg] | [1-sentence] |
-| CANSLIM | 10% | X.X | X.XX | M-factor: [confirmed uptrend/correction], EPS accel: [Y/N] | [1-sentence] |
+| CANSLIM | 10% | X.X | X.XX | M-factor: [confirmed uptrend/correction], rev momentum: X.X/10 | [1-sentence] |
+| Ecosystem Momentum | 10% | X.X | X.XX | Upstream health: X.X, downstream: X.X, direction: [up/down] | [1-sentence] |
+| Industry Trajectory | 5% | X.X | X.XX | Sector RS: [rising/falling], fund flows: [in/out] | [1-sentence] |
 | **TOTAL** | 100% | — | **X.XX** | — | — |
 
 ### 关键决定维度 (Key Decisive Dimensions — Short-term)
@@ -523,6 +546,17 @@ Example: "短期交易信号主要由Alt Alignment(9.0)和Technical(8.5)驱动�
 - Institutional flow: [dark pool, 13F timing]
 - Activist exposure: [None / Fund name (X% ownership)] — Proxy fight probability: [Low/Moderate/High]
 - AAII sentiment: [% bullish — contrarian at extremes >50% or <25%]
+
+### Analyst Revision Momentum (Short-term signal)
+- **Momentum Score**: [X.X]/10 — Direction: [upgrade/neutral/downgrade trend]
+- **Slope**: [X.XXXX]/month — Consistency (R²): [X.XX] — Acceleration: [accelerating/steady/decelerating]
+- [If score ≥7.5: "Strong upgrade momentum — leading price signal, supports bullish setup"]
+- [If score ≤3.0: "Strong downgrade momentum — estimate cuts likely, bearish backdrop"]
+
+### Multi-Layer Alignment (Stock × Industry × Macro)
+- **Status**: [fully_aligned / partially_aligned / divergent]
+- Stock: [X.X], Industry: [X.X], Macro: [X.X] → Conviction adj: [+0.5/0/-0.5]
+- [If divergent: brief note on whether stock is an outlier or the environment is the signal]
 
 ## 3. Alternative Data Readings
 [Digital signals: web traffic, app engagement, social sentiment. Composite score. Real-time divergences.]
