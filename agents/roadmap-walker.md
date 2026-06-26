@@ -124,12 +124,21 @@ Validation gate: at least one layer must score ≥3, otherwise output a "no chok
    - Look for new filers (fresh positions) vs exits
    - `inst_trend` = accumulating|stable|distributing
 
-5. **Patent / R&D Signals** — forward-looking moat validation:
+5. **Strategic Stakeholder Analysis (股东/投资方分析)** — who backs this company?
+   - **Top institutional holders**: Identify top-5 holders by name (e.g., BlackRock, Vanguard, ARK, Baillie Gifford, Softbank, Tiger Global)
+   - **Strategic/industrial investors**: Does any supply-chain participant (customer, supplier, partner) hold equity? Cross-shareholding = industrial endorsement of chokepoint value. Example: TSMC invested in ASML; Toyota invested in Panasonic Energy.
+   - **PE/VC backers**: Pre-IPO investors still holding? Lock-up status? Recent secondary sales?
+   - **Insider/founder ownership**: Founder still significant holder = aligned incentives
+   - **Sovereign wealth / national champions**: Government-linked funds holding = policy support signal (especially for China/Korea/Japan/Middle East)
+   - Interpretation: `stakeholder_quality` = strategic_endorsed|smart_money_backed|mixed|retail_dominated
+   - Strategic endorsement (supply-chain cross-holding or sovereign fund) + low attention = **strongest hidden alpha signal**
+
+6. **Patent / R&D Signals** — forward-looking moat validation:
    - Search for recent patent filings in the chokepoint technology area
    - R&D spend trajectory (growing = reinvesting in moat)
    - `innovation_signal` = strong|moderate|weak
 
-6. **Hiring Signals** — implicit capex / expansion indicator:
+7. **Hiring Signals** — implicit capex / expansion indicator:
    - Job postings for engineering/production roles at the candidate
    - Hiring surge = demand confirmation + capacity expansion
    - `hiring_signal` = expanding|stable|contracting
@@ -143,15 +152,20 @@ Validation gate: at least one layer must score ≥3, otherwise output a "no chok
 6. `mcp__tavily-remote-mcp__tavily_search` with `search_depth: "advanced"` — "[ticker] hiring engineers production [layer] [current year]"
 7. `mcp__firecrawl__firecrawl_search` — "[ticker] news [theme] [current month]"
 8. SEC filings via `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` for capex disclosures + 13F changes
+9. `mcp__firecrawl__firecrawl_search` — "[ticker] major shareholders strategic investor [year]"
+10. `mcp__xcrawl-mcp__xcrawl_search` — "[ticker] top institutional holders 13F [quarter year]"
+11. `mcp__exa__web_search_exa` — "[ticker] [customer/supplier name] investment equity stake partnership"
+12. `mcp__tavily-remote-mcp__tavily_search` — "[ticker] founder ownership insider holdings [year]"
 
 Compute `asymmetry_ratio = market_cap_usd / addressable_market_controlled_usd`.
 
 **Supplementary signal composite (qualitative, used to adjust tier classification ±1 tier):**
 - Hidden alpha bonus: attention_level=low + narrative_phase=unknown/emerging + fund_flow=inflow + inst_trend=accumulating → boost candidate by 1 tier
-- Crowded penalty: attention_level=saturated + narrative_phase=consensus + inst_own>50% → demote candidate by 1 tier
-- Record all signal values in `walk_candidates.json` per candidate for downstream transparency.
+- Strategic endorsement bonus: stakeholder_quality=strategic_endorsed (supply-chain cross-holding confirmed) → boost by 1 tier regardless of other signals
+- Crowded penalty: attention_level=saturated + narrative_phase=consensus + inst_own>50% + stakeholder_quality=retail_dominated → demote candidate by 1 tier
+- Record all signal values (including stakeholder details) in `walk_candidates.json` per candidate for downstream transparency.
 
-Cap candidate count at `top_industry` (default 7). If a layer has more candidates than the cap allows, prioritize by: (1) chokepoint_score descending, (2) asymmetry_ratio ascending (lower=cheaper), (3) attention_level ascending (less discovered = better alpha).</step>
+Cap candidate count at `top_industry` (default 7). If a layer has more candidates than the cap allows, prioritize by: (1) chokepoint_score descending, (2) asymmetry_ratio ascending (lower=cheaper), (3) stakeholder_quality (strategic_endorsed first), (4) attention_level ascending (less discovered = better alpha).</step>
 
 <step n="5" name="Asymmetry Composite Scoring">For each candidate, write inputs to a temporary JSON and run the scorer with ALL available signals:
 
@@ -170,6 +184,7 @@ uv run python {plugin_root}/scripts/score_bottleneck_asymmetry.py \
   --inst-trend [accumulating|stable|distributing] \
   --innovation-signal [strong|moderate|weak] \
   --hiring-signal [expanding|stable|contracting] \
+  --stakeholder-quality [strategic_endorsed|smart_money_backed|mixed|retail_dominated] \
   --layer-name "[LAYER]" \
   --roadmap-theme "[THEME]" \
   --output {output_dir}/walk_candidate_[TICKER].json

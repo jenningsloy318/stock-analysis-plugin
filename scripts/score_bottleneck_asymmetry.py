@@ -262,6 +262,7 @@ def compute(inputs: dict) -> dict:
     inst_trend = inputs.get("inst_trend")
     innovation = inputs.get("innovation_signal")
     hiring = inputs.get("hiring_signal")
+    stakeholder = inputs.get("stakeholder_quality")
 
     # Hidden alpha bonus: low attention + early narrative + money flowing in
     if attention == "low":
@@ -312,6 +313,17 @@ def compute(inputs: dict) -> dict:
         signal_adj -= 2
         signal_notes.append("hiring=contracting (-2 demand weakening)")
 
+    # Stakeholder quality — strategic endorsement is the strongest signal
+    if stakeholder == "strategic_endorsed":
+        signal_adj += 4
+        signal_notes.append("stakeholder=strategic_endorsed (+4 supply-chain cross-holding confirms chokepoint)")
+    elif stakeholder == "smart_money_backed":
+        signal_adj += 2
+        signal_notes.append("stakeholder=smart_money_backed (+2 top-tier funds position)")
+    elif stakeholder == "retail_dominated":
+        signal_adj -= 2
+        signal_notes.append("stakeholder=retail_dominated (-2 no institutional/strategic validation)")
+
     # Cap adjustment at ±10
     signal_adj = max(-10, min(10, signal_adj))
     composite = max(0, min(100, composite + signal_adj))
@@ -341,6 +353,7 @@ def compute(inputs: dict) -> dict:
                 "inst_trend": inst_trend,
                 "innovation_signal": innovation,
                 "hiring_signal": hiring,
+                "stakeholder_quality": stakeholder,
             },
             "notes": signal_notes,
         },
@@ -417,6 +430,9 @@ def parse_args() -> argparse.Namespace:
                    help="Patent/R&D forward-looking signal")
     p.add_argument("--hiring-signal", choices=["expanding", "stable", "contracting"],
                    help="Hiring activity signal (expansion proxy)")
+    p.add_argument("--stakeholder-quality",
+                   choices=["strategic_endorsed", "smart_money_backed", "mixed", "retail_dominated"],
+                   help="Stakeholder/investor quality (strategic_endorsed = supply-chain cross-holding)")
     p.add_argument("--input-json", help="Read inputs from JSON file (overrides individual flags)")
     p.add_argument("--output", help="Write result JSON to this path (default: stdout)")
     return p.parse_args()
@@ -453,6 +469,7 @@ def main() -> int:
             "inst_trend": args.inst_trend,
             "innovation_signal": args.innovation_signal,
             "hiring_signal": args.hiring_signal,
+            "stakeholder_quality": args.stakeholder_quality,
         }
 
     try:
