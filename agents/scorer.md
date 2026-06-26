@@ -46,13 +46,28 @@ timeout_mins: 10
       --options ./reports/[RUN_ID]/NNN-[TICKER]/options.json \
       --ecosystem ./reports/[RUN_ID]/NNN-[TICKER]/ecosystem.json \
       --trajectory ./reports/[RUN_ID]/NNN-[TICKER]/trajectory.json \
+      --credit ./reports/[RUN_ID]/NNN-[TICKER]/credit.json \
+      --correlation ./reports/[RUN_ID]/NNN-[TICKER]/correlation.json \
+      --forecast ./reports/[RUN_ID]/NNN-[TICKER]/forecast.json \
+      --earnings-edge ./reports/[RUN_ID]/NNN-[TICKER]/earnings_edge.json \
+      --health-index ./reports/[RUN_ID]/NNN-[TICKER]/health_index.json \
+      --tam-adj-peg ./reports/[RUN_ID]/NNN-[TICKER]/tam_adj_peg.json \
+      --bayesian-growth ./reports/[RUN_ID]/NNN-[TICKER]/bayesian_growth.json \
+      --cot ./reports/[RUN_ID]/NNN-[TICKER]/cot.json \
+      --seasonality ./reports/[RUN_ID]/NNN-[TICKER]/seasonality.json \
       --output ./reports/[RUN_ID]/NNN-[TICKER]/scores.json
     ```
 
     Omit any `--flag` whose .json file does not exist for this company.
     Run ONCE per report-type (long, mid, short) — produces 3 score files or one combined.
 
-    This produces deterministic 1-10 scores for: Financial Health, Capital Allocation, Earnings Quality, Moat, Management, Valuation, Macro Tailwind, Risk, Alternative Alignment, Technical Setup, Capital Structure, Weinstein Alignment, CANSLIM (with revision momentum), Ecosystem Momentum, Industry Trajectory + framework divergence + tape class + conviction count.
+    This produces deterministic 1-10 scores for all dimensions, enriched by:
+    - Risk Profile ← credit spreads + correlation regime + GARCH volatility (±1.5)
+    - Valuation ← TAM-adj PEG + Bayesian growth verdict (±1.5)
+    - Technical Setup ← GF-DMA Health Index (±1.0)
+    - CANSLIM ← earnings edge beat rate + PEAD + seasonality (±1.0)
+    - Conviction Count ← COT institutional positioning (additional factor)
+    + framework divergence + tape class + conviction count + revision momentum
 
     LLM adjustment rule: Moat and Management scores may be adjusted ±2.0 based on qualitative findings from Stages 5-15. All adjustments must cite specific evidence.
   </step>

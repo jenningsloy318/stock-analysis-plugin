@@ -2393,6 +2393,328 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Score Enrichment Functions (integrate supplementary data into base scores)
+# ---------------------------------------------------------------------------
+
+
+def _enrich_risk_profile(
+    risk_result: dict,
+    credit_data: dict,
+    correlation_data: dict,
+    forecast_data: dict,
+) -> None:
+    """Enrich risk_profile score with credit spreads, tail correlation, and GARCH vol.
+
+    Adjusts the existing score ±1.5 based on supplementary risk signals.
+    Modifies risk_result in-place.
+    """
+    if risk_result.get("score") is None:
+        return
+
+    base_score = risk_result["score"]
+    adj = 0.0
+    reasons = risk_result.get("reasons", [])
+    sub_scores = risk_result.get("sub_scores", {})
+
+    # 1. Credit spread signal (fetch_credit.py)
+    if credit_data:
+        spread_trend = credit_data.get("spread_trend", {})
+        spread_z = spread_trend.get("z_score")  # z-score of current spread vs history
+        rating = credit_data.get("credit_rating", {}).get("rating")
+
+        if spread_z is not None:
+            if spread_z > 2.0:
+                adj -= 1.0
+                reasons.append(f"Credit: spread z-score {spread_z:.1f} (widening stress)")
+            elif spread_z > 1.0:
+                adj -= 0.5
+                reasons.append(f"Credit: spread z-score {spread_z:.1f} (elevated)")
+            elif spread_z < -1.0:
+                adj += 0.3
+                reasons.append(f"Credit: spread z-score {spread_z:.1f} (tight/benign)")
+            sub_scores["credit_spread_z"] = max(1.0, min(10.0, 5.5 - spread_z * 1.5))
+
+        if rating:
+            investment_grade = rating.startswith(("AAA", "AA", "A", "BBB"))
+            if not investment_grade:
+                adj -= 0.5
+                reasons.append(f"Credit: sub-investment-grade rating ({rating})")
+            sub_scores["credit_rating"] = 8.0 if investment_grade else 3.0
+
+    # 2. Tail correlation / asymmetric beta (compute_correlation_regime.py)
+    if correlation_data:
+        regime = correlation_data.get("regime", "normal")
+        asym_beta = correlation_data.get("asymmetric_beta", {})
+        downside_beta = asym_beta.get("downside_beta")
+        tail_corr = correlation_data.get("tail_correlation")
+
+        if regime == "crisis":
+            adj -= 0.8
+            reasons.append("Correlation: crisis regime — diversification fails")
+        elif regime == "elevated":
+            adj -= 0.3
+            reasons.append("Correlation: elevated regime — reduced diversification")
+
+        if downside_beta is not None and downside_beta > 1.5:
+            adj -= 0.5
+            reasons.append(f"Asymmetric beta: downside={downside_beta:.2f} (amplifies losses)")
+            sub_scores["downside_beta"] = max(1.0, 8.0 - (downside_beta - 1.0) * 3)
+        elif downside_beta is not None:
+            sub_scores["downside_beta"] = max(1.0, min(10.0, 8.0 - (downside_beta - 1.0) * 3))
+
+        if tail_corr is not None and tail_corr > 0.7:
+            adj -= 0.3
+            reasons.append(f"Tail correlation: {tail_corr:.2f} (contagion risk)")
+
+    # 3. GARCH volatility / fat-tail risk (forecast.py)
+    if forecast_data:
+        garch = forecast_data.get("garch", {})
+        annual_vol = garch.get("annualized_vol")
+        fat_tail = forecast_data.get("fat_tail", {})
+        tail_index = fat_tail.get("tail_index")  # lower = fatter tails
+
+        if annual_vol is not None:
+            if annual_vol > 0.60:
+                adj -= 0.8
+                reasons.append(f"GARCH vol: {annual_vol:.0%} annualized (extreme)")
+            elif annual_vol > 0.40:
+                adj -= 0.4
+                reasons.append(f"GARCH vol: {annual_vol:.0%} annualized (high)")
+            elif annual_vol < 0.20:
+                adj += 0.2
+                reasons.append(f"GARCH vol: {annual_vol:.0%} annualized (low)")
+            sub_scores["garch_vol"] = max(1.0, min(10.0, 8.0 - (annual_vol - 0.25) * 10))
+
+        if tail_index is not None and tail_index < 3.0:
+            adj -= 0.4
+            reasons.append(f"Fat-tail index: {tail_index:.1f} (extreme events likely)")
+
+    # Apply adjustment (capped at ±1.5)
+    adj = max(-1.5, min(1.5, adj))
+    new_score = _clamp(base_score + adj)
+    risk_result["score"] = new_score
+    risk_result["enrichment_adj"] = round(adj, 2)
+    risk_result["sub_scores"] = sub_scores
+    risk_result["reasons"] = reasons
+    if adj != 0:
+        risk_result["methodology"] += (
+            f" + Credit/Correlation/GARCH enrichment (adj={adj:+.2f})"
+        )
+
+
+def _enrich_valuation(
+    val_result: dict,
+    tam_adj_peg_data: dict,
+    bayesian_growth_data: dict,
+) -> None:
+    """Enrich valuation score with TAM-adjusted PEG and Bayesian growth analysis.
+
+    Adjusts the existing score ±1.5 based on growth runway signals.
+    Modifies val_result in-place.
+    """
+    if val_result.get("score") is None:
+        return
+
+    base_score = val_result["score"]
+    adj = 0.0
+    reasons = val_result.get("reasons", [])
+
+    # 1. TAM-Adjusted PEG (compute_tam_adj_peg.py)
+    if tam_adj_peg_data:
+        category = tam_adj_peg_data.get("category", "")
+        tam_peg = tam_adj_peg_data.get("tam_adj_peg")
+        interpretation = tam_adj_peg_data.get("interpretation", "")
+
+        if tam_peg is not None:
+            if tam_peg < 0.5:
+                adj += 1.0
+                reasons.append(f"TAM-adj PEG: {tam_peg:.2f} (deeply undervalued for growth runway)")
+            elif tam_peg < 1.0:
+                adj += 0.5
+                reasons.append(f"TAM-adj PEG: {tam_peg:.2f} (undervalued vs TAM opportunity)")
+            elif tam_peg > 2.5:
+                adj -= 0.8
+                reasons.append(f"TAM-adj PEG: {tam_peg:.2f} (overpriced even for TAM)")
+            elif tam_peg > 1.5:
+                adj -= 0.3
+                reasons.append(f"TAM-adj PEG: {tam_peg:.2f} (full valuation)")
+
+        if category:
+            val_result["growth_category"] = category
+
+    # 2. Bayesian intrinsic growth (compute_bayesian_growth.py)
+    if bayesian_growth_data:
+        verdict = bayesian_growth_data.get("verdict", "")
+        fomo_score = bayesian_growth_data.get("fomo_score")
+        gap = bayesian_growth_data.get("intrinsic_minus_implied")
+
+        if verdict == "UNDERPRICED_GROWTH":
+            adj += 0.8
+            reasons.append(f"Bayesian: UNDERPRICED_GROWTH (gap={gap:+.1%})" if gap else "Bayesian: UNDERPRICED_GROWTH")
+        elif verdict == "OVERPRICED_GROWTH":
+            adj -= 0.8
+            reasons.append(f"Bayesian: OVERPRICED_GROWTH (gap={gap:+.1%})" if gap else "Bayesian: OVERPRICED_GROWTH")
+
+        if fomo_score is not None and fomo_score > 70:
+            adj -= 0.3
+            reasons.append(f"FOMO score: {fomo_score}/100 (priced for perfection)")
+
+        val_result["bayesian_verdict"] = verdict
+        val_result["fomo_score"] = fomo_score
+
+    # Apply adjustment
+    adj = max(-1.5, min(1.5, adj))
+    new_score = _clamp(base_score + adj)
+    val_result["score"] = new_score
+    val_result["enrichment_adj"] = round(adj, 2)
+    val_result["reasons"] = reasons
+
+
+def _enrich_technical_setup(
+    tech_result: dict,
+    health_index_data: dict,
+) -> None:
+    """Enrich technical setup with GF-DMA Health Index.
+
+    Health Index is a 0-100 composite of fundamental speed × DMA structure.
+    Adjusts technical score ±1.0 based on health band.
+    Modifies tech_result in-place.
+    """
+    if tech_result.get("score") is None or not health_index_data:
+        return
+
+    base_score = tech_result["score"]
+    adj = 0.0
+    reasons = tech_result.get("reasons", [])
+
+    health_score = health_index_data.get("health_index")
+    band = health_index_data.get("band", "")
+
+    if health_score is not None:
+        if band == "ELITE_HEALTHY" or health_score >= 80:
+            adj += 1.0
+            reasons.append(f"GF-DMA Health: {health_score}/100 ({band}) — elite momentum+fundamentals")
+        elif band == "HEALTHY" or health_score >= 60:
+            adj += 0.5
+            reasons.append(f"GF-DMA Health: {health_score}/100 ({band}) — healthy")
+        elif band == "OVERHEATED" or health_score >= 40:
+            adj -= 0.3
+            reasons.append(f"GF-DMA Health: {health_score}/100 ({band}) — overheated risk")
+        elif band == "UNHEALTHY" or health_score < 30:
+            adj -= 1.0
+            reasons.append(f"GF-DMA Health: {health_score}/100 ({band}) — unhealthy")
+
+        tech_result["health_index"] = health_score
+        tech_result["health_band"] = band
+
+    adj = max(-1.0, min(1.0, adj))
+    new_score = _clamp(base_score + adj)
+    tech_result["score"] = new_score
+    tech_result["enrichment_adj"] = round(adj, 2)
+    tech_result["reasons"] = reasons
+
+
+def _enrich_canslim(
+    canslim_result: dict,
+    earnings_edge_data: dict,
+    seasonality_data: dict,
+) -> None:
+    """Enrich CANSLIM score with earnings edge (beat rate, PEAD) and seasonality.
+
+    Adjusts CANSLIM ±1.0 based on historical earnings patterns.
+    Modifies canslim_result in-place.
+    """
+    if canslim_result.get("score") is None:
+        return
+
+    base_score = canslim_result["score"]
+    adj = 0.0
+    reasons = canslim_result.get("reasons", [])
+
+    # 1. Earnings Edge (compute_earnings_edge.py)
+    if earnings_edge_data:
+        beat_rate = earnings_edge_data.get("beat_rate")
+        pead = earnings_edge_data.get("pead_tendency")  # positive/negative/none
+        days_to_earnings = earnings_edge_data.get("days_to_next_earnings")
+
+        if beat_rate is not None:
+            if beat_rate >= 0.80:
+                adj += 0.8
+                reasons.append(f"Earnings edge: beat rate {beat_rate:.0%} (serial beater)")
+            elif beat_rate >= 0.65:
+                adj += 0.4
+                reasons.append(f"Earnings edge: beat rate {beat_rate:.0%} (consistent)")
+            elif beat_rate <= 0.35:
+                adj -= 0.5
+                reasons.append(f"Earnings edge: beat rate {beat_rate:.0%} (serial misser)")
+
+        if pead == "positive":
+            adj += 0.3
+            reasons.append("PEAD: positive post-earnings drift history")
+        elif pead == "negative":
+            adj -= 0.3
+            reasons.append("PEAD: negative post-earnings drift history")
+
+        # Proximity bonus/warning (within 10 days of earnings → heightened signal)
+        if days_to_earnings is not None and days_to_earnings <= 10:
+            canslim_result["earnings_imminent"] = True
+            reasons.append(f"Earnings in {days_to_earnings} days — signal amplified")
+
+    # 2. Seasonality (compute_seasonality.py)
+    if seasonality_data:
+        seasonal_index = seasonality_data.get("current_quarter_index")
+        seasonal_assessment = seasonality_data.get("assessment", "")
+
+        if seasonal_index is not None:
+            if seasonal_index > 1.15:
+                adj += 0.3
+                reasons.append(f"Seasonality: Q index {seasonal_index:.2f} (historically strong quarter)")
+            elif seasonal_index < 0.85:
+                adj -= 0.3
+                reasons.append(f"Seasonality: Q index {seasonal_index:.2f} (historically weak quarter)")
+
+    adj = max(-1.0, min(1.0, adj))
+    new_score = _clamp(base_score + adj)
+    canslim_result["score"] = new_score
+    canslim_result["enrichment_adj"] = round(adj, 2)
+    canslim_result["reasons"] = reasons
+
+
+def _enrich_conviction_count_with_cot(
+    conviction_count: dict,
+    cot_data: dict,
+) -> None:
+    """Add COT institutional positioning as a conviction factor.
+
+    Modifies conviction_count in-place.
+    """
+    if not cot_data or not conviction_count:
+        return
+
+    positioning = cot_data.get("positioning", {})
+    net_position = positioning.get("net_speculative")
+    trend = positioning.get("trend")  # increasing/decreasing/flat
+
+    bull_factors = conviction_count.get("bull_factors", [])
+    bear_factors = conviction_count.get("bear_factors", [])
+
+    if net_position is not None and trend:
+        if net_position > 0 and trend == "increasing":
+            bull_factors.append(
+                {"name": "cot_institutional_bullish", "value": net_position}
+            )
+            conviction_count["bull_count"] = conviction_count.get("bull_count", 0) + 1
+        elif net_position < 0 and trend == "decreasing":
+            bear_factors.append(
+                {"name": "cot_institutional_bearish", "value": net_position}
+            )
+            conviction_count["bear_count"] = conviction_count.get("bear_count", 0) + 1
+
+    conviction_count["bull_factors"] = bull_factors
+    conviction_count["bear_factors"] = bear_factors
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -2443,6 +2765,33 @@ def main():
     )
     parser.add_argument(
         "--trajectory", help="Path to compute_industry_trajectory.py output JSON"
+    )
+    parser.add_argument(
+        "--credit", help="Path to fetch_credit.py output JSON"
+    )
+    parser.add_argument(
+        "--correlation", help="Path to compute_correlation_regime.py output JSON"
+    )
+    parser.add_argument(
+        "--forecast", help="Path to forecast.py output JSON"
+    )
+    parser.add_argument(
+        "--earnings-edge", help="Path to compute_earnings_edge.py output JSON"
+    )
+    parser.add_argument(
+        "--health-index", help="Path to compute_health_index.py output JSON"
+    )
+    parser.add_argument(
+        "--tam-adj-peg", help="Path to compute_tam_adj_peg.py output JSON"
+    )
+    parser.add_argument(
+        "--bayesian-growth", help="Path to compute_bayesian_growth.py output JSON"
+    )
+    parser.add_argument(
+        "--cot", help="Path to fetch_cot.py output JSON"
+    )
+    parser.add_argument(
+        "--seasonality", help="Path to compute_seasonality.py output JSON"
     )
     args = parser.parse_args()
 
@@ -2516,6 +2865,42 @@ def main():
     scores["weinstein_alignment"] = compute_weinstein_alignment(technicals)
     scores["canslim"] = compute_canslim(metrics, technicals, sentiment)
 
+    # --- Load supplementary data for score enrichment ---
+    def _load_json(path: str | None) -> dict:
+        if not path:
+            return {}
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except (IOError, json.JSONDecodeError) as e:
+            sys.stderr.write(f"Warning: could not load {path}: {e}\n")
+            return {}
+
+    credit_data = _load_json(args.credit)
+    correlation_data = _load_json(args.correlation)
+    forecast_data = _load_json(args.forecast)
+    earnings_edge_data = _load_json(args.earnings_edge)
+    health_index_data = _load_json(args.health_index)
+    tam_adj_peg_data = _load_json(args.tam_adj_peg)
+    bayesian_growth_data = _load_json(args.bayesian_growth)
+    cot_data = _load_json(args.cot)
+    seasonality_data = _load_json(args.seasonality)
+
+    # --- Enrich risk_profile with credit + correlation + forecast data ---
+    _enrich_risk_profile(scores["risk_profile"], credit_data, correlation_data, forecast_data)
+
+    # --- Enrich valuation with TAM-adj-PEG + Bayesian growth ---
+    _enrich_valuation(scores["valuation_attractiveness"], tam_adj_peg_data, bayesian_growth_data)
+
+    # --- Enrich technical_setup with health_index ---
+    _enrich_technical_setup(scores["technical_setup"], health_index_data)
+
+    # --- Enrich CANSLIM with earnings_edge + seasonality ---
+    _enrich_canslim(scores["canslim"], earnings_edge_data, seasonality_data)
+
+    # --- Enrich conviction_count with COT institutional positioning ---
+    # (applied later after conviction_count is computed)
+
     # Ecosystem momentum (supply chain health)
     ecosystem_data = {}
     if args.ecosystem:
@@ -2557,6 +2942,9 @@ def main():
         alternatives=alternatives,
         options_data=options_data,
     )
+
+    # Enrich conviction count with COT institutional positioning
+    _enrich_conviction_count_with_cot(scores["conviction_count_directional"], cot_data)
 
     # Conviction
     scores["conviction"] = compute_conviction(scores, args.report_type)

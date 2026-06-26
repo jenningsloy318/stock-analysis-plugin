@@ -1119,7 +1119,8 @@ const scored = await agentWithRetry(
   `${JSON.stringify(companyDirs)}. Run 'uv run python ${PLUGIN_ROOT}/scripts/compute_scores.py' ` +
   `for each company — pass ALL available data flags: --metrics, --macro (shared), --technicals, ` +
   `--alternatives, --sentiment, --capital-structure, --liquidity, --short-interest, --activist, ` +
-  `--options, --ecosystem [company_dir]/sc_ecosystem.json, --trajectory [company_dir]/industry_trajectory.json. ` +
+  `--options, --ecosystem, --trajectory, --credit, --correlation, --forecast, ` +
+  `--earnings-edge, --health-index, --tam-adj-peg, --bayesian-growth, --cot, --seasonality. ` +
   `Omit any flag whose file does not exist. ` +
   `Run cross_check.py with --behavioral [company_dir]/behavioral.json for contradiction detection ` +
   `(incl. Rule 7: three-layer alignment stock×industry×macro). ` +
