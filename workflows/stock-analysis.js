@@ -23,6 +23,7 @@ export const meta = {
     { title: 'Shared Data' },
     { title: 'Screening' },
     { title: 'Walk Chain' },
+    { title: 'Investability Filter' },
     { title: 'Per-Company Analysis' },
     { title: 'Scoring' },
     { title: 'Adversarial Verify' },
