@@ -310,8 +310,8 @@ def compute_regime_summary(
     # Tech vs Broad
     qqq_item = _find_idx(indices, "^IXIC")
     spy_item = _find_idx(indices, "^GSPC")
-    nasdaq_ret = qqq_item["ret_1d"] if qqq_item else None
-    sp500_ret = spy_item["ret_1d"] if spy_item else None
+    nasdaq_ret = qqq_item.get("ret_1d") if qqq_item else None
+    sp500_ret = spy_item.get("ret_1d") if spy_item else None
 
     # Sector leaders/laggards
     sector_sorted = sorted(
@@ -334,7 +334,7 @@ def compute_regime_summary(
 
     # VIX
     vix_item = _find_idx(indices, "^VIX")
-    vix_level = vix_item["close"] if vix_item else None
+    vix_level = vix_item.get("close") if vix_item else None
 
     # Regime signals
     signals = []
