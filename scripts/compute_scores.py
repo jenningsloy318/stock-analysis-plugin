@@ -38,6 +38,36 @@ def _clamp(score: float, lo: float = 1.0, hi: float = 10.0) -> float:
     return max(lo, min(hi, round(score, 1)))
 
 
+def _time_decay_weight(n: int, decay: float = 0.90) -> list[float]:
+    """Generate exponential time-decay weights for a series of length n.
+
+    Most recent value gets weight 1.0, older values decay exponentially.
+    Useful for RS, momentum, revision signals where recent data matters more.
+
+    Args:
+        n: Length of the time series.
+        decay: Decay factor per period (0.90 = 10% decay per period).
+
+    Returns:
+        List of weights [oldest, ..., newest] normalized to sum to 1.0.
+    """
+    if n <= 0:
+        return []
+    raw = [decay ** (n - 1 - i) for i in range(n)]
+    total = sum(raw)
+    return [w / total for w in raw] if total > 0 else [1.0 / n] * n
+
+
+def _weighted_mean(values: list[float], weights: list[float]) -> float | None:
+    """Compute weighted mean. Returns None if inputs are empty or mismatched."""
+    if not values or len(values) != len(weights):
+        return None
+    total_w = sum(weights)
+    if total_w == 0:
+        return None
+    return sum(v * w for v, w in zip(values, weights)) / total_w
+
+
 def _score_from_percentile(
     value: float | None,
     bullish_25: float,
@@ -1468,19 +1498,32 @@ def compute_weinstein_alignment(technicals: dict) -> dict:
         score = 1.5
         reasons.append("Weinstein Stage 4 (Declining) — avoid or short")
 
-    # Relative strength bonus/penalty
+    # Relative strength bonus/penalty (time-decay weighted: recent RS matters more)
     rs = ticker_data.get("relative_strength", {})
     composite_rs = rs.get("composite_rs")
-    if composite_rs is not None:
-        if composite_rs > 1.1:
+    rs_1m = rs.get("rs_1m")
+    rs_3m = rs.get("rs_3m")
+    rs_6m = rs.get("rs_6m")
+
+    # Prefer time-decay weighted RS when multi-period data available
+    effective_rs = None
+    if rs_1m is not None and rs_3m is not None:
+        rs_values = [v for v in [rs_6m, rs_3m, rs_1m] if v is not None]
+        rs_weights = _time_decay_weight(len(rs_values), decay=0.75)
+        effective_rs = _weighted_mean(rs_values, rs_weights)
+    if effective_rs is None:
+        effective_rs = composite_rs
+
+    if effective_rs is not None:
+        if effective_rs > 1.1:
             score = min(10.0, score + 1.0)
             reasons.append(
-                f"RS composite {composite_rs:.2f} > 1.1 — outperforming market"
+                f"RS (decay-weighted) {effective_rs:.2f} > 1.1 — outperforming market"
             )
-        elif composite_rs < 0.9:
+        elif effective_rs < 0.9:
             score = max(1.0, score - 1.0)
             reasons.append(
-                f"RS composite {composite_rs:.2f} < 0.9 — underperforming market"
+                f"RS (decay-weighted) {effective_rs:.2f} < 0.9 — underperforming market"
             )
 
     final = _clamp(score)
@@ -1629,6 +1672,7 @@ def compute_canslim(
         factors["L"] = None
 
     # I — Institutional sponsorship (from sentiment/insider)
+    #     Enhanced: incorporates analyst revision momentum (time-decay weighted)
     if sentiment:
         analyst = sentiment.get("analyst", {})
         total_analysts = 0
@@ -1639,15 +1683,31 @@ def compute_canslim(
                 latest.get(k, 0)
                 for k in ["strongBuy", "buy", "hold", "sell", "strongSell"]
             )
+        # Base score from coverage breadth
         if total_analysts > 20:
-            factors["I"] = 8.0
+            base_i = 8.0
         elif total_analysts > 10:
-            factors["I"] = 6.5
+            base_i = 6.5
         elif total_analysts > 5:
-            factors["I"] = 5.0
+            base_i = 5.0
         else:
-            factors["I"] = 3.5
-        reasons.append(f"I: {total_analysts} analysts covering")
+            base_i = 3.5
+
+        # Revision momentum bonus/penalty (±1.5 points max)
+        rev_momentum = analyst.get("revision_momentum", {})
+        momentum_score = rev_momentum.get("momentum_score")
+        if momentum_score is not None:
+            # Map 0-10 momentum to -1.5..+1.5 adjustment
+            momentum_adj = (momentum_score - 5.0) * 0.3
+            base_i = max(1.0, min(10.0, base_i + momentum_adj))
+            reasons.append(
+                f"I: {total_analysts} analysts, revision momentum "
+                f"{momentum_score:.1f}/10 (adj {momentum_adj:+.1f})"
+            )
+        else:
+            reasons.append(f"I: {total_analysts} analysts covering")
+
+        factors["I"] = round(base_i, 1)
     else:
         factors["I"] = None
 

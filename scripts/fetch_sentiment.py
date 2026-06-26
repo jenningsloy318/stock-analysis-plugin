@@ -454,12 +454,128 @@ def fetch_analyst_data(ticker: str, api_key: str) -> dict:
             else:
                 consensus = "Bearish"
 
+    # --- Analyst Revision Momentum (RTSI-inspired) ---
+    # Quantify the TREND of rating changes over time using linear regression
+    # on the monthly bull-ratio series. This captures acceleration, not just level.
+    revision_momentum = _compute_analyst_revision_momentum(recommendations)
+
     return {
         "source": "finnhub",
         "retrieved_at": datetime.now(timezone.utc).isoformat(),
         "recommendation_trends": recommendations,
         "latest_consensus": consensus,
         "price_target": price_target,
+        "revision_momentum": revision_momentum,
+    }
+
+
+def _compute_analyst_revision_momentum(recommendations: list[dict]) -> dict:
+    """Compute analyst revision momentum from recommendation trend history.
+
+    Borrows the core idea from AI-Stock-Master's RTSI: treat the monthly
+    bull-ratio time series as a signal, compute slope (direction), R²
+    (consistency), and acceleration (2nd derivative) to measure whether
+    analysts are upgrading or downgrading the stock WITH conviction.
+
+    Returns:
+        dict with slope, r_squared, acceleration, momentum_score (0-10),
+        and direction label.
+    """
+    if not recommendations or len(recommendations) < 3:
+        return {
+            "momentum_score": None,
+            "direction": "insufficient_data",
+            "note": "Need ≥3 months of recommendation data",
+        }
+
+    # Build bull-ratio time series (most recent first in raw data, reverse it)
+    bull_ratios: list[float] = []
+    for rec in reversed(recommendations):
+        total = sum(
+            rec.get(k, 0) or 0
+            for k in ("strong_buy", "buy", "hold", "sell", "strong_sell")
+        )
+        if total == 0:
+            continue
+        bull_pct = ((rec.get("strong_buy", 0) or 0) + (rec.get("buy", 0) or 0)) / total
+        bull_ratios.append(bull_pct)
+
+    n = len(bull_ratios)
+    if n < 3:
+        return {
+            "momentum_score": None,
+            "direction": "insufficient_data",
+            "note": f"Only {n} valid data points",
+        }
+
+    # Apply exponential time-decay weights (recent months weigh more)
+    decay_factor = 0.85
+    weights = [decay_factor ** (n - 1 - i) for i in range(n)]
+
+    # Weighted linear regression: slope of bull-ratio over time
+    x = list(range(n))
+    w_sum = sum(weights)
+    x_wm = sum(w * xi for w, xi in zip(weights, x)) / w_sum
+    y_wm = sum(w * yi for w, yi in zip(weights, bull_ratios)) / w_sum
+
+    numerator = sum(w * (xi - x_wm) * (yi - y_wm) for w, xi, yi in zip(weights, x, bull_ratios))
+    denominator = sum(w * (xi - x_wm) ** 2 for w, xi in zip(weights, x))
+
+    slope = numerator / denominator if denominator > 0 else 0.0
+
+    # R² (goodness of fit — consistency of the trend)
+    y_pred = [x_wm + slope * (xi - x_wm) for xi in x]  # simplified linear fit
+    ss_res = sum(w * (yi - yp) ** 2 for w, yi, yp in zip(weights, bull_ratios, y_pred))
+    ss_tot = sum(w * (yi - y_wm) ** 2 for w, yi in zip(weights, bull_ratios))
+    r_squared = 1.0 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+    r_squared = max(0.0, r_squared)
+
+    # Acceleration (2nd derivative — is the revision pace speeding up?)
+    if n >= 4:
+        first_half_slope = bull_ratios[n // 2] - bull_ratios[0]
+        second_half_slope = bull_ratios[-1] - bull_ratios[n // 2]
+        acceleration = second_half_slope - first_half_slope
+    else:
+        acceleration = 0.0
+
+    # Composite momentum score (0-10)
+    # Slope contributes direction+magnitude, R² confirms consistency,
+    # acceleration adds bonus for strengthening trend
+    raw_score = 5.0 + slope * 20.0  # slope of ~0.25 per month → +5 points
+    raw_score += r_squared * 1.5     # consistency bonus (max +1.5)
+    raw_score += acceleration * 5.0  # acceleration bonus/penalty
+    momentum_score = max(1.0, min(10.0, round(raw_score, 1)))
+
+    # Direction label
+    if momentum_score >= 7.5:
+        direction = "strong_upgrade_trend"
+    elif momentum_score >= 6.0:
+        direction = "moderate_upgrade_trend"
+    elif momentum_score >= 4.5:
+        direction = "neutral"
+    elif momentum_score >= 3.0:
+        direction = "moderate_downgrade_trend"
+    else:
+        direction = "strong_downgrade_trend"
+
+    return {
+        "momentum_score": momentum_score,
+        "direction": direction,
+        "slope": round(slope, 4),
+        "r_squared": round(r_squared, 3),
+        "acceleration": round(acceleration, 4),
+        "data_points": n,
+        "decay_factor": decay_factor,
+        "interpretation": (
+            f"Analyst consensus {'upgrading' if slope > 0 else 'downgrading'} "
+            f"at {abs(slope):.1%}/month with {r_squared:.0%} consistency. "
+            f"{'Accelerating' if acceleration > 0.02 else 'Decelerating' if acceleration < -0.02 else 'Steady pace'}."
+        ),
+        "methodology": (
+            "Time-decay weighted linear regression on monthly bull-ratio series. "
+            "Score = 5 + slope×20 + R²×1.5 + acceleration×5. "
+            "Inspired by RTSI (Rating Trend Strength Index) concept."
+        ),
     }
 
 

@@ -167,6 +167,7 @@ Score interpretation:
 
 ### Data Acquisition & Scripts
 Run `{plugin_root}/scripts/fetch_supply_chain.py [TICKER] --sector [GICS] --output ./reports/[RUN_ID]/supply_chain.json` for supply chain concentration risk scoring and supplier mapping.
+Run `{plugin_root}/scripts/fetch_supply_chain_ecosystem.py [TICKER] --output ./reports/[RUN_ID]/NNN-[TICKER]/ecosystem.json` for upstream supplier + downstream customer financial health (rev growth, margins, stock perf, FCF), ecosystem momentum score, and propagation risk detection. This output feeds into compute_scores.py (--ecosystem flag) for the Ecosystem Momentum dimension.
 Run `{plugin_root}/scripts/score_bottleneck_asymmetry.py` (CLI flags listed in Step 7b above) for deterministic 0-100 asymmetry composite per chokepoint candidate.
 
 For supply chain research, use search tools:

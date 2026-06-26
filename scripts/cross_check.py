@@ -36,6 +36,10 @@ def run_cross_check(scores: dict, behavioral: dict | None = None) -> dict:
     risk = _get_score("risk_profile")
     financial = _get_score("financial_health")
     alt = _get_score("alternative_alignment")
+    technical = _get_score("technical_setup")
+    macro = _get_score("macro_tailwind")
+    industry_traj = _get_score("industry_trajectory")
+    weinstein = _get_score("weinstein_alignment")
 
     # Rule 1: Overvaluation + wide moat
     if valuation is not None and moat is not None:
@@ -117,7 +121,6 @@ def run_cross_check(scores: dict, behavioral: dict | None = None) -> dict:
         )
 
     # Rule 6: Technical vs Fundamental divergence
-    technical = _get_score("technical_setup")
     if technical is not None and valuation is not None:
         if abs(technical - valuation) >= 4.0:
             direction = (
@@ -135,6 +138,114 @@ def run_cross_check(scores: dict, behavioral: dict | None = None) -> dict:
                 }
             )
 
+    # Rule 7: Three-Layer Alignment/Divergence (Stock × Industry × Macro)
+    # Inspired by AI-Stock-Master's multi-dimensional confirmation logic.
+    # When all three layers point the same direction → high conviction bonus.
+    # When stock diverges from industry+macro → potential early warning or outlier.
+    stock_signal = technical  # Stock-level: technical setup
+    industry_signal = industry_traj  # Industry-level: trajectory
+    macro_signal = macro  # Macro-level: tailwind/headwind
+
+    layer_scores = {
+        "stock": stock_signal,
+        "industry": industry_signal,
+        "macro": macro_signal,
+    }
+    available_layers = {k: v for k, v in layer_scores.items() if v is not None}
+
+    if len(available_layers) >= 2:
+        # Classify each layer as bullish (≥6.5), bearish (≤4.0), or neutral
+        def _classify(score: float) -> str:
+            if score >= 6.5:
+                return "bullish"
+            elif score <= 4.0:
+                return "bearish"
+            return "neutral"
+
+        classifications = {k: _classify(v) for k, v in available_layers.items()}
+        bullish_count = sum(1 for c in classifications.values() if c == "bullish")
+        bearish_count = sum(1 for c in classifications.values() if c == "bearish")
+        total_layers = len(available_layers)
+
+        # Three-layer alignment bonus (all bullish or all bearish)
+        if total_layers >= 3 and (bullish_count == total_layers or bearish_count == total_layers):
+            alignment_dir = "bullish" if bullish_count == total_layers else "bearish"
+            adjustments.append(
+                {
+                    "type": "three_layer_alignment",
+                    "conviction_adjustment": 0.5 if alignment_dir == "bullish" else -0.5,
+                    "reason": (
+                        f"All 3 layers aligned {alignment_dir}: "
+                        f"stock={stock_signal:.1f}, industry={industry_signal:.1f}, macro={macro_signal:.1f}"
+                    ),
+                }
+            )
+
+        # Stock vs environment divergence (stock bullish but industry+macro bearish, or vice versa)
+        if total_layers >= 3:
+            stock_class = classifications.get("stock", "neutral")
+            env_classes = [classifications.get(k) for k in ("industry", "macro") if k in classifications]
+
+            if stock_class == "bullish" and all(c == "bearish" for c in env_classes):
+                flags.append(
+                    {
+                        "rule": 7,
+                        "severity": "medium",
+                        "finding": (
+                            f"Stock bullish ({stock_signal:.1f}) but industry ({industry_signal:.1f}) "
+                            f"and macro ({macro_signal:.1f}) both bearish"
+                        ),
+                        "action": (
+                            "Investigate: is stock an outlier leader, or swimming against the tide? "
+                            "Check if company-specific catalysts justify divergence from sector/macro."
+                        ),
+                        "dimensions": ["technical_setup", "industry_trajectory", "macro_tailwind"],
+                    }
+                )
+            elif stock_class == "bearish" and all(c == "bullish" for c in env_classes):
+                flags.append(
+                    {
+                        "rule": 7,
+                        "severity": "medium",
+                        "finding": (
+                            f"Stock bearish ({stock_signal:.1f}) but industry ({industry_signal:.1f}) "
+                            f"and macro ({macro_signal:.1f}) both bullish"
+                        ),
+                        "action": (
+                            "Investigate: is stock a laggard catch-up candidate, or signaling "
+                            "company-specific deterioration not reflected in sector peers?"
+                        ),
+                        "dimensions": ["technical_setup", "industry_trajectory", "macro_tailwind"],
+                    }
+                )
+
+        # Industry-Macro divergence (industry strong but macro weak → sector-specific strength)
+        if "industry" in classifications and "macro" in classifications:
+            if classifications["industry"] == "bullish" and classifications["macro"] == "bearish":
+                flags.append(
+                    {
+                        "rule": 7,
+                        "severity": "low",
+                        "finding": (
+                            f"Industry bullish ({industry_signal:.1f}) despite bearish macro ({macro_signal:.1f})"
+                        ),
+                        "action": "Industry may be counter-cyclical or in secular growth phase; validate durability.",
+                        "dimensions": ["industry_trajectory", "macro_tailwind"],
+                    }
+                )
+
+    # Add alignment metadata to result
+    alignment_meta = {
+        "layers_available": list(available_layers.keys()) if len(available_layers) >= 2 else [],
+        "layer_scores": {k: round(v, 1) for k, v in available_layers.items()} if len(available_layers) >= 2 else {},
+        "alignment_status": (
+            "fully_aligned" if len(available_layers) >= 3 and (bullish_count == len(available_layers) or bearish_count == len(available_layers))
+            else "partially_aligned" if len(available_layers) >= 2 and (bullish_count >= 2 or bearish_count >= 2)
+            else "divergent" if len(available_layers) >= 2
+            else "insufficient_data"
+        ) if len(available_layers) >= 2 else "insufficient_data",
+    }
+
     # Summary
     unresolved_count = len([f for f in flags if f["severity"] == "high"])
     overall_status = "PASS" if unresolved_count == 0 else "NEEDS_RESOLUTION"
@@ -145,6 +256,7 @@ def run_cross_check(scores: dict, behavioral: dict | None = None) -> dict:
         "adjustments": adjustments,
         "flag_count": len(flags),
         "high_severity_count": unresolved_count,
+        "multi_layer_alignment": alignment_meta,
         "computed_at": __import__("datetime")
         .datetime.now(__import__("datetime").timezone.utc)
         .isoformat(),

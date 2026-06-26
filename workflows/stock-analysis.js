@@ -1117,9 +1117,12 @@ const companyDirs = completedCompanies.map(c => c.company_dir).filter(Boolean)
 const scored = await agentWithRetry(
   `You are stock-analysis:scorer. Read all company outputs from these dirs: ` +
   `${JSON.stringify(companyDirs)}. Run 'uv run python ${PLUGIN_ROOT}/scripts/compute_scores.py' ` +
-  `for each — pass --ecosystem [company_dir]/sc_ecosystem.json to include Ecosystem Momentum ` +
-  `and --trajectory [company_dir]/industry_trajectory.json to include Industry Trajectory ` +
-  `dimension (行业趋势变化: improving/deteriorating). Run cross_check.py for contradictions. ` +
+  `for each company — pass ALL available data flags: --metrics, --macro (shared), --technicals, ` +
+  `--alternatives, --sentiment, --capital-structure, --liquidity, --short-interest, --activist, ` +
+  `--options, --ecosystem [company_dir]/sc_ecosystem.json, --trajectory [company_dir]/industry_trajectory.json. ` +
+  `Omit any flag whose file does not exist. ` +
+  `Run cross_check.py with --behavioral [company_dir]/behavioral.json for contradiction detection ` +
+  `(incl. Rule 7: three-layer alignment stock×industry×macro). ` +
   `Run calibrate_conviction.py for Bayesian conviction calibration. Rank by composite score. ` +
   `Write ${OUTPUT_DIR}/ranking.json. mode=${MODE}.`,
   { agentType: 'stock-analysis:scorer', schema: SCORING_RESULT_SCHEMA, phase: 'Scoring', label: 'scorer' }

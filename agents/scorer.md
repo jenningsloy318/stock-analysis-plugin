@@ -28,22 +28,51 @@ timeout_mins: 10
 
 <workflow>
   <step n="1" name="Compute Scores Per Company">
-    For each company in NNN-[TICKER]/ directories:
-    - uv run python {plugin_root}/scripts/compute_scores.py --ticker [TICKER] --input ./reports/[RUN_ID]/NNN-[TICKER]/ --output ./reports/[RUN_ID]/NNN-[TICKER]/scores.json
+    For each company in NNN-[TICKER]/ directories, run compute_scores.py with ALL available data files:
 
-    This produces deterministic 1-10 scores for: Financial Health, Capital Allocation, Earnings Quality, Moat, Management, Industry, Supply Chain, Macro, Valuation, Market Regime, Risk, Alt Data, Catalyst (+ A-Share if applicable).
+    ```
+    uv run python {plugin_root}/scripts/compute_scores.py \
+      --ticker [TICKER] \
+      --report-type [long|mid|short] \
+      --metrics ./reports/[RUN_ID]/NNN-[TICKER]/metrics.json \
+      --macro ./reports/[RUN_ID]/macro.json \
+      --technicals ./reports/[RUN_ID]/NNN-[TICKER]/tech.json \
+      --alternatives ./reports/[RUN_ID]/NNN-[TICKER]/alt-data.json \
+      --sentiment ./reports/[RUN_ID]/NNN-[TICKER]/sentiment.json \
+      --capital-structure ./reports/[RUN_ID]/NNN-[TICKER]/capital_structure.json \
+      --liquidity ./reports/[RUN_ID]/NNN-[TICKER]/liquidity.json \
+      --short-interest ./reports/[RUN_ID]/NNN-[TICKER]/short_interest.json \
+      --activist ./reports/[RUN_ID]/NNN-[TICKER]/activist.json \
+      --options ./reports/[RUN_ID]/NNN-[TICKER]/options.json \
+      --ecosystem ./reports/[RUN_ID]/NNN-[TICKER]/ecosystem.json \
+      --trajectory ./reports/[RUN_ID]/NNN-[TICKER]/trajectory.json \
+      --output ./reports/[RUN_ID]/NNN-[TICKER]/scores.json
+    ```
+
+    Omit any `--flag` whose .json file does not exist for this company.
+    Run ONCE per report-type (long, mid, short) — produces 3 score files or one combined.
+
+    This produces deterministic 1-10 scores for: Financial Health, Capital Allocation, Earnings Quality, Moat, Management, Valuation, Macro Tailwind, Risk, Alternative Alignment, Technical Setup, Capital Structure, Weinstein Alignment, CANSLIM (with revision momentum), Ecosystem Momentum, Industry Trajectory + framework divergence + tape class + conviction count.
 
     LLM adjustment rule: Moat and Management scores may be adjusted ±2.0 based on qualitative findings from Stages 5-15. All adjustments must cite specific evidence.
   </step>
 
   <step n="2" name="Cross-Check">
-    - uv run python {plugin_root}/scripts/cross_check.py --input ./reports/[RUN_ID]/ --output ./reports/[RUN_ID]/cross_check.json
+    For each company in NNN-[TICKER]/ directories:
+    - uv run python {plugin_root}/scripts/cross_check.py ./reports/[RUN_ID]/NNN-[TICKER]/scores.json --behavioral ./reports/[RUN_ID]/NNN-[TICKER]/behavioral.json --output ./reports/[RUN_ID]/NNN-[TICKER]/cross_check.json
+
+    (If behavioral.json does not exist for a company, omit the --behavioral flag.)
 
     Contradiction rules:
-    - If DCF implies >30% overvaluation → re-examine moat assessment
-    - If forensic red flags >=3 → re-examine financial health
-    - If alt data diverges from fundamental trend → flag as [ALT_DIVERGENCE]
+    - Rule 1: Overvaluation + wide moat → moat erosion question
+    - Rule 2: Red flags ≥3 → re-examine financials
+    - Rule 3: Alt data negative + financials strong → early warning
+    - Rule 4: Analyst herding + Strong Buy consensus → contrarian overlay (requires --behavioral)
+    - Rule 5: Framework divergence requiring investigation
+    - Rule 6: Technical vs fundamental divergence
+    - Rule 7: Three-layer alignment check (stock × industry × macro). If all three layers point the same direction → conviction bonus (+0.5). If stock diverges from both industry and macro → investigate outlier vs swimming against tide.
     - Flag unresolved contradictions in output
+    - Include `multi_layer_alignment` metadata in output (alignment_status, layer_scores)
   </step>
 
   <step n="3" name="Calibrate Conviction">
@@ -66,6 +95,14 @@ timeout_mins: 10
     - Identify: "These dimensions drove the selection: [X, Y, Z]"
     - Identify: "These dimensions were non-differentiating: [A, B]"
     Write to ./reports/[RUN_ID]/stage16.md
+  </step>
+
+  <step n="6" name="Portfolio Context (Optional)">
+    If the user has specified a portfolio (via --portfolio flag or portfolio.json in the run directory):
+    - uv run python {plugin_root}/scripts/portfolio_context.py [TICKER] --portfolio-file ./reports/[RUN_ID]/portfolio.json --output ./reports/[RUN_ID]/NNN-[TICKER]/portfolio_context.json
+
+    Produces: correlation with existing holdings, position sizing recommendation, factor exposure contribution, tail risk (VaR/CVaR).
+    Skip this step if no portfolio is specified.
   </step>
 </workflow>
 
