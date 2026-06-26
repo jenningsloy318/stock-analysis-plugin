@@ -469,7 +469,7 @@ const PHASE_REGISTRY = {
 
 // Determine which phases apply based on mode
 const getPhasesForMode = (mode) => {
-  if (mode === 'walk') return ['Setup', 'Shared Data', 'Walk Chain', 'Reports', 'Validation']
+  if (mode === 'walk') return ['Setup', 'Shared Data', 'Walk Chain', 'Investability Filter', 'Per-Company Analysis', 'Scoring', 'Reports', 'Validation']
   if (mode === 'screen') return ['Setup', 'Shared Data', 'Screening', 'Reports', 'Validation', 'Best Picks']
   // pipeline, analyze, compare
   return ['Setup', 'Shared Data', 'Screening', 'Per-Company Analysis', 'Scoring', 'Adversarial Verify', 'Judge Panel', 'Reports', 'Completeness Critic', 'Validation', 'Best Picks']
@@ -651,36 +651,134 @@ if (MODE === 'walk') {
   }
   await trackPhaseEnd('Walk Chain', { spawned: 1, succeeded: 1, failed_count: 0, summary: `ok — ${walkResult.candidates?.length || 0} candidates found` })
 
-  // Walk-mode reports (3 horizons not applicable — single walk report)
-  phase('Reports')
-  await trackPhaseStart('Reports')
-  await agentWithRetry(
-    `You are stock-analysis:screening-report-writer. Write final walk report in 中文 ` +
-    `to ${OUTPUT_DIR}/WALK_${THEME.replace(/\s+/g,'_')}_${RUN_ID}.md. Read walk_roadmap.json, ` +
-    `walk_chain.json, walk_candidates.json. Include 当前股价 for each candidate.`,
-    { agentType: 'stock-analysis:screening-report-writer', phase: 'Reports', label: 'walk-report' }
-  )
-  await trackPhaseEnd('Reports', { spawned: 1, succeeded: 1, failed_count: 0, summary: 'walk report written' })
+  // ─────────────────────────────────────────────────────────────────────────
+  // Walk Phase 2: Investability Filter — quick data checks on top candidates
+  // Filters out: illiquid micro-caps, distressed financials, Stage 4 declines
+  // Uses: fetch_financials, fetch_technicals, compute_liquidity, fetch_supply_chain_ecosystem
+  // ─────────────────────────────────────────────────────────────────────────
+  const rawCandidates = (walkResult.candidates || []).filter(c => (c.asymmetry_score || 0) >= 50)
+  const topCandidates = rawCandidates.slice(0, Math.min(rawCandidates.length, TOP_INDUSTRY || 7))
 
-  phase('Validation')
-  await trackPhaseStart('Validation')
-  const walkValid = await agentWithRetry(
-    `You are stock-analysis:report-validator. Validate walk report at ${OUTPUT_DIR}. ` +
-    `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
-    `--output-dir ${OUTPUT_DIR}'.`,
-    { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:walk' }
-  )
-  await trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: walkValid?.pass ? 'passed' : `failed — ${walkValid?.reason}` })
-  tracking.status = walkValid?.pass ? 'completed' : 'partial'
-  tracking.completedAt = tracking.startedAt  // best-effort timestamp
-  await persistTracking()
-  return {
-    status: walkValid?.pass ? 'completed' : 'partial',
-    mode: 'walk',
-    theme: THEME,
-    candidates_found: walkResult.candidates?.length || 0,
-    top_candidates: (walkResult.candidates || []).slice(0, 5),
-    output_dir: OUTPUT_DIR,
+  let filteredWatchlist = topCandidates
+  if (topCandidates.length > 0) {
+    phase('Investability Filter')
+    await trackPhaseStart('Investability Filter')
+    log(`[walk] Running investability filter on ${topCandidates.length} candidates`)
+
+    const filterResults = await parallel(topCandidates.map(c => () =>
+      agentWithRetry(
+        `You are stock-analysis:quant-analyst. QUICK investability check for walk-mode candidate ` +
+        `ticker=${c.ticker} (theme: "${THEME}", layer: "${c.tier || ''}", asymmetry: ${c.asymmetry_score || 0}). ` +
+        `plugin_root=${PLUGIN_ROOT} output_dir=${OUTPUT_DIR}. ` +
+        `Run these scripts ONLY (quick check, not full analysis): ` +
+        `1. uv run python ${PLUGIN_ROOT}/scripts/fetch_financials.py ${c.ticker} --output ${OUTPUT_DIR}/walk_filter_${c.ticker}_fin.json ` +
+        `2. uv run python ${PLUGIN_ROOT}/scripts/fetch_technicals.py ${c.ticker} --period 1y --output ${OUTPUT_DIR}/walk_filter_${c.ticker}_tech.json ` +
+        `3. uv run python ${PLUGIN_ROOT}/scripts/compute_liquidity.py ${c.ticker} --output ${OUTPUT_DIR}/walk_filter_${c.ticker}_liq.json ` +
+        `4. uv run python ${PLUGIN_ROOT}/scripts/fetch_supply_chain_ecosystem.py ${c.ticker} --output ${OUTPUT_DIR}/walk_filter_${c.ticker}_eco.json ` +
+        `\nEvaluate PASS/FAIL on 5 criteria: ` +
+        `(a) Market cap ≥ $500M (investable size) ` +
+        `(b) Average daily volume ≥ $5M (liquidity) ` +
+        `(c) NOT Weinstein Stage 4 (not in structural decline) ` +
+        `(d) Altman Z-Score NOT in Distress zone OR D/E < 5.0 (not near-bankrupt) ` +
+        `(e) Ecosystem health NOT all-red (upstream+downstream not both collapsing) ` +
+        `\nReturn: pass=true if ≥4/5 pass, pass=false if <4/5 pass. ` +
+        `Include: market_cap, avg_volume, weinstein_stage, z_score, ecosystem_direction, current_price.`,
+        {
+          agentType: 'stock-analysis:quant-analyst',
+          schema: {
+            type: 'object',
+            required: ['ticker', 'pass'],
+            properties: {
+              ticker: { type: 'string' },
+              pass: { type: 'boolean' },
+              market_cap: { type: 'number' },
+              avg_daily_volume: { type: 'number' },
+              weinstein_stage: { type: 'number' },
+              z_score: { type: 'number' },
+              ecosystem_direction: { type: 'string' },
+              current_price: { type: 'number' },
+              fail_reasons: { type: 'array', items: { type: 'string' } },
+              pass_count: { type: 'number' },
+            },
+          },
+          phase: 'Investability Filter',
+          label: `filter:${c.ticker}`,
+          effort: 'low',
+        }
+      )
+    ))
+
+    const passed = filterResults.filter(Boolean).filter(r => r.pass)
+    const failed = filterResults.filter(Boolean).filter(r => !r.pass)
+    log(`[walk] Investability: ${passed.length} passed, ${failed.length} filtered out`)
+
+    if (failed.length > 0) {
+      log(`[walk] Filtered out: ${failed.map(f => `${f.ticker}(${(f.fail_reasons || []).join(',')})`).join('; ')}`)
+    }
+
+    filteredWatchlist = passed.map(r => {
+      const orig = topCandidates.find(c => c.ticker === r.ticker) || {}
+      return { ...orig, ...r, rank: '000' }  // rank assigned below
+    })
+
+    await trackPhaseEnd('Investability Filter', {
+      spawned: topCandidates.length,
+      succeeded: passed.length,
+      failed_count: failed.length,
+      summary: `${passed.length}/${topCandidates.length} passed investability gate`,
+    })
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Walk Phase 3: Full Per-Company Deep-Dive on filtered candidates
+  // Re-uses the same pipeline logic as analyze/pipeline modes (Stage 5-16)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (filteredWatchlist.length > 0) {
+    // Assign ranks and convert to watchlist format for the per-company pipeline
+    watchlist = filteredWatchlist.map((c, i) => ({
+      rank: String(i + 1).padStart(3, '0'),
+      ticker: c.ticker,
+      name: c.name || c.ticker,
+      price_filter_pass: true,
+      walk_asymmetry: c.asymmetry_score,
+      walk_tier: c.tier,
+    }))
+    log(`[walk] ${watchlist.length} candidates entering full deep-dive analysis (Stage 5-16)`)
+    // Fall through to PHASE 5 (Per-Company Analysis) below — same as pipeline/analyze
+  } else {
+    // No candidates passed — write walk-only report and exit
+    phase('Reports')
+    await trackPhaseStart('Reports')
+    await agentWithRetry(
+      `You are stock-analysis:screening-report-writer. Write final walk report in 中文 ` +
+      `to ${OUTPUT_DIR}/WALK_${THEME.replace(/\s+/g,'_')}_${RUN_ID}.md. Read walk_roadmap.json, ` +
+      `walk_chain.json, walk_candidates.json. Note: ALL candidates failed investability filter ` +
+      `(too small, illiquid, distressed, or Stage 4). Include 当前股价 and failure reasons.`,
+      { agentType: 'stock-analysis:screening-report-writer', phase: 'Reports', label: 'walk-report' }
+    )
+    await trackPhaseEnd('Reports', { spawned: 1, succeeded: 1, failed_count: 0, summary: 'walk report (no investable candidates)' })
+
+    phase('Validation')
+    await trackPhaseStart('Validation')
+    const walkValid = await agentWithRetry(
+      `You are stock-analysis:report-validator. Validate walk report at ${OUTPUT_DIR}. ` +
+      `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
+      `--output-dir ${OUTPUT_DIR}'.`,
+      { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:walk' }
+    )
+    await trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: walkValid?.pass ? 'passed' : `failed — ${walkValid?.reason}` })
+    tracking.status = walkValid?.pass ? 'completed' : 'partial'
+    tracking.completedAt = tracking.startedAt
+    await persistTracking()
+    return {
+      status: walkValid?.pass ? 'completed' : 'partial',
+      mode: 'walk',
+      theme: THEME,
+      candidates_found: walkResult.candidates?.length || 0,
+      investable_count: 0,
+      reason: 'All candidates failed investability filter',
+      output_dir: OUTPUT_DIR,
+    }
   }
 }
 
