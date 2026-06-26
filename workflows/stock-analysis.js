@@ -364,7 +364,7 @@ let _args = args || {}
 if (typeof _args === 'string') {
   log(`[args] received string: "${_args}" — parsing inline`)
   const modeMatch = _args.match(/--mode\s+(\w+)/)
-  const tickerMatch = _args.match(/(?:analyze|compare)\s+([A-Za-z,.]+)/i)
+  const tickerMatch = _args.match(/(?:analyze|compare)\s+([A-Za-z0-9,.，一-鿿]+)/i)
   const themeMatch = _args.match(/walk\s+(.+?)(?:--|$)/i)
   const topMatch = _args.match(/--top-industry\s+(\d+)/)
   const totalMatch = _args.match(/--total-company\s+(\d+)/)
@@ -372,7 +372,7 @@ if (typeof _args === 'string') {
   _args = {
     request: _args,
     mode: modeMatch ? modeMatch[1] : (tickerMatch ? 'analyze' : 'pipeline'),
-    tickers: tickerMatch ? tickerMatch[1].toUpperCase().split(',').map(t => t.trim()).filter(Boolean) : [],
+    tickers: tickerMatch ? tickerMatch[1].toUpperCase().split(/[,，]/).map(t => t.trim()).filter(Boolean) : [],
     theme: themeMatch ? themeMatch[1].trim() : undefined,
     top_industry: topMatch ? parseInt(topMatch[1]) : undefined,
     total_company: totalMatch ? parseInt(totalMatch[1]) : undefined,
