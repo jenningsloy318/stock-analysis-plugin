@@ -630,6 +630,7 @@ await persistTracking()
 // -----------------------------------------------------------------------------
 // PHASE 2 — Walk Mode (early branch, replaces screening + per-company)
 // -----------------------------------------------------------------------------
+let watchlist = []
 if (MODE === 'walk') {
   phase('Walk Chain')
   await trackPhaseStart('Walk Chain')
@@ -785,7 +786,6 @@ if (MODE === 'walk') {
 // -----------------------------------------------------------------------------
 // PHASE 3 — Screening (pipeline + screen modes)
 // -----------------------------------------------------------------------------
-let watchlist = []
 if (MODE === 'pipeline' || MODE === 'screen') {
   phase('Screening')
   await trackPhaseStart('Screening')
