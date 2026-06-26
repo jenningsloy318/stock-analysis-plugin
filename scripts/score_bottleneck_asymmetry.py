@@ -251,6 +251,71 @@ def compute(inputs: dict) -> dict:
     if inputs["top5_buyer_pct"] < 60.0:
         flags.append("BUYER_DILUTED: top-5 buyers <60% — chokepoint customer concentration weak")
 
+    # --- Supplementary signal adjustment (±10 points max) ---
+    # These are optional qualitative signals that adjust the final composite.
+    signal_adj = 0
+    signal_notes = []
+
+    attention = inputs.get("attention_level")
+    narrative = inputs.get("narrative_phase")
+    fund_flow = inputs.get("fund_flow_direction")
+    inst_trend = inputs.get("inst_trend")
+    innovation = inputs.get("innovation_signal")
+    hiring = inputs.get("hiring_signal")
+
+    # Hidden alpha bonus: low attention + early narrative + money flowing in
+    if attention == "low":
+        signal_adj += 3
+        signal_notes.append("attention=low (+3 hidden alpha)")
+    elif attention == "saturated":
+        signal_adj -= 5
+        signal_notes.append("attention=saturated (-5 likely priced in)")
+    elif attention == "high":
+        signal_adj -= 2
+        signal_notes.append("attention=high (-2 partially priced)")
+
+    if narrative == "unknown" or narrative == "emerging":
+        signal_adj += 2
+        signal_notes.append(f"narrative={narrative} (+2 early discovery)")
+    elif narrative == "consensus":
+        signal_adj -= 3
+        signal_notes.append("narrative=consensus (-3 widely known)")
+
+    if fund_flow == "strong_inflow":
+        signal_adj += 3
+        signal_notes.append("fund_flow=strong_inflow (+3 money confirming)")
+    elif fund_flow == "inflow":
+        signal_adj += 1
+        signal_notes.append("fund_flow=inflow (+1)")
+    elif fund_flow == "outflow":
+        signal_adj -= 2
+        signal_notes.append("fund_flow=outflow (-2 money leaving)")
+
+    if inst_trend == "accumulating":
+        signal_adj += 2
+        signal_notes.append("inst_trend=accumulating (+2 smart money building)")
+    elif inst_trend == "distributing":
+        signal_adj -= 3
+        signal_notes.append("inst_trend=distributing (-3 smart money exiting)")
+
+    if innovation == "strong":
+        signal_adj += 2
+        signal_notes.append("innovation=strong (+2 moat reinforcing)")
+    elif innovation == "weak":
+        signal_adj -= 1
+        signal_notes.append("innovation=weak (-1 moat may decay)")
+
+    if hiring == "expanding":
+        signal_adj += 1
+        signal_notes.append("hiring=expanding (+1 demand confirmed)")
+    elif hiring == "contracting":
+        signal_adj -= 2
+        signal_notes.append("hiring=contracting (-2 demand weakening)")
+
+    # Cap adjustment at ±10
+    signal_adj = max(-10, min(10, signal_adj))
+    composite = max(0, min(100, composite + signal_adj))
+
     def _contrib(weight: int, score: int) -> float:
         return round(score * weight / 100.0, 2)
 
@@ -266,6 +331,18 @@ def compute(inputs: dict) -> dict:
         "earliness": {
             "inst_own_pct": round(inputs["inst_own_pct"], 2),
             "band": earliness_band(inputs["inst_own_pct"]),
+        },
+        "supplementary_signals": {
+            "adjustment": signal_adj,
+            "signals": {
+                "attention_level": attention,
+                "narrative_phase": narrative,
+                "fund_flow_direction": fund_flow,
+                "inst_trend": inst_trend,
+                "innovation_signal": innovation,
+                "hiring_signal": hiring,
+            },
+            "notes": signal_notes,
         },
         "components": {
             "chokepoint": {
@@ -327,6 +404,19 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--inst-own-pct", type=float)
     p.add_argument("--layer-name")
     p.add_argument("--roadmap-theme")
+    # Supplementary signals (optional — enhance scoring when available)
+    p.add_argument("--attention-level", choices=["low", "moderate", "high", "saturated"],
+                   help="Social/retail attention level (low=hidden alpha, saturated=priced in)")
+    p.add_argument("--narrative-phase", choices=["unknown", "emerging", "accelerating", "consensus"],
+                   help="News narrative lifecycle phase")
+    p.add_argument("--fund-flow-direction", choices=["strong_inflow", "inflow", "neutral", "outflow"],
+                   help="ETF fund flow direction for this layer")
+    p.add_argument("--inst-trend", choices=["accumulating", "stable", "distributing"],
+                   help="Institutional 13F quarterly change direction")
+    p.add_argument("--innovation-signal", choices=["strong", "moderate", "weak"],
+                   help="Patent/R&D forward-looking signal")
+    p.add_argument("--hiring-signal", choices=["expanding", "stable", "contracting"],
+                   help="Hiring activity signal (expansion proxy)")
     p.add_argument("--input-json", help="Read inputs from JSON file (overrides individual flags)")
     p.add_argument("--output", help="Write result JSON to this path (default: stdout)")
     return p.parse_args()
@@ -356,6 +446,13 @@ def main() -> int:
             "inst_own_pct": args.inst_own_pct,
             "layer_name": args.layer_name,
             "roadmap_theme": args.roadmap_theme,
+            # Supplementary signals (None if not provided)
+            "attention_level": args.attention_level,
+            "narrative_phase": args.narrative_phase,
+            "fund_flow_direction": args.fund_flow_direction,
+            "inst_trend": args.inst_trend,
+            "innovation_signal": args.innovation_signal,
+            "hiring_signal": args.hiring_signal,
         }
 
     try:

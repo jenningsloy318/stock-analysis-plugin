@@ -93,22 +93,67 @@ Update `walk_chain.json` with these fields.
 
 Validation gate: at least one layer must score ≥3, otherwise output a "no chokepoint identified, retest in 6 months" stub `walk.md` and skip Steps 4-5.</step>
 
-<step n="4" name="Candidate Selection & Asymmetry Inputs">For every public company in chokepoint layers (score ≥3), gather:
+<step n="4" name="Candidate Selection & Multi-Signal Enrichment">For every public company in chokepoint layers (score ≥3), gather core data AND supplementary signals to assess quality before scoring:
+
+**Core Inputs (required):**
 - `market_cap_usd`
 - `addressable_market_controlled_usd` — defensible share of the chokepoint layer's revenue today + reasonable 3-yr expansion *given* its stated capex
 - `institutional_ownership_pct` — most-recent 13F-aggregate or equivalent
 
+**Supplementary Signals (gather in parallel for each candidate — enhances scoring quality):**
+
+1. **Social Attention / Crowd Positioning** — assess if already "discovered" by retail:
+   - Reddit mentions (r/stocks, r/wallstreetbets, r/semiconductor etc.) — count + sentiment
+   - StockTwits/Twitter volume relative to market cap
+   - Interpretation: `attention_level` = low|moderate|high|saturated
+   - Low attention + strong chokepoint = **hidden alpha** (bonus)
+   - Saturated attention = likely priced in (penalty)
+
+2. **News Density & Narrative** — is the Street waking up to this layer?
+   - Recent news article count (30d) mentioning [ticker] + [theme keywords]
+   - Narrative direction: "breaking into mainstream" vs "already consensus"
+   - Interpretation: `narrative_phase` = unknown|emerging|accelerating|consensus
+
+3. **ETF Fund Flows** — is money flowing into this part of the chain?
+   - Identify the most relevant sector/thematic ETF for this layer
+   - Run `uv run python {plugin_root}/scripts/compute_industry_trajectory.py --etf [LAYER_ETF] --output {output_dir}/walk_layer_traj_[LAYER].json`
+   - Extract: `fund_flow_direction` = strong_inflow|inflow|neutral|outflow
+
+4. **Institutional Accumulation Trend** — smart money positioning change:
+   - 13F quarterly change: is institutional ownership increasing or decreasing?
+   - Look for new filers (fresh positions) vs exits
+   - `inst_trend` = accumulating|stable|distributing
+
+5. **Patent / R&D Signals** — forward-looking moat validation:
+   - Search for recent patent filings in the chokepoint technology area
+   - R&D spend trajectory (growing = reinvesting in moat)
+   - `innovation_signal` = strong|moderate|weak
+
+6. **Hiring Signals** — implicit capex / expansion indicator:
+   - Job postings for engineering/production roles at the candidate
+   - Hiring surge = demand confirmation + capacity expansion
+   - `hiring_signal` = expanding|stable|contracting
+
+**Search-tool usage for Step 4:**
+1. `mcp__firecrawl__firecrawl_search` — "[ticker] market cap institutional ownership [year]"
+2. `mcp__firecrawl__firecrawl_search` with `includeDomains: ["reddit.com", "stocktwits.com"]` — "[ticker] [theme] discussion mention"
+3. `mcp__xcrawl-mcp__xcrawl_search` — "[ticker] 13F institutional holders ownership quarterly change"
+4. `mcp__exa__web_search_exa` — "[ticker] addressable market share [layer] revenue"
+5. `mcp__exa__web_search_exa` — "[ticker] patent filings [layer technology] [current year]"
+6. `mcp__tavily-remote-mcp__tavily_search` with `search_depth: "advanced"` — "[ticker] hiring engineers production [layer] [current year]"
+7. `mcp__firecrawl__firecrawl_search` — "[ticker] news [theme] [current month]"
+8. SEC filings via `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` for capex disclosures + 13F changes
+
 Compute `asymmetry_ratio = market_cap_usd / addressable_market_controlled_usd`.
 
-Search-tool usage for inputs:
-1. `mcp__firecrawl__firecrawl_search` — "[ticker] market cap institutional ownership [year]"
-2. `mcp__xcrawl-mcp__xcrawl_search` — "[ticker] 13F institutional holders ownership"
-3. SEC filings via `mcp__firecrawl__firecrawl_search` with `includeDomains: ["sec.gov"]` for capex disclosures
-4. `mcp__exa__web_search_exa` — "[ticker] addressable market share [layer] revenue"
+**Supplementary signal composite (qualitative, used to adjust tier classification ±1 tier):**
+- Hidden alpha bonus: attention_level=low + narrative_phase=unknown/emerging + fund_flow=inflow + inst_trend=accumulating → boost candidate by 1 tier
+- Crowded penalty: attention_level=saturated + narrative_phase=consensus + inst_own>50% → demote candidate by 1 tier
+- Record all signal values in `walk_candidates.json` per candidate for downstream transparency.
 
-Cap candidate count at `top_industry` (default 7). If a layer has more candidates than the cap allows, select by largest market_cap-relative-to-layer (most-likely-named-by-Street first, since they will be the primary rotation beneficiaries).</step>
+Cap candidate count at `top_industry` (default 7). If a layer has more candidates than the cap allows, prioritize by: (1) chokepoint_score descending, (2) asymmetry_ratio ascending (lower=cheaper), (3) attention_level ascending (less discovered = better alpha).</step>
 
-<step n="5" name="Asymmetry Composite Scoring">For each candidate, write inputs to a temporary JSON and run the scorer:
+<step n="5" name="Asymmetry Composite Scoring">For each candidate, write inputs to a temporary JSON and run the scorer with ALL available signals:
 
 ```bash
 uv run python {plugin_root}/scripts/score_bottleneck_asymmetry.py \
@@ -119,10 +164,21 @@ uv run python {plugin_root}/scripts/score_bottleneck_asymmetry.py \
   --vertical-resist [0|1] \
   --asymmetry-ratio [FLOAT] \
   --inst-own-pct [FLOAT] \
+  --attention-level [low|moderate|high|saturated] \
+  --narrative-phase [unknown|emerging|accelerating|consensus] \
+  --fund-flow-direction [strong_inflow|inflow|neutral|outflow] \
+  --inst-trend [accumulating|stable|distributing] \
+  --innovation-signal [strong|moderate|weak] \
+  --hiring-signal [expanding|stable|contracting] \
   --layer-name "[LAYER]" \
   --roadmap-theme "[THEME]" \
   --output {output_dir}/walk_candidate_[TICKER].json
 ```
+
+The 6 supplementary signals (attention through hiring) adjust the composite by ±10 points max:
+- Hidden alpha profile (low attention + emerging narrative + inflows + accumulating): up to +11 bonus
+- Crowded profile (saturated + consensus + distributing + outflow): up to -13 penalty
+- Omit any signal flag if the data was not gatherable — the scorer treats None as neutral.
 
 Aggregate all candidate JSONs into `walk_candidates.json` with a top-level `ranked` list sorted by `composite_0_100` desc.
 
