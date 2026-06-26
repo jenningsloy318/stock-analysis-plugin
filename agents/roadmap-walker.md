@@ -165,7 +165,23 @@ Compute `asymmetry_ratio = market_cap_usd / addressable_market_controlled_usd`.
 - Crowded penalty: attention_level=saturated + narrative_phase=consensus + inst_own>50% + stakeholder_quality=retail_dominated → demote candidate by 1 tier
 - Record all signal values (including stakeholder details) in `walk_candidates.json` per candidate for downstream transparency.
 
-Cap candidate count at `top_industry` (default 7). If a layer has more candidates than the cap allows, prioritize by: (1) chokepoint_score descending, (2) asymmetry_ratio ascending (lower=cheaper), (3) stakeholder_quality (strategic_endorsed first), (4) attention_level ascending (less discovered = better alpha).</step>
+**Stakeholder-as-Candidate Expansion (投资方反向候选):**
+When a strategic investor/stakeholder is itself a **public company operating within the same theme's supply chain**, add it to the candidate pool for scoring. Logic:
+1. During stakeholder analysis, if a strategic holder (not a pure financial fund like BlackRock/Vanguard) is identified:
+   - Check: is this holder a public company? Is it in any layer of `walk_chain.json`?
+   - If YES (already in chain): mark it as "stakeholder-confirmed" — this reinforces its candidacy
+   - If NO (not yet in chain): check if it operates in a related layer of the theme's supply chain
+     - If it does → ADD it to the candidate pool with `source: "stakeholder_expansion"` and score it normally
+     - If it's purely a financial investor (hedge fund, PE) → skip
+2. This creates a bidirectional discovery loop: candidate → stakeholder → new candidate
+3. Examples:
+   - Analyzing a memory company → find Samsung strategic investment → Samsung itself is a DRAM chokepoint → add as candidate
+   - Analyzing a robotics actuator maker → find Fanuc equity stake → Fanuc is the robot arm layer → add as candidate
+   - Analyzing an EV battery separator → find CATL investment → CATL is the cell assembly chokepoint → add as candidate
+4. Cap: stakeholder-expansion adds at most 3 additional candidates (prevent runaway). Only add if the holder's market cap is public AND it hasn't already been captured in the chain.
+5. Record `candidate_source: "chain_direct" | "stakeholder_expansion"` in walk_candidates.json.
+
+Cap candidate count at `top_industry` (default 7, but stakeholder-expansion can push up to top_industry + 3). If a layer has more candidates than the cap allows, prioritize by: (1) chokepoint_score descending, (2) asymmetry_ratio ascending (lower=cheaper), (3) stakeholder_quality (strategic_endorsed first), (4) attention_level ascending (less discovered = better alpha).</step>
 
 <step n="5" name="Asymmetry Composite Scoring">For each candidate, write inputs to a temporary JSON and run the scorer with ALL available signals:
 
