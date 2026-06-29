@@ -15,9 +15,9 @@
  */
 
 export const meta = {
-  name: 'stock-analysis',
-  description: 'Unified equity research — screen GICS Level 4 → top companies → 11-stage deep-dive → scoring → adversarial verify → judge panel → 3-horizon reports → completeness critic',
-  whenToUse: 'Equity research pipeline (pipeline/screen/analyze/compare/walk) — when the user wants to screen sectors, deep-dive specific tickers, compare stocks, or run a supply-chain walk. Triggered by the /stock-analysis:stock-analysis skill. Not for one-off market commentary or non-financial queries.',
+  name: 'stock-analysis-workflow',
+  description: 'Workflow-based equity research — screen GICS Level 4 → top companies → 11-stage deep-dive → scoring → adversarial verify → judge panel → 3-horizon reports → completeness critic. Requires Claude Code v2.1.154+ Dynamic Workflows.',
+  whenToUse: 'ONLY when the /stock-analysis:workflow skill is explicitly invoked. Do NOT use for /stock-analysis:stock-analysis — that skill uses Agent tool orchestration directly without the Workflow tool.',
   phases: [
     { title: 'Setup' },
     { title: 'Shared Data' },
