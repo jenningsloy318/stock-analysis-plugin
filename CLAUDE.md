@@ -212,6 +212,7 @@
 | `compute_money_flow.py` | Money flow confirmation: MFI/OBV/CMF aggregation, consecutive inflow streak detection, volume-price symmetry (量价齐升), valuation snapshot (P/B, trailing PE, forward PE) | 4, 11, 16 |
 | `compute_trade_signals.py` | Trade signal engine: 6 BUY signals (量价突破/超跌反转/金叉/回踩支撑/蓄势/突破回踩) + 6 SELL signals (跌破支撑/超买反转/死叉/量价背离/资金流出/跌破200日线) + stop-loss/target | 11, 17 |
 | `compute_signal_aggregator.py` | 7-layer institutional signal aggregator: L1 Technical + L2 Factor + L3 Event + L4 Flow + L5 Options + L6 Alt Data + L7 Cross-Asset → unified multi-layer verdict with confluence detection | 11, 16, 17 |
+| `detect_chart_patterns.py` | O'Neil chart pattern recognition: 前高放量突破/前高回踩/杯柄/大平台突破/前高蓄势/楔形突破 + pattern scoring 0-100 + category classification (突破确认/回踩预警/强势蓄力/无形态) | 4, 11 |
 | `fetch_market_breadth.py` | Market breadth: % above MAs, A/D, McClellan, VIX term structure, credit spreads | 1 |
 | `fetch_theme_performance.py` | Theme/style ETF performance, sector RS, regime summary | 1 |
 | `compute_tam_adj_peg.py` | Serenity TAM-Adj-PEG: PEG ÷ (TAM runway × quality). Category: CORE_GROWTH / HIGH_BETA_GROWTH / OPTION_LIKE / TURNAROUND / CYCLICAL | 10 |
