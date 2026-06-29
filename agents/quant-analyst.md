@@ -66,6 +66,37 @@ If `bottleneck_asymmetry.json` is missing, note "bottleneck signal not available
 - Risk/reward ratio
 
 This is NOT optional — every analyzed stock MUST have explicit trade signals in the report. Do NOT substitute with vague "buy on dips" language. The signals must reference specific technical conditions that are currently met.</step>
+<step n="6c" name="7-Layer Signal Aggregation (信号聚合)">After all other signal scripts have run, execute `compute_signal_aggregator.py {ticker}` passing ALL available JSON outputs:
+```
+compute_signal_aggregator.py {ticker} \
+  --trade-signals-json {company_dir}/trade_signals.json \
+  --money-flow-json {company_dir}/money_flow.json \
+  --scores-json {company_dir}/scores.json \
+  --sentiment-json {company_dir}/sentiment.json \
+  --earnings-edge-json {company_dir}/earnings_edge.json \
+  --options-json {company_dir}/options.json \
+  --alternatives-json {company_dir}/alternatives.json \
+  --news-nlp-json {company_dir}/news_nlp.json \
+  --breadth-json {shared_data_path}/stage1_breadth.json \
+  --credit-json {company_dir}/credit.json \
+  --short-interest-json {company_dir}/short_interest.json \
+  --activist-json {company_dir}/activist.json \
+  --capital-structure-json {company_dir}/capital_structure.json \
+  --tech-json {company_dir}/tech.json \
+  --factors-json {company_dir}/factors.json \
+  --output {company_dir}/signal_aggregator.json
+```
+Only pass files that exist — skip any missing ones. The aggregator handles partial data gracefully.
+
+Include the aggregator output in stage11.md under heading '7-Layer Signal Aggregation (多层信号共振)'. The section MUST show:
+- Per-layer direction summary table (L1-L7: direction + confidence + key signals)
+- Cross-layer confirmation score (0-10)
+- Final verdict (STRONG_BUY / BUY / LEAN_BUY / NEUTRAL / LEAN_SELL / SELL / STRONG_SELL)
+- Confluence events (if any multi-layer patterns detected)
+- Risk factors (layers disagreeing, missing data)
+- Composite recommended action with invalidation conditions
+
+This step produces the MASTER signal that supersedes individual layer signals when they conflict.</step>
 <step n="7" name="Institutional Flow">13F analysis, activist 13D, Form 4 clusters, ownership concentration</step>
 <step n="8" name="Risk-Off Indicators">Load breadth_data.json for VIX level + term structure (contango/backwardation), credit spreads (HYG/TLT signal). Load theme_data.json macro section for gold/USD/Treasury flows. Supplement with web search for Fear & Greed Index.</step>
 <step n="9" name="Liquidity & Correlation">Fed balance sheet, M2, repo rates, bank lending, cross-asset correlation regime</step>
