@@ -71,16 +71,16 @@
 | Skill | Path | Requirements | Agent definition |
 |-------|------|--------------|-----------------|
 | `stock-analysis:stock-analysis` (default) | Agent tool — team-lead spawns agents directly | Any Claude Code with Agent tool | `agents/team-lead.md` |
-| `stock-analysis:workflow` | Dynamic Workflow — team-lead invokes one Workflow() call | Claude Code v2.1.154+ | `agents/team-lead-workflow.md` |
+| `stock-analysis:workflow` | Dynamic Workflow | Claude Code v2.1.154+ | `agents/team-lead-workflow.md` |
 
-Both produce identical outputs (same stages, same agents, same reports). Choose based on environment.
+**CRITICAL**: When `stock-analysis:stock-analysis` is active, do NOT use the Workflow tool. Use the Agent tool only. The Workflow tool is used ONLY by `stock-analysis:workflow`.
 
 ### Common rules (apply to BOTH paths):
 
 - Modes: pipeline (default: screen → analyze), screen, analyze, compare, walk.
 - **No TeamCreate / TeamDelete** — removed in Claude Code v2.1.178. No `team_name` parameter — silently ignored. The session has an implicit team.
 - Screening agents: `data-collector`, `sector-screener`, `company-screener`, `scorer`.
-- Orchestrator agents: `team-lead` (Agent-based orchestrator) / `team-lead-workflow` (Workflow invocation shim), `company-orchestrator` (per-company stages 5-15 manager).
+- Orchestrator agents: `team-lead` (Agent-based) / `team-lead-workflow` (Workflow-based), `company-orchestrator` (per-company stages 5-15 manager).
 - Walk-mode agent: `roadmap-walker` (top-down chain decomposition for `--mode walk THEME`).
 - Analysis agents (per-company): `fundamental-analyst`, `industry-analyst`, `supply-chain-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `catalyst-analyst`, `china-market-analyst`.
 - Validation agent: `report-validator` — independent, runs validate_report.py, signals PASS/FAIL.
@@ -91,21 +91,22 @@ Both produce identical outputs (same stages, same agents, same reports). Choose 
 - **NEVER pause for user confirmation** between stages. The pipeline runs autonomously. No "Continue?" prompts.
 - **NEVER skip stages 5-15** in pipeline mode. All deep-dive stages must run for every selected company. If `total_company` exceeds 40, cap at 40.
 
-### Agent-based path (`stock-analysis:stock-analysis`):
+### Agent-based path (`stock-analysis:stock-analysis`) — DEFAULT:
 
 - team-lead spawns agents via `Agent` tool with `subagent_type=stock-analysis:<agent-name>`.
 - Async pool scheduling: max 4 concurrent company-orchestrators, next spawns as soon as any finishes.
 - team-lead writes tracking.json (single-writer pattern), manages stage transitions, relays progress.
 - Context eviction: after each stage write summary → drop raw data. Use persist.py if context >80%.
 - Stage 1.5, 4.5, 16.5, 17.4, 17.5, 18.5: Independent validation gates (BLOCKING).
+- Retry: if agent returns null or throws, retry up to 10 times before marking stage failed.
+- Does NOT use the Workflow tool. Does NOT invoke `workflows/stock-analysis.js`.
 
-### Workflow path (`stock-analysis:workflow`):
+### Workflow path (`stock-analysis:workflow`) — ONLY when that skill is explicitly invoked:
 
-- team-lead invokes ONE `Workflow({scriptPath: "${PLUGIN_ROOT}/workflows/stock-analysis.js", args})` call.
+- Uses `agents/team-lead-workflow.md` which invokes `workflows/stock-analysis.js` via the Workflow tool.
 - The workflow script handles ALL stage orchestration in an isolated runtime.
 - Caps: min(16, cpu-2) concurrent agents, 1000 total agents per run.
-- Cached resume: `Workflow({scriptPath, resumeFromRunId})` replays completed agents instantly.
-- Validation gates are BLOCKING — workflow returns status='failed' if any gate fails.
+- Does NOT apply when `stock-analysis:stock-analysis` is active.
 
 ## Web Search & Data Acquisition (MUST follow)
 
