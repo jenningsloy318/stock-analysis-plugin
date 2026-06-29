@@ -633,16 +633,25 @@ const persistTracking = async (labelOverride, phaseName) => {
   )
 }
 
-// Retry wrapper — retries agent() calls up to MAX_RETRIES on null returns
-// (null = agent died on terminal API error after internal retries)
+// Retry wrapper — retries agent() calls up to MAX_RETRIES on null returns or throws
+// (null = agent died on terminal API error after internal retries; throw = unexpected crash)
 const MAX_RETRIES = 10
 const agentWithRetry = async (prompt, opts) => {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const result = await agent(prompt, opts)
-    if (result !== null && result !== undefined) return result
-    if (attempt < MAX_RETRIES) {
-      log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying...`)
-      tracking.metrics.total_retries += 1
+    try {
+      const result = await agent(prompt, opts)
+      if (result !== null && result !== undefined) return result
+      if (attempt < MAX_RETRIES) {
+        log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying...`)
+        tracking.metrics.total_retries += 1
+      }
+    } catch (err) {
+      if (attempt < MAX_RETRIES) {
+        log(`[retry] ${opts?.label || 'agent'} threw error — attempt ${attempt}/${MAX_RETRIES}, retrying... (${err?.message || err})`)
+        tracking.metrics.total_retries += 1
+      } else {
+        log(`[retry] ${opts?.label || 'agent'} threw error on final attempt: ${err?.message || err}`)
+      }
     }
   }
   log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`)

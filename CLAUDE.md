@@ -66,26 +66,46 @@
 
 ## Agent Orchestration (MUST follow)
 
-- The `stock-analysis` skill (unified pipeline) acts as the team lead — it NEVER analyzes directly, only invokes the canonical Dynamic Workflow and surfaces its compressed result.
+### Two execution paths (same analysis, different orchestration):
+
+| Skill | Path | Requirements | Agent definition |
+|-------|------|--------------|-----------------|
+| `stock-analysis:stock-analysis` (default) | Agent tool — team-lead spawns agents directly | Any Claude Code with Agent tool | `agents/team-lead.md` |
+| `stock-analysis:workflow` | Dynamic Workflow — team-lead invokes one Workflow() call | Claude Code v2.1.154+ | `agents/team-lead-workflow.md` |
+
+Both produce identical outputs (same stages, same agents, same reports). Choose based on environment.
+
+### Common rules (apply to BOTH paths):
+
 - Modes: pipeline (default: screen → analyze), screen, analyze, compare, walk.
-- **Dynamic Workflows REQUIRED**: Claude Code v2.1.154+ and the `Workflow` tool. team-lead does `Workflow({scriptPath: "${PLUGIN_ROOT}/workflows/stock-analysis.js", args: {mode, run_id, plugin_root, top_industry, total_company, tickers, theme, universe}})`. The script handles ALL stage orchestration. There is no fallback path — older harnesses are not supported.
-- 24 stages (19 work stages + 5 validation gates), each handled by a dedicated specialist agent invoked from `agent()` calls inside the workflow script. Stage 19 (cleanup) is gone — the workflow runtime auto-cleans.
-- Stage 1.5, 4.5, 16.5, 17.5, 18.5: Independent validation by report-validator agent (inside the workflow).
-- Validation gates are BLOCKING — the workflow returns status='failed' if any gate fails, with the failing stage and reason. Re-run with `Workflow({scriptPath, resumeFromRunId})` to resume from cached prefix.
 - **No TeamCreate / TeamDelete** — removed in Claude Code v2.1.178. No `team_name` parameter — silently ignored. The session has an implicit team.
 - Screening agents: `data-collector`, `sector-screener`, `company-screener`, `scorer`.
-- Orchestrator agents: `team-lead` (thin invocation shim — invokes Workflow only) and `company-orchestrator` (per-company stages 5-15 manager — spawned by the workflow's `parallel(watchlist, ...)` call, one per company).
+- Orchestrator agents: `team-lead` (Agent-based orchestrator) / `team-lead-workflow` (Workflow invocation shim), `company-orchestrator` (per-company stages 5-15 manager).
 - Walk-mode agent: `roadmap-walker` (top-down chain decomposition for `--mode walk THEME`).
 - Analysis agents (per-company): `fundamental-analyst`, `industry-analyst`, `supply-chain-analyst`, `macro-analyst`, `quant-analyst`, `risk-analyst`, `alt-data-analyst`, `catalyst-analyst`, `china-market-analyst`.
 - Validation agent: `report-validator` — independent, runs validate_report.py, signals PASS/FAIL.
 - Report agents: `screening-report-writer`, `equity-report-writer`.
 - Support agents: `search-agent`, `market-daily-orchestrator`.
-- Pipeline (encoded in `workflows/stock-analysis.js`): [Setup in team-lead] → [Workflow start] → Shared Data → Screening (pipeline()/parallel()) → Per-Company Analysis (parallel(watchlist)) → Scoring → Reports (parallel(3 horizons × N)) → Validation → Best Picks → [Workflow returns compressed result]
-- Per-company wave pattern (inside each company-orchestrator): Wave1[5+7+9+13] → Wave2[6+8+10+14] → Wave3[11+12] → Wave4[15]
-- Cross-company: each company-orchestrator runs in its own isolated context; the workflow runtime caps concurrency at min(16, cpu-2). Total cap: 1000 agents per workflow run.
-- A-share (SH/SZ): Stage 15 is MANDATORY (set `is_a_share=true` in the company-orchestrator prompt), SKIP for all others.
-- **NEVER pause for user confirmation** between stages. The workflow runs autonomously. No "Continue?" prompts.
-- **NEVER skip stages 5-15** in pipeline mode. All deep-dive stages must run for every selected company. If `total_company` exceeds 40, the workflow caps at 40.
+- Per-company wave pattern: Wave1[5+7+9+13] → Wave2[6+8+10+14] → Wave3[11+12] → Wave4[15]
+- A-share (SH/SZ): Stage 15 is MANDATORY (set `is_a_share=true`), SKIP for all others.
+- **NEVER pause for user confirmation** between stages. The pipeline runs autonomously. No "Continue?" prompts.
+- **NEVER skip stages 5-15** in pipeline mode. All deep-dive stages must run for every selected company. If `total_company` exceeds 40, cap at 40.
+
+### Agent-based path (`stock-analysis:stock-analysis`):
+
+- team-lead spawns agents via `Agent` tool with `subagent_type=stock-analysis:<agent-name>`.
+- Async pool scheduling: max 4 concurrent company-orchestrators, next spawns as soon as any finishes.
+- team-lead writes tracking.json (single-writer pattern), manages stage transitions, relays progress.
+- Context eviction: after each stage write summary → drop raw data. Use persist.py if context >80%.
+- Stage 1.5, 4.5, 16.5, 17.4, 17.5, 18.5: Independent validation gates (BLOCKING).
+
+### Workflow path (`stock-analysis:workflow`):
+
+- team-lead invokes ONE `Workflow({scriptPath: "${PLUGIN_ROOT}/workflows/stock-analysis.js", args})` call.
+- The workflow script handles ALL stage orchestration in an isolated runtime.
+- Caps: min(16, cpu-2) concurrent agents, 1000 total agents per run.
+- Cached resume: `Workflow({scriptPath, resumeFromRunId})` replays completed agents instantly.
+- Validation gates are BLOCKING — workflow returns status='failed' if any gate fails.
 
 ## Web Search & Data Acquisition (MUST follow)
 
