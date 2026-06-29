@@ -970,6 +970,114 @@ def gate_three_axis_check(report_dir: str, report_type: str) -> dict:
     }
 
 
+def gate_trade_signals(report_dir: str, report_type: str) -> dict:
+    """Gate 10: mid/short-term reports MUST include trade signals section.
+
+    Checks that the report contains:
+    - Active signal IDs (B1-B6, S1-S6)
+    - Net direction (BUY/SELL/HOLD)
+    - Stop-loss and target levels
+    - Invalidation condition
+    """
+    if report_type == "long":
+        return {
+            "pass": True,
+            "applicable": False,
+            "details": "Trade signals gate applies only to mid/short-term reports",
+        }
+
+    issues: list[str] = []
+    checked = 0
+    passed_files = 0
+
+    target_suffix = f"_{report_type}_"
+    signal_id_pattern = re.compile(r"\b[BS][1-6]\b")
+    direction_keywords = [
+        "BUY",
+        "SELL",
+        "HOLD",
+        "CONFLICTING",
+        "建仓",
+        "加仓",
+        "持有",
+        "减仓",
+        "清仓",
+        "观望",
+    ]
+    level_keywords = [
+        "止损",
+        "stop.loss",
+        "stop_loss",
+        "目标",
+        "target",
+        "失效",
+        "invalidat",
+    ]
+    section_keywords = ["交易信号", "trade signal", "Trade Signal"]
+
+    for fname in sorted(os.listdir(report_dir)):
+        if not fname.endswith(".md"):
+            continue
+        if target_suffix not in fname:
+            continue
+        fpath = os.path.join(report_dir, fname)
+        try:
+            with open(fpath) as fh:
+                content = fh.read()
+        except OSError:
+            continue
+
+        checked += 1
+
+        # Check for trade signals section header
+        has_section = any(kw in content for kw in section_keywords)
+        if not has_section:
+            issues.append(f"{fname}: missing '交易信号' / 'Trade Signals' section")
+            continue
+
+        # Check for signal IDs (B1-B6, S1-S6)
+        has_signal_ids = bool(signal_id_pattern.search(content))
+        if not has_signal_ids:
+            # Also accept "无明确买卖信号" as valid (no signal = explicitly stated)
+            if "无明确" not in content and "no clear signal" not in content.lower():
+                issues.append(
+                    f"{fname}: trade signals section lacks signal IDs (B1-B6/S1-S6) "
+                    f"or explicit '无明确买卖信号' statement"
+                )
+                continue
+
+        # Check for direction keywords
+        has_direction = any(kw in content for kw in direction_keywords)
+        if not has_direction:
+            issues.append(f"{fname}: trade signals section missing action direction")
+            continue
+
+        # Check for price levels (stop-loss, target, invalidation)
+        has_levels = any(re.search(kw, content, re.IGNORECASE) for kw in level_keywords)
+        if not has_levels:
+            issues.append(
+                f"{fname}: trade signals section missing key levels "
+                f"(止损/stop-loss, 目标/target, or 失效/invalidation)"
+            )
+            continue
+
+        passed_files += 1
+
+    passed_gate = checked == 0 or len(issues) == 0
+    return {
+        "pass": passed_gate,
+        "applicable": True,
+        "files_checked": checked,
+        "files_passed": passed_files,
+        "issues": issues,
+        "details": (
+            f"{passed_files}/{checked} {report_type} reports include valid trade signals"
+            if checked
+            else f"No {report_type} reports found"
+        ),
+    }
+
+
 def gate_framework_diversity(report_dir: str) -> dict:
     """Pitfall 12: every report must cite >=2 frameworks + acknowledge >=1 divergence."""
     framework_keywords = [
@@ -1081,9 +1189,17 @@ def _extract_data_points(content: str) -> list[dict]:
 
             # Extract numeric value
             numeric_str = text.replace("$", "").replace("¥", "").replace(",", "")
-            numeric_str = numeric_str.replace("亿元", "").replace("亿美元", "").replace("亿港元", "")
-            numeric_str = numeric_str.replace("亿", "").replace("万亿", "").replace("万", "")
-            numeric_str = numeric_str.replace("%", "").replace("x", "").replace("倍", "")
+            numeric_str = (
+                numeric_str.replace("亿元", "")
+                .replace("亿美元", "")
+                .replace("亿港元", "")
+            )
+            numeric_str = (
+                numeric_str.replace("亿", "").replace("万亿", "").replace("万", "")
+            )
+            numeric_str = (
+                numeric_str.replace("%", "").replace("x", "").replace("倍", "")
+            )
             numeric_str = numeric_str.replace("/10", "")
 
             try:
@@ -1096,13 +1212,15 @@ def _extract_data_points(content: str) -> list[dict]:
             ctx_end = min(len(content), match.end() + 50)
             context = content[ctx_start:ctx_end].replace("\n", " ").strip()
 
-            data_points.append({
-                "text": text,
-                "value": value,
-                "unit": unit_type,
-                "context": context,
-                "position": start,
-            })
+            data_points.append(
+                {
+                    "text": text,
+                    "value": value,
+                    "unit": unit_type,
+                    "context": context,
+                    "position": start,
+                }
+            )
 
     return data_points
 
@@ -1114,7 +1232,11 @@ def _guess_source_file(context: str, unit_type: str) -> tuple[str, str]:
     # Mapping of context keywords to likely source files
     mappings: list[tuple[list[str], str, str]] = [
         (["营收", "revenue", "收入"], "raw-data.json", "income_statement.revenue"),
-        (["净利", "net income", "利润"], "raw-data.json", "income_statement.net_income"),
+        (
+            ["净利", "net income", "利润"],
+            "raw-data.json",
+            "income_statement.net_income",
+        ),
         (["毛利率", "gross margin"], "metrics.json", "ratios.gross_margin"),
         (["pe", "市盈率", "p/e"], "metrics.json", "ratios.pe_ratio"),
         (["pb", "市净率", "p/b"], "metrics.json", "ratios.pb_ratio"),
@@ -1245,8 +1367,10 @@ def spot_check_report(report_dir: str, report_file: str | None = None) -> dict:
         md_files = [report_file]
     else:
         md_files = [
-            f for f in sorted(os.listdir(report_dir))
-            if f.endswith(".md") and any(h in f.lower() for h in ("long", "mid", "short"))
+            f
+            for f in sorted(os.listdir(report_dir))
+            if f.endswith(".md")
+            and any(h in f.lower() for h in ("long", "mid", "short"))
         ]
 
     if not md_files:
@@ -1449,6 +1573,7 @@ def main() -> None:
     yields_causality = gate_yields_causality(report_dir)
     three_axis = gate_three_axis_check(report_dir, args.report_type)
     framework_diversity = gate_framework_diversity(report_dir)
+    trade_signals = gate_trade_signals(report_dir, args.report_type)
 
     gates = {
         "data_freshness": freshness,
@@ -1463,6 +1588,7 @@ def main() -> None:
         "yields_causality": yields_causality,
         "three_axis_check": three_axis,
         "framework_diversity": framework_diversity,
+        "trade_signals": trade_signals,
     }
 
     # Determine overall pass
