@@ -105,6 +105,30 @@ REQUIRED SECTIONS (every equity report must have ALL of these):
     ```
     Data: classify_uptrend_phase.py (returns + phase), compute_money_flow.py (flow), detect_chart_patterns.py (pattern), detect_distribution.py (distribution risk)
 25. Data Quality Appendix (sources checked, missing/stale dimensions, conflicts, confidence cap)
+    **数据缺失声明 (Data Gap Disclosure — MANDATORY standalone section):**
+    This is NOT buried in the appendix. It must be a clearly visible section titled "⚠️ 数据缺失与局限性" with the following structure:
+    ```markdown
+    ## ⚠️ 数据缺失与局限性
+
+    | 缺失数据 | 原因 | 影响范围 | 对结论的影响 |
+    |---------|------|---------|------------|
+    | Forward P/E | yfinance无数据/公司无分析师覆盖 | 估值评分 | 估值维度可能偏高/偏低，置信度降低 |
+    | 内部人交易 | SEC EDGAR近90天无Form 4 | 管理层信号 | 无法确认管理层是否在买卖 |
+    | 行业对比数据 | 同行业可比公司<3家 | 横向对比 | 估值倍数缺乏参照 |
+    | 期权数据 | 无活跃期权市场 | 期权信号(L5) | 7层信号聚合器缺少一层输入 |
+    | 资金流(A股) | yfinance对A股资金流数据有限 | 资金面判断 | 流入/流出判断可能不准确 |
+
+    **总体数据完整度**: X/10 (X个关键维度有完整数据)
+    **结论置信度调整**: 因缺失N个维度，综合评分置信度从HIGH降至MEDIUM
+    **建议补充**: 建议通过[具体方式]补充[缺失数据]以提高判断准确度
+    ```
+    Rules:
+    - List EVERY data gap encountered during analysis, not just "important" ones
+    - For each gap, state the SPECIFIC impact on which scoring dimension or signal layer
+    - If a gap affects the final conviction score, explicitly state the direction of bias (偏高/偏低/不确定)
+    - If 3+ critical dimensions have data gaps, the report MUST carry "⚠️ 数据不完整 — 结论仅供参考" in the header
+    - The data completeness score (X/10) counts: financials, technicals, sentiment, options, alt-data, macro, peer comparison, insider, supply chain, credit — each present = +1
+    - This section appears AFTER the Recommendation section and BEFORE the Disclaimer
 26. Disclaimer (AI-generated, not financial advice — use exact text from templates/equity-report.md)
 
 Also load {plugin_root}/references/data_source_matrix.md for coverage caps and {plugin_root}/references/scoring_calibration.md for calibration targets.</step>

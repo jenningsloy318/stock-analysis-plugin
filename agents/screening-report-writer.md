@@ -79,7 +79,26 @@ REQUIRED SECTIONS (every screening report must have ALL of these):
 10. Next Actions (deep-dive recommendations with tickers and suggested report horizon)
 11. Risks to Thesis (sub-industry + parent-level risks, kill switch conditions)
 12. Methodology Appendix (scope, horizon, filters, freshness, sources, coverage gaps, funnel scoring formulas)
-13. Handoff Recommendation (explicit next-step with top ticker and suggested command)
+13. Data Gap Disclosure (⚠️ 数据缺失与局限性 — MANDATORY standalone section, NOT hidden in appendix):
+    ```markdown
+    ## ⚠️ 数据缺失与局限性
+
+    | 缺失数据 | 涉及标的 | 原因 | 影响维度 | 对排名的影响 |
+    |---------|---------|------|---------|------------|
+    | Forward P/E | 002428, 600458 | 无分析师覆盖 | 估值评分(15%权重) | 这些标的估值维度可能偏差 |
+    | 资金流数据 | 全部A股标的 | yfinance对A股流数据有限 | 资金面+量价对称 | 资金面评分基于代理指标 |
+    | 机构持仓 | 小市值标的(<50亿) | 13F披露延迟 | 微结构信号(L4) | 无法确认机构动向 |
+
+    **本期筛选数据完整度**: X/10
+    **受影响标的数**: N只 (占总筛选标的X%)
+    **置信度声明**: 因[具体原因]，排名前5中有N只标的的评分可能存在±X分偏差
+    ```
+    Rules:
+    - If ANY data source returned error/timeout during Stage 1-4, it MUST appear here
+    - State which specific tickers were affected (not just "some stocks")
+    - Quantify the impact: which scoring dimension, what % weight it carries
+    - If a top-5 company has a data gap in a >10% weight dimension, add explicit caveat to its thesis
+14. Handoff Recommendation (explicit next-step with top ticker and suggested command)
 
 Also load {plugin_root}/references/gics_taxonomy.md for code validation and {plugin_root}/references/data_source_matrix.md for confidence caps.</step>
 <step n="1" name="Load Phase Summaries">Read all `./reports/[RUN_ID]/phase[0-3].md` files. Phase 0 = macro context + scope + sub-industry RS data, Phase 1 = sub-industry leaderboard (Level 4 only), Phase 2 = sub-industry deep-dive (GICS Level 4), Phase 3 = company watchlist.</step>
