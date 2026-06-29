@@ -68,7 +68,13 @@ REQUIRED SECTIONS (every equity report must have ALL of these):
 18. Alt Data & Digital Signals (web traffic, app rankings, NLP sentiment, management candor, channel checks)
 19. Catalyst Calendar (forward-looking events, probability, expected value, PEAD analysis)
 20. China-Specific Analysis (MANDATORY for .SH/.SZ tickers, SKIP for all others: 政策敏感性, 北向资金, 龙虎榜, 游资追踪)
-21. Recommended Stock Ranking (推荐标的排名 table with 001/002/003 format, 当前股价 column)
+21. Recommended Stock Ranking (推荐标的排名 — GROUPED by signal category):
+    - Group 1: 突破确认 (Breakout Confirmed) — stocks currently triggering buy signals
+    - Group 2: 回踩预警 (Pullback Alert) — stocks in healthy pullback to support
+    - Group 3: 强势蓄力 (Coiling/Accumulating) — stocks building base near highs
+    - Group 4: 知识库 TOP (Research Watchlist) — high-conviction fundamentals awaiting trigger
+    - Flat ranking with 001/002/003 format also included after grouped sections
+    - Each entry includes: 形态, 当前股价, 综合评分, 上涨阶段, 资金面, 5D/10D/20D returns
 22. Trade Signals (交易信号 — MANDATORY for mid-term and short-term reports):
     - Current active buy/sell signals from compute_trade_signals.py output
     - Net direction (BUY/SELL/HOLD) with confidence

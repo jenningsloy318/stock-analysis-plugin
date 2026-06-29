@@ -61,10 +61,33 @@ After all quantitative filters are applied, run `{plugin_root}/scripts/compute_m
   - Management (10%): Tenure + ownership + capital allocation
   - Risk (10%): Inverse of risk flags (higher risk = lower score)
   - Liquidity/Tradability (5%): Dollar volume + free float + borrow/FTD risk</step>
-<step n="12" name="Rank & Thesis">Rank all qualifying companies by composite score. For top 10-20, write a 2-sentence investment thesis: what the company does, why it's well-positioned in the industry, and the primary growth catalyst.
+<step n="12" name="Pattern & Phase Classification">Run `{plugin_root}/scripts/detect_chart_patterns.py` and `{plugin_root}/scripts/classify_uptrend_phase.py` on all watchlist tickers. This adds:
+- Pattern category (突破确认/回踩预警/强势蓄力/无形态) and pattern score (0-100)
+- Uptrend phase (加速上涨/匀速上涨/波动阶段/底部区域/下跌阶段) and momentum score (0-10)
+
+The output must GROUP stocks by signal category instead of a single flat ranking:
+
+```markdown
+## 突破确认 — 今日触发买入信号 (N只)
+| # | 代码 | 名称 | 形态 | 价格 | 市值 | 综合分 | 形态分 | 催化剂 | 趋势 | 板块 | 资金面 | 上涨阶段 | 5日 | 10日 | 20日 |
+
+## 回踩预警 (N只)
+| # | 代码 | 名称 | 等级 | 价格 | 市值 | 预警分 | 前高 | 位置 | 回踩天数 | 资金面 | 上涨阶段 |
+
+## 强势蓄力 (N只)
+| # | 代码 | 名称 | 形态 | 价格 | 市值 | 综合分 | 蓄力天数 | BB收窄 | 量缩幅度 | 距前高% | 资金面 |
+
+## 知识库 TOP 10 (产业调研重点标的)
+| # | 代码 | 名称 | 分类 | 形态 | 综合评分 | 上涨阶段 | 资金面 |
+```
+
+Sorting within each group: by composite score descending.
+A stock appears in ONLY ONE group (its dominant pattern category).
+If pattern_category = "无形态", the stock only appears in the flat ranking table (Step 13), not in the classified sections.</step>
+<step n="13" name="Flat Ranking & Thesis">Rank all qualifying companies by composite score. For top 10-20, write a 2-sentence investment thesis: what the company does, why it's well-positioned in the industry, and the primary growth catalyst.
 
 The output ranking table MUST include the following mandatory columns:
-| # | 代码 | 名称 | 当前股价 | 市净率(P/B) | 静态市盈率(TTM P/E) | 动态市盈率(Forward P/E) | 资金流向 | 连续流入天数 | 量价对称 | 综合评分 | 投资论点 |
+| # | 代码 | 名称 | 形态 | 当前股价 | 市净率(P/B) | 静态市盈率(TTM P/E) | 动态市盈率(Forward P/E) | 资金流向 | 连续流入天数 | 量价对称 | 上涨阶段 | 综合评分 | 5日 | 10日 | 20日 | 投资论点 |
 
 Column definitions:
 - 市净率 (P/B ratio): Price-to-Book ratio
