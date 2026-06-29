@@ -48,6 +48,17 @@ Handles Stage 17 (Report Generation). Stage 10 deterministic scoring and cross-c
 <step n="2" name="Load and Validate Template">Read {plugin_root}/templates/equity-report.md in FULL before writing anything. Identify which template applies (Long-term / Mid-term / Short-term). Extract the REQUIRED SECTIONS for that template and verify each will be present in the output. If any required section cannot be populated from available data, flag it as [MISSING DATA] in the report — never skip a section.
 
 REQUIRED SECTIONS (every equity report must have ALL of these):
+0. Dashboard Header (市场概览 — compact 4-cell summary at the VERY TOP):
+   ```markdown
+   ## 📊 市场概览 | {DATE}
+   
+   | 市场情绪 | 个股信号 | 上涨阶段 | 资金面 |
+   |:--------:|:--------:|:--------:|:------:|
+   | **XX/100** {label} | {pattern_name} ({score}/100) | {phase_name} | {flow_verdict} (连续{N}日流入) |
+   ```
+   Data: compute_market_sentiment.py, detect_chart_patterns.py, classify_uptrend_phase.py, compute_money_flow.py.
+   This mini-dashboard appears BEFORE the Executive Summary in every per-company equity report.
+
 1. Header (company, ticker, price, market cap, report type, date)
 2. Executive Summary (max 150 words, conviction rating, confidence, Management Candor Index)
 3. Conviction Score Decomposition (dimension table with weight/score/weighted/key data/rationale)
@@ -84,8 +95,17 @@ REQUIRED SECTIONS (every equity report must have ALL of these):
     - Risk/reward ratio
     - For long-term reports: include a simplified version showing only Weinstein stage + key support/resistance levels
 23. Recommendation (rating, target, margin of safety, entry criteria, position size, kill switch)
-23. Data Quality Appendix (sources checked, missing/stale dimensions, conflicts, confidence cap)
-24. Disclaimer (AI-generated, not financial advice — use exact text from templates/equity-report.md)
+24. Per-Stock Summary Annotation (近期逻辑 — MANDATORY at end of each per-company report):
+    ```markdown
+    ---
+    > **近期上涨逻辑**: 5日{+/-X.X%}、10日{+/-X.X%}、20日{+/-X.X%}，{phase_description}
+    > **资金面**: {flow_verdict}; 连续流入{N}天; 5日累计{X.X%}; {distribution_warning_or_healthy}
+    > **形态**: {pattern_name} ({score}/100) — {pattern_category}
+    > **出货风险**: {distribution_verdict} ({risk_score}/100)
+    ```
+    Data: classify_uptrend_phase.py (returns + phase), compute_money_flow.py (flow), detect_chart_patterns.py (pattern), detect_distribution.py (distribution risk)
+25. Data Quality Appendix (sources checked, missing/stale dimensions, conflicts, confidence cap)
+26. Disclaimer (AI-generated, not financial advice — use exact text from templates/equity-report.md)
 
 Also load {plugin_root}/references/data_source_matrix.md for coverage caps and {plugin_root}/references/scoring_calibration.md for calibration targets.</step>
 <step n="3" name="Load Deterministic Scores">Load scores and cross-check output from the designated directory (typically `./reports/[RUN_ID]/NNN-[TICKER]/scores.json` and `cross_check.json`); use its conviction/rating without inventing a new number. Incorporate any cross-check flags and adjustments into the report narrative. Specifically:

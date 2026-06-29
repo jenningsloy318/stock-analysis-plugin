@@ -46,6 +46,27 @@ Handles Phase 4 (Report Generation).
 <step n="0" name="Load and Validate Template">Read {plugin_root}/templates/screening-report.md in FULL before writing anything. Identify which template applies (Broad / Focused / Thematic). Extract the REQUIRED SECTIONS list below and verify each will be present in the output. If any required section cannot be populated from available data, flag it as [MISSING DATA] in the report — never skip a section.
 
 REQUIRED SECTIONS (every screening report must have ALL of these):
+0. Dashboard Header (市场概览仪表盘 — 4-quadrant summary card at the VERY TOP of every report):
+   ```markdown
+   ## 📊 市场概览
+
+   | 市场情绪 | 涨跌分布 |
+   |:--------:|:--------:|
+   | **XX/100** | **NNNN : NNNN** |
+   | {label} {emoji} | 涨停 N · 跌停 N |
+
+   | 突破确认 | 趋势板块 |
+   |:--------:|:--------:|
+   | **N** | **板块1, 板块2, 板块3** |
+   | Top N 买入信号 | 共 N 个热门行业 |
+   ```
+   Data sources:
+   - 市场情绪: from compute_market_sentiment.py output (stage1_sentiment.json or run inline)
+   - 涨跌分布: from stage1_breadth.json (advance/decline counts)
+   - 突破确认: count of stocks with pattern_category="突破确认" from detect_chart_patterns.py
+   - 趋势板块: top 3 sectors from stage1_themes.json (sector leaders)
+   This dashboard is MANDATORY — appears before Executive Summary in EVERY screening report.
+
 1. Header (screen type, horizon, date, macro regime)
 2. Executive Summary (max 150 words, overall screen quality score, funnel conviction)
 3. Macro Context (GDP, CPI, Fed, yield, PMI table with sub-industry implications, economic surprises)
@@ -93,6 +114,41 @@ Also load {plugin_root}/references/gics_taxonomy.md for code validation and {plu
     - For each horizon (long/mid/short), the ranking order MAY differ because different weighting schemes prioritize different factors
     - Add a "首选标的" (Top Pick) callout after the table: "001 [TICKER] 是本期筛选的首选标的，因为..."
   - Company Watchlist (ranked table with metrics, 2-sentence thesis per company, score distribution)
+
+    **PER-STOCK ANNOTATION (MANDATORY for every stock in the watchlist):**
+    After each stock's row in the table, include a one-line annotation block:
+    ```markdown
+    > 近期上涨逻辑: 5日+X.X%、10日+X.X%、20日+X.X%，{趋势描述}
+    > 资金面: 主力净流比X.X%; 流入N天; 5日累计X.X%; {资金判断}
+    ```
+    - 趋势描述: choose one of: "加速上涨态势" / "匀速上涨趋势健康" / "涨跌交替方向不明确" / "已脱离底部区域短期动能强劲但需警惕追高风险" / "上涨节奏均匀趋势健康"
+    - 资金判断: choose from: "量价配合↑" / "拉高出货?" / "背离需关注" / "资金面健康"
+    Data sources: classify_uptrend_phase.py (phase + returns), compute_money_flow.py (flow verdict + streak), detect_distribution.py (pump-dump warning)
+
+  - **Mermaid Visualization (MANDATORY):**
+    Include two Mermaid charts in the report:
+    
+    Chart 1 — 综合评分分布 (Score Distribution):
+    ```mermaid
+    pie title 综合评分分布
+      "80-100分" : 2
+      "70-79分" : 5
+      "60-69分" : 8
+      "50-59分" : 3
+      "<50分" : 2
+    ```
+    
+    Chart 2 — 形态类型分布 (Pattern Type Distribution):
+    ```mermaid
+    pie title 形态类型分布
+      "前高放量突破" : 6
+      "杯柄" : 2
+      "大平台突破" : 3
+      "前高回踩" : 2
+      "蓄势" : 4
+      "无形态" : 3
+    ```
+    These charts use actual counts from detect_chart_patterns.py output across all watchlist stocks.
   - **Dimension Impact Analysis** (维度影响分析: Which dimensions had the MOST variance/discrimination power across candidates? Which dimensions were non-differentiating? Show dimension correlation with final rank. This helps the reader understand what REALLY drove the selections.)
   - Next Actions (which companies to deep-dive with stock-analysis skill, suggested report horizon for each)
   - Risks to Thesis (what would invalidate the sub-industry/company recommendations, kill switch conditions)

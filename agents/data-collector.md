@@ -25,6 +25,7 @@ timeout_mins: 8
   <item>stage1_breadth.json — Market breadth indicators</item>
   <item>stage1_themes.json — Theme/style ETF performance</item>
   <item>stage1_asia_momentum.json — Asia market (JP/KR/CN/TW) momentum and RS vs SPY</item>
+  <item>stage1_sentiment.json — Market sentiment score 0-100 (VIX, breadth, risk appetite)</item>
   <item>stage1.md — Data availability summary with freshness timestamps</item>
 </output>
 
@@ -42,6 +43,7 @@ timeout_mins: 8
     - uv run python {plugin_root}/scripts/compute_sector_rs.py --output ./reports/[RUN_ID]/stage1_sector_rs.json
     - uv run python {plugin_root}/scripts/compute_sector_rs.py --level sub-industry --flat --output ./reports/[RUN_ID]/stage1_sub_industry_rs.json
     - uv run python {plugin_root}/scripts/fetch_asia_market_momentum.py --output ./reports/[RUN_ID]/stage1_asia_momentum.json
+    - uv run python {plugin_root}/scripts/compute_market_sentiment.py --output ./reports/[RUN_ID]/stage1_sentiment.json
   </step>
 
   <step n="2" name="Initialize Persistence">

@@ -87,7 +87,16 @@ If pattern_category = "无形态", the stock only appears in the flat ranking ta
 <step n="13" name="Flat Ranking & Thesis">Rank all qualifying companies by composite score. For top 10-20, write a 2-sentence investment thesis: what the company does, why it's well-positioned in the industry, and the primary growth catalyst.
 
 The output ranking table MUST include the following mandatory columns:
-| # | 代码 | 名称 | 形态 | 当前股价 | 市净率(P/B) | 静态市盈率(TTM P/E) | 动态市盈率(Forward P/E) | 资金流向 | 连续流入天数 | 量价对称 | 上涨阶段 | 综合评分 | 5日 | 10日 | 20日 | 投资论点 |
+| # | 代码 | 名称 | 形态 | 当前股价 | 市净率(P/B) | 静态市盈率(TTM P/E) | 动态市盈率(Forward P/E) | 资金流向 | 连续流入天数 | 量价对称 | 上涨阶段 | 综合评分 | 5日 | 10日 | 20日 | 近期上涨逻辑 | 投资论点 |
+
+Column definitions:
+- 近期上涨逻辑 (Recent Uptrend Logic): A concise one-sentence description of WHY the stock has been rising recently and what phase it's in. Examples:
+  - "5日+19.3%加速上涨，脱离底部，量价配合"
+  - "10日+29.2%匀速上涨，趋势健康但需警惕追高"
+  - "涨跌交替方向不明确，主力净流出拉高出货?"
+  - "5日+12.8%已脱离底部，短期动能强劲"
+  Compose from: classify_uptrend_phase.py (phase + returns) + compute_money_flow.py (flow) + detect_distribution.py (warning)
+  This is NOT optional — every stock must have a 近期上涨逻辑 description.
 
 Column definitions:
 - 市净率 (P/B ratio): Price-to-Book ratio
