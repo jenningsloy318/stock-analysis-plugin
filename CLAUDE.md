@@ -206,7 +206,11 @@
 | `score_ceo_quality.py` | CEO quality score (P0.3): tenure, capital allocation skill, candor, alignment | 5 |
 | `synthesize_primary_research.py` | Primary research synthesis (P0.2): per-claim convergence scoring across expert/channel sources | 13 |
 | `analyze_earnings_transcript.py` | Earnings transcript NLP (P0.4): tone, guidance shift, miss-classification, Q&A evasion score | 13 |
-| `score_bottleneck_asymmetry.py` | Universal bottleneck-investing asymmetry composite (0-100) per chokepoint candidate | 8, walk |
+| `score_bottleneck_asymmetry.py` | Universal bottleneck-investing asymmetry composite (0-100) per chokepoint candidate + geographic strategic scoring | 8, walk |
+| `fetch_asia_market_momentum.py` | Asia market (JP/KR/CN/TW) sector momentum, RS vs SPY, cross-market tech leadership, semiconductor momentum | 1, 9 |
+| `detect_growth_inflection.py` | Growth inflection detection: revenue acceleration 2nd derivative, segment mix shift, margin regime change, R&D transmission, concentration change | 5, 6 |
+| `compute_money_flow.py` | Money flow confirmation: MFI/OBV/CMF aggregation, consecutive inflow streak detection, volume-price symmetry (量价齐升), valuation snapshot (P/B, trailing PE, forward PE) | 4, 11, 16 |
+| `compute_trade_signals.py` | Trade signal engine: 6 BUY signals (量价突破/超跌反转/金叉/回踩支撑/蓄势/突破回踩) + 6 SELL signals (跌破支撑/超买反转/死叉/量价背离/资金流出/跌破200日线) + stop-loss/target | 11, 17 |
 | `fetch_market_breadth.py` | Market breadth: % above MAs, A/D, McClellan, VIX term structure, credit spreads | 1 |
 | `fetch_theme_performance.py` | Theme/style ETF performance, sector RS, regime summary | 1 |
 | `compute_tam_adj_peg.py` | Serenity TAM-Adj-PEG: PEG ÷ (TAM runway × quality). Category: CORE_GROWTH / HIGH_BETA_GROWTH / OPTION_LIKE / TURNAROUND / CYCLICAL | 10 |

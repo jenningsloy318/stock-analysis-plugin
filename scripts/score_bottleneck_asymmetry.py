@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bottleneck Asymmetry Scorer — universal 6-input composite.
+"""Bottleneck Asymmetry Scorer — universal 7-input composite.
 
 Implements the Asymmetry Composite (0-100) defined in
 references/frameworks_bottleneck_investing.md.
@@ -20,6 +20,13 @@ Inputs (one company at a time, JSON or CLI flags):
   --layer-name         STRING              (informational — chain layer)
   --roadmap-theme      STRING              (informational — driving roadmap)
 
+  Geographic dimension (optional — enhances scoring when available):
+  --geo-leader         US|JP|KR|CN|TW|EU|OTHER  (dominant country/region)
+  --geo-hhi            0..10000            (geographic concentration HHI)
+  --geo-risk-flags     JSON_ARRAY          (geopolitical risk flags)
+  --geo-policy-support strong_national_priority|moderate_subsidy|weak|none
+  --geo-alternatives   INT >= 0            (alternative-country suppliers)
+
 Or --input-json path/to/inputs.json with the same fields.
 
 Output (JSON to --output path or stdout):
@@ -31,13 +38,15 @@ Output (JSON to --output path or stdout):
     "asymmetry_ratio":    {value, band: deep|ordinary|full|overpaid},
     "earliness":          {inst_own_pct, band: early|mid|late},
     "components": {
-      "chokepoint":       {weight: 30, score_0_100, contribution},
-      "capex_leadtime":   {weight: 15, years, score_0_100, contribution},
-      "buyer_concentration": {weight: 15, top5_pct, score_0_100, contribution},
-      "vertical_resist":  {weight: 10, score_0_100, contribution},
-      "asymmetry":        {weight: 20, ratio, score_0_100, contribution},
-      "earliness":        {weight: 10, inst_own_pct, score_0_100, contribution}
+      "chokepoint":       {weight: 27|30, score_0_100, contribution},
+      "capex_leadtime":   {weight: 14|15, years, score_0_100, contribution},
+      "buyer_concentration": {weight: 14|15, top5_pct, score_0_100, contribution},
+      "vertical_resist":  {weight: 9|10, score_0_100, contribution},
+      "asymmetry":        {weight: 18|20, ratio, score_0_100, contribution},
+      "earliness":        {weight: 8|10, inst_own_pct, score_0_100, contribution},
+      "geo_strategic":    {weight: 10, score_0_100, contribution} | null
     },
+    "geo_context": {...} | null,
     "composite_0_100": ...,
     "tier": "tier-1" | "strong" | "marginal" | "skip",
     "flags": [...],
@@ -45,6 +54,9 @@ Output (JSON to --output path or stdout):
   }
 
 Deterministic. No external API calls. Missing required field → exit 1 with reason.
+
+When geographic inputs are provided, uses 7-dimension model (weights adjusted).
+When no geographic inputs, falls back to original 6-dimension model (backward-compatible).
 
 Conformance:
   Hard gate: chokepoint_score < 3 caps composite at 59 (per reference doc).
@@ -66,6 +78,17 @@ WEIGHTS = {
     "vertical_resist": 10,
     "asymmetry": 20,
     "earliness": 10,
+}
+
+# 7-dimension weights used when geographic inputs are provided
+WEIGHTS_WITH_GEO = {
+    "chokepoint": 27,
+    "capex_leadtime": 14,
+    "buyer_concentration": 14,
+    "vertical_resist": 9,
+    "asymmetry": 18,
+    "earliness": 8,
+    "geo_strategic": 10,
 }
 
 CHOKEPOINT_GATE = 3  # raw score 0-4; must be >= this for tier-1/strong
@@ -157,6 +180,65 @@ def score_earliness(inst_own_pct: float) -> int:
     return int(round(30 - ((inst_own_pct - 60) / 40.0) * 30))
 
 
+def score_geo_strategic(
+    geo_hhi: int,
+    geo_policy_support: str | None,
+    geo_alternatives: int,
+    geo_risk_flags: list[str] | None,
+) -> int:
+    """Geographic strategic score (0-100). Combines concentration risk, policy
+    tailwind, alternative scarcity, and geopolitical risk penalty.
+
+    Sub-components:
+      concentration_risk: HHI-based (high HHI = high risk = low score)
+      policy_tailwind: national priority programs boost score
+      alternative_scarcity: fewer alternatives = higher chokepoint value
+      risk_penalty: each geo risk flag = -10 (floor at 0)
+    """
+    # --- concentration_risk (0-100): lower HHI = more diversified = higher score
+    if geo_hhi > 5000:
+        # 5000 → 30, 10000 → 0  (high concentration = low score)
+        concentration_risk = int(round(30 - ((geo_hhi - 5000) / 5000.0) * 30))
+    elif geo_hhi > 2500:
+        # 2500 → 60, 5000 → 30
+        concentration_risk = int(round(60 - ((geo_hhi - 2500) / 2500.0) * 30))
+    else:
+        # 0 → 100, 2500 → 60
+        concentration_risk = int(round(100 - ((geo_hhi) / 2500.0) * 40))
+
+    concentration_risk = max(0, min(100, concentration_risk))
+
+    # --- policy_tailwind (0-100)
+    policy_map = {
+        "strong_national_priority": 100,
+        "moderate_subsidy": 60,
+        "weak": 30,
+        "none": 0,
+    }
+    policy_tailwind = policy_map.get(geo_policy_support or "none", 0)
+
+    # --- alternative_scarcity (0-100): fewer alternatives = higher value
+    if geo_alternatives == 0:
+        alternative_scarcity = 100
+    elif geo_alternatives == 1:
+        alternative_scarcity = 75
+    elif geo_alternatives == 2:
+        alternative_scarcity = 50
+    else:
+        alternative_scarcity = 25
+
+    # --- risk_penalty: each flag = -10
+    risk_flags = geo_risk_flags or []
+    risk_penalty = len(risk_flags) * 10
+
+    # --- Combined
+    raw = (
+        concentration_risk * 0.3 + policy_tailwind * 0.3 + alternative_scarcity * 0.3
+    ) - risk_penalty
+
+    return max(0, min(100, int(round(raw))))
+
+
 # ---------------------------------------------------------------------------
 # Bands & flags
 # ---------------------------------------------------------------------------
@@ -208,6 +290,20 @@ def compute(inputs: dict) -> dict:
     if missing:
         raise ValueError(f"missing required inputs: {missing}")
 
+    # Determine if geographic dimension is active
+    geo_hhi = inputs.get("geo_hhi")
+    geo_policy_support = inputs.get("geo_policy_support")
+    geo_alternatives = inputs.get("geo_alternatives")
+    geo_risk_flags = inputs.get("geo_risk_flags")
+    geo_leader = inputs.get("geo_leader")
+
+    has_geo = any(
+        v is not None for v in [geo_hhi, geo_policy_support, geo_alternatives]
+    )
+
+    # Select weight set based on geo availability
+    weights = WEIGHTS_WITH_GEO if has_geo else WEIGHTS
+
     # Step 3 raw score (sum of 4 binary elements; capex >= 2yrs and top5 >= 60% are the binary thresholds)
     cp_raw = (
         int(bool(inputs["tech_uniqueness"]))
@@ -224,16 +320,28 @@ def compute(inputs: dict) -> dict:
     s_asym = score_asymmetry(inputs["asymmetry_ratio"])
     s_early = score_earliness(inputs["inst_own_pct"])
 
+    # Geographic score (optional)
+    s_geo = None
+    if has_geo:
+        s_geo = score_geo_strategic(
+            geo_hhi=geo_hhi if geo_hhi is not None else 5000,
+            geo_policy_support=geo_policy_support,
+            geo_alternatives=geo_alternatives if geo_alternatives is not None else 2,
+            geo_risk_flags=geo_risk_flags,
+        )
+
     # Weighted composite
     composite = (
-        s_chokepoint * WEIGHTS["chokepoint"]
-        + s_capex * WEIGHTS["capex_leadtime"]
-        + s_buyer * WEIGHTS["buyer_concentration"]
-        + s_vert * WEIGHTS["vertical_resist"]
-        + s_asym * WEIGHTS["asymmetry"]
-        + s_early * WEIGHTS["earliness"]
-    ) / 100.0
-    composite = int(round(composite))
+        s_chokepoint * weights["chokepoint"]
+        + s_capex * weights["capex_leadtime"]
+        + s_buyer * weights["buyer_concentration"]
+        + s_vert * weights["vertical_resist"]
+        + s_asym * weights["asymmetry"]
+        + s_early * weights["earliness"]
+    )
+    if has_geo and s_geo is not None:
+        composite += s_geo * weights["geo_strategic"]
+    composite = int(round(composite / 100.0))
 
     flags = []
     gate_pass = cp_raw >= CHOKEPOINT_GATE
@@ -243,13 +351,32 @@ def compute(inputs: dict) -> dict:
         )
         composite = min(composite, HARD_CAP_BELOW_GATE)
     if inputs["asymmetry_ratio"] >= 1.50:
-        flags.append("ASYMMETRY_OVERPAID: asymmetry_ratio >= 1.50 — market already paying for upside not yet earned")
+        flags.append(
+            "ASYMMETRY_OVERPAID: asymmetry_ratio >= 1.50 — market already paying for upside not yet earned"
+        )
     if inputs["inst_own_pct"] >= 60.0:
-        flags.append("EARLINESS_LATE: institutional ownership >= 60% — rotation likely already priced in")
+        flags.append(
+            "EARLINESS_LATE: institutional ownership >= 60% — rotation likely already priced in"
+        )
     if inputs["capex_years"] < 2.0:
-        flags.append("CAPEX_LEADTIME_SHORT: <2 years — chokepoint pricing power may be transient")
+        flags.append(
+            "CAPEX_LEADTIME_SHORT: <2 years — chokepoint pricing power may be transient"
+        )
     if inputs["top5_buyer_pct"] < 60.0:
-        flags.append("BUYER_DILUTED: top-5 buyers <60% — chokepoint customer concentration weak")
+        flags.append(
+            "BUYER_DILUTED: top-5 buyers <60% — chokepoint customer concentration weak"
+        )
+
+    # Geographic flags
+    if has_geo:
+        if geo_hhi is not None and geo_hhi > 7500:
+            flags.append(
+                "GEO_EXTREME_CONCENTRATION: geographic HHI > 7500 — single-country dependency risk"
+            )
+        if geo_alternatives is not None and geo_alternatives == 0:
+            flags.append(
+                "GEO_NO_ALTERNATIVE: zero alternative-country suppliers — maximum geographic lock-in"
+            )
 
     # --- Supplementary signal adjustment (±10 points max) ---
     # These are optional qualitative signals that adjust the final composite.
@@ -316,13 +443,19 @@ def compute(inputs: dict) -> dict:
     # Stakeholder quality — strategic endorsement is the strongest signal
     if stakeholder == "strategic_endorsed":
         signal_adj += 4
-        signal_notes.append("stakeholder=strategic_endorsed (+4 supply-chain cross-holding confirms chokepoint)")
+        signal_notes.append(
+            "stakeholder=strategic_endorsed (+4 supply-chain cross-holding confirms chokepoint)"
+        )
     elif stakeholder == "smart_money_backed":
         signal_adj += 2
-        signal_notes.append("stakeholder=smart_money_backed (+2 top-tier funds position)")
+        signal_notes.append(
+            "stakeholder=smart_money_backed (+2 top-tier funds position)"
+        )
     elif stakeholder == "retail_dominated":
         signal_adj -= 2
-        signal_notes.append("stakeholder=retail_dominated (-2 no institutional/strategic validation)")
+        signal_notes.append(
+            "stakeholder=retail_dominated (-2 no institutional/strategic validation)"
+        )
 
     # Cap adjustment at ±10
     signal_adj = max(-10, min(10, signal_adj))
@@ -330,6 +463,65 @@ def compute(inputs: dict) -> dict:
 
     def _contrib(weight: int, score: int) -> float:
         return round(score * weight / 100.0, 2)
+
+    # Build components dict
+    components = {
+        "chokepoint": {
+            "weight": weights["chokepoint"],
+            "score_0_100": s_chokepoint,
+            "contribution": _contrib(weights["chokepoint"], s_chokepoint),
+        },
+        "capex_leadtime": {
+            "weight": weights["capex_leadtime"],
+            "years": round(inputs["capex_years"], 2),
+            "score_0_100": s_capex,
+            "contribution": _contrib(weights["capex_leadtime"], s_capex),
+        },
+        "buyer_concentration": {
+            "weight": weights["buyer_concentration"],
+            "top5_pct": round(inputs["top5_buyer_pct"], 2),
+            "score_0_100": s_buyer,
+            "contribution": _contrib(weights["buyer_concentration"], s_buyer),
+        },
+        "vertical_resist": {
+            "weight": weights["vertical_resist"],
+            "flag": int(bool(inputs["vertical_resist"])),
+            "score_0_100": s_vert,
+            "contribution": _contrib(weights["vertical_resist"], s_vert),
+        },
+        "asymmetry": {
+            "weight": weights["asymmetry"],
+            "ratio": round(inputs["asymmetry_ratio"], 4),
+            "score_0_100": s_asym,
+            "contribution": _contrib(weights["asymmetry"], s_asym),
+        },
+        "earliness": {
+            "weight": weights["earliness"],
+            "inst_own_pct": round(inputs["inst_own_pct"], 2),
+            "score_0_100": s_early,
+            "contribution": _contrib(weights["earliness"], s_early),
+        },
+        "geo_strategic": (
+            {
+                "weight": weights["geo_strategic"],
+                "score_0_100": s_geo,
+                "contribution": _contrib(weights["geo_strategic"], s_geo),
+            }
+            if has_geo and s_geo is not None
+            else None
+        ),
+    }
+
+    # Build geo_context
+    geo_context = None
+    if has_geo:
+        geo_context = {
+            "leader": geo_leader,
+            "hhi": geo_hhi,
+            "risk_flags": geo_risk_flags or [],
+            "policy_support": geo_policy_support,
+            "alternatives": geo_alternatives,
+        }
 
     return {
         "ticker": inputs.get("ticker"),
@@ -357,43 +549,8 @@ def compute(inputs: dict) -> dict:
             },
             "notes": signal_notes,
         },
-        "components": {
-            "chokepoint": {
-                "weight": WEIGHTS["chokepoint"],
-                "score_0_100": s_chokepoint,
-                "contribution": _contrib(WEIGHTS["chokepoint"], s_chokepoint),
-            },
-            "capex_leadtime": {
-                "weight": WEIGHTS["capex_leadtime"],
-                "years": round(inputs["capex_years"], 2),
-                "score_0_100": s_capex,
-                "contribution": _contrib(WEIGHTS["capex_leadtime"], s_capex),
-            },
-            "buyer_concentration": {
-                "weight": WEIGHTS["buyer_concentration"],
-                "top5_pct": round(inputs["top5_buyer_pct"], 2),
-                "score_0_100": s_buyer,
-                "contribution": _contrib(WEIGHTS["buyer_concentration"], s_buyer),
-            },
-            "vertical_resist": {
-                "weight": WEIGHTS["vertical_resist"],
-                "flag": int(bool(inputs["vertical_resist"])),
-                "score_0_100": s_vert,
-                "contribution": _contrib(WEIGHTS["vertical_resist"], s_vert),
-            },
-            "asymmetry": {
-                "weight": WEIGHTS["asymmetry"],
-                "ratio": round(inputs["asymmetry_ratio"], 4),
-                "score_0_100": s_asym,
-                "contribution": _contrib(WEIGHTS["asymmetry"], s_asym),
-            },
-            "earliness": {
-                "weight": WEIGHTS["earliness"],
-                "inst_own_pct": round(inputs["inst_own_pct"], 2),
-                "score_0_100": s_early,
-                "contribution": _contrib(WEIGHTS["earliness"], s_early),
-            },
-        },
+        "components": components,
+        "geo_context": geo_context,
         "composite_0_100": composite,
         "tier": composite_tier(composite),
         "flags": flags,
@@ -407,7 +564,9 @@ def compute(inputs: dict) -> dict:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Bottleneck Asymmetry Scorer (0-100 composite)")
+    p = argparse.ArgumentParser(
+        description="Bottleneck Asymmetry Scorer (0-100 composite)"
+    )
     p.add_argument("--ticker")
     p.add_argument("--tech-uniqueness", type=int, choices=[0, 1])
     p.add_argument("--capex-years", type=float)
@@ -418,22 +577,77 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--layer-name")
     p.add_argument("--roadmap-theme")
     # Supplementary signals (optional — enhance scoring when available)
-    p.add_argument("--attention-level", choices=["low", "moderate", "high", "saturated"],
-                   help="Social/retail attention level (low=hidden alpha, saturated=priced in)")
-    p.add_argument("--narrative-phase", choices=["unknown", "emerging", "accelerating", "consensus"],
-                   help="News narrative lifecycle phase")
-    p.add_argument("--fund-flow-direction", choices=["strong_inflow", "inflow", "neutral", "outflow"],
-                   help="ETF fund flow direction for this layer")
-    p.add_argument("--inst-trend", choices=["accumulating", "stable", "distributing"],
-                   help="Institutional 13F quarterly change direction")
-    p.add_argument("--innovation-signal", choices=["strong", "moderate", "weak"],
-                   help="Patent/R&D forward-looking signal")
-    p.add_argument("--hiring-signal", choices=["expanding", "stable", "contracting"],
-                   help="Hiring activity signal (expansion proxy)")
-    p.add_argument("--stakeholder-quality",
-                   choices=["strategic_endorsed", "smart_money_backed", "mixed", "retail_dominated"],
-                   help="Stakeholder/investor quality (strategic_endorsed = supply-chain cross-holding)")
-    p.add_argument("--input-json", help="Read inputs from JSON file (overrides individual flags)")
+    p.add_argument(
+        "--attention-level",
+        choices=["low", "moderate", "high", "saturated"],
+        help="Social/retail attention level (low=hidden alpha, saturated=priced in)",
+    )
+    p.add_argument(
+        "--narrative-phase",
+        choices=["unknown", "emerging", "accelerating", "consensus"],
+        help="News narrative lifecycle phase",
+    )
+    p.add_argument(
+        "--fund-flow-direction",
+        choices=["strong_inflow", "inflow", "neutral", "outflow"],
+        help="ETF fund flow direction for this layer",
+    )
+    p.add_argument(
+        "--inst-trend",
+        choices=["accumulating", "stable", "distributing"],
+        help="Institutional 13F quarterly change direction",
+    )
+    p.add_argument(
+        "--innovation-signal",
+        choices=["strong", "moderate", "weak"],
+        help="Patent/R&D forward-looking signal",
+    )
+    p.add_argument(
+        "--hiring-signal",
+        choices=["expanding", "stable", "contracting"],
+        help="Hiring activity signal (expansion proxy)",
+    )
+    p.add_argument(
+        "--stakeholder-quality",
+        choices=[
+            "strategic_endorsed",
+            "smart_money_backed",
+            "mixed",
+            "retail_dominated",
+        ],
+        help="Stakeholder/investor quality (strategic_endorsed = supply-chain cross-holding)",
+    )
+    # Geographic dimension (optional — enhances scoring when available)
+    geo_group = p.add_argument_group(
+        "Geographic dimension (optional — enhances scoring when available)"
+    )
+    geo_group.add_argument(
+        "--geo-leader",
+        choices=["US", "JP", "KR", "CN", "TW", "EU", "OTHER"],
+        help="Country/region code that dominates this layer",
+    )
+    geo_group.add_argument(
+        "--geo-hhi",
+        type=int,
+        help="Geographic concentration HHI (0-10000, where 10000 = single country monopoly)",
+    )
+    geo_group.add_argument(
+        "--geo-risk-flags",
+        help='JSON array of geopolitical risk flags (e.g., \'["us_export_control", "taiwan_strait"]\')',
+    )
+    geo_group.add_argument(
+        "--geo-policy-support",
+        choices=["strong_national_priority", "moderate_subsidy", "weak", "none"],
+        help="Policy support level for the dominant country",
+    )
+    geo_group.add_argument(
+        "--geo-alternatives",
+        type=int,
+        help="Number of alternative-country suppliers (0 = no alternative)",
+    )
+    p.add_argument(
+        "--input-json", help="Read inputs from JSON file (overrides individual flags)"
+    )
     p.add_argument("--output", help="Write result JSON to this path (default: stdout)")
     return p.parse_args()
 
@@ -470,6 +684,14 @@ def main() -> int:
             "innovation_signal": args.innovation_signal,
             "hiring_signal": args.hiring_signal,
             "stakeholder_quality": args.stakeholder_quality,
+            # Geographic dimension (None if not provided)
+            "geo_leader": args.geo_leader,
+            "geo_hhi": args.geo_hhi,
+            "geo_risk_flags": (
+                json.loads(args.geo_risk_flags) if args.geo_risk_flags else None
+            ),
+            "geo_policy_support": args.geo_policy_support,
+            "geo_alternatives": args.geo_alternatives,
         }
 
     try:

@@ -1897,6 +1897,77 @@ def compute_industry_trajectory(trajectory_data: dict | None) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# 14. Money Flow Confirmation Score (1-10)
+# ---------------------------------------------------------------------------
+
+
+def compute_money_flow_confirmation(money_flow_data: dict | None) -> dict:
+    """Score money flow confirmation from compute_money_flow.py output.
+
+    Measures volume-price synchronization (量价齐升): whether institutional
+    capital is flowing in with price confirmation. Composite score from the
+    money flow script maps directly (already 0-10 scale).
+
+    If money flow data is unavailable, returns None score (weight redistributed).
+    """
+    if not money_flow_data:
+        return {
+            "score": None,
+            "rationale": "No money flow data available",
+            "sub_scores": {},
+        }
+
+    composite = money_flow_data.get("composite_score")
+    if composite is None:
+        return {
+            "score": None,
+            "rationale": "Money flow composite score not computed",
+            "sub_scores": {},
+        }
+
+    streak = money_flow_data.get("streak_analysis", {})
+    consecutive_inflow = streak.get("consecutive_inflow_days", 0)
+    volume_price_symmetry = money_flow_data.get("volume_price_symmetry", False)
+
+    reasons: list[str] = []
+    reasons.append(f"Money flow composite: {composite:.1f}/10")
+
+    if consecutive_inflow >= 3:
+        reasons.append(f"Consecutive inflow streak: {consecutive_inflow} days")
+    if volume_price_symmetry:
+        reasons.append("Volume-price symmetry confirmed (量价齐升)")
+
+    confirmed_accumulation = consecutive_inflow >= 3 and volume_price_symmetry
+
+    final = _clamp(composite)
+
+    if final >= 7.5:
+        assessment = "Strong institutional accumulation — volume and price confirming"
+    elif final >= 5.5:
+        assessment = "Moderate money flow — some institutional interest"
+    elif final >= 4.0:
+        assessment = "Neutral — no clear directional flow"
+    else:
+        assessment = "Distribution — outflow dominates, institutional selling"
+
+    return {
+        "score": final,
+        "assessment": assessment,
+        "composite_score": composite,
+        "consecutive_inflow_days": consecutive_inflow,
+        "volume_price_symmetry": volume_price_symmetry,
+        "confirmed_accumulation": confirmed_accumulation,
+        "reasons": reasons,
+        "sub_scores": {
+            "composite": composite,
+            "streak": min(10.0, consecutive_inflow * 2.0),
+            "symmetry": 8.0 if volume_price_symmetry else 4.0,
+        },
+        "methodology": "MoneyFlow = composite_score from compute_money_flow.py (0-10 direct mapping)",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Directional conviction count (Pitfall 5: capped-upside vs conviction)
 # ---------------------------------------------------------------------------
 
@@ -2252,23 +2323,25 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
             "moat_quality": 0.10,
             "management_quality": 0.10,
             "valuation_attractiveness": 0.15,
-            "macro_tailwind": 0.15,
+            "macro_tailwind": 0.10,
             "risk_profile": 0.10,
             "weinstein_alignment": 0.10,
             "canslim": 0.10,
             "ecosystem_momentum": 0.05,
             "industry_trajectory": 0.05,
+            "money_flow_confirmation": 0.05,
         },
         "short": {
             "valuation_attractiveness": 0.10,
             "macro_tailwind": 0.10,
             "risk_profile": 0.10,
-            "alternative_alignment": 0.20,
+            "alternative_alignment": 0.15,
             "technical_setup": 0.15,
             "weinstein_alignment": 0.10,
             "canslim": 0.10,
             "ecosystem_momentum": 0.10,
             "industry_trajectory": 0.05,
+            "money_flow_confirmation": 0.05,
         },
         "quick": {
             "financial_health": 0.20,
@@ -2298,6 +2371,7 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
             "canslim": "canslim",
             "ecosystem_momentum": "ecosystem_momentum",
             "industry_trajectory": "industry_trajectory",
+            "money_flow_confirmation": "money_flow_confirmation",
         }
         score_obj = scores.get(key_map[comp], {})
         component_scores[comp] = score_obj.get("score")
@@ -2426,7 +2500,9 @@ def _enrich_risk_profile(
         if spread_z is not None:
             if spread_z > 2.0:
                 adj -= 1.0
-                reasons.append(f"Credit: spread z-score {spread_z:.1f} (widening stress)")
+                reasons.append(
+                    f"Credit: spread z-score {spread_z:.1f} (widening stress)"
+                )
             elif spread_z > 1.0:
                 adj -= 0.5
                 reasons.append(f"Credit: spread z-score {spread_z:.1f} (elevated)")
@@ -2458,10 +2534,14 @@ def _enrich_risk_profile(
 
         if downside_beta is not None and downside_beta > 1.5:
             adj -= 0.5
-            reasons.append(f"Asymmetric beta: downside={downside_beta:.2f} (amplifies losses)")
+            reasons.append(
+                f"Asymmetric beta: downside={downside_beta:.2f} (amplifies losses)"
+            )
             sub_scores["downside_beta"] = max(1.0, 8.0 - (downside_beta - 1.0) * 3)
         elif downside_beta is not None:
-            sub_scores["downside_beta"] = max(1.0, min(10.0, 8.0 - (downside_beta - 1.0) * 3))
+            sub_scores["downside_beta"] = max(
+                1.0, min(10.0, 8.0 - (downside_beta - 1.0) * 3)
+            )
 
         if tail_corr is not None and tail_corr > 0.7:
             adj -= 0.3
@@ -2484,7 +2564,9 @@ def _enrich_risk_profile(
             elif annual_vol < 0.20:
                 adj += 0.2
                 reasons.append(f"GARCH vol: {annual_vol:.0%} annualized (low)")
-            sub_scores["garch_vol"] = max(1.0, min(10.0, 8.0 - (annual_vol - 0.25) * 10))
+            sub_scores["garch_vol"] = max(
+                1.0, min(10.0, 8.0 - (annual_vol - 0.25) * 10)
+            )
 
         if tail_index is not None and tail_index < 3.0:
             adj -= 0.4
@@ -2529,10 +2611,14 @@ def _enrich_valuation(
         if tam_peg is not None:
             if tam_peg < 0.5:
                 adj += 1.0
-                reasons.append(f"TAM-adj PEG: {tam_peg:.2f} (deeply undervalued for growth runway)")
+                reasons.append(
+                    f"TAM-adj PEG: {tam_peg:.2f} (deeply undervalued for growth runway)"
+                )
             elif tam_peg < 1.0:
                 adj += 0.5
-                reasons.append(f"TAM-adj PEG: {tam_peg:.2f} (undervalued vs TAM opportunity)")
+                reasons.append(
+                    f"TAM-adj PEG: {tam_peg:.2f} (undervalued vs TAM opportunity)"
+                )
             elif tam_peg > 2.5:
                 adj -= 0.8
                 reasons.append(f"TAM-adj PEG: {tam_peg:.2f} (overpriced even for TAM)")
@@ -2551,10 +2637,18 @@ def _enrich_valuation(
 
         if verdict == "UNDERPRICED_GROWTH":
             adj += 0.8
-            reasons.append(f"Bayesian: UNDERPRICED_GROWTH (gap={gap:+.1%})" if gap else "Bayesian: UNDERPRICED_GROWTH")
+            reasons.append(
+                f"Bayesian: UNDERPRICED_GROWTH (gap={gap:+.1%})"
+                if gap
+                else "Bayesian: UNDERPRICED_GROWTH"
+            )
         elif verdict == "OVERPRICED_GROWTH":
             adj -= 0.8
-            reasons.append(f"Bayesian: OVERPRICED_GROWTH (gap={gap:+.1%})" if gap else "Bayesian: OVERPRICED_GROWTH")
+            reasons.append(
+                f"Bayesian: OVERPRICED_GROWTH (gap={gap:+.1%})"
+                if gap
+                else "Bayesian: OVERPRICED_GROWTH"
+            )
 
         if fomo_score is not None and fomo_score > 70:
             adj -= 0.3
@@ -2594,13 +2688,17 @@ def _enrich_technical_setup(
     if health_score is not None:
         if band == "ELITE_HEALTHY" or health_score >= 80:
             adj += 1.0
-            reasons.append(f"GF-DMA Health: {health_score}/100 ({band}) — elite momentum+fundamentals")
+            reasons.append(
+                f"GF-DMA Health: {health_score}/100 ({band}) — elite momentum+fundamentals"
+            )
         elif band == "HEALTHY" or health_score >= 60:
             adj += 0.5
             reasons.append(f"GF-DMA Health: {health_score}/100 ({band}) — healthy")
         elif band == "OVERHEATED" or health_score >= 40:
             adj -= 0.3
-            reasons.append(f"GF-DMA Health: {health_score}/100 ({band}) — overheated risk")
+            reasons.append(
+                f"GF-DMA Health: {health_score}/100 ({band}) — overheated risk"
+            )
         elif band == "UNHEALTHY" or health_score < 30:
             adj -= 1.0
             reasons.append(f"GF-DMA Health: {health_score}/100 ({band}) — unhealthy")
@@ -2641,13 +2739,17 @@ def _enrich_canslim(
         if beat_rate is not None:
             if beat_rate >= 0.80:
                 adj += 0.8
-                reasons.append(f"Earnings edge: beat rate {beat_rate:.0%} (serial beater)")
+                reasons.append(
+                    f"Earnings edge: beat rate {beat_rate:.0%} (serial beater)"
+                )
             elif beat_rate >= 0.65:
                 adj += 0.4
                 reasons.append(f"Earnings edge: beat rate {beat_rate:.0%} (consistent)")
             elif beat_rate <= 0.35:
                 adj -= 0.5
-                reasons.append(f"Earnings edge: beat rate {beat_rate:.0%} (serial misser)")
+                reasons.append(
+                    f"Earnings edge: beat rate {beat_rate:.0%} (serial misser)"
+                )
 
         if pead == "positive":
             adj += 0.3
@@ -2669,10 +2771,14 @@ def _enrich_canslim(
         if seasonal_index is not None:
             if seasonal_index > 1.15:
                 adj += 0.3
-                reasons.append(f"Seasonality: Q index {seasonal_index:.2f} (historically strong quarter)")
+                reasons.append(
+                    f"Seasonality: Q index {seasonal_index:.2f} (historically strong quarter)"
+                )
             elif seasonal_index < 0.85:
                 adj -= 0.3
-                reasons.append(f"Seasonality: Q index {seasonal_index:.2f} (historically weak quarter)")
+                reasons.append(
+                    f"Seasonality: Q index {seasonal_index:.2f} (historically weak quarter)"
+                )
 
     adj = max(-1.0, min(1.0, adj))
     new_score = _clamp(base_score + adj)
@@ -2767,15 +2873,11 @@ def main():
     parser.add_argument(
         "--trajectory", help="Path to compute_industry_trajectory.py output JSON"
     )
-    parser.add_argument(
-        "--credit", help="Path to fetch_credit.py output JSON"
-    )
+    parser.add_argument("--credit", help="Path to fetch_credit.py output JSON")
     parser.add_argument(
         "--correlation", help="Path to compute_correlation_regime.py output JSON"
     )
-    parser.add_argument(
-        "--forecast", help="Path to forecast.py output JSON"
-    )
+    parser.add_argument("--forecast", help="Path to forecast.py output JSON")
     parser.add_argument(
         "--earnings-edge", help="Path to compute_earnings_edge.py output JSON"
     )
@@ -2788,11 +2890,12 @@ def main():
     parser.add_argument(
         "--bayesian-growth", help="Path to compute_bayesian_growth.py output JSON"
     )
-    parser.add_argument(
-        "--cot", help="Path to fetch_cot.py output JSON"
-    )
+    parser.add_argument("--cot", help="Path to fetch_cot.py output JSON")
     parser.add_argument(
         "--seasonality", help="Path to compute_seasonality.py output JSON"
+    )
+    parser.add_argument(
+        "--money-flow", help="Path to compute_money_flow.py output JSON"
     )
     args = parser.parse_args()
 
@@ -2888,10 +2991,14 @@ def main():
     seasonality_data = _load_json(args.seasonality)
 
     # --- Enrich risk_profile with credit + correlation + forecast data ---
-    _enrich_risk_profile(scores["risk_profile"], credit_data, correlation_data, forecast_data)
+    _enrich_risk_profile(
+        scores["risk_profile"], credit_data, correlation_data, forecast_data
+    )
 
     # --- Enrich valuation with TAM-adj-PEG + Bayesian growth ---
-    _enrich_valuation(scores["valuation_attractiveness"], tam_adj_peg_data, bayesian_growth_data)
+    _enrich_valuation(
+        scores["valuation_attractiveness"], tam_adj_peg_data, bayesian_growth_data
+    )
 
     # --- Enrich technical_setup with health_index ---
     _enrich_technical_setup(scores["technical_setup"], health_index_data)
@@ -2921,6 +3028,12 @@ def main():
         except (IOError, json.JSONDecodeError) as e:
             sys.stderr.write(f"Warning: could not load trajectory data: {e}\n")
     scores["industry_trajectory"] = compute_industry_trajectory(trajectory_data or None)
+
+    # Money flow confirmation
+    money_flow_data = _load_json(args.money_flow)
+    scores["money_flow_confirmation"] = compute_money_flow_confirmation(
+        money_flow_data or None
+    )
 
     # Framework divergence detection
     scores["framework_divergence"] = detect_framework_divergence(scores)
@@ -3075,9 +3188,7 @@ def analyze_portfolio_complementarity(
     # --- Sub-industry concentration check ---
     # If >=3 of top-5 companies share the same GICS Level 4 code -> flag
     if len(top5) >= 3:
-        gics_codes = [
-            c.get("gics_sub_industry_code", "unknown") for c in top5
-        ]
+        gics_codes = [c.get("gics_sub_industry_code", "unknown") for c in top5]
         code_counts = Counter(gics_codes)
         for code, count in code_counts.items():
             if count >= 3 and code != "unknown":
@@ -3089,15 +3200,13 @@ def analyze_portfolio_complementarity(
     # --- Factor style check ---
     # If all top-5 have similar characteristics -> flag
     if len(top5) >= 3:
-        high_beta_count = sum(
-            1 for c in top5 if (c.get("beta") or 1.0) > 1.3
-        )
+        high_beta_count = sum(1 for c in top5 if (c.get("beta") or 1.0) > 1.3)
         low_pe_count = sum(
-            1 for c in top5
-            if c.get("pe_ratio") is not None and c["pe_ratio"] < 15
+            1 for c in top5 if c.get("pe_ratio") is not None and c["pe_ratio"] < 15
         )
         high_growth_count = sum(
-            1 for c in top5
+            1
+            for c in top5
             if c.get("growth_rate") is not None and c["growth_rate"] > 0.20
         )
 
@@ -3131,9 +3240,7 @@ def analyze_portfolio_complementarity(
         # option: High score driven by momentum/growth but higher risk -> <5% speculative
         if score >= 7.0 and vol <= 0.30 and moat >= 7.0:
             position_type = "core"
-            position_rationale = (
-                "High conviction + low volatility + strong moat -> defensive core (>20%)"
-            )
+            position_rationale = "High conviction + low volatility + strong moat -> defensive core (>20%)"
         elif score >= 6.0 and vol <= 0.45:
             position_type = "satellite"
             position_rationale = (
@@ -3155,11 +3262,13 @@ def analyze_portfolio_complementarity(
                 "Lower conviction or higher risk -> speculative only (<5%)"
             )
 
-        enriched.append({
-            **company,
-            "position_type": position_type,
-            "position_rationale": position_rationale,
-        })
+        enriched.append(
+            {
+                **company,
+                "position_type": position_type,
+                "position_rationale": position_rationale,
+            }
+        )
 
     # Summary statistics
     type_counts = Counter(e["position_type"] for e in enriched)

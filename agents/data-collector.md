@@ -24,6 +24,7 @@ timeout_mins: 8
   <item>stage1_sub_industry_rs.json — Sub-industry RS (GICS Level 4 flat)</item>
   <item>stage1_breadth.json — Market breadth indicators</item>
   <item>stage1_themes.json — Theme/style ETF performance</item>
+  <item>stage1_asia_momentum.json — Asia market (JP/KR/CN/TW) momentum and RS vs SPY</item>
   <item>stage1.md — Data availability summary with freshness timestamps</item>
 </output>
 
@@ -40,6 +41,7 @@ timeout_mins: 8
     Group B (depends on yfinance/market data — run in parallel after Group A):
     - uv run python {plugin_root}/scripts/compute_sector_rs.py --output ./reports/[RUN_ID]/stage1_sector_rs.json
     - uv run python {plugin_root}/scripts/compute_sector_rs.py --level sub-industry --flat --output ./reports/[RUN_ID]/stage1_sub_industry_rs.json
+    - uv run python {plugin_root}/scripts/fetch_asia_market_momentum.py --output ./reports/[RUN_ID]/stage1_asia_momentum.json
   </step>
 
   <step n="2" name="Initialize Persistence">

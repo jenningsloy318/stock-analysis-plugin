@@ -69,7 +69,15 @@ REQUIRED SECTIONS (every equity report must have ALL of these):
 19. Catalyst Calendar (forward-looking events, probability, expected value, PEAD analysis)
 20. China-Specific Analysis (MANDATORY for .SH/.SZ tickers, SKIP for all others: 政策敏感性, 北向资金, 龙虎榜, 游资追踪)
 21. Recommended Stock Ranking (推荐标的排名 table with 001/002/003 format, 当前股价 column)
-22. Recommendation (rating, target, margin of safety, entry criteria, position size, kill switch)
+22. Trade Signals (交易信号 — MANDATORY for mid-term and short-term reports):
+    - Current active buy/sell signals from compute_trade_signals.py output
+    - Net direction (BUY/SELL/HOLD) with confidence
+    - Recommended action (建仓/加仓/持有/减仓/清仓/观望)
+    - Key price levels: support, resistance, stop-loss, target
+    - Invalidation condition (信号失效条件)
+    - Risk/reward ratio
+    - For long-term reports: include a simplified version showing only Weinstein stage + key support/resistance levels
+23. Recommendation (rating, target, margin of safety, entry criteria, position size, kill switch)
 23. Data Quality Appendix (sources checked, missing/stale dimensions, conflicts, confidence cap)
 24. Disclaimer (AI-generated, not financial advice — use exact text from templates/equity-report.md)
 
@@ -268,6 +276,7 @@ EVERY equity report MUST contain ONE kill switch matching the ACCEPTABLE pattern
 ### Constraints
 <constraint>ALL report content MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. Source citations remain in original language. This is NON-NEGOTIABLE — never produce English reports.</constraint>
 <constraint>Every table/list mentioning a company MUST include a "当前股价" (current price) column. Format: "$XX.XX" or "¥XX.XX".</constraint>
+<constraint mandatory="true">Every company table in the final report MUST include columns for: 当前股价, 市净率(P/B), 静态市盈率(TTM P/E), 动态市盈率(Forward P/E), 资金流向, 连续流入天数. These are mandatory display fields — never omit them. Format: 资金流向 uses 强流入/温和流入/中性/温和流出/强流出; 连续流入天数 is an integer (0 if currently outflow).</constraint>
 <constraint>Every report MUST include a "推荐标的排名" (Recommended Stock Ranking) section with zero-padded 3-digit indices (001, 002, 003...). The analyzed stock is ALWAYS 001 (top recommendation). Format:
     ```
     | # | 代码 | 名称 | 当前股价 | 评分 | 推荐理由 (一句话) |
@@ -289,6 +298,7 @@ EVERY equity report MUST contain ONE kill switch matching the ACCEPTABLE pattern
 <constraint>Every major claim must trace to at least one specific trader framework</constraint>
 <constraint>Report order: Long-term → Mid-term → Short-term (each reuses stage summaries)</constraint>
 <constraint>DIMENSION TRANSPARENCY (NON-NEGOTIABLE): Every report MUST include a full scoring dimension breakdown table with individual numeric scores, weights, and weighted contributions. Each dimension MUST have a 1-sentence rationale explaining the score. Include "关键决定维度" section explaining which dimensions most influenced the conviction rating. Never present only the final composite — always decompose into all dimensions with figures and reasoning.</constraint>
+<constraint mandatory="true">TRADE SIGNALS (NON-NEGOTIABLE for mid/short-term reports): Every mid-term and short-term report MUST include a "交易信号" section with SPECIFIC actionable signals — NOT just price targets or vague "逢低买入" language. Required content: (1) currently active signal IDs (B1-B6, S1-S6) with conditions met, (2) net direction + recommended action, (3) exact trigger price + stop-loss + target with risk/reward ratio, (4) invalidation condition ("跌破$XX则信号失效"). Source: stage11.md trade signals section from quant-analyst output. If no clear signal is active, explicitly state "当前无明确买卖信号, 建议观望" with the reason.</constraint>
 
 </guardrails>
 

@@ -50,6 +50,7 @@ Handles Stage 5 (Financial Health) and Stage 6 (Earnings Quality).
 <step n="10" name="Capital Structure &amp; Shareholder Returns">Run fetch_capital_structure.py. Analyze: buyback ROI (value created/destroyed per dollar), SBC dilution rate (flag if SBC >5% revenue), total capital return yield (dividends + net buybacks / market cap), debt maturity wall risk, optimal leverage assessment vs sector peers</step>
 <step n="10.5" name="Capital Allocation Audit (P0.1 — practitioner-grade scorecard)">Run audit_capital_allocation.py with raw-data.json + capital_structure.json. Produces A-F composite grade across 5 dimensions: (1) buyback IRR + SBC dilution, (2) capex efficiency = Δrevenue/Σcapex 5yr, (3) dividend payout & coverage, (4) M&A discipline (goodwill growth vs revenue growth), (5) Buffett retention test. Embed grade table + top red flags in stage6.md under heading "Capital Allocation Audit". This is cited by FinTwit practitioners (@InvestmentTalk, @bluegrasscap) as the single highest-alpha factor — surface red flags prominently. Reference: docs/research/fintwit-reddit-practitioner-insights-2026-05.md §8 P0.1.</step>
 <step n="11" name="Narrative Translation">Apply Damodaran's Narrative+Numbers: articulate the company's 3-sentence future narrative, map each sentence to a financial variable (growth rate, margin, reinvestment, risk), assess narrative plausibility, compare management's stated narrative to actual capital allocation. Flag narrative-action inconsistencies.</step>
+<step n="12" name="Growth Inflection Detection">Run detect_growth_inflection.py with the raw financials JSON. Analyzes 5 dimensions: (1) revenue acceleration 2nd derivative — is growth accelerating or decelerating? (2) segment mix shift — is a new business line emerging as primary driver? (3) margin regime change — is operating leverage kicking in or eroding? (4) R&D-to-revenue transmission — is prior R&D investment starting to pay off? (5) concentration change — is the company diversifying or concentrating? Composite score -10 to +10 with verdict (STRONG_POSITIVE_INFLECTION / MODERATE_POSITIVE / NO_INFLECTION / MODERATE_NEGATIVE / STRONG_NEGATIVE). Embed verdict, key evidence, and risk_to_thesis in stage5.md under heading "Growth Inflection Assessment". If segments data available from company filings, pass via --segments-json. If peer growth rates available from Stage 7, pass via --peer-growth-json.</step>
 
 </workflow>
 
@@ -66,6 +67,7 @@ Handles Stage 5 (Financial Health) and Stage 6 (Earnings Quality).
 - Earnings quality score computed (accruals, cash conversion, revenue quality)
 - Filing diff analyzed (risk factor changes, MD&A language shifts vs prior period, footnote changes)
 - Narrative-to-numbers mapping articulated (3 sentences → model variables)
+- Growth Inflection Detection (detect_growth_inflection.py) executed; composite score and verdict reported in stage5.md with key evidence and risk_to_thesis
 
 ### Constraints
 <constraint>Never invent financial figures — state "Data not available" if unavailable</constraint>

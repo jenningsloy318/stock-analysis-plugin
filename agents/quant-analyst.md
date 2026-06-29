@@ -56,7 +56,16 @@ If `bottleneck_asymmetry.json` is missing, note "bottleneck signal not available
 <step n="5" name="Technical Analysis">Trend (MAs, higher highs/lows), momentum (RSI, MACD), volume (OBV), support/resistance</step>
 <step n="5b" name="Weinstein Stage Classification">Classify price structure: Stage 1 (Basing), Stage 2 (Advancing), Stage 3 (Topping), Stage 4 (Declining). Use 30-week MA direction, volume patterns, relative strength. Only buy in Stage 2; never buy in Stage 4.</step>
 <step n="5c" name="CANSLIM Score">Score on 7 dimensions: C (current EPS growth >25%), A (annual growth 5yr), N (new catalyst/high), S (supply/demand float analysis), L (leader RS rank top 20%), I (institutional sponsorship trend), M (market direction). Composite pass/fail.</step>
-<step n="6" name="Sentiment">Put/call ratio, VIX term structure, short interest, options flow, dark pool prints</step>
+<step n="6" name="Sentiment">Put/call ratio, VIX term structure, short interest, options flow, dark pool prints. Run `compute_money_flow.py {ticker}` to get money flow confirmation score. Include the composite score (0-10), current streak analysis, and volume-price symmetry assessment in stage11.md under heading 'Money Flow Confirmation (量价齐升)'. Flag any stock with consecutive inflow >= 3 days AND volume_price_symmetry = true as having CONFIRMED institutional accumulation.</step>
+<step n="6b" name="Trade Signals (买卖信号)">Run `compute_trade_signals.py {ticker} --money-flow-json {company_dir}/money_flow.json --horizon both`. This generates explicit BUY/SELL/HOLD signals based on multi-condition technical triggers. Include the full output in stage11.md under heading 'Trade Signals (交易信号)'. The section MUST show:
+- All currently active signals (B1-B6 buy signals, S1-S6 sell signals)
+- Net direction (BUY/SELL/HOLD/CONFLICTING)
+- Recommended action (建仓/加仓/持有/减仓/清仓/观望) with confidence level
+- Key price levels: support, resistance, stop-loss, target
+- Invalidation condition (什么情况下信号失效)
+- Risk/reward ratio
+
+This is NOT optional — every analyzed stock MUST have explicit trade signals in the report. Do NOT substitute with vague "buy on dips" language. The signals must reference specific technical conditions that are currently met.</step>
 <step n="7" name="Institutional Flow">13F analysis, activist 13D, Form 4 clusters, ownership concentration</step>
 <step n="8" name="Risk-Off Indicators">Load breadth_data.json for VIX level + term structure (contango/backwardation), credit spreads (HYG/TLT signal). Load theme_data.json macro section for gold/USD/Treasury flows. Supplement with web search for Fear & Greed Index.</step>
 <step n="9" name="Liquidity & Correlation">Fed balance sheet, M2, repo rates, bank lending, cross-asset correlation regime</step>
@@ -110,6 +119,7 @@ Reference: `references/pitfalls/03-iv-event-vs-demand.md`, `references/pitfalls/
 - Short interest and squeeze potential scored (especially for short-term reports)
 - Activist exposure assessed and 13D/proxy fight probability flagged
 - Market regime classification derived with at least 4 of 8 sub-items having current data
+- Trade signals generated via compute_trade_signals.py with active B/S/H signals, net direction, key levels, and invalidation conditions included in stage11.md
 - VIX and credit spread data within 7 days freshness
 
 ### Constraints

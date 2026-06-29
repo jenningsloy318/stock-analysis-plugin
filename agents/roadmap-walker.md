@@ -65,6 +65,12 @@ For each layer capture:
 - `visibility` — high | medium | low
 - `public_companies` — list of `{ticker, name, market_cap_usd}`
 - `concentration_note` — HHI or top-3 share % if disclosed; "n/a" if not
+- `geo_leader` — Country/region code dominating production in this layer (US|JP|KR|CN|TW|EU|OTHER)
+- `geo_leader_share_pct` — Estimated market share of the dominant country (0-100)
+- `geo_hhi` — Geographic production concentration HHI (0-10000; 10000 = single-country monopoly)
+- `geo_risk_flags` — JSON array of applicable geopolitical risks: us_export_control, china_tariff, taiwan_strait, korea_north_risk, japan_yen_weakness, eu_regulation, supply_route_disruption
+- `geo_policy_support` — Active policy support programs: strong_national_priority|moderate_subsidy|weak|none. Note specific programs (CHIPS Act, Made in China 2025, K-Semiconductor Strategy, Japan semiconductor revival plan, EU Chips Act, etc.)
+- `geo_alternatives` — Number of viable alternative-country suppliers (0 = geographic monopoly, no alternative)
 
 Typical chain has 5-9 layers. Save to `walk_chain.json`.
 
@@ -90,6 +96,14 @@ For each chokepoint layer, also capture the **raw values** that the scorer needs
 - The two binary flags above
 
 Update `walk_chain.json` with these fields.
+
+For each chokepoint layer, also pass geographic context to the scorer. Capture from the chain decomposition:
+- `geo_leader` — the dominant country code
+- `geo_hhi` — geographic HHI for the layer
+- `geo_risk_flags` — applicable geopolitical risk flags
+- `geo_policy_support` — policy support level
+- `geo_alternatives` — number of alternative-country suppliers
+These will be passed to `score_bottleneck_asymmetry.py` via the `--geo-*` flags in Step 5.
 
 Validation gate: at least one layer must score ≥3, otherwise output a "no chokepoint identified, retest in 6 months" stub `walk.md` and skip Steps 4-5.</step>
 
@@ -201,10 +215,17 @@ uv run python {plugin_root}/scripts/score_bottleneck_asymmetry.py \
   --innovation-signal [strong|moderate|weak] \
   --hiring-signal [expanding|stable|contracting] \
   --stakeholder-quality [strategic_endorsed|smart_money_backed|mixed|retail_dominated] \
+  --geo-leader [US|JP|KR|CN|TW|EU|OTHER] \
+  --geo-hhi [INT 0-10000] \
+  --geo-risk-flags '[JSON_ARRAY]' \
+  --geo-policy-support [strong_national_priority|moderate_subsidy|weak|none] \
+  --geo-alternatives [INT >= 0] \
   --layer-name "[LAYER]" \
   --roadmap-theme "[THEME]" \
   --output {output_dir}/walk_candidate_[TICKER].json
 ```
+
+The geographic dimension (geo_strategic, weight 10%) is ADDITIVE — when geo data is available, scoring uses the 7-dimension model (weights adjusted to sum to 100). When geo data is unavailable for a candidate, the scorer falls back to the original 6-dimension model automatically.
 
 The 6 supplementary signals (attention through hiring) adjust the composite by ±10 points max:
 - Hidden alpha profile (low attention + emerging narrative + inflows + accumulating): up to +11 bonus
@@ -251,9 +272,9 @@ Run: [RUN_ID]   Generated: [ISO]
 
 ## 4. Ranked Candidates
 
-| Rank | Ticker | Layer | Composite | Tier | Asym ratio | Inst own % | Flags |
-|------|--------|-------|-----------|------|------------|------------|-------|
-| 1 | ... | ... | 92 | tier-1 | 0.08 | 18% | — |
+| Rank | Ticker | Layer | Geo Leader | Composite | Tier | Asym ratio | Inst own % | Flags |
+|------|--------|-------|-----------|-----------|------|------------|------------|-------|
+| 1 | ... | ... | ... | 92 | tier-1 | 0.08 | 18% | — |
 
 ## 5. Recommended Next Step
 
@@ -263,13 +284,57 @@ For each tier-1 / strong candidate, the recommended next action is:
 
 …to run the full 11-stage deep-dive. Bottleneck score is an *additional* signal, not a replacement for fundamental/valuation analysis.
 
-## 6. Rotation Discipline
+## 6. Geographic Risk Map
+
+| Layer | Geo Leader | Leader Share % | HHI | Risk Flags | Alternatives | Policy Support |
+|-------|-----------|---------------|-----|------------|--------------|----------------|
+| [layer] | [country] | [%] | [hhi] | [flags] | [N] | [level] |
+
+Layers with HHI > 5000 are geographically concentrated — vulnerable to single-country disruption.
+
+## 7. Policy Tailwind Summary
+
+| Candidate | Ticker | Country | Policy Program | Support Level | Impact |
+|-----------|--------|---------|----------------|---------------|--------|
+| [name] | [ticker] | [country] | [program name] | [level] | [brief impact note] |
+
+## 8. Geopolitical Scenario Brief
+
+**Scenario: US-China tension escalation**
+- Layers at risk: [list layers with china_tariff or us_export_control flags]
+- Beneficiaries: [list companies in alternative-supplier layers that gain from friend-shoring]
+- Mitigation: [brief note on supply chain diversification options]
+
+## 9. Rotation Discipline
 [Brief note: re-score every quarter; rotate out when composite < 50, asymmetry > 1.0, or inst-own > 60% with capacity confirmed.]
 ```
 
 </step>
 
 </workflow>
+
+<tech_geo_reference>
+
+### Technology Theme Geographic Strengths (reference for tech-related walk themes)
+
+When analyzing technology-related themes, use this reference for geographic layer mapping:
+
+| Country/Region | Core Strengths |
+|---------------|----------------|
+| US | Design (fabless), EDA/IP, software/OS, cloud infrastructure, AI models, advanced packaging design |
+| Japan (JP) | Semiconductor materials (photoresists, wafers, gases), precision equipment, robotics, sensors, passive components, specialty chemicals |
+| Korea (KR) | Memory (DRAM/NAND), batteries (cells + cathodes), OLED/displays, 5G infrastructure |
+| Taiwan (TW) | Foundry (logic manufacturing), advanced packaging (CoWoS/InFO), OSAT, IC substrates |
+| China (CN) | Assembly/packaging, rare earth processing, solar/EV final assembly, consumer internet, mature-node fabs, battery assembly |
+| EU | Automotive semiconductors (NXP, Infineon, STMicro), industrial sensors, ASML lithography, specialty materials |
+
+Notes:
+- This is a starting point — the walker must verify current market share data via search tools
+- Layers may span multiple countries (e.g., foundry: TW dominant but KR/US growing)
+- Policy programs actively reshaping geography: CHIPS Act (US), EU Chips Act, Made in China 2025, K-Semiconductor (KR), Japan semiconductor revival
+- Geographic HHI should be calculated from actual market share data, not assumed from this table
+
+</tech_geo_reference>
 
 <guardrails>
 
@@ -280,6 +345,9 @@ For each tier-1 / strong candidate, the recommended next action is:
 - At least 1 layer scores ≥3 OR a "no chokepoint identified" stub is produced
 - Asymmetry composite computed deterministically via score_bottleneck_asymmetry.py for every candidate
 - Earliness band (early/mid/late) reported per candidate
+- Geographic context (geo_leader, geo_hhi) captured for all chokepoint layers (score ≥3)
+- Geographic Risk Map table included in walk.md
+- Geopolitical scenario brief included with at least one escalation scenario
 - walk.md and walk_candidates.json both written
 
 ### Constraints

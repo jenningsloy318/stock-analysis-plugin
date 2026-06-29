@@ -1,7 +1,7 @@
 {
   "name": "stock-analysis",
   "description": "Multi-stage institutional equity research producing long-term, mid-term, and short-term stock analysis reports synthesizing methodologies from Buffett, Dalio, Soros, Lynch, Fisher, Marks, Druckenmiller, Greenblatt, Burry, and ARK",
-  "version": "2.06.01",
+  "version": "2.07.01",
   "author": {
     "name": "Jennings Liu",
     "email": "jenningsloy318@gmail.com"

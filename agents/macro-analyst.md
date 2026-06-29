@@ -41,6 +41,7 @@ Handles Stage 9 (Macro & Geopolitics).
 <step n="7" name="Regulatory">Current framework, upcoming changes, antitrust concerns</step>
 <step n="8" name="Trade Policy">Tariff exposure, trade agreement dependency, export controls</step>
 <step n="9" name="Geopolitical">Revenue HHI by country, GPR scores, sanctions exposure</step>
+<step n="9.5" name="Asia Market Context">Load stage1_asia_momentum.json from shared data. Assess: (1) Where is the company positioned in Asia tech momentum? Is its home market (JP/KR/CN/TW) leading or lagging vs US? (2) Semiconductor momentum signal — is the regional semi cycle turning? (3) Asia vs US tech spread — is global capital rotating toward or away from Asia tech? (4) Cross-market signals — are Japanese robotics, Korean batteries, Taiwanese foundries showing coordinated strength or divergence? Incorporate findings into stage9.md under "Asia Market Positioning" section.</step>
 <step n="10" name="Government Policy">Subsidies, tax direction, government-as-customer exposure</step>
 <step n="11" name="ESG">Rating trajectory, material issues, climate risk, social license</step>
 

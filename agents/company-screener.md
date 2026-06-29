@@ -41,7 +41,11 @@ Handles Phase 3 (Company Screening).
   - Revenue growth (3Y CAGR) ≥ industry median (or ≥ 0% for cyclical industries)
   - Positive trailing FCF
   - ROIC ≥ WACC (or ROE ≥ 10% for financials)
-  - Debt/Equity ≤ industry 75th percentile (or ≤ 3.0x for capital-intensive sectors)</step>
+  - Debt/Equity ≤ industry 75th percentile (or ≤ 3.0x for capital-intensive sectors)
+
+After all quantitative filters are applied, run `{plugin_root}/scripts/compute_money_flow.py` on all surviving candidates to assess capital flow dynamics:
+  - Stocks with verdict "STRONG_OUTFLOW" (持续放量流出) → flag as ⚠️ CAUTION in the output table, but do NOT automatically exclude (the user decides)
+  - Stocks with "VOLUME_PRICE_SYMMETRY" flag (量价对称确认) → award a +1 bonus to the composite score in Step 11</step>
 <step n="4" name="Financial Health">For qualifying companies: quick ratio, interest coverage, Altman Z-Score. Flag any with Z-Score below 1.8 (distress zone).</step>
 <step n="5" name="Moat Assessment">Evaluate moat quality using Morningstar framework: cost advantages, network effects, intangible assets (brands, patents), switching costs, efficient scale. Score 0-10.</step>
 <step n="6" name="Management Quality">CEO tenure (years), insider ownership (%), capital allocation track record (M&A, buybacks, dividends). Flag companies with recent CEO departures or insider selling clusters.</step>
@@ -57,7 +61,18 @@ Handles Phase 3 (Company Screening).
   - Management (10%): Tenure + ownership + capital allocation
   - Risk (10%): Inverse of risk flags (higher risk = lower score)
   - Liquidity/Tradability (5%): Dollar volume + free float + borrow/FTD risk</step>
-<step n="12" name="Rank & Thesis">Rank all qualifying companies by composite score. For top 10-20, write a 2-sentence investment thesis: what the company does, why it's well-positioned in the industry, and the primary growth catalyst.</step>
+<step n="12" name="Rank & Thesis">Rank all qualifying companies by composite score. For top 10-20, write a 2-sentence investment thesis: what the company does, why it's well-positioned in the industry, and the primary growth catalyst.
+
+The output ranking table MUST include the following mandatory columns:
+| # | 代码 | 名称 | 当前股价 | 市净率(P/B) | 静态市盈率(TTM P/E) | 动态市盈率(Forward P/E) | 资金流向 | 连续流入天数 | 量价对称 | 综合评分 | 投资论点 |
+
+Column definitions:
+- 市净率 (P/B ratio): Price-to-Book ratio
+- 静态市盈率 (Trailing P/E, TTM): Trailing twelve-month P/E ratio
+- 动态市盈率 (Forward P/E): Forward P/E based on consensus FY+1 estimates
+- 资金流向 (Money Flow verdict): 强流入/温和流入/中性/温和流出/强流出 — from compute_money_flow.py output
+- 连续流入天数 (Consecutive inflow days): Number of consecutive net inflow days; display 0 if currently in outflow
+- 量价对称 (Volume-Price Symmetry): ✓ if VOLUME_PRICE_SYMMETRY flag is true, ✗ otherwise</step>
 
 </workflow>
 
@@ -81,6 +96,7 @@ Handles Phase 3 (Company Screening).
 <constraint>Flag any company with recent (90-day) insider selling clusters regardless of other scores</constraint>
 <constraint>Illiquid stocks can remain in the watchlist only with an explicit liquidity warning and lower confidence</constraint>
 <constraint>Composite score should have meaningful dispersion — avoid clustering all companies at 5-7</constraint>
+<constraint mandatory="true">Every watchlist/ranking table in Stage 4 output MUST include P/B (市净率), trailing P/E (静态市盈率 TTM), forward P/E (动态市盈率), money flow verdict (资金流向), consecutive inflow days (连续流入天数), and volume-price symmetry status (量价对称). Missing any of these columns is a validation failure.</constraint>
 
 </guardrails>
 
