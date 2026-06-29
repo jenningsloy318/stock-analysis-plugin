@@ -383,10 +383,40 @@ if (!_args || typeof _args !== 'object') {
   _args = {}
 }
 
+// Retry wrapper — retries agent() calls up to MAX_RETRIES on null returns or throws
+// (null = agent died on terminal API error after internal retries; throw = unexpected crash)
+// Defined early because Setup-phase agent calls also need retry resilience.
+const MAX_RETRIES = 10
+const agentWithRetry = async (prompt, opts) => {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const result = await agent(prompt, opts)
+      if (result !== null && result !== undefined) return result
+      if (attempt < MAX_RETRIES) {
+        log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying...`)
+        if (typeof tracking !== 'undefined') tracking.metrics.total_retries += 1
+      }
+    } catch (err) {
+      if (attempt < MAX_RETRIES) {
+        log(`[retry] ${opts?.label || 'agent'} threw error — attempt ${attempt}/${MAX_RETRIES}, retrying... (${err?.message || err})`)
+        if (typeof tracking !== 'undefined') tracking.metrics.total_retries += 1
+      } else {
+        log(`[retry] ${opts?.label || 'agent'} threw error on final attempt: ${err?.message || err}`)
+      }
+    }
+  }
+  log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`)
+  if (typeof tracking !== 'undefined') {
+    tracking.metrics.total_retries += 1
+    tracking.errors.push({ phase: opts?.phase || 'unknown', agent_label: opts?.label || 'unknown', error: `exhausted ${MAX_RETRIES} retries`, fatal: false })
+  }
+  return null
+}
+
 // plugin_root: try agent discovery, fall back to common paths
 if (!_args.plugin_root) {
   log(`[args] plugin_root missing — trying agent discovery then static fallback`)
-  const discovery = await agent(
+  const discovery = await agentWithRetry(
     `Run: find ~/.claude/plugins -name "stock-analysis.js" -path "*/workflows/*" 2>/dev/null | head -1 | xargs dirname | xargs dirname\n` +
     `Return JSON: {"plugin_root": "<result>"}`,
     { label: 'discover-plugin-root', phase: 'Setup', agentType: 'general-purpose',
@@ -403,7 +433,7 @@ if (!_args.plugin_root) {
 
 // run_id: try agent, fall back to static placeholder
 if (!_args.run_id) {
-  const now = await agent(
+  const now = await agentWithRetry(
     `Run: date -u +%Y%m%d%H%M\nReturn JSON: {"run_id": "<result>"}`,
     { label: 'generate-run-id', phase: 'Setup', agentType: 'general-purpose',
       schema: { type: 'object', required: ['run_id'], properties: { run_id: { type: 'string' } } } }
@@ -480,7 +510,7 @@ if (TICKERS.length > 0) {
   // Resolve Chinese names via agent (e.g., "贵州茅台" → "600519.SH")
   if (chineseNames.length > 0) {
     log(`[normalize] Resolving ${chineseNames.length} Chinese name(s): ${chineseNames.join(', ')}`)
-    const resolved = await agent(
+    const resolved = await agentWithRetry(
       `Resolve these Chinese stock names to their 6-digit A-share ticker codes with exchange suffix.\n` +
       `Names: ${chineseNames.join(', ')}\n` +
       `Rules: Shanghai (6xxxxx) → .SH, Shenzhen main (0xxxxx) → .SZ, ChiNext (3xxxxx) → .SZ, BSE (8xxxxx/4xxxxx) → .BJ.\n` +
@@ -631,33 +661,6 @@ const persistTracking = async (labelOverride, phaseName) => {
     `Create the directory if needed. Write EXACTLY this content, no modifications:\n\n${payload}`,
     { label: labelOverride || 'persist:tracking', phase: phaseName || undefined, effort: 'low' }
   )
-}
-
-// Retry wrapper — retries agent() calls up to MAX_RETRIES on null returns or throws
-// (null = agent died on terminal API error after internal retries; throw = unexpected crash)
-const MAX_RETRIES = 10
-const agentWithRetry = async (prompt, opts) => {
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const result = await agent(prompt, opts)
-      if (result !== null && result !== undefined) return result
-      if (attempt < MAX_RETRIES) {
-        log(`[retry] ${opts?.label || 'agent'} returned null — attempt ${attempt}/${MAX_RETRIES}, retrying...`)
-        tracking.metrics.total_retries += 1
-      }
-    } catch (err) {
-      if (attempt < MAX_RETRIES) {
-        log(`[retry] ${opts?.label || 'agent'} threw error — attempt ${attempt}/${MAX_RETRIES}, retrying... (${err?.message || err})`)
-        tracking.metrics.total_retries += 1
-      } else {
-        log(`[retry] ${opts?.label || 'agent'} threw error on final attempt: ${err?.message || err}`)
-      }
-    }
-  }
-  log(`[retry] ${opts?.label || 'agent'} exhausted ${MAX_RETRIES} retries — returning null`)
-  tracking.metrics.total_retries += 1
-  tracking.errors.push({ phase: opts?.phase || 'unknown', agent_label: opts?.label || 'unknown', error: `exhausted ${MAX_RETRIES} retries`, fatal: false })
-  return null
 }
 
 // Setup phase complete
