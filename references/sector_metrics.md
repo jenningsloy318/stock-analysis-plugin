@@ -175,28 +175,3 @@ Select the sector based on GICS classification. If the company spans multiple se
 | 50 | Communication Services | Advertising/attention-dependent, platform/metrics-driven, regulatory (net neutrality) |
 | 55 | Utilities | Rate-regulated, yield-driven, capital-intensive, inflation-sensitive |
 | 60 | Real Estate | Interest-rate-sensitive, occupancy-driven, NAV-based valuation |
-
-## Extended Industry Verticals (Deep-Dive References)
-
-For these sectors, load the dedicated industry reference file for specialized KPIs:
-
-| Sub-Sector | Reference File | Key Differentiators |
-|------------|---------------|---------------------|
-| Semiconductors | `references/industry_semis.md` | Node exposure, utilization cycle, WFE capex, inventory days |
-| SaaS / Software | `references/industry_saas.md` | ARR, NDR, Rule of 40, CAC payback, cloud gross margin |
-| Biotech / Pharma | `references/industry_biotech.md` | Pipeline rNPV, phase probabilities, patent cliff, cash runway |
-| Healthcare / MedTech | `references/industry_healthcare.md` | Procedure volume, ASP, MLR, Stars rating, regulatory pathway |
-| Banks | `references/industry_banks.md` | CET1, NIM, efficiency ratio, NCOs, deposit beta |
-| Insurance | `references/industry_insurance.md` | Combined ratio, reserve development, catastrophe load |
-| Energy | `references/industry_energy.md` | Reserve replacement, F&D costs, breakeven, production growth |
-| Utilities / Renewables | `references/industry_utilities.md` | Rate base growth, allowed ROE, capacity factor, PPA terms |
-| Communication Services | `references/industry_commservices.md` | DAU/MAU, ARPU, churn, content spend, spectrum |
-| Consumer / Retail | `references/industry_consumer.md` | Same-store sales, GMV, take rate, franchise %, DTC metrics |
-| Fintech / Payments | `references/industry_fintech.md` | TPV, take rate, cross-sell, funding cost, regulatory licenses |
-| Data Centers / Cloud | `references/industry_datacenters.md` | MW capacity, PUE, utilization, WALE, $/MW, AI density |
-| Aerospace & Defense | `references/industry_aerospace.md` | Backlog/revenue, book-to-bill, aftermarket %, program lifecycle |
-| Gaming / iGaming | `references/industry_gaming.md` | GGR, hold %, ARPDAU, regulatory status, promotional intensity |
-| Materials / Mining | `references/industry_materials.md` | AISC, reserve life, P/NAV, commodity cycle position, grade trend |
-| Transportation / Logistics | `references/industry_transportation.md` | Operating ratio, RASM/CASM, load factor, TCE, freight demand |
-| Industrials / Manufacturing | `references/industry_industrials.md` | Book-to-bill, backlog coverage, capacity utilization, cycle-adjusted P/E |
-| REITs / Real Estate | `references/industry_reits.md` | FFO/AFFO, NAV discount/premium, cap rate, occupancy, leasing spreads |

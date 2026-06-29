@@ -21,8 +21,8 @@ description: "Rules for managing context window during multi-stage analysis: pro
     - frameworks_bottleneck_investing.md: Stages 8, 10 (Step 3c), and walk mode
     - institutional_odd.md: Stage 12 (operational due diligence)
     - sector_metrics.md: Stages 1-4 (after GICS identification)
-    - equity_report_templates.md: Stage 17 (per-company reports)
-    - screening_report_templates.md: Stage 17 (screening reports)
+    - templates/equity-report.md: Stage 17 (per-company reports)
+    - templates/screening-report.md: Stage 17 (screening reports)
     - international_markets.md: Stage 9, 15 (non-US companies)
   </directive>
 </directives>

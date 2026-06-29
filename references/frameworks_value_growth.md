@@ -5,7 +5,7 @@
 1. **Circle of Competence** — Can I understand this business? What does it do, how does it make money, who are its customers?
 2. **Economic Moat** — Does it have durable competitive advantages? (See Morningstar framework below.)
 3. **Management Quality** — Is management honest (candor in letters/calls) and competent (capital allocation track record)?
-4. **Margin of Safety** — Is the price sensible relative to intrinsic value? (See valuation methods in equity_report_templates.md.)
+4. **Margin of Safety** — Is the price sensible relative to intrinsic value? (See valuation methods in templates/equity-report.md.)
 
 ## Munger's Mental Models
 

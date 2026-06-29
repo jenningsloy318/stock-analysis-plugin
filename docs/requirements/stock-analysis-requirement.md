@@ -36,7 +36,8 @@ stock-analysis/
 │   ├── frameworks_risk_alt.md            # Marks, Burry, ARK, forensic accounting
 │   ├── institutional_odd.md              # Operational Due Diligence checklists
 │   ├── sector_metrics.md                 # Sector-specific KPIs and thresholds
-│   └── equity_report_templates.md               # Long/Mid/Short-term report format templates
+│   └── templates/
+│       └── equity-report.md                         # Long/Mid/Short-term report format templates
 ├── scripts/
 │   ├── fetch_financials.py               # Financial data retrieval (SEC EDGAR, FRED, APIs)
 │   ├── fetch_alternatives.py             # Alternative data scraping/API integration
@@ -78,7 +79,7 @@ The skill uses a three-tier loading strategy to manage context efficiently:
 - `frameworks_risk_alt.md` — Load during Stages 7, 8, and the Short-term report
 - `institutional_odd.md` — Load when Stage 7 risk assessment begins
 - `sector_metrics.md` — Load during Stage 1 when the company's GICS sector is identified
-- `equity_report_templates.md` — Load during Stage 9 report generation
+- `templates/equity-report.md` — Load during Stage 9 report generation
 
 The SKILL.md orchestrator must instruct the agent to drop raw data from completed stages before loading the next stage's references, keeping the active context below 80% of the window.
 
