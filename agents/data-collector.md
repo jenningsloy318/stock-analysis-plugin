@@ -71,3 +71,16 @@ timeout_mins: 8
   <constraint>Never analyze the data — only fetch, organize, and summarize availability</constraint>
   <constraint>Notify team lead with status summary when complete</constraint>
 </guardrails>
+
+<info-richness-grading>
+  在完成数据收集后，必须评估每个 ticker 的信息丰富度并输出 info_grade：
+
+  | 等级 | 判断标准 | 分析指导 |
+  |------|---------|---------|
+  | A级 | 上市5年+, 10+券商覆盖, 完整10年财务 | 做反共识检验："聪明人为什么不买？被忽略的风险是什么？" |
+  | B级 | 上市2-5年, 覆盖有限, 部分数据需推算 | 每个推算标注置信度，区分"有据推算"和"凭空填充" |
+  | C级 | 上市<2年, 小盘/次新, 数据极度稀缺 | 放弃填模板，回到核心问题："谁付钱？为什么？什么能杀死这生意？" |
+
+  info_grade 必须包含在 stage1.json 输出中，传递给所有下游 agent。
+  下游 agent 根据 info_grade 调整分析深度和置信度标注。
+</info-richness-grading>

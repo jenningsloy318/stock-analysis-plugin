@@ -166,6 +166,72 @@ For each high-impact report section (Investment Thesis, Conviction Score Decompo
 
 **Post-delivery:** Run `{plugin_root}/scripts/audit_tool_calls.py ./reports/[RUN_ID]/NNN-[TICKER]/audit_log.json --min-calls 3` to verify grounding. If audit fails, add the INCOMPLETE flag to the report.
 
+<step n="9" name="Best Picks Highlight (Stage 18)">When spawned for Stage 18, write HIGHLIGHTS_BEST_PICKS.md to the run output directory. Group picks by position type (from judge_panel.json) instead of pure ranking. Include adversarial verification results and framework consensus.
+
+**Required structure:**
+
+```markdown
+# 精选推荐 — [RUN_ID]
+
+## 核心仓位推荐（高确定性低弹性）
+| 排名 | 代码 | 公司 | 当前股价 | 综合评分 | 确信度 | 仓位建议 |
+|------|------|------|----------|----------|--------|----------|
+| 001 | [TICKER] | [公司名] | $XX.XX | X.X/10 | High/Medium | core X% |
+
+**投资论点**: [2句话]
+**Kill Switch**: [可观测条件]
+**关键催化剂**: [事件 + 时间窗口]
+**框架共识**: HIGH_CONSENSUS_BUY (评分离散度: X.X)
+**对手方验证**: ✅ 通过 (3/3 未能反驳) / ⚠️ 部分质疑 (2/3 未能反驳)
+
+---
+
+## 成长卫星推荐（中确定性中弹性）
+| 排名 | 代码 | 公司 | 当前股价 | 综合评分 | 确信度 | 仓位建议 |
+|------|------|------|----------|----------|--------|----------|
+| 00X | [TICKER] | [公司名] | $XX.XX | X.X/10 | Medium | satellite X% |
+
+**投资论点**: [2句话]
+**Kill Switch**: [可观测条件]
+**关键催化剂**: [事件 + 时间窗口]
+**框架共识**: MIXED (评分离散度: X.X)
+**对手方验证**: ✅ 通过 / ⚠️ 部分质疑
+
+---
+
+## 期权投机推荐（高弹性高风险）
+| 排名 | 代码 | 公司 | 当前股价 | 综合评分 | 确信度 | 仓位建议 |
+|------|------|------|----------|----------|--------|----------|
+| 00X | [TICKER] | [公司名] | $XX.XX | X.X/10 | Low/Medium | option X% |
+
+**投资论点**: [2句话]
+**Kill Switch**: [可观测条件]
+**关键催化剂**: [事件 + 时间窗口]
+**框架共识**: LOW_CONSENSUS (评分离散度: X.X)
+**对手方验证**: ✅ 通过 / ⚠️ 部分质疑
+
+---
+
+## 组合互补性检查
+- 行业集中度：[通过/⚠️ 警告 — 如单一行业>40%]
+- 风格同质化：[通过/⚠️ 警告 — 如全部成长型无价值型对冲]
+- 建议调整：[如有，具体建议；如无问题则"无需调整"]
+```
+
+**Position type mapping**: Read `judge_panel.json` for each company. Use `position_recommendation.type`:
+- `core` → 核心仓位推荐
+- `satellite` → 成长卫星推荐
+- `option` → 期权投机推荐
+- If judge_panel.json is unavailable, fall back to: score >= 8.0 → core, 6.5-7.9 → satellite, < 6.5 → option
+
+**Portfolio complementarity check**:
+- Industry concentration: if >40% of picks share same GICS Level 2 Industry Group → ⚠️ warning
+- Style homogeneity: if all picks are same Lynch category (e.g., all Fast Growers) → ⚠️ warning
+- Suggestion: propose 1 concrete adjustment if either check fails (e.g., "consider replacing [X] with a Stalwart for balance")
+
+**Ordering within each group**: By composite score descending. Global rank numbers (001, 002, ...) follow the original scoring rank, NOT the group position.
+</step>
+
 </workflow>
 
 <guardrails>
@@ -234,3 +300,28 @@ EVERY equity report MUST contain ONE kill switch matching the ACCEPTABLE pattern
 - {plugin_root}/references/scoring_calibration.md (score-to-return mapping, confidence definitions, override rules)
 
 </tools>
+
+<forced-conclusion>
+  报告必须以明确结论收尾。允许的结论形式：
+  - ✅ 买入（附价格区间 + 仓位类型：核心/卫星/期权 + 三情景目标价，不做概率加权）
+  - ❌ 回避（附具体原因 + 何时重新评估的触发条件）
+  - ⏳ 等待（附具体等待的催化事件 + 时间窗口）
+
+  禁止使用的结论表述：
+  - "风险与机会并存"
+  - "需要进一步观察"
+  - "投资者应根据自身风险偏好决定"
+  - "建议关注"（不是结论）
+  - "长期看好但短期谨慎"（不可交易）
+
+  三情景目标价规则：
+  - 只列情景 + 触发条件 + 目标价
+  - 禁止做概率加权期望值计算（概率分配纯主观，给读者错误精确感）
+  - 每个情景必须有明确可观测的触发条件
+</forced-conclusion>
+
+<mirror-test>
+  每份报告开头必须包含"投资镜像测试"（5句话）。
+  规则：如果无法用5句话完成镜像测试，说明论文不够清晰 → 在结论中标注 "⚠️ 论文清晰度不足"。
+  镜像测试不可跳过、不可省略。它是报告有效性的必要条件。
+</mirror-test>

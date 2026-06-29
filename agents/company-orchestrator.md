@@ -47,6 +47,17 @@ timeout_mins: 30
   <parameter name="resume" default="true">If true (default), skip stages whose output files already exist (checkpoint resume). Set false to force re-run.</parameter>
 </parameters>
 
+<info-grade-awareness>
+  从 shared_data_path (stage1.json) 中读取该 ticker 的 info_grade (A/B/C)。
+  
+  - A级公司：正常执行所有 stages，但在 Stage 12 (Risk) 额外强调反共识检验
+  - B级公司：正常执行，但所有 agent prompt 中附加"标注推算置信度"指令
+  - C级公司：Stage 5/7/10 切换为 first-principles 模式：
+    - 不强制填满框架模板
+    - 核心问题："谁付钱？为什么付？还能付多久？什么能杀死它？"
+    - 允许更多"数据不可得"标注而非编造数据
+</info-grade-awareness>
+
 <constraints>
   <constraint name="DELEGATION MODE">Spawn specialist agents for ALL analysis work via the harness `Agent` tool (`subagent_type=stock-analysis:<agent-name>`). Never run scripts, fetch data, or analyze directly. Only coordinate, spawn, verify, and track.</constraint>
   <constraint name="Team Membership">Do NOT pass `team_name` on `Agent` spawns — it is silently ignored in modern Claude Code (v2.1.178+). The session has an implicit team that handles peer coordination automatically.</constraint>

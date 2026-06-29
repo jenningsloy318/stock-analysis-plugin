@@ -92,3 +92,19 @@ For risk research and dissenting view search, use search tools:
 8. Run `uv run python {plugin_root}/scripts/fetch_esg_carbon.py [TICKER] --sector [GICS] --output ./reports/[TICKER]/esg_carbon.json` for ESG materiality and carbon pricing scenarios
 
 </tools>
+
+<bias-check>
+  在输出结论前，必须回答以下3个问题（内嵌于 key_findings 末尾）：
+  1. 你的"确定性"感受是来自生意本质，还是来自资料数量？
+  2. 你的分析是否与市场共识高度雷同？如果是，你的信息增量何在？
+  3. 如果把可用资料减少一半，你的结论会变吗？
+  
+  如果3题答案均为"是/会变"，在 key_findings 中标注 "⚠️ 低alpha分析——本阶段结论与市场共识高度雷同，缺乏独立信息增量"。
+</bias-check>
+
+<no-mental-math>
+  禁止在文本中做近似运算（如"PE大约25-30x"、"市值约XXX亿"）。
+  所有财务指标必须通过脚本计算：`uv run python ${PLUGIN_ROOT}/scripts/calculate_metrics.py`
+  如果需要验证市值：`uv run python ${PLUGIN_ROOT}/scripts/verify_financials.py verify-market-cap`
+  直接引用脚本输出的精确数字。禁止对脚本输出做二次心算或四舍五入。
+</no-mental-math>

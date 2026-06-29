@@ -27,6 +27,8 @@ conviction) drive the overall result.
 import argparse
 import json
 import os
+import random
+import re
 import sys
 from datetime import datetime, timezone
 
@@ -1048,6 +1050,305 @@ def gate_framework_diversity(report_dir: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Spot-Check Mode — Data Point Extraction & Verification
+# ---------------------------------------------------------------------------
+
+_FINANCIAL_PATTERNS: list[tuple[str, str]] = [
+    # Currency amounts: $123.45, ¥123.45
+    (r"\$[\d,]+(?:\.\d{1,2})?", "USD"),
+    (r"¥[\d,]+(?:\.\d{1,2})?", "CNY"),
+    # Chinese units: 123.4亿, 1234万
+    (r"[\d,]+(?:\.\d+)?亿(?:元|美元|港元)?", "亿"),
+    (r"[\d,]+(?:\.\d+)?万(?:亿)?(?:元|美元)?", "万"),
+    # Percentages: 12.3%, -5.2%
+    (r"-?[\d]+(?:\.\d+)?%", "pct"),
+    # Multiples: 12.3x, 25倍
+    (r"[\d]+(?:\.\d+)?x\b", "multiple"),
+    (r"[\d]+(?:\.\d+)?倍", "multiple_cn"),
+    # Scores: 7.5/10, 8/10
+    (r"[\d]+(?:\.\d+)?/10", "score"),
+]
+
+
+def _extract_data_points(content: str) -> list[dict]:
+    """Extract all financial data points from markdown report content."""
+    data_points: list[dict] = []
+
+    for pattern, unit_type in _FINANCIAL_PATTERNS:
+        for match in re.finditer(pattern, content):
+            text = match.group(0)
+            start = match.start()
+
+            # Extract numeric value
+            numeric_str = text.replace("$", "").replace("¥", "").replace(",", "")
+            numeric_str = numeric_str.replace("亿元", "").replace("亿美元", "").replace("亿港元", "")
+            numeric_str = numeric_str.replace("亿", "").replace("万亿", "").replace("万", "")
+            numeric_str = numeric_str.replace("%", "").replace("x", "").replace("倍", "")
+            numeric_str = numeric_str.replace("/10", "")
+
+            try:
+                value = float(numeric_str)
+            except ValueError:
+                continue
+
+            # Get surrounding context (±50 chars)
+            ctx_start = max(0, start - 50)
+            ctx_end = min(len(content), match.end() + 50)
+            context = content[ctx_start:ctx_end].replace("\n", " ").strip()
+
+            data_points.append({
+                "text": text,
+                "value": value,
+                "unit": unit_type,
+                "context": context,
+                "position": start,
+            })
+
+    return data_points
+
+
+def _guess_source_file(context: str, unit_type: str) -> tuple[str, str]:
+    """Guess which stage JSON file and field path a data point came from."""
+    context_lower = context.lower()
+
+    # Mapping of context keywords to likely source files
+    mappings: list[tuple[list[str], str, str]] = [
+        (["营收", "revenue", "收入"], "raw-data.json", "income_statement.revenue"),
+        (["净利", "net income", "利润"], "raw-data.json", "income_statement.net_income"),
+        (["毛利率", "gross margin"], "metrics.json", "ratios.gross_margin"),
+        (["pe", "市盈率", "p/e"], "metrics.json", "ratios.pe_ratio"),
+        (["pb", "市净率", "p/b"], "metrics.json", "ratios.pb_ratio"),
+        (["roe", "净资产收益"], "metrics.json", "ratios.roe"),
+        (["fcf", "自由现金流"], "metrics.json", "ratios.fcf_yield"),
+        (["市值", "market cap"], "raw-data.json", "market_cap"),
+        (["rsi", "macd", "技术"], "tech.json", "indicators"),
+        (["评分", "score", "得分", "/10"], "scores.json", "conviction.score"),
+        (["增长", "cagr", "growth"], "metrics.json", "ratios.revenue_cagr_5yr"),
+        (["debt", "负债", "leverage"], "metrics.json", "ratios.debt_to_equity"),
+        (["sentiment", "情绪"], "sentiment.json", "sentiment_score"),
+    ]
+
+    for keywords, source_file, field_path in mappings:
+        if any(kw in context_lower for kw in keywords):
+            return source_file, field_path
+
+    # Default guess based on unit type
+    if unit_type == "score":
+        return "scores.json", "component_score"
+    if unit_type == "pct":
+        return "metrics.json", "ratios.unknown_pct"
+    return "raw-data.json", "unknown"
+
+
+def _cross_reference_value(
+    report_dir: str,
+    source_file: str,
+    field_path: str,
+    expected_value: float,
+    unit_type: str,
+) -> dict:
+    """Cross-reference a data point against source JSON files.
+
+    Returns verification result with pass/fail based on 1% tolerance.
+    """
+    json_path = os.path.join(report_dir, source_file)
+    if not os.path.exists(json_path):
+        return {
+            "status": "source_not_found",
+            "source_file": source_file,
+            "verified": None,
+        }
+
+    data = _load_json(json_path)
+    if data is None:
+        return {
+            "status": "source_unreadable",
+            "source_file": source_file,
+            "verified": None,
+        }
+
+    # Navigate the field path
+    parts = field_path.split(".")
+    current: object = data
+    for part in parts:
+        if isinstance(current, dict) and part in current:
+            current = current[part]
+        else:
+            return {
+                "status": "field_not_found",
+                "source_file": source_file,
+                "field_path": field_path,
+                "verified": None,
+            }
+
+    # Extract actual value from source
+    actual_value: float | None = None
+    if isinstance(current, (int, float)):
+        actual_value = float(current)
+    elif isinstance(current, list) and current:
+        entry = current[0]
+        if isinstance(entry, dict) and "value" in entry:
+            actual_value = float(entry["value"])
+        elif isinstance(entry, (int, float)):
+            actual_value = float(entry)
+    elif isinstance(current, dict) and "value" in current:
+        actual_value = float(current["value"])
+
+    if actual_value is None:
+        return {
+            "status": "value_not_numeric",
+            "source_file": source_file,
+            "field_path": field_path,
+            "raw_value": str(current)[:100],
+            "verified": None,
+        }
+
+    # Compare with 1% tolerance
+    if actual_value == 0 and expected_value == 0:
+        deviation_pct = 0.0
+    elif actual_value == 0:
+        deviation_pct = 100.0
+    else:
+        deviation_pct = abs(expected_value - actual_value) / abs(actual_value) * 100
+
+    passed = deviation_pct <= 1.0
+
+    return {
+        "status": "verified",
+        "source_file": source_file,
+        "field_path": field_path,
+        "expected_value": expected_value,
+        "actual_value": actual_value,
+        "deviation_pct": round(deviation_pct, 4),
+        "tolerance_pct": 1.0,
+        "verified": passed,
+    }
+
+
+def spot_check_report(report_dir: str, report_file: str | None = None) -> dict:
+    """Perform data spot-check on a generated report.
+
+    Extracts financial numbers, samples a subset, and cross-references
+    against source JSON files.
+
+    Args:
+        report_dir: Path to report directory.
+        report_file: Specific .md file to check (if None, checks all .md files).
+
+    Returns:
+        dict with sampled data points, verification results, and overall verdict.
+    """
+    now = datetime.now(timezone.utc)
+
+    # Find report markdown files
+    if report_file:
+        md_files = [report_file]
+    else:
+        md_files = [
+            f for f in sorted(os.listdir(report_dir))
+            if f.endswith(".md") and any(h in f.lower() for h in ("long", "mid", "short"))
+        ]
+
+    if not md_files:
+        return {
+            "mode": "spot-check",
+            "error": "No report markdown files found",
+            "pass": False,
+        }
+
+    # Extract data points from all report files
+    all_data_points: list[dict] = []
+    for fname in md_files:
+        fpath = os.path.join(report_dir, fname)
+        try:
+            with open(fpath) as fh:
+                content = fh.read()
+        except OSError:
+            continue
+
+        points = _extract_data_points(content)
+        for p in points:
+            p["source_report"] = fname
+        all_data_points.extend(points)
+
+    if not all_data_points:
+        return {
+            "mode": "spot-check",
+            "error": "No financial data points found in reports",
+            "total_extracted": 0,
+            "pass": False,
+        }
+
+    # Sample 15% (min 5, max 20)
+    sample_size = max(5, min(20, int(len(all_data_points) * 0.15)))
+    sample_size = min(sample_size, len(all_data_points))
+    sampled = random.sample(all_data_points, sample_size)
+
+    # Cross-reference each sampled point
+    verifications: list[dict] = []
+    verified_count = 0
+    failed_count = 0
+    skipped_count = 0
+
+    for point in sampled:
+        source_file, field_path = _guess_source_file(point["context"], point["unit"])
+        point["source_file"] = source_file
+        point["field_path"] = field_path
+
+        xref = _cross_reference_value(
+            report_dir=report_dir,
+            source_file=source_file,
+            field_path=field_path,
+            expected_value=point["value"],
+            unit_type=point["unit"],
+        )
+
+        entry = {
+            "text": point["text"],
+            "value": point["value"],
+            "unit": point["unit"],
+            "context": point["context"],
+            "source_file": source_file,
+            "field_path": field_path,
+            "verification": xref,
+        }
+        verifications.append(entry)
+
+        if xref["verified"] is True:
+            verified_count += 1
+        elif xref["verified"] is False:
+            failed_count += 1
+        else:
+            skipped_count += 1
+
+    # Overall verdict: pass only if no checkable point failed
+    checkable = verified_count + failed_count
+    passed = failed_count == 0
+
+    return {
+        "mode": "spot-check",
+        "report_dir": report_dir,
+        "validation_timestamp": now.isoformat(),
+        "total_data_points_extracted": len(all_data_points),
+        "sample_size": sample_size,
+        "sample_pct": round(sample_size / len(all_data_points) * 100, 1),
+        "data_points": verifications,
+        "summary": {
+            "verified_pass": verified_count,
+            "verified_fail": failed_count,
+            "skipped_no_source": skipped_count,
+            "checkable_total": checkable,
+        },
+        "pass": passed,
+        "verdict": (
+            f"PASS — {verified_count}/{checkable} checked data points within 1% tolerance"
+            if passed
+            else f"FAIL — {failed_count}/{checkable} data points deviate >1% from source"
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Confidence level
 # ---------------------------------------------------------------------------
 
@@ -1075,14 +1376,20 @@ def main() -> None:
         description="Validate stock analysis report against pre-delivery quality gates.",
     )
     parser.add_argument(
+        "--mode",
+        choices=["validate", "spot-check"],
+        default="validate",
+        help="Mode: 'validate' (default quality gates) or 'spot-check' (data point verification)",
+    )
+    parser.add_argument(
         "report_dir",
         help="Path to report directory, e.g. ./reports/AAPL/",
     )
     parser.add_argument(
         "--report-type",
         choices=["short", "mid", "long"],
-        required=True,
-        help="Analysis horizon: short (<7d data), mid (<30d), long (<90d)",
+        default=None,
+        help="Analysis horizon: short (<7d data), mid (<30d), long (<90d). Required for validate mode.",
     )
     parser.add_argument(
         "--strict",
@@ -1095,6 +1402,25 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # Route to spot-check mode
+    if args.mode == "spot-check":
+        report_dir = os.path.abspath(args.report_dir)
+        if not os.path.isdir(report_dir):
+            print(
+                json.dumps({"error": f"Directory not found: {report_dir}"}, indent=2),
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        result = spot_check_report(report_dir)
+        output = json.dumps(result, indent=2, ensure_ascii=False)
+        if args.output:
+            os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
+            with open(args.output, "w") as fh:
+                fh.write(output)
+        else:
+            print(output)
+        sys.exit(0 if result.get("pass", False) else 1)
+
     report_dir = os.path.abspath(args.report_dir)
     if not os.path.isdir(report_dir):
         print(
@@ -1102,6 +1428,10 @@ def main() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
+
+    # --report-type is required for validate mode
+    if args.report_type is None:
+        parser.error("--report-type is required for validate mode")
 
     ticker = os.path.basename(report_dir)
     now = datetime.now(timezone.utc)

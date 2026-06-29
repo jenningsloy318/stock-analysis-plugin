@@ -27,6 +27,7 @@ import argparse
 import json
 import os
 import sys
+from collections import Counter
 from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
@@ -3022,6 +3023,12 @@ def main():
                 "Insider cluster selling detected — management confidence flag"
             )
 
+    # --- Portfolio Complementarity Analysis ---
+    # Add portfolio_complementarity field for downstream consumption.
+    # The orchestrator calls analyze_portfolio_complementarity() with all ranked
+    # companies after individual scoring is complete.
+    scores["portfolio_complementarity_available"] = True
+
     output = json.dumps(scores, indent=2)
     if args.output:
         os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
@@ -3030,6 +3037,151 @@ def main():
     else:
         print(output)
     sys.exit(0)
+
+
+# ---------------------------------------------------------------------------
+# Portfolio Complementarity Analysis
+# ---------------------------------------------------------------------------
+
+
+def analyze_portfolio_complementarity(
+    ranked_companies: list[dict],
+) -> dict:
+    """Analyze portfolio complementarity for the top-ranked companies.
+
+    Checks for concentration risk and assigns position types.
+    Called by the scorer agent after all companies are scored and ranked.
+
+    Args:
+        ranked_companies: List of company dicts, each containing at minimum:
+            - ticker: str
+            - composite_score: float
+            - gics_sub_industry_code: str (8-digit GICS Level 4 code)
+            - volatility: float (annualized, optional)
+            - moat_score: float (1-10, optional)
+            - beta: float (optional)
+            - pe_ratio: float (optional)
+            - growth_rate: float (optional)
+
+    Returns:
+        dict with position_types, concentration_warnings, and enriched rankings.
+    """
+    if not ranked_companies:
+        return {"error": "No companies provided", "concentration_warnings": []}
+
+    warnings: list[str] = []
+    top5 = ranked_companies[:5]
+
+    # --- Sub-industry concentration check ---
+    # If >=3 of top-5 companies share the same GICS Level 4 code -> flag
+    if len(top5) >= 3:
+        gics_codes = [
+            c.get("gics_sub_industry_code", "unknown") for c in top5
+        ]
+        code_counts = Counter(gics_codes)
+        for code, count in code_counts.items():
+            if count >= 3 and code != "unknown":
+                warnings.append(
+                    f"⚠️ 行业集中度过高: "
+                    f"{count}/5 companies share GICS L4 code {code}"
+                )
+
+    # --- Factor style check ---
+    # If all top-5 have similar characteristics -> flag
+    if len(top5) >= 3:
+        high_beta_count = sum(
+            1 for c in top5 if (c.get("beta") or 1.0) > 1.3
+        )
+        low_pe_count = sum(
+            1 for c in top5
+            if c.get("pe_ratio") is not None and c["pe_ratio"] < 15
+        )
+        high_growth_count = sum(
+            1 for c in top5
+            if c.get("growth_rate") is not None and c["growth_rate"] > 0.20
+        )
+
+        if high_beta_count >= 4:
+            warnings.append(
+                "⚠️ 风格同质化: "
+                "4+ of top-5 are high-beta (>1.3) — portfolio amplifies market swings"
+            )
+        if low_pe_count >= 4:
+            warnings.append(
+                "⚠️ 风格同质化: "
+                "4+ of top-5 are low-PE value (<15) — consider adding growth exposure"
+            )
+        if high_growth_count >= 4:
+            warnings.append(
+                "⚠️ 风格同质化: "
+                "4+ of top-5 are high-growth (>20%) — consider adding defensive names"
+            )
+
+    # --- Position type classification ---
+    enriched: list[dict] = []
+    for company in ranked_companies:
+        score = company.get("composite_score", 5.0)
+        vol = company.get("volatility", 0.25)
+        moat = company.get("moat_score", 5.0)
+        beta = company.get("beta", 1.0)
+
+        # Classification logic:
+        # core: High score + low vol + strong moat -> defensive, >20% position worthy
+        # satellite: Mid-high score + moderate characteristics -> 5-20% position
+        # option: High score driven by momentum/growth but higher risk -> <5% speculative
+        if score >= 7.0 and vol <= 0.30 and moat >= 7.0:
+            position_type = "core"
+            position_rationale = (
+                "High conviction + low volatility + strong moat -> defensive core (>20%)"
+            )
+        elif score >= 6.0 and vol <= 0.45:
+            position_type = "satellite"
+            position_rationale = (
+                "Solid score + moderate risk -> satellite position (5-20%)"
+            )
+        elif score >= 6.5 and (vol > 0.45 or beta > 1.5):
+            position_type = "option"
+            position_rationale = (
+                "High score but elevated risk -> speculative option (<5%)"
+            )
+        elif score >= 5.5:
+            position_type = "satellite"
+            position_rationale = (
+                "Moderate conviction -> smaller satellite position (5-10%)"
+            )
+        else:
+            position_type = "option"
+            position_rationale = (
+                "Lower conviction or higher risk -> speculative only (<5%)"
+            )
+
+        enriched.append({
+            **company,
+            "position_type": position_type,
+            "position_rationale": position_rationale,
+        })
+
+    # Summary statistics
+    type_counts = Counter(e["position_type"] for e in enriched)
+
+    return {
+        "enriched_rankings": enriched,
+        "concentration_warnings": warnings,
+        "position_type_distribution": dict(type_counts),
+        "portfolio_health": {
+            "has_concentration_risk": len(warnings) > 0,
+            "warning_count": len(warnings),
+            "core_count": type_counts.get("core", 0),
+            "satellite_count": type_counts.get("satellite", 0),
+            "option_count": type_counts.get("option", 0),
+        },
+        "methodology": (
+            "Position types: core (high score + low vol + moat >= 7 -> >20%), "
+            "satellite (mid-high score + moderate risk -> 5-20%), "
+            "option (high score but elevated risk -> <5%). "
+            "Concentration: flags >= 3/5 same GICS L4 or 4/5 same factor style."
+        ),
+    }
 
 
 if __name__ == "__main__":

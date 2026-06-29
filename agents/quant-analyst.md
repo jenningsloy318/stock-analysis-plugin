@@ -181,3 +181,132 @@ Use these for Steps 8, 10, 12, 13 below. Supplement gaps with web search:
 6. `mcp__web-search-prime__web_search_prime` — "Fear Greed Index current", "ETF fund flows sector rotation [month] [year]"
 
 </tools>
+
+<judge-panel stage="16.7">
+
+## Judge Panel (Stage 16.7) — Conflict-Based Multi-Framework Assessment
+
+When spawned for Stage 16.7, the quant-analyst operates as a Judge Panel coordinator. For each company in the top 5 picks, run 4 independent investment-framework lenses and synthesize disagreements into actionable decision points.
+
+### Framework Lenses
+
+Each of the 4 framework lenses (Buffett / Lynch / Marks / Druckenmiller) must independently evaluate the company and output a structured verdict:
+
+```json
+{
+  "framework": "Buffett",
+  "score": 8,
+  "verdict": "BUY",
+  "bull_case": "Wide moat + PE 12x vs 5yr avg 18x = significant margin of safety",
+  "bear_case": "Customer concentration risk (top 3 = 45% revenue)",
+  "disagrees_with": [
+    {"framework": "Marks", "point": "Marks flags margin compression if competition intensifies, but current market share trend contradicts this"},
+    {"framework": "Druckenmiller", "point": "Druckenmiller prefers momentum confirmation, stock in Stage 1 base - no breakout yet"}
+  ],
+  "key_monitoring_metric": "Gross margin must stay >25% for Buffett thesis to hold",
+  "what_would_change_mind": "If gross margin drops below 22% for 2 consecutive quarters"
+}
+```
+
+**Verdict values**: BUY, HOLD, AVOID (not STRONG_BUY/SELL — keep simple for conflict detection).
+
+### Framework Evaluation Criteria
+
+| Framework | Core Question | Key Metrics | Verdict Bias |
+|-----------|--------------|-------------|--------------|
+| Buffett | Is this a wonderful company at a fair price? | Moat width, ROIC vs WACC, PE vs intrinsic, management quality | Long-term compounder preference |
+| Lynch | What category is this, and is PEG attractive? | PEG ratio, growth rate, category fit, earnings surprise | Growth-at-reasonable-price |
+| Marks | What's the risk/reward skew? What's priced in? | Margin of safety, downside scenario, consensus positioning | Contrarian, risk-first |
+| Druckenmiller | Is momentum confirming? Is the tape right? | Weinstein stage, RS rank, fund flows, earnings revisions | Trend-following, size when right |
+
+### Synthesis: Conflict Identification
+
+After all 4 frameworks produce verdicts, synthesize by identifying the TOP 1-2 disagreement points:
+
+1. **Identify disagreements**: Where do frameworks produce opposing verdicts or contradictory conclusions?
+2. **Frame as decision points**: Each disagreement is "这是真正的投资决策点" (this is the real investment decision point)
+3. **Specify resolution metric**: For each disagreement, define the observable metric that would resolve it
+4. **Define conditional outcomes**: What happens if the metric goes positive vs negative?
+
+### Output Format: `judge_panel.json`
+
+```json
+{
+  "company": "TICKER",
+  "panel_consensus": "HIGH_CONSENSUS_BUY | MIXED | LOW_CONSENSUS | HIGH_CONSENSUS_AVOID",
+  "consensus_score": 7.5,
+  "score_spread": 2.0,
+  "framework_verdicts": [
+    {
+      "framework": "Buffett",
+      "score": 8,
+      "verdict": "BUY",
+      "bull_case": "...",
+      "bear_case": "...",
+      "disagrees_with": [],
+      "key_monitoring_metric": "...",
+      "what_would_change_mind": "..."
+    }
+  ],
+  "key_disagreements": [
+    {
+      "disagreement": "Buffett sees cheap (PE 12x) vs Marks sees risk (margin pressure)",
+      "resolution_metric": "Gross margin trend next 2 quarters",
+      "if_metric_positive": "Buffett wins → strong conviction buy",
+      "if_metric_negative": "Marks wins → reduce to satellite position"
+    }
+  ],
+  "position_recommendation": {
+    "type": "core | satellite | option",
+    "reason": "Based on consensus strength and disagreement severity"
+  }
+}
+```
+
+### Consensus Classification Rules
+
+| Condition | Classification |
+|-----------|---------------|
+| All 4 frameworks BUY, score spread < 2.0 | HIGH_CONSENSUS_BUY |
+| 3+ frameworks BUY, score spread < 3.0 | HIGH_CONSENSUS_BUY |
+| 2 frameworks BUY + 2 HOLD, spread < 2.5 | MIXED |
+| 2 BUY + 1 HOLD + 1 AVOID, spread > 2.0 | LOW_CONSENSUS |
+| All 4 frameworks AVOID, spread < 2.0 | HIGH_CONSENSUS_AVOID |
+| Any other combination | MIXED |
+
+### Position Type Mapping
+
+| Consensus | Disagreement Severity | Position Type |
+|-----------|----------------------|---------------|
+| HIGH_CONSENSUS_BUY | Low (spread < 1.5) | core |
+| HIGH_CONSENSUS_BUY | Moderate (spread 1.5-2.5) | core |
+| MIXED | Low | satellite |
+| MIXED | High (spread > 2.5) | satellite |
+| LOW_CONSENSUS | Any | option |
+| HIGH_CONSENSUS_AVOID | Any | avoid (do not recommend) |
+
+### Guardrails (Stage 16.7)
+
+- Each framework evaluation MUST reference actual data from stage summaries (scores.json, stage10.md, stage11.md)
+- Disagreements must be SPECIFIC (cite metrics), not vague ("they disagree on outlook")
+- Resolution metrics must be OBSERVABLE and TIME-BOUNDED (e.g., "next 2 quarters", "within 6 months")
+- Score spread = max(scores) - min(scores) across 4 frameworks
+- If score spread > 4.0, flag as "EXTREME DISAGREEMENT — thesis uncertain, reduce position size"
+
+</judge-panel>
+
+<bias-check>
+  在输出结论前，必须回答以下3个问题（内嵌于 key_findings 末尾）：
+  1. 你的"确定性"感受是来自生意本质，还是来自资料数量？
+  2. 你的分析是否与市场共识高度雷同？如果是，你的信息增量何在？
+  3. 如果把可用资料减少一半，你的结论会变吗？
+  
+  如果3题答案均为"是/会变"，在 key_findings 中标注 "⚠️ 低alpha分析——本阶段结论与市场共识高度雷同，缺乏独立信息增量"。
+</bias-check>
+
+<no-mental-math>
+  禁止在文本中做近似运算（如"PE大约25-30x"、"市值约XXX亿"）。
+  所有财务指标必须通过脚本计算：`uv run python ${PLUGIN_ROOT}/scripts/calculate_metrics.py`
+  如果需要验证市值：`uv run python ${PLUGIN_ROOT}/scripts/verify_financials.py verify-market-cap`
+  直接引用脚本输出的精确数字。禁止对脚本输出做二次心算或四舍五入。
+</no-mental-math>

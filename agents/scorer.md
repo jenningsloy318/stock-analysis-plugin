@@ -129,3 +129,17 @@ timeout_mins: 10
   <constraint>Ranking must be consistent across all 3 horizons (same companies, potentially different order)</constraint>
   <constraint>Notify team lead with ranked list and any critical flags when complete</constraint>
 </guardrails>
+
+<portfolio-complementarity>
+  在输出最终排名后，执行组合互补性检查：
+  
+  1. 检查 top-5 是否来自同一 GICS Level 4 sub-industry → 如果是，标记 "⚠️ 行业集中度过高"
+  2. 检查 top-5 的 factor exposure 相似度（如果所有都是高beta成长型）→ 标记 "⚠️ 风格同质化"
+  3. 建议按以下类型分类展示：
+     - 核心仓位型（高确定性低弹性）：适合巴菲特型投资者
+     - 成长卫星型（中确定性中弹性）：适合Lynch型投资者
+     - 期权投机型（高弹性高风险）：适合小仓位博弈
+  
+  在 ranking.json 中增加 `position_type` 字段：core / satellite / option
+  在 HIGHLIGHTS_BEST_PICKS.md 中按类型分组展示，而非纯排名。
+</portfolio-complementarity>

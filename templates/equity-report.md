@@ -1,5 +1,22 @@
 # Report Templates & Scoring Formulas
 
+## 投资镜像测试（5句话说不完整 = 信号不足）
+
+我以 ___元/$ 买入 ___，因为：
+1. 这门生意的本质是___，我理解它
+2. 护城河是___，在变宽/稳定/变窄
+3. 管理层___，值得/不值得信赖，因为___
+4. 当前价格 = 内在价值的___折，安全边际来自___
+5. 即使我错了，下行风险可控，因为___
+
+## 快速否决检查
+- [ ] 说不清楚这家公司怎么赚钱 → ⚠️ FAST_FAIL
+- [ ] 连续3年自由现金流为负且无改善趋势 → ⚠️ FAST_FAIL
+- [ ] 管理层有诚信污点（财务造假/内幕交易/重大诉讼）→ ⚠️ FAST_FAIL
+- [ ] 核心竞争优势正在被不可逆侵蚀 → ⚠️ FAST_FAIL
+- [ ] 业务本质是"等下一个接盘者出更高价" → ⚠️ FAST_FAIL
+- [ ] 无法用200字以内写清楚买入理由 → ⚠️ FAST_FAIL
+
 ## Conviction Scoring Formulas
 
 ### Long-term Report Conviction
@@ -295,17 +312,58 @@ State explicitly: **widening / stable / narrowing** with specific 12-24 month ev
 
 ---
 
-## 8. Recommendation
-- **Rating**: [Buy/Hold/Avoid]
-- **Target Price**: $X (X% upside) | Confidence interval: 60% probability $X-$Y
-- **Margin of Safety**: X%
-- **LBO Floor**: $X (PE takeout support, if applicable)
-- **Hard Catalyst**: [specific, time-bound event — Klarman requirement]
-- **Entry Criteria**: [price level or condition]
-- **Weinstein Stage**: [1/2/3/4] — Only buy in Stage 2
-- **Position Size**: X% of portfolio (Druckenmiller & Quarter-Kelly adjusted)
-- **Monitoring Triggers**: [what to watch]
-- **Framework Divergences**: [None / list of unresolved tensions with investigation notes]
+## 红线条件（触发任何一条 = 强制重新评估）
+| # | 红线条件 | 触发动作 | 监测频率 |
+|---|---------|---------|---------|
+| 1 | [具体可观测条件] | [动作] | [频率] |
+
+## 核心假设追踪表
+| # | 核心假设 | 验证方法 | 频率 | 当前状态 |
+|---|---------|---------|------|---------|
+| 1 | [假设] | [方法] | [频率] | 🟢/🟡/🔴 |
+
+## 多框架交叉验证
+
+### 框架评分
+| 框架 | 评分 | 判定 | 关键论点 |
+|------|------|------|---------|
+| 巴菲特 | X/10 | BUY/HOLD/AVOID | [一句话] |
+| 林奇 | X/10 | BUY/HOLD/AVOID | [一句话] |
+| 马克斯 | X/10 | BUY/HOLD/AVOID | [一句话] |
+| 德鲁肯米勒 | X/10 | BUY/HOLD/AVOID | [一句话] |
+
+### 关键分歧点（这是真正的投资决策点）
+| # | 分歧 | 解决指标 | 指标正面 → | 指标负面 → |
+|---|------|---------|-----------|-----------|
+| 1 | [描述] | [可观测指标] | [结论A] | [结论B] |
+| 2 | [描述] | [可观测指标] | [结论A] | [结论B] |
+
+### 框架共识
+- 共识强度：HIGH_CONSENSUS_BUY / MIXED / LOW_CONSENSUS / HIGH_CONSENSUS_AVOID
+- 评分离散度：X.X（>2.0 = 框架间严重分歧）
+- 仓位建议：core / satellite / option（基于共识强度 × 分歧严重程度）
+
+## 投资结论
+
+**结论类型**：✅ 买入 / ❌ 回避 / ⏳ 等待
+
+禁止使用："风险与机会并存"、"需要进一步观察"、"投资者应根据自身风险偏好决定"
+
+如果 ✅ 买入：
+- 仓位类型：核心(>20%) / 卫星(5-20%) / 期权(<5%)
+- 建议买入区间：$___-$___
+- 目标价（三情景，不做概率加权）：
+  - 乐观：$___ （触发条件：___）
+  - 中性：$___ （触发条件：___）
+  - 悲观：$___ （触发条件：___）
+
+如果 ❌ 回避：
+- 具体原因（1-3句）
+- 何时重新评估的触发条件
+
+如果 ⏳ 等待：
+- 等待的具体催化事件
+- 时间窗口
 
 ## Appendix: Data Quality & Coverage
 - Blocking sources checked: [Tier 0/Tier 1 list]
@@ -467,15 +525,48 @@ For full $10B counterfactual + anti-pattern checks + peer-pair table, refer to t
 
 ---
 
-## 7. Position Sizing & Recommendation
-- **Rating**: [Buy / Hold / Sell]
-- **Target Price**: $X (X% upside, 12-month) | Confidence interval: 60% probability $X-$Y
-- **Hard Catalyst**: [specific, time-bound — Klarman requirement for Buy ratings]
-- **Position Size**: X% of portfolio (Druckenmiller: conviction-adjusted)
-- **Weinstein Stage Gate**: [Stage 2 confirmed? If Stage 3/4, do not initiate long]
-- **Entry**: [price or condition]
-- **Stop Loss**: $X (-X%)
-- **Monitoring Triggers**: [1-3 specific conditions]
+## 多框架交叉验证
+
+### 框架评分
+| 框架 | 评分 | 判定 | 关键论点 |
+|------|------|------|---------|
+| 巴菲特 | X/10 | BUY/HOLD/AVOID | [一句话] |
+| 林奇 | X/10 | BUY/HOLD/AVOID | [一句话] |
+| 马克斯 | X/10 | BUY/HOLD/AVOID | [一句话] |
+| 德鲁肯米勒 | X/10 | BUY/HOLD/AVOID | [一句话] |
+
+### 关键分歧点（这是真正的投资决策点）
+| # | 分歧 | 解决指标 | 指标正面 → | 指标负面 → |
+|---|------|---------|-----------|-----------|
+| 1 | [描述] | [可观测指标] | [结论A] | [结论B] |
+| 2 | [描述] | [可观测指标] | [结论A] | [结论B] |
+
+### 框架共识
+- 共识强度：HIGH_CONSENSUS_BUY / MIXED / LOW_CONSENSUS / HIGH_CONSENSUS_AVOID
+- 评分离散度：X.X（>2.0 = 框架间严重分歧）
+- 仓位建议：core / satellite / option（基于共识强度 × 分歧严重程度）
+
+## 投资结论
+
+**结论类型**：✅ 买入 / ❌ 回避 / ⏳ 等待
+
+禁止使用："风险与机会并存"、"需要进一步观察"、"投资者应根据自身风险偏好决定"
+
+如果 ✅ 买入：
+- 仓位类型：核心(>20%) / 卫星(5-20%) / 期权(<5%)
+- 建议买入区间：$___-$___
+- 目标价（三情景，不做概率加权）：
+  - 乐观：$___ （触发条件：___）
+  - 中性：$___ （触发条件：___）
+  - 悲观：$___ （触发条件：___）
+
+如果 ❌ 回避：
+- 具体原因（1-3句）
+- 何时重新评估的触发条件
+
+如果 ⏳ 等待：
+- 等待的具体催化事件
+- 时间窗口
 
 ## Appendix: Data Quality & Coverage
 - Blocking sources checked: [Tier 0/Tier 1 list]
@@ -603,16 +694,48 @@ For full table + counterfactual + peer pair, see the long-horizon report.
 
 ---
 
-## 4. Trade Setup
-- **Entry Price**: $X
-- **Stop Loss**: $X (-X%)
-- **Target**: $X (+X%)
-- **Risk/Reward Ratio**: X:1
-- **Position Size**: X% of portfolio
+## 多框架交叉验证
 
-## 5. Kill Switch
-**Exit immediately if**: [specific, observable condition]
-**Current monitoring status**: [NOT present / approaching trigger level]
+### 框架评分
+| 框架 | 评分 | 判定 | 关键论点 |
+|------|------|------|---------|
+| 巴菲特 | X/10 | BUY/HOLD/AVOID | [一句话] |
+| 林奇 | X/10 | BUY/HOLD/AVOID | [一句话] |
+| 马克斯 | X/10 | BUY/HOLD/AVOID | [一句话] |
+| 德鲁肯米勒 | X/10 | BUY/HOLD/AVOID | [一句话] |
+
+### 关键分歧点（这是真正的投资决策点）
+| # | 分歧 | 解决指标 | 指标正面 → | 指标负面 → |
+|---|------|---------|-----------|-----------|
+| 1 | [描述] | [可观测指标] | [结论A] | [结论B] |
+| 2 | [描述] | [可观测指标] | [结论A] | [结论B] |
+
+### 框架共识
+- 共识强度：HIGH_CONSENSUS_BUY / MIXED / LOW_CONSENSUS / HIGH_CONSENSUS_AVOID
+- 评分离散度：X.X（>2.0 = 框架间严重分歧）
+- 仓位建议：core / satellite / option（基于共识强度 × 分歧严重程度）
+
+## 投资结论
+
+**结论类型**：✅ 买入 / ❌ 回避 / ⏳ 等待
+
+禁止使用："风险与机会并存"、"需要进一步观察"、"投资者应根据自身风险偏好决定"
+
+如果 ✅ 买入：
+- 仓位类型：核心(>20%) / 卫星(5-20%) / 期权(<5%)
+- 建议买入区间：$___-$___
+- 目标价（三情景，不做概率加权）：
+  - 乐观：$___ （触发条件：___）
+  - 中性：$___ （触发条件：___）
+  - 悲观：$___ （触发条件：___）
+
+如果 ❌ 回避：
+- 具体原因（1-3句）
+- 何时重新评估的触发条件
+
+如果 ⏳ 等待：
+- 等待的具体催化事件
+- 时间窗口
 
 ## Appendix: Data Quality & Coverage
 - Quote/options/technicals freshness: [timestamp]

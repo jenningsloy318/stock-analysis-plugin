@@ -204,20 +204,187 @@ def detect_red_flags(filing_text: str) -> list[dict]:
     return flags
 
 
+def extract_commitments(transcript_text: str) -> list[dict]:
+    """Extract management commitments/promises from earnings call transcript.
+
+    Looks for guidance language: revenue targets, margin goals, strategic plans,
+    timelines, and quantitative promises.
+    """
+    commitments: list[dict] = []
+
+    # Patterns for guidance/commitment language
+    guidance_patterns = [
+        # Revenue/growth targets
+        (r"(?:expect|target|guide|anticipate|project)(?:s|ing|ed)?\s+(?:full[\s-]year\s+)?(?:revenue|sales|top[\s-]line)[\s\w]*?(?:of|to|at|around|approximately)\s+([\$¥]?[\d,.]+\s*(?:billion|million|B|M|亿|万)?)", "revenue_guidance"),
+        # Margin guidance
+        (r"(?:gross|operating|net)\s+margin[\s\w]*?(?:to|of|at|around|approximately|between)\s+([\d.]+(?:\s*[-–]\s*[\d.]+)?)\s*(?:%|percent|bps|basis points)", "margin_guidance"),
+        # EPS guidance
+        (r"(?:expect|target|guide)(?:s|ing|ed)?\s+(?:earnings|EPS|diluted\s+EPS)[\s\w]*?(?:of|to|at|around|between)\s+([\$¥]?[\d,.]+(?:\s*[-–]\s*[\$¥]?[\d,.]+)?)", "eps_guidance"),
+        # CapEx guidance
+        (r"(?:capital\s+expenditure|capex|cap\s+ex)[\s\w]*?(?:of|to|at|around|approximately)\s+([\$¥]?[\d,.]+\s*(?:billion|million|B|M|亿)?)", "capex_guidance"),
+        # Strategic commitments
+        (r"(?:we\s+(?:will|plan\s+to|intend\s+to|are\s+committed\s+to|expect\s+to))\s+(.{20,120}?)(?:\.|,\s+(?:and|which|while))", "strategic_commitment"),
+        # Timeline commitments
+        (r"(?:by|before|within|during)\s+(?:the\s+)?(?:end\s+of\s+)?(?:FY|fiscal\s+year\s+|Q[1-4]\s+|20\d{2}|next\s+(?:quarter|year))[\s,]*(?:we\s+(?:will|expect|plan)|.{10,80}?(?:will|target|goal))", "timeline_commitment"),
+    ]
+
+    for pattern, commitment_type in guidance_patterns:
+        for match in re.finditer(pattern, transcript_text, re.IGNORECASE):
+            full_text = match.group(0)
+            value = match.group(1) if match.lastindex and match.lastindex >= 1 else ""
+
+            # Get context (±100 chars)
+            start = max(0, match.start() - 100)
+            end = min(len(transcript_text), match.end() + 100)
+            context = transcript_text[start:end].replace("\n", " ").strip()
+
+            commitments.append({
+                "type": commitment_type,
+                "text": full_text[:200],
+                "value": value.strip() if value else None,
+                "context": context[:300],
+            })
+
+    return commitments
+
+
+def assess_commitment_fulfillment(
+    commitment: dict, actuals_text: str
+) -> dict:
+    """Assess whether a commitment was met based on actual results text.
+
+    Returns status and deviation assessment.
+    """
+    # This provides the structure for the assessment
+    # In practice, the LLM agent will fill in actual vs promised
+    return {
+        "promise": commitment["text"][:200],
+        "type": commitment["type"],
+        "status": "⏳ pending_verification",
+        "actual": None,
+        "deviation": None,
+        "note": "Requires LLM agent to compare against actual financial results",
+    }
+
+
+def commitment_tracking(ticker: str, transcript_text: str | None = None) -> dict:
+    """Track management commitments and assess fulfillment.
+
+    Args:
+        ticker: Stock ticker symbol.
+        transcript_text: Optional earnings call transcript text.
+
+    Returns:
+        dict with commitments list, fulfillment assessment template.
+    """
+    result: dict[str, Any] = {
+        "ticker": ticker,
+        "mode": "commitments",
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if transcript_text:
+        commitments = extract_commitments(transcript_text)
+        result["commitments_extracted"] = len(commitments)
+        result["commitments"] = []
+
+        for commit in commitments[:20]:  # Cap at 20 commitments
+            assessment = assess_commitment_fulfillment(commit, "")
+            result["commitments"].append({
+                "date": None,  # Agent fills in from transcript metadata
+                "promise": commit["text"][:200],
+                "type": commit["type"],
+                "value_target": commit.get("value"),
+                "actual": None,
+                "status": "⏳ pending_verification",
+                "deviation": None,
+            })
+
+        # Calculate fulfillment rate (only for verified commitments)
+        verified = [c for c in result["commitments"] if c["status"] not in ("⏳ pending_verification",)]
+        met = [c for c in verified if c["status"] in ("✅ met", "✅ exceeded")]
+        fulfillment_rate = len(met) / len(verified) if verified else None
+
+        result["fulfillment_rate"] = fulfillment_rate
+        if fulfillment_rate is not None:
+            if fulfillment_rate > 0.80:
+                result["grade"] = "优秀"
+            elif fulfillment_rate > 0.60:
+                result["grade"] = "合格"
+            elif fulfillment_rate > 0.40:
+                result["grade"] = "令人担忧"
+            else:
+                result["grade"] = "严重问题"
+        else:
+            result["grade"] = "待验证"
+    else:
+        result["status"] = "requires_transcript"
+        result["usage"] = (
+            "To use commitment tracking:\n"
+            "1. Retrieve earnings call transcript via search-agent or Firecrawl\n"
+            "2. Save transcript to ./reports/[TICKER]/transcript-[QUARTER].txt\n"
+            "3. Run: diff_filings.py [TICKER] --mode commitments "
+            "--transcript ./reports/[TICKER]/transcript-Q2-2025.txt\n"
+            "4. The script extracts commitments; the LLM agent verifies against actuals."
+        )
+        result["commitment_template"] = {
+            "date": "YYYY-QN call",
+            "promise": "Description of management guidance/commitment",
+            "actual": "What actually happened",
+            "status": "✅ met | ❌ missed | ⚠️ partially met | ⏳ pending",
+            "deviation": "Quantitative deviation from promise",
+        }
+        result["grading_rubric"] = {
+            ">80%": "优秀 (Excellent)",
+            "60-80%": "合格 (Adequate)",
+            "40-60%": "令人担忧 (Concerning)",
+            "<40%": "严重问题 (Severe Issues)",
+        }
+
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Diff consecutive SEC filings and detect forensic red flags"
     )
     parser.add_argument("ticker", help="Ticker symbol")
+    parser.add_argument("--mode", choices=["diff", "commitments"], default="diff",
+                        help="Mode: 'diff' (default) for filing comparison, 'commitments' for guidance tracking")
     parser.add_argument("--type", choices=["10-K", "10-Q"], default="10-K",
                         help="Filing type (default: 10-K)")
     parser.add_argument("--years", default=None,
                         help="Comma-separated years to compare (e.g., '2023,2024')")
+    parser.add_argument("--transcript", default=None,
+                        help="Path to earnings call transcript (for --mode commitments)")
     parser.add_argument("--output", help="Output file path (default: stdout)")
     args = parser.parse_args()
 
     ticker = args.ticker.strip().upper()
 
+    # Route to commitments mode
+    if args.mode == "commitments":
+        transcript_text = None
+        if args.transcript and os.path.exists(args.transcript):
+            try:
+                with open(args.transcript) as f:
+                    transcript_text = f.read()
+            except OSError as e:
+                print(json.dumps({"error": f"Cannot read transcript: {e}"}), file=sys.stderr)
+                sys.exit(1)
+
+        result = commitment_tracking(ticker, transcript_text)
+
+        output = json.dumps(result, indent=2, ensure_ascii=False)
+        if args.output:
+            os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
+            with open(args.output, "w") as f:
+                f.write(output)
+        else:
+            print(output)
+        sys.exit(0)
+
+    # Default: diff mode (existing behavior)
     result = {
         "ticker": ticker,
         "filing_type": args.type,
