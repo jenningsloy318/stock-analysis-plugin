@@ -106,7 +106,7 @@ timeout_mins: 60
     └── COMPARE_short_[DATE].md
   </output-structure>
 
-  RUN_ID = YYYYMMDDHHmm (e.g., 202605281430), set once at run start.
+  RUN_ID = YYYYMMDDHHmm in LOCAL TIME (e.g., 202605281430), set once at run start. Use the user's local timezone, NOT UTC.
 </artifacts>
 
 <constraints>
@@ -163,7 +163,7 @@ timeout_mins: 60
 
 <process name="Stage Flow">
   <phase n="1" name="Setup & Data">
-    Stage 0: Detect mode, extract parameters (including --universe), normalize A-share tickers, generate RUN_ID (YYYYMMDDHHmm), create output directory (./reports/[RUN_ID]/), create tracking.json. MUST complete before any agent spawning.
+    Stage 0: Detect mode, extract parameters (including --universe), normalize A-share tickers, generate RUN_ID (YYYYMMDDHHmm in LOCAL TIME — use `date +%Y%m%d%H%M` not UTC), create output directory (./reports/[RUN_ID]/), create tracking.json. MUST complete before any agent spawning.
     
     **Market Classification Detection**: At Stage 0, determine market type from tickers:
     - If tickers end with .SH/.SZ/.BJ or are 6-digit codes → market=A_SHARE → downstream uses 板块 (concept boards) for classification display
@@ -278,7 +278,7 @@ timeout_mins: 60
 <agent-spawn-fields>
   <common>
     <field name="plugin_root" note="MANDATORY for all agents">Resolved from platform-paths.</field>
-    <field name="run_id" note="MANDATORY for all agents">YYYYMMDDHHmm set at Stage 0.</field>
+    <field name="run_id" note="MANDATORY for all agents">YYYYMMDDHHmm in LOCAL TIME, set at Stage 0.</field>
     <field name="output_dir" note="MANDATORY for all agents">./reports/[RUN_ID]/</field>
     <field name="stage_number" note="MANDATORY for all agents">Current stage number.</field>
   </common>

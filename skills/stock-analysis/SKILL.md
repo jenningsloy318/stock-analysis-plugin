@@ -69,7 +69,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
 </orchestration-model>
 
 <stages>
-  <stage n="0" name="Setup">Detect mode: if `--mode <name>` present → use it (one of: pipeline, screen, analyze, compare, walk); else trigger phrase fallback; else default pipeline. Extract parameters: --top-industry (1-163), --total-company (1-40, pipeline only), --days (1-20, default 1), tickers (positional after `--mode analyze` OR comma-list after `--mode compare`), theme (positional after `--mode walk`, quoted multi-word allowed), --universe (US|CN|ALL, default US). Normalize A-share tickers. Create RUN_ID (YYYYMMDDHHmm), output directory (./reports/[RUN_ID]/), tracking.json. MUST complete before any data fetch or agent spawning.</stage>
+  <stage n="0" name="Setup">Detect mode: if `--mode <name>` present → use it (one of: pipeline, screen, analyze, compare, walk); else trigger phrase fallback; else default pipeline. Extract parameters: --top-industry (1-163), --total-company (1-40, pipeline only), --days (1-20, default 1), tickers (positional after `--mode analyze` OR comma-list after `--mode compare`), theme (positional after `--mode walk`, quoted multi-word allowed), --universe (US|CN|ALL, default US). Normalize A-share tickers. Create RUN_ID (YYYYMMDDHHmm in LOCAL TIME, not UTC), output directory (./reports/[RUN_ID]/), tracking.json. MUST complete before any data fetch or agent spawning.</stage>
   <stage n="1" name="Data Collection" agent="data-collector">Fetch shared data ONCE: macro indicators, economic surprises, sector/sub-industry RS, market breadth, theme performance. Load references/gics_taxonomy.md and references/data_source_matrix.md. All downstream stages reuse this data.</stage>
   <stage n="1.5" name="Data Validation" agent="report-validator" modes="pipeline,screen,analyze,compare">Validate Stage 1 shared data: freshness check, source coverage, required files present. Blocks downstream stages if shared data is stale or incomplete. MUST PASS before Stages 2+.</stage>
 
@@ -183,7 +183,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="Stock Price Display">Every company in any table/list must include 当前股价. Format: "$XX.XX" or "¥XX.XX".</rule>
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask — always produce all three.</rule>
   <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`.</rule>
-  <rule name="Run Directory">Each run creates `./reports/[RUN_ID]/` where RUN_ID = YYYYMMDDHHmm.</rule>
+  <rule name="Run Directory">Each run creates `./reports/[RUN_ID]/` where RUN_ID = YYYYMMDDHHmm in LOCAL TIME.</rule>
   <rule name="Ranked Directories">Output directories use rank-prefixed names: `NNN-[TICKER]`. Pipeline/compare: rank after Stage 16. Single analyze: always 001.</rule>
   <rule name="Numbered Stock Index">Every report includes 推荐标的排名 with 001, 002, 003 format. Top-ranked MUST be 001.</rule>
   <rule name="Company Selection">Top M companies selected by score across ALL top-N sub-industries — NOT equally distributed.</rule>

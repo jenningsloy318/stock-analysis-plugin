@@ -169,7 +169,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="Stock Price Display">Every company in any table/list must include 当前股价. Format: "$XX.XX" or "¥XX.XX".</rule>
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. The workflow's report phase fans out 3 horizons × N companies via `parallel()`. Never ask the user which horizon.</rule>
   <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Encoded in each script-running `agent()` prompt.</rule>
-  <rule name="Run Directory">Each run creates `./reports/[RUN_ID]/` where RUN_ID = YYYYMMDDHHmm. Created by the workflow script, not team-lead.</rule>
+  <rule name="Run Directory">Each run creates `./reports/[RUN_ID]/` where RUN_ID = YYYYMMDDHHmm in LOCAL TIME. Created by the workflow script, not team-lead.</rule>
   <rule name="Ranked Directories">Output directories use rank-prefixed names: `NNN-[TICKER]`. Pipeline/compare: rank after Stage 16. Single analyze: always 001.</rule>
   <rule name="Numbered Stock Index">Every report includes 推荐标的排名 with 001, 002, 003 format. Top-ranked MUST be 001.</rule>
   <rule name="Company Selection">Top companies selected by score across ALL top sub-industries — NOT equally distributed.</rule>
