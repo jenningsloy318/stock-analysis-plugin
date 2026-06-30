@@ -70,8 +70,8 @@ One unified skill with 5 modes. Dispatch by **explicit `--mode` flag** (authorit
 
 | Mode | Flag | Positional / args | Trigger phrases | What it does |
 |------|------|-------------------|-----------------|--------------|
-| **pipeline** *(default)* | `--mode pipeline` *(or omit)* | `--top-industry 5 --total-company 10` | "find best stocks", "top stocks", "全面筛选" | Screen 163 sub-industries → pick top companies → deep-dive each |
-| **screen** | `--mode screen` | `--top-industry 30` | "screen sectors", "筛选行业", "best industries" | Sub-industry screening + company watchlist, no deep-dive |
+| **pipeline** *(default)* | `--mode pipeline` *(or omit)* | `--top-industry 8 --total-company 15` | "find best stocks", "top stocks", "全面筛选" | Screen 163 sub-industries → pick top companies → deep-dive each |
+| **screen** | `--mode screen` | `--top-industry 40` | "screen sectors", "筛选行业", "best industries" | Sub-industry screening + company watchlist, no deep-dive |
 | **analyze** | `--mode analyze` | `TICKER [TICKER...]` (positional) | "analyze AAPL", "deep dive TSLA", "investment thesis NVDA", "DCF AMD" | Full 11-stage deep-dive on specific ticker(s) |
 | **compare** | `--mode compare` | `T1,T2[,T3,...]` (comma-list) | "compare AAPL,MSFT,GOOGL", "NVDA vs AMD" | Side-by-side 2-5 stocks, ranked by composite score |
 | **walk** | `--mode walk` | `THEME` (quoted multi-word) | "walk the chain for [theme]", "chokepoint analysis [theme]", "瓶颈分析" | Top-down chain decomposition: anchor demand roadmap → walk supply chain → score chokepoints → rank candidates by asymmetry composite. Universal (AI infra, EV, robotics, defense, solar, biopharma, grid, semi capex, materials). |
@@ -83,14 +83,16 @@ One unified skill with 5 modes. Dispatch by **explicit `--mode` flag** (authorit
 ```
 # Flag form (explicit, scriptable)
 stock-analysis                                                  # pipeline (default)
-stock-analysis --top-industry 5 --total-company 12                           # pipeline
-stock-analysis --mode pipeline --top-industry 5 --total-company 12           # pipeline (explicit)
-stock-analysis --mode screen --top-industry 30                               # screen 30 sub-industries
+stock-analysis --top-industry 8 --total-company 15                           # pipeline
+stock-analysis --mode pipeline --top-industry 8 --total-company 15           # pipeline (explicit)
+stock-analysis --mode screen --top-industry 40                               # screen 40 sub-industries
 stock-analysis --mode analyze NVDA                              # single deep-dive
 stock-analysis --mode analyze NVDA AMD INTC                     # multi-ticker deep-dive
 stock-analysis --mode compare NVDA,AMD,INTC                     # comparison
 stock-analysis --mode walk "humanoid robotics"                  # bottleneck walk
 stock-analysis --mode walk "AI optical interconnect" --top-industry 7
+stock-analysis --top-price 300 --min-headroom 7                 # wider price, stricter headroom
+stock-analysis --top-price 0 --min-headroom 6                   # no price filter, headroom only
 
 # Phrase form (natural)
 "find best stocks"                                              # → pipeline
@@ -104,8 +106,12 @@ stock-analysis --mode walk "AI optical interconnect" --top-industry 7
 
 | Parameter | Default | Range | Used by | Description |
 |-----------|---------|-------|---------|-------------|
-| `--top-industry` | 5 (pipeline) / 30 (screen) / 7 (walk) | 1-163 (pipeline, screen) / 1-20 (walk) | pipeline, screen, walk | Number of top sub-industries (pipeline/screen) or candidate companies (walk). Walk caps at 20 because candidates are individual companies in chokepoint layers, not GICS sub-industries. |
-| `--total-company` | 10 | 1-40 | pipeline | Total companies to deep-dive, selected by score across ALL sub-industries (not quota per sub-industry). Cap raised to 40 — performance-driven, raise only if you can wait (40 companies × 11 stages = 440 agent runs minimum). |
+| `--top-industry` | 8 (pipeline) / 40 (screen) / 7 (walk) | 1-163 (pipeline, screen) / 1-20 (walk) | pipeline, screen, walk | Number of top sub-industries (pipeline/screen) or candidate companies (walk). Walk caps at 20 because candidates are individual companies in chokepoint layers, not GICS sub-industries. |
+| `--total-company` | 15 | 1-50 | pipeline | Total companies to deep-dive, selected by score across ALL sub-industries (not quota per sub-industry). Max 50 — performance-driven, raise only if you can wait (50 companies × 11 stages = 550 agent runs minimum). |
+| `--top-price` | 200 | 0-9999 | pipeline, screen | Maximum stock price for screening. US stocks < $N, A-shares < ¥N. Set 0 to disable price filtering entirely. |
+| `--min-headroom` | 5 | 1-10 | pipeline, screen | Minimum Growth Headroom score (1-10). Stocks scoring below are rejected at Stage 4 even if they pass the price filter. Measures upside potential via TAM runway + growth gap + inflection signals + phase quality + valuation attractiveness + money flow confirmation. Eliminates "fully developed" low-upside stocks. |
+| `--universe` | US | US / CN / ALL | pipeline, screen | Listing-exchange filter. US = NYSE/NASDAQ only, CN = China A-shares (.SH/.SZ), ALL = no filter. |
+| `--days` | 1 | 1-20 | pipeline, screen, walk | Hot sector discovery focus window. 1=today, 5=this week, 10=recent 2 weeks, 20=this month. |
 
 Company distribution: top companies are selected by score across ALL top sub-industries — not equally distributed. Higher-scoring sub-industries naturally contribute more companies.
 
