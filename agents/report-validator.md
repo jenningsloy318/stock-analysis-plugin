@@ -53,7 +53,8 @@ timeout_mins: 10
     - Check stage2.md exists and contains at least 10 ranked sub-industries with GICS Level 4 codes
     - Check stage3.md exists for each top sub-industry with Porter analysis, TAM, and key players
     - Check stage4.md exists with company watchlist containing at least 10 companies
-    - Verify all companies in watchlist have stock price under $200 (US) or ¥200 (A-shares)
+    - Verify all companies in watchlist have stock price under $200 (US) or ¥200 (A-shares) — or per --top-price if customized
+    - Verify all companies in watchlist have headroom_score >= min_headroom (default 5) — reject "fully developed" stocks
     - Verify 推荐标的排名 table exists with 001/002/003 format
     - Grep for GICS codes and validate against {plugin_root}/references/gics_taxonomy.md
   </step>

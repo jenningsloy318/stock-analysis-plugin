@@ -31,6 +31,8 @@ Mode dispatch (Stage 0). Order: explicit `--mode <name>` flag > trigger phrase >
 - `--total-company M` → total companies to deep-dive (pipeline only)
 - `--universe US|CN|ALL` → listing-exchange filter for screening (default: US — NYSE/NASDAQ only)
 - `--days N` → hot sector discovery focus window: 1=today (default), 5=this week, 10=recent 2 weeks, 20=this month. Controls which timeframe is weighted most for "hot" ranking.
+- `--top-price N` → maximum stock price for screening (default: 200). US stocks < $N, A-shares < ¥N, others < $N equiv. Applied in Stage 4. Set 0 to disable.
+- `--min-headroom N` → minimum Growth Headroom score 1-10 (default: 5). Stocks scoring below this are filtered out at Stage 4 even if they pass price filter.
 - *(no `--mode`)* → falls through to trigger phrases, then default = pipeline
 
 **Trigger phrases** (used when no `--mode` flag present):
@@ -165,7 +167,8 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="Workflow Required" mandatory="true">Claude Code v2.1.154+ and the `Workflow` tool MUST be available. Older harnesses are not supported — there is no fallback. The team-lead agent verifies Workflow availability before invoking; on absence it aborts with an upgrade recommendation.</rule>
   <rule name="team-lead-delegation" mandatory="true">team-lead does ONE thing: invoke `Workflow({scriptPath: "${PLUGIN_ROOT}/workflows/stock-analysis.js", args})`. It does not spawn individual analyst agents, does not run scripts, does not write tracking.json. All stage logic lives in the workflow script.</rule>
   <rule name="Report Language">ALL reports MUST be written in Chinese (中文). Technical terms in English. GICS names: "Semiconductors (半导体)". Source citations in original language. The constraint is enforced inside the workflow script's report-writer `agent()` prompts.</rule>
-  <rule name="Price Filter" mandatory="true">Price filter applies ONLY in Stage 4 (Company Screening): US < $200, China A-shares < ¥200, all other markets < $200 USD equivalent. Encoded in the company-screener `agent()` prompt inside the workflow. After screening, do NOT re-filter during analysis (5-15) or report generation. Analyze/compare modes with user-specified tickers bypass the filter.</rule>
+  <rule name="Price Filter" mandatory="true">Price filter (`--top-price`, default 200) applies ONLY in Stage 4 (Company Screening): US < $N, China A-shares < ¥N, all other markets < $N USD equivalent. Set 0 to disable. Encoded in the company-screener `agent()` prompt inside the workflow. After screening, do NOT re-filter during analysis (5-15) or report generation. Analyze/compare modes with user-specified tickers bypass the filter.</rule>
+  <rule name="Headroom Filter" mandatory="true">Growth Headroom filter (`--min-headroom`, default 5) applies in Stage 4. Run `compute_growth_headroom.py` on all price-passing candidates. Reject stocks scoring below threshold. Encoded in the company-screener `agent()` prompt inside the workflow.</rule>
   <rule name="Stock Price Display">Every company in any table/list must include 当前股价. Format: "$XX.XX" or "¥XX.XX".</rule>
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. The workflow's report phase fans out 3 horizons × N companies via `parallel()`. Never ask the user which horizon.</rule>
   <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Encoded in each script-running `agent()` prompt.</rule>

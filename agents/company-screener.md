@@ -25,6 +25,8 @@ Handles Phase 3 (Company Screening).
   <field name="shared_data_path" required="true">./reports/[RUN_ID]/stage1*.json</field>
   <field name="sub_industry_codes" required="true">List of top GICS Level 4 codes from Stage 2</field>
   <field name="total_company" required="true">Target number of companies to select</field>
+  <field name="top_price" required="false">Maximum stock price for filtering (default: 200). Set 0 to disable.</field>
+  <field name="min_headroom" required="false">Minimum Growth Headroom score 1-10 (default: 5). Stocks below are rejected.</field>
 </input>
 
 <output>
@@ -77,6 +79,20 @@ After all quantitative filters are applied, run `{plugin_root}/scripts/compute_m
 - Any ticker scoring SUSPICIOUS (50-69) → keep but add ⚠️ flag with discrepancy details
 - Log all validation results in the report's "数据缺失与局限性" section
 This step catches wrong ticker codes, stale prices, and incorrect financial data BEFORE they enter the final report.
+
+**GROWTH HEADROOM FILTER (MANDATORY after data validation):** Run `{plugin_root}/scripts/compute_growth_headroom.py` on ALL validated watchlist tickers. This produces a headroom_score (1-10) combining:
+- TAM Runway (25%): penetration rate + TAM growth — can revenue grow 2-5 more years?
+- Growth Gap (20%): intrinsic CAGR vs market-implied CAGR — is growth underpriced?
+- Inflection Signal (15%): revenue acceleration 2nd derivative + segment shift + margin regime change
+- Phase Quality (15%): uptrend phase (加速>匀速>底部>波动>下跌)
+- Valuation Attractiveness (15%): DCF margin of safety + PEG + FCF yield
+- Money Flow Confirmation (10%): institutional demand + volume-price symmetry
+
+**Application:**
+- headroom_score < min_headroom (default 5) → REJECT with reason "成长空间不足 (headroom=X.X)"
+- headroom_score 5-6 → keep, tag "中等空间"
+- headroom_score ≥ 7 → keep, tag "高成长潜力"
+- Include headroom_score and headroom_category (高成长潜力/中等空间) in all output tables
 
 The output must GROUP stocks by signal category instead of a single flat ranking:
 
@@ -133,7 +149,8 @@ Column definitions:
 
 ### Constraints
 <constraint mandatory="true">MARKET CLASSIFICATION: A股 (.SH/.SZ/.BJ) uses 板块 (concept/thematic boards) as primary classification — display as "半导体/设备", "新能源/锂电", "AI/算力" in the 板块 column. US stocks use GICS Industry/Sub-Industry — display as "Semiconductors", "Application Software" in the Industry column. Never use GICS codes as the primary label for A-shares (Chinese investors think in 板块). Never use 板块-style Chinese labels for US stocks (US investors think in GICS Industry).</constraint>
-<constraint mandatory="true">Price filter is MANDATORY for ALL markets. US stocks < $200, A-shares < ¥200, all other markets < $200 USD equivalent. Filter OUT companies above the threshold BEFORE ranking. This filter applies ONLY at the screening stage — downstream analysis agents (Stages 5-15) do NOT re-filter.</constraint>
+<constraint mandatory="true">Price filter is MANDATORY for ALL markets (unless top_price=0 to disable). US stocks < ${top_price}, A-shares < ¥${top_price}, all other markets < ${top_price} USD equivalent (default: $200/¥200). Filter OUT companies above the threshold BEFORE ranking. This filter applies ONLY at the screening stage — downstream analysis agents (Stages 5-15) do NOT re-filter.</constraint>
+<constraint mandatory="true">Growth Headroom filter is MANDATORY. Run compute_growth_headroom.py on all price-passing candidates. REJECT any stock with headroom_score < ${min_headroom} (default: 5). This eliminates "fully developed" stocks that pass price filter but have limited upside (high TAM penetration, decelerating growth, expensive valuation, distribution phase).</constraint>
 <constraint mandatory="true">PRICE VERIFICATION PROTOCOL (prevents hallucinated prices):
 1. NEVER trust prices from memory/training data. NEVER write "~$XX" estimated prices.
 2. For EVERY candidate stock, compute actual price from fetched data:

@@ -369,6 +369,8 @@ if (typeof _args === 'string') {
   const topMatch = _args.match(/--top-industry\s+(\d+)/)
   const totalMatch = _args.match(/--total-company\s+(\d+)/)
   const universeMatch = _args.match(/--universe\s+(\w+)/)
+  const topPriceMatch = _args.match(/--top-price\s+(\d+(?:\.\d+)?)/)
+  const minHeadroomMatch = _args.match(/--min-headroom\s+(\d+(?:\.\d+)?)/)
   _args = {
     request: _args,
     mode: modeMatch ? modeMatch[1] : (tickerMatch ? 'analyze' : 'pipeline'),
@@ -377,6 +379,8 @@ if (typeof _args === 'string') {
     top_industry: topMatch ? parseInt(topMatch[1]) : undefined,
     total_company: totalMatch ? parseInt(totalMatch[1]) : undefined,
     universe: universeMatch ? universeMatch[1].toUpperCase() : 'US',
+    top_price: topPriceMatch ? parseFloat(topPriceMatch[1]) : 200,
+    min_headroom: minHeadroomMatch ? parseFloat(minHeadroomMatch[1]) : 5,
   }
 }
 if (!_args || typeof _args !== 'object') {
@@ -449,6 +453,8 @@ const TOTAL_COMPANY = _args.total_company
 let TICKERS = _args.tickers || []
 const THEME = _args.theme
 let UNIVERSE = _args.universe || 'US'
+const TOP_PRICE = _args.top_price !== undefined ? _args.top_price : 200
+const MIN_HEADROOM = _args.min_headroom !== undefined ? _args.min_headroom : 5
 const OUTPUT_DIR = `./reports/${RUN_ID}`
 
 if (!PLUGIN_ROOT) {
@@ -934,7 +940,10 @@ if (MODE === 'pipeline' || MODE === 'screen') {
         `EXCLUDE non-US listings: .T (Tokyo), .HK (Hong Kong), .SH/.SZ/.BJ (China A-shares), .L (London), .TO (Toronto), .DE/.PA/.AS (Europe), .AX (Australia). ` :
        UNIVERSE === 'CN' ? `INCLUDE ONLY .SH, .SZ, and .BJ tickers (China A-shares). EXCLUDE all others. ` :
                             `Accept any listing exchange. `) +
-      `Apply price filter (US < $200, China A-shares < ¥200, all other markets < $200 USD equiv). ` +
+      `Apply price filter (US < $` + TOP_PRICE + `, China A-shares < ¥` + TOP_PRICE + `, all other markets < $` + TOP_PRICE + ` USD equiv). ` +
+      `Apply Growth Headroom filter: run 'uv run python ${PLUGIN_ROOT}/scripts/compute_growth_headroom.py [TICKER]' for each candidate. ` +
+      `REJECT any stock with headroom_score < ` + MIN_HEADROOM + ` (even if price passes). ` +
+      `Include headroom_score and headroom_category in the output table. ` +
       `Score growth/profitability/moat/valuation/management/risk/liquidity. ` +
       `ALSO run 'uv run python ${PLUGIN_ROOT}/scripts/fetch_supply_chain_ecosystem.py [TICKER]' ` +
       `for each top-5 candidate to get ecosystem health. Apply chain_health_adj (±10% score bonus/penalty): ` +

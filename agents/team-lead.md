@@ -36,6 +36,8 @@ timeout_mins: 60
   <parameter name="theme">For walk mode only. Positional after `--mode walk`. Quoted multi-word strings allowed (e.g., `--mode walk "humanoid robotics"`).</parameter>
   <parameter name="universe" default="US">Listing-exchange filter for screening. One of: `US` (NYSE/NASDAQ only — default), `CN` (China A-shares .SH/.SZ only), `ALL` (no filter). Override via `--universe <code>` flag. Applied as an instruction to company-screener. Analyze/compare modes with user-specified tickers bypass the filter (user override).</parameter>
   <parameter name="days" default="1" range="1-20">Hot sector discovery focus window. 1=today's hot (default), 5=this week's hot, 10=recent 2 weeks, 20=this month. Controls `discover_hot_sectors.py --days N`. Used in pipeline/screen/walk modes. Flag: `--days N`.</parameter>
+  <parameter name="top-price" default="200" range="0-9999">Maximum stock price for screening. US/ALL < $N, CN < ¥N. Set 0 to disable price filter. Applied in Stage 4 via company-screener. Flag: `--top-price N`.</parameter>
+  <parameter name="min-headroom" default="5" range="1-10">Minimum Growth Headroom score (1-10). Stocks scoring below are filtered at Stage 4 regardless of price. Measures upside via TAM runway + growth gap + inflection + phase + valuation + money flow. Flag: `--min-headroom N`.</parameter>
 
   <flag-dispatch>
     Stage 0 dispatch order (authoritative > heuristic > default):
@@ -141,7 +143,8 @@ timeout_mins: 60
   <!-- ===== QUALITY ===== -->
   <constraint-group name="Quality">
     <constraint name="Report Language">ALL reports MUST be in Chinese (中文). Pass this constraint explicitly to ALL report writer spawns.</constraint>
-    <constraint name="Price Filter" mandatory="true">Price filter applies ONLY in Stage 4 (Company Screening). ALL markets: US < $200, A-shares < ¥200, all other markets < $200 USD equivalent. Pass this filter to company-screener. After screening completes, do NOT re-filter during Stages 5-15 or 17-18. Exception: analyze/compare mode with user-specified tickers bypasses filter entirely.</constraint>
+    <constraint name="Price Filter" mandatory="true">Price filter (--top-price, default 200): US < $N, A-shares < ¥N, all other markets < $N USD equivalent. Set 0 to disable. Pass to company-screener.</constraint>
+    <constraint name="Headroom Filter" mandatory="true">Growth Headroom filter (--min-headroom, default 5): stocks scoring below on compute_growth_headroom.py are rejected at Stage 4 even if price passes. Eliminates "fully developed" low-upside stocks. Pass to company-screener.</constraint>
     <constraint name="Universe Filter">Apply --universe filter (US|CN|ALL) during Stage 4 screening. Pass to company-screener prompt.</constraint>
     <constraint name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask which horizon.</constraint>
     <constraint name="Quality Gate">Run validate_report.py before delivering ANY report. If any gate fails: "INCOMPLETE ANALYSIS — [reason]".</constraint>
@@ -178,14 +181,15 @@ timeout_mins: 60
   <phase n="2" name="Screening" modes="pipeline,screen">
     Stage 2: Spawn sector-screener agents (3 parallel batches of ~54 sub-industries)
     Stage 3: Spawn sector-screener agents (deep-dive top N, max 4 parallel)
-    Stage 4: Spawn company-screener agents (3 parallel batches, pass universe filter)
-    Stage 4.5: Spawn report-validator with explicit price-verification mode. The validator MUST:
+    Stage 4: Spawn company-screener agents (3 parallel batches, pass universe filter + top_price + min_headroom)
+    Stage 4.5: Spawn report-validator with explicit price+headroom verification mode. The validator MUST:
       a. Read each company's financials.json (specifically profile.market_cap and profile.shares_outstanding or profile.current_price)
-      b. Independently verify actual_price < $200 (US) or < ¥200 (A-share) for EVERY watchlist stock
-      c. If ANY stock fails price check: report-validator returns FAIL with list of violating tickers
-      d. Team-lead removes violating stocks from watchlist.json, does NOT proceed to Stage 5 with invalid stocks
-      e. This is NOT a rubber-stamp gate — the validator must ACTUALLY READ the data files and COMPUTE
-    CRITICAL: team-lead must NEVER write "all prices verified" without the validator actually running and checking files.
+      b. Independently verify actual_price < top_price (default $200 US / ¥200 A-share) for EVERY watchlist stock (skip if top_price=0)
+      c. Verify headroom_score >= min_headroom (default 5) for EVERY watchlist stock
+      d. If ANY stock fails price OR headroom check: report-validator returns FAIL with list of violating tickers
+      e. Team-lead removes violating stocks from watchlist.json, does NOT proceed to Stage 5 with invalid stocks
+      f. This is NOT a rubber-stamp gate — the validator must ACTUALLY READ the data files and COMPUTE
+    CRITICAL: team-lead must NEVER write "all verified" without the validator actually running and checking files.
     Additionally validates screening-completeness. WAIT for VALIDATED: PASS. On FAIL: fix screening gaps and re-validate.
     After Stage 4.5: screen mode → jump to Stage 17→17.5→18→18.5→19 (screening reports + validation + best picks + cleanup)
   </phase>

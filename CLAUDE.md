@@ -34,11 +34,12 @@
 ## Stock Price Filter Rule (MUST follow)
 
 - Focus on **growth-stage companies** (成长型公司), NOT mature blue-chips with high stock prices
-- **ALL markets**: US stocks **under $200**, China A-shares **under ¥200**, all other markets **under $200 USD equivalent**
-- This filter applies **ONLY during Stage 4 (Company Screening)** — it determines which companies enter the watchlist
+- **Price filter** (`--top-price`, default 200): US stocks **under $N**, China A-shares **under ¥N**, all other markets **under $N USD equivalent**. Set `--top-price 0` to disable.
+- **Growth Headroom filter** (`--min-headroom`, default 5): Score 1-10 computed by `compute_growth_headroom.py`. Stocks with headroom < N are rejected even if they pass the price filter. This eliminates "fully developed" cheap stocks (high TAM penetration, decelerating growth, expensive valuation, distribution phase).
+- Both filters apply **ONLY during Stage 4 (Company Screening)** — they determine which companies enter the watchlist
 - After screening, do NOT re-filter or exclude companies during analysis stages (5-15) or report generation (17-18)
-- If analyzing a specific ticker requested by the user (analyze/compare mode), proceed regardless of price (user override)
-- For screening/watchlist: filter OUT companies above the price threshold before ranking
+- If analyzing a specific ticker requested by the user (analyze/compare mode), proceed regardless of filters (user override)
+- For screening/watchlist: filter OUT companies above price threshold OR below headroom threshold before ranking
 
 ## Price Verification Anti-Hallucination Rule (MUST follow)
 
@@ -272,6 +273,7 @@
 | `compute_tam_adj_peg.py` | Serenity TAM-Adj-PEG: PEG ÷ (TAM runway × quality). Category: CORE_GROWTH / HIGH_BETA_GROWTH / OPTION_LIKE / TURNAROUND / CYCLICAL | 10 |
 | `compute_bayesian_growth.py` | Bayesian 5-hypothesis intrinsic CAGR vs market-implied growth, FOMO score | 10 |
 | `compute_health_index.py` | GF-DMA Health Index 0-100: fundamental speed × DMA structure × escape ratio | 11 |
+| `compute_growth_headroom.py` | Growth Headroom Score 1-10: TAM runway + growth gap + inflection + phase + valuation + money flow. Filters "fully developed" stocks at Stage 4 | 4 |
 | `analyze_alpha_elasticity.py` | Serenity-Alpha 7-dim composite: demand→revenue transmission elasticity (thematic theses only) | 13 |
 
 ## Report Quality Gates (MUST follow)
