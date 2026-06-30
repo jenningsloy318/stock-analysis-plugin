@@ -325,6 +325,7 @@ EVERY equity report MUST contain ONE kill switch matching the ACCEPTABLE pattern
 
 ### Constraints
 <constraint>ALL report content MUST be written in Chinese (中文). Technical terms (P/E, EV/EBITDA, ROIC, ticker symbols) may remain in English. Source citations remain in original language. This is NON-NEGOTIABLE — never produce English reports.</constraint>
+<constraint mandatory="true">MARKET CLASSIFICATION in all tables: A股 (.SH/.SZ/.BJ) uses 板块 column with concept board names ("半导体/设备", "新能源/锂电"). US stocks use Industry column with GICS names ("Semiconductors", "Application Software"). Mixed reports use market-appropriate label per row.</constraint>
 <constraint>Every table/list mentioning a company MUST include a "当前股价" (current price) column. Format: "$XX.XX" or "¥XX.XX".</constraint>
 <constraint mandatory="true">Every company table in the final report MUST include columns for: 当前股价, 市净率(P/B), 静态市盈率(TTM P/E), 动态市盈率(Forward P/E), 资金流向, 连续流入天数. These are mandatory display fields — never omit them. Format: 资金流向 uses 强流入/温和流入/中性/温和流出/强流出; 连续流入天数 is an integer (0 if currently outflow).</constraint>
 <constraint>Every report MUST include a "推荐标的排名" (Recommended Stock Ranking) section with zero-padded 3-digit indices (001, 002, 003...). The analyzed stock is ALWAYS 001 (top recommendation). Format:

@@ -100,7 +100,12 @@ REQUIRED SECTIONS (every screening report must have ALL of these):
     - If a top-5 company has a data gap in a >10% weight dimension, add explicit caveat to its thesis
 14. Handoff Recommendation (explicit next-step with top ticker and suggested command)
 
-Also load {plugin_root}/references/gics_taxonomy.md for code validation and {plugin_root}/references/data_source_matrix.md for confidence caps.</step>
+Also load {plugin_root}/references/gics_taxonomy.md for code validation and {plugin_root}/references/data_source_matrix.md for confidence caps.
+
+**MARKET CLASSIFICATION RULE (applies to ALL report output):**
+- **A股 (.SH/.SZ/.BJ)**: Use 板块 (concept boards) as the primary classification label. Examples: "半导体/设备", "新能源/锂电", "AI/算力", "军工/导弹", "医药/创新药". Use `[主题]/[细分]` format. Dashboard "趋势板块" shows hottest concept boards.
+- **美股 (US)**: Use GICS Industry / Sub-Industry name as the primary classification label. Examples: "Semiconductors", "Application Software", "Electrical Components & Equipment". Dashboard "趋势板块" shows strongest GICS sectors.
+- **混合报告**: Use market-appropriate labels per row. Add market flag prefix if needed: "🇨🇳 半导体/AI | 🇺🇸 Semiconductors".</step>
 <step n="1" name="Load Phase Summaries">Read all `./reports/[RUN_ID]/phase[0-3].md` files. Phase 0 = macro context + scope + sub-industry RS data, Phase 1 = sub-industry leaderboard (Level 4 only), Phase 2 = sub-industry deep-dive (GICS Level 4), Phase 3 = company watchlist.</step>
 <step n="2" name="Cross-Validate">Check for internal consistency: does the selected sub-industry (Level 4) belong to the top-ranked sector? Do the watchlist companies actually have the correct GICS sub-industry classification? Are the macro tailwinds consistent across phases? Validate GICS codes against `{plugin_root}/references/gics_taxonomy.md`.</step>
 <step n="3" name="Report Structuring">Assemble the report in this exact order:

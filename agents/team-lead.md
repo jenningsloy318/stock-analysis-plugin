@@ -163,6 +163,13 @@ timeout_mins: 60
 <process name="Stage Flow">
   <phase n="1" name="Setup & Data">
     Stage 0: Detect mode, extract parameters (including --universe), normalize A-share tickers, generate RUN_ID (YYYYMMDDHHmm), create output directory (./reports/[RUN_ID]/), create tracking.json. MUST complete before any agent spawning.
+    
+    **Market Classification Detection**: At Stage 0, determine market type from tickers:
+    - If tickers end with .SH/.SZ/.BJ or are 6-digit codes → market=A_SHARE → downstream uses 板块 (concept boards) for classification display
+    - If tickers are US symbols (no suffix, or common US names) → market=US → downstream uses GICS Industry/Sub-Industry for classification display
+    - Mixed tickers → market=MIXED → each ticker gets market-appropriate label
+    Store `market_type` in tracking.json for downstream agents to reference.
+    
     Stage 1: Spawn data-collector for shared data (macro, RS, breadth, themes)
     Stage 1.5: Spawn report-validator (data-freshness). WAIT for VALIDATED: PASS before proceeding. On FAIL: fix data and re-validate (max 3 loops).
   </phase>

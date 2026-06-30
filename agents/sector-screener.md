@@ -26,6 +26,10 @@ Load `references/gics_taxonomy.md` for the complete GICS 4-level hierarchy:
 
 The screening workflow uses Level 4 as the atomic classification for company discovery.
 
+**MARKET CLASSIFICATION NOTE:**
+- For US stock screening: GICS Level 4 sub-industry is the structural unit. Output uses GICS names.
+- For A-share screening: GICS Level 4 is still used internally for structural analysis, but output display should MAP results to A-share 板块 (concept board) names that Chinese investors recognize. E.g., GICS "Semiconductor Materials" → 板块 "半导体/材料". The company-screener handles this mapping at Stage 4 output.
+
 </role>
 
 <input>

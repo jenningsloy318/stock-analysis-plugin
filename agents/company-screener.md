@@ -119,6 +119,7 @@ Column definitions:
 <gate>Each top-20 company must have a specific moat score with evidence, not generic.</gate>
 
 ### Constraints
+<constraint mandatory="true">MARKET CLASSIFICATION: A股 (.SH/.SZ/.BJ) uses 板块 (concept/thematic boards) as primary classification — display as "半导体/设备", "新能源/锂电", "AI/算力" in the 板块 column. US stocks use GICS Industry/Sub-Industry — display as "Semiconductors", "Application Software" in the Industry column. Never use GICS codes as the primary label for A-shares (Chinese investors think in 板块). Never use 板块-style Chinese labels for US stocks (US investors think in GICS Industry).</constraint>
 <constraint mandatory="true">Price filter is MANDATORY for ALL markets. US stocks < $100, A-shares < ¥100, all other markets < $100 USD equivalent. Filter OUT companies above the threshold BEFORE ranking. This filter applies ONLY at the screening stage — downstream analysis agents (Stages 5-15) do NOT re-filter.</constraint>
 <constraint>Every company table/ranking MUST include a "当前股价" (current price) column. Format: "$XX.XX" or "¥XX.XX".</constraint>
 <constraint>Do not invent financial data — use "Data not available" when a metric cannot be found</constraint>
