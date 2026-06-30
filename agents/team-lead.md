@@ -141,7 +141,7 @@ timeout_mins: 60
   <!-- ===== QUALITY ===== -->
   <constraint-group name="Quality">
     <constraint name="Report Language">ALL reports MUST be in Chinese (中文). Pass this constraint explicitly to ALL report writer spawns.</constraint>
-    <constraint name="Price Filter" mandatory="true">Price filter applies ONLY in Stage 4 (Company Screening). ALL markets: US < $100, A-shares < ¥100, all other markets < $100 USD equivalent. Pass this filter to company-screener. After screening completes, do NOT re-filter during Stages 5-15 or 17-18. Exception: analyze/compare mode with user-specified tickers bypasses filter entirely.</constraint>
+    <constraint name="Price Filter" mandatory="true">Price filter applies ONLY in Stage 4 (Company Screening). ALL markets: US < $200, A-shares < ¥200, all other markets < $200 USD equivalent. Pass this filter to company-screener. After screening completes, do NOT re-filter during Stages 5-15 or 17-18. Exception: analyze/compare mode with user-specified tickers bypasses filter entirely.</constraint>
     <constraint name="Universe Filter">Apply --universe filter (US|CN|ALL) during Stage 4 screening. Pass to company-screener prompt.</constraint>
     <constraint name="All 3 Horizons">Always produce long/mid/short-term reports. Never ask which horizon.</constraint>
     <constraint name="Quality Gate">Run validate_report.py before delivering ANY report. If any gate fails: "INCOMPLETE ANALYSIS — [reason]".</constraint>
@@ -181,7 +181,7 @@ timeout_mins: 60
     Stage 4: Spawn company-screener agents (3 parallel batches, pass universe filter)
     Stage 4.5: Spawn report-validator with explicit price-verification mode. The validator MUST:
       a. Read each company's financials.json (specifically profile.market_cap and profile.shares_outstanding or profile.current_price)
-      b. Independently verify actual_price < $100 (US) or < ¥100 (A-share) for EVERY watchlist stock
+      b. Independently verify actual_price < $200 (US) or < ¥200 (A-share) for EVERY watchlist stock
       c. If ANY stock fails price check: report-validator returns FAIL with list of violating tickers
       d. Team-lead removes violating stocks from watchlist.json, does NOT proceed to Stage 5 with invalid stocks
       e. This is NOT a rubber-stamp gate — the validator must ACTUALLY READ the data files and COMPUTE

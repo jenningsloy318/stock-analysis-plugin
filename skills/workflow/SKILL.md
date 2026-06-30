@@ -81,7 +81,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
 
   <stage n="2" name="Sub-Industry Screening" agent="sector-screener" modes="pipeline,screen" runs-in="workflow">Score 163 GICS Level 4 sub-industries on 11 dimensions. Processed via `parallel()` over 3 batches of ~54.</stage>
   <stage n="3" name="Sub-Industry Deep-Dive" agent="sector-screener" modes="pipeline,screen" runs-in="workflow">Top N sub-industries: Porter, TAM, catalysts, profit pools.</stage>
-  <stage n="4" name="Company Screening" agent="company-screener" modes="pipeline,screen" runs-in="workflow">Top companies across ALL top sub-industries. Price filter applied (US<$100, CN<¥100).</stage>
+  <stage n="4" name="Company Screening" agent="company-screener" modes="pipeline,screen" runs-in="workflow">Top companies across ALL top sub-industries. Price filter applied (US<$200, CN<¥200).</stage>
   <stage n="4.5" name="Screening Validation" agent="report-validator" modes="pipeline,screen" runs-in="workflow">Watchlist completeness + price-filter compliance.</stage>
 
   Stages 3 + 4 run as a `pipeline(top_sub_industries, deepdive, screen)` — no barrier between stages; fast sub-industries progress to company screening while slow ones are still in deep-dive.
@@ -165,7 +165,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="Workflow Required" mandatory="true">Claude Code v2.1.154+ and the `Workflow` tool MUST be available. Older harnesses are not supported — there is no fallback. The team-lead agent verifies Workflow availability before invoking; on absence it aborts with an upgrade recommendation.</rule>
   <rule name="team-lead-delegation" mandatory="true">team-lead does ONE thing: invoke `Workflow({scriptPath: "${PLUGIN_ROOT}/workflows/stock-analysis.js", args})`. It does not spawn individual analyst agents, does not run scripts, does not write tracking.json. All stage logic lives in the workflow script.</rule>
   <rule name="Report Language">ALL reports MUST be written in Chinese (中文). Technical terms in English. GICS names: "Semiconductors (半导体)". Source citations in original language. The constraint is enforced inside the workflow script's report-writer `agent()` prompts.</rule>
-  <rule name="Price Filter" mandatory="true">Price filter applies ONLY in Stage 4 (Company Screening): US < $100, China A-shares < ¥100, all other markets < $100 USD equivalent. Encoded in the company-screener `agent()` prompt inside the workflow. After screening, do NOT re-filter during analysis (5-15) or report generation. Analyze/compare modes with user-specified tickers bypass the filter.</rule>
+  <rule name="Price Filter" mandatory="true">Price filter applies ONLY in Stage 4 (Company Screening): US < $200, China A-shares < ¥200, all other markets < $200 USD equivalent. Encoded in the company-screener `agent()` prompt inside the workflow. After screening, do NOT re-filter during analysis (5-15) or report generation. Analyze/compare modes with user-specified tickers bypass the filter.</rule>
   <rule name="Stock Price Display">Every company in any table/list must include 当前股价. Format: "$XX.XX" or "¥XX.XX".</rule>
   <rule name="All 3 Horizons">Always produce long/mid/short-term reports. The workflow's report phase fans out 3 horizons × N companies via `parallel()`. Never ask the user which horizon.</rule>
   <rule name="UV Run">ALL Python scripts run via `uv run python ${PLUGIN_ROOT}/scripts/<script>.py`. Encoded in each script-running `agent()` prompt.</rule>

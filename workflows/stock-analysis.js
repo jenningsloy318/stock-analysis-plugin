@@ -934,7 +934,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
         `EXCLUDE non-US listings: .T (Tokyo), .HK (Hong Kong), .SH/.SZ/.BJ (China A-shares), .L (London), .TO (Toronto), .DE/.PA/.AS (Europe), .AX (Australia). ` :
        UNIVERSE === 'CN' ? `INCLUDE ONLY .SH, .SZ, and .BJ tickers (China A-shares). EXCLUDE all others. ` :
                             `Accept any listing exchange. `) +
-      `Apply price filter (US < $100, China A-shares < ¥100, all other markets < $100 USD equiv). ` +
+      `Apply price filter (US < $200, China A-shares < ¥200, all other markets < $200 USD equiv). ` +
       `Score growth/profitability/moat/valuation/management/risk/liquidity. ` +
       `ALSO run 'uv run python ${PLUGIN_ROOT}/scripts/fetch_supply_chain_ecosystem.py [TICKER]' ` +
       `for each top-5 candidate to get ecosystem health. Apply chain_health_adj (±10% score bonus/penalty): ` +
