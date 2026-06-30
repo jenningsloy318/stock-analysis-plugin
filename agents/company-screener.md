@@ -65,6 +65,13 @@ After all quantitative filters are applied, run `{plugin_root}/scripts/compute_m
 - Pattern category (突破确认/回踩预警/强势蓄力/无形态) and pattern score (0-100)
 - Uptrend phase (加速上涨/匀速上涨/波动阶段/底部区域/下跌阶段) and momentum score (0-10)
 
+**DATA VALIDATION (MANDATORY before final output):** Run `{plugin_root}/scripts/validate_stock_data.py` on ALL watchlist tickers to cross-validate data integrity:
+- Checks ticker-name consistency, price accuracy, PE/PB correctness across multiple sources
+- Any ticker scoring INVALID (<50) → REMOVE from watchlist with note "数据验证失败"
+- Any ticker scoring SUSPICIOUS (50-69) → keep but add ⚠️ flag with discrepancy details
+- Log all validation results in the report's "数据缺失与局限性" section
+This step catches wrong ticker codes, stale prices, and incorrect financial data BEFORE they enter the final report.
+
 The output must GROUP stocks by signal category instead of a single flat ranking:
 
 ```markdown

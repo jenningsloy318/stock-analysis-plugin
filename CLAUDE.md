@@ -116,6 +116,17 @@
 
 ## Web Search & Data Acquisition (MUST follow)
 
+### Data Cross-Validation Rule (MANDATORY)
+
+- **ALL stock data (price, PE, PB, market cap, ticker-name mapping) MUST be cross-validated** using `validate_stock_data.py` before being used in reports
+- Run validation at two checkpoints: (1) after Stage 4 screening, (2) before Stage 17 report generation
+- A-share data sources (priority order): **StockDB local** (free-stockdb, `127.0.0.1:7899`) → **yfinance** → **akshare** → web search
+- US stock data sources: **yfinance** (primary) → web search for confirmation
+- If a ticker scores INVALID (<50 validation score): **remove from analysis** — do not proceed with bad data
+- If a ticker scores SUSPICIOUS (50-69): **flag with ⚠️** in all tables, note the discrepancy
+- **StockDB integration** (A-share only): If the local StockDB service (`free-stockdb`) is running at `127.0.0.1:7899`, use it as the fastest and most reliable A-share data source. It provides: daily/weekly/monthly OHLCV, minute data, PE, PB, name, volume, turnover for 7400+ A-share stocks since 2000. Connection is optional — if unavailable, fall back to yfinance/akshare.
+- **Never trust single-source data** for critical fields (price, PE, PB, market cap). If only one source available, lower confidence and note in data gap disclosure section.
+
 ### Search Tool Priority (ordered by preference)
 
 1. **Firecrawl MCP** (MANDATORY first for web research):
@@ -241,6 +252,7 @@
 | `compute_signal_aggregator.py` | 7-layer institutional signal aggregator: L1 Technical + L2 Factor + L3 Event + L4 Flow + L5 Options + L6 Alt Data + L7 Cross-Asset → unified multi-layer verdict with confluence detection | 11, 16, 17 |
 | `detect_chart_patterns.py` | O'Neil chart pattern recognition: 前高放量突破/前高回踩/杯柄/大平台突破/前高蓄势/楔形突破 + pattern scoring 0-100 + category classification (突破确认/回踩预警/强势蓄力/无形态) | 4, 11 |
 | `classify_uptrend_phase.py` | Uptrend phase classifier: 加速上涨/匀速上涨/波动阶段/底部区域/下跌阶段 + momentum score + trend health + phase change risk | 4, 11 |
+| `validate_stock_data.py` | Multi-source cross-validation: yfinance + StockDB + akshare — ticker/price/PE/PB/name consistency checks, discrepancy detection, consensus price | 4, 5 |
 | `fetch_market_breadth.py` | Market breadth: % above MAs, A/D, McClellan, VIX term structure, credit spreads | 1 |
 | `fetch_theme_performance.py` | Theme/style ETF performance, sector RS, regime summary | 1 |
 | `compute_tam_adj_peg.py` | Serenity TAM-Adj-PEG: PEG ÷ (TAM runway × quality). Category: CORE_GROWTH / HIGH_BETA_GROWTH / OPTION_LIKE / TURNAROUND / CYCLICAL | 10 |
