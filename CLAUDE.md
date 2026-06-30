@@ -256,6 +256,7 @@
 | `detect_chart_patterns.py` | O'Neil chart pattern recognition: 前高放量突破/前高回踩/杯柄/大平台突破/前高蓄势/楔形突破 + pattern scoring 0-100 + category classification (突破确认/回踩预警/强势蓄力/无形态) | 4, 11 |
 | `classify_uptrend_phase.py` | Uptrend phase classifier: 加速上涨/匀速上涨/波动阶段/底部区域/下跌阶段 + momentum score + trend health + phase change risk | 4, 11 |
 | `validate_stock_data.py` | Multi-source cross-validation: yfinance + StockDB + akshare — ticker/price/PE/PB/name consistency checks, discrepancy detection, consensus price | 4, 5 |
+| `discover_hot_sectors.py` | Real-time hot sector discovery: 1D/5D momentum + volume spike + breadth breakout for US (ETFs) + A-share (akshare概念板块 + ETF proxy), rotation signal | 1, 2 |
 | `fetch_market_breadth.py` | Market breadth: % above MAs, A/D, McClellan, VIX term structure, credit spreads | 1 |
 | `fetch_theme_performance.py` | Theme/style ETF performance, sector RS, regime summary | 1 |
 | `compute_tam_adj_peg.py` | Serenity TAM-Adj-PEG: PEG ÷ (TAM runway × quality). Category: CORE_GROWTH / HIGH_BETA_GROWTH / OPTION_LIKE / TURNAROUND / CYCLICAL | 10 |

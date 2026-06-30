@@ -26,6 +26,7 @@ timeout_mins: 8
   <item>stage1_themes.json — Theme/style ETF performance</item>
   <item>stage1_asia_momentum.json — Asia market (JP/KR/CN/TW) momentum and RS vs SPY</item>
   <item>stage1_sentiment.json — Market sentiment score 0-100 (VIX, breadth, risk appetite)</item>
+  <item>stage1_hot_sectors.json — Today's hottest sectors/板块 (real-time momentum + volume + breadth discovery)</item>
   <item>stage1.md — Data availability summary with freshness timestamps</item>
 </output>
 
@@ -44,6 +45,7 @@ timeout_mins: 8
     - uv run python {plugin_root}/scripts/compute_sector_rs.py --level sub-industry --flat --output ./reports/[RUN_ID]/stage1_sub_industry_rs.json
     - uv run python {plugin_root}/scripts/fetch_asia_market_momentum.py --output ./reports/[RUN_ID]/stage1_asia_momentum.json
     - uv run python {plugin_root}/scripts/compute_market_sentiment.py --output ./reports/[RUN_ID]/stage1_sentiment.json
+    - uv run python {plugin_root}/scripts/discover_hot_sectors.py --market both --top 15 --output ./reports/[RUN_ID]/stage1_hot_sectors.json
   </step>
 
   <step n="2" name="Initialize Persistence">

@@ -30,6 +30,15 @@ The screening workflow uses Level 4 as the atomic classification for company dis
 - For US stock screening: GICS Level 4 sub-industry is the structural unit. Output uses GICS names.
 - For A-share screening: GICS Level 4 is still used internally for structural analysis, but output display should MAP results to A-share 板块 (concept board) names that Chinese investors recognize. E.g., GICS "Semiconductor Materials" → 板块 "半导体/材料". The company-screener handles this mapping at Stage 4 output.
 
+**HOT SECTOR INTEGRATION (MANDATORY):**
+- Load `stage1_hot_sectors.json` from shared data at the START of sector analysis
+- Hot sectors (score >= 60) receive a **+15% boost** to their Pass 1 composite score (they're already attracting capital today)
+- When ranking sub-industries (Pass 2), prioritize sub-industries that BELONG TO hot sectors — they have near-term momentum tailwind
+- Include "热度加成" (Hot Sector Bonus) as a visible component in the scoring breakdown
+- If a sector is both RS-strong AND hot today: flag as "双重确认" (Double Confirmation) — highest priority for screening
+- If a sector is RS-strong but NOT hot today: still screen it, but note "趋势确认但短期热度不足"
+- If a sector is NOT RS-strong but IS hot today: flag as "短期热点, 趋势未确认" — include with caution note
+
 </role>
 
 <input>
