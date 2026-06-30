@@ -35,7 +35,13 @@ Handles Phase 3 (Company Screening).
 <workflow>
 
 <step n="1" name="Universe Construction">Identify all publicly traded companies in the target sub-industry using the GICS Level 4 code (8-digit). Reference `references/gics_taxonomy.md` for the sub-industry definition and representative tickers. Source from sector ETF holdings, sub-industry ETF proxy holdings (see taxonomy), industry classification databases, and web search. Cross-reference with exchange-listed companies sharing the same GICS sub-industry code. Target: complete universe for the sub-industry.</step>
-<step n="2" name="Data Fetch">For each company, gather: market cap, revenue (trailing + 3-year history), EPS (trailing + 3-year history), FCF, total debt, cash, P/E, EV/EBITDA, ROIC, ROE, revenue growth (3Y CAGR), average dollar volume, free float, short interest, and sector-specific KPIs. Use finance tool, Firecrawl, Tavily, and official/public sources from `references/data_source_matrix.md` for data acquisition.</step>
+<step n="2" name="Data Fetch">For each company, gather: market cap, revenue (trailing + 3-year history), EPS (trailing + 3-year history), FCF, total debt, cash, P/E, EV/EBITDA, ROIC, ROE, revenue growth (3Y CAGR), average dollar volume, free float, short interest, and sector-specific KPIs. Use finance tool, Firecrawl, Tavily, and official/public sources from `references/data_source_matrix.md` for data acquisition.
+
+**POST-FETCH CROSS-VALIDATION (MANDATORY):** After fetching financials for all candidates, run `{plugin_root}/scripts/cross_validate_prices.py` on EACH company's raw-data.json with `--patch --tolerance 5`. This:
+- Checks fetched prices against a second source (StockDB for A-shares, yfinance fast_info for US)
+- Auto-patches stale/wrong prices if a validated alternative is available
+- Flags CRITICAL_MISMATCH (>50% difference) as possible wrong ticker — investigate before proceeding
+- Any ticker with CRITICAL_MISMATCH must be re-fetched or removed from the candidate universe</step>
 <step n="3" name="Quantitative Filters">Apply minimum thresholds. Companies that fail any filter are excluded with reason noted:
   - Market cap ≥ $500M (adjustable by user)
   - Revenue growth (3Y CAGR) ≥ industry median (or ≥ 0% for cyclical industries)

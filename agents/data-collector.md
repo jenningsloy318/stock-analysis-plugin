@@ -66,7 +66,7 @@ timeout_mins: 8
   </step>
 
   <step n="4" name="Summarize">
-    Write ./reports/[RUN_ID]/stage1.md with a brief summary: macro regime, sector RS highlights, breadth state, theme performance snapshot, data freshness timestamps. This summary is loaded by downstream agents as context — raw JSON files are NOT loaded into orchestrator context.
+    Write ./reports/[RUN_ID]/stage1.md with a brief summary: macro regime, sector RS highlights, breadth state, theme performance snapshot, hot sectors today, market sentiment score, data freshness timestamps. This summary is loaded by downstream agents as context — raw JSON files are NOT loaded into orchestrator context.
   </step>
 </workflow>
 
