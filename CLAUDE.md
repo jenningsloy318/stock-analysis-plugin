@@ -54,6 +54,33 @@
 - Report structure: flat ranked sub-industry leaderboard, no hierarchical sector grouping
 - Reference: `references/gics_taxonomy.md` for full GICS hierarchy with codes and ETF proxies
 
+## Market Classification Rule (MUST follow)
+
+- **A股 (China A-shares, .SH/.SZ/.BJ tickers)**: Use **板块** (concept/thematic boards) as the primary classification
+  - 板块 examples: 半导体, 新能源汽车, 锂电池, AI算力, 军工, 医药创新, 光伏, 机器人, 消费电子
+  - Format in tables: `板块` column showing thematic classification, e.g., "半导体/设备", "新能源/锂电", "AI/算力"
+  - Use `[主题]/[细分]` two-level format when specificity helps (e.g., "新能源汽车/锂矿" not just "新能源")
+  - 趋势板块 in dashboard: show the hottest A-share concept boards (from sector rotation data)
+  - GICS codes are OPTIONAL context for A-shares — 板块 is what Chinese investors recognize and trade on
+
+- **美股 (US stocks, no suffix or common US tickers)**: Use **GICS Industry / Sub-Industry** as the primary classification
+  - Format in tables: `Industry` column showing GICS Level 3 or 4 name, e.g., "Semiconductors", "Application Software", "Data Processing & Outsourced Services"
+  - For screening: GICS Level 4 (Sub-Industry, 8-digit code) remains the structural unit
+  - 趋势板块 equivalent for US: show "Sector Leaders" from SPDRs (XLK, XLF, etc.)
+
+- **日韩台 (JP/KR/TW)**: Use GICS Industry names with local market context
+  - Add local exchange sector classification as supplementary context if available
+
+- **Mixed portfolio reports**: If report covers both A-shares and US stocks, use BOTH systems:
+  - A-share rows show 板块 column
+  - US rows show Industry column
+  - Or use a unified "分类" column with market-appropriate labels for each row
+
+- **Dashboard "趋势板块" field**:
+  - A-share screening: show hottest 概念板块 (concept boards), e.g., "半导体, AI算力, 机器人"
+  - US screening: show strongest GICS sectors/industries, e.g., "Technology, Industrials, Financials"
+  - Mixed: show both with market prefix, e.g., "🇨🇳 半导体/AI算力 | 🇺🇸 Technology/Semis"
+
 ## Analysis Philosophy (MUST follow)
 
 - **Data integrity first**: Never invent financial figures. If data is unavailable, state "Data not available" — never guess.
