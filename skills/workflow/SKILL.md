@@ -30,6 +30,7 @@ Mode dispatch (Stage 0). Order: explicit `--mode <name>` flag > trigger phrase >
 - `--top-industry N` → number of top sub-industries (or walk-mode candidates) (any mode that uses it)
 - `--total-company M` → total companies to deep-dive (pipeline only)
 - `--universe US|CN|ALL` → listing-exchange filter for screening (default: US — NYSE/NASDAQ only)
+- `--days N` → hot sector discovery focus window: 1=today (default), 5=this week, 10=recent 2 weeks, 20=this month. Controls which timeframe is weighted most for "hot" ranking.
 - *(no `--mode`)* → falls through to trigger phrases, then default = pipeline
 
 **Trigger phrases** (used when no `--mode` flag present):
@@ -114,6 +115,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="top-industry" default="5" range="1-30">Number of top sub-industries after screening all 163.</parameter>
       <parameter name="total-company" default="10" range="1-40">Total companies to deep-dive. Selected by score across ALL top sub-industries — NOT quota per sub-industry. Max 40: each company runs 11 analysis stages (5-15), so 40 companies = 440 agent runs minimum. Cap is performance-driven; raise only if you can wait.</parameter>
+      <parameter name="days" default="1" range="1-20">Hot sector discovery focus window. 1=today, 5=this week, 10=recent 2 weeks, 20=this month.</parameter>
     </parameters>
     <stages>0→1→1.5→2→3→4→4.5→5-15(waves)→16→16.5→17→17.5→18→18.5→19</stages>
   </mode>
@@ -123,6 +125,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <trigger>"screen sectors", "筛选行业", "best industries", "industry screening"</trigger>
     <parameters>
       <parameter name="top-industry" default="30" range="1-163">Number of top sub-industries to deep-dive.</parameter>
+      <parameter name="days" default="1" range="1-20">Hot sector discovery focus window. 1=today, 5=this week, 10=recent 2 weeks, 20=this month.</parameter>
     </parameters>
     <stages>0→1→1.5→2→3→4→4.5→17→17.5→18→18.5→19(screening reports + validation + best picks + cleanup)</stages>
   </mode>

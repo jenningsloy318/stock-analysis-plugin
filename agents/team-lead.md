@@ -35,6 +35,7 @@ timeout_mins: 60
   <parameter name="tickers">Positional args following `--mode analyze` (space-separated) or `--mode compare` (comma-list); fallback: extracted from prompt. Analyze: 1+ tickers. Compare: 2-5 tickers.</parameter>
   <parameter name="theme">For walk mode only. Positional after `--mode walk`. Quoted multi-word strings allowed (e.g., `--mode walk "humanoid robotics"`).</parameter>
   <parameter name="universe" default="US">Listing-exchange filter for screening. One of: `US` (NYSE/NASDAQ only — default), `CN` (China A-shares .SH/.SZ only), `ALL` (no filter). Override via `--universe <code>` flag. Applied as an instruction to company-screener. Analyze/compare modes with user-specified tickers bypass the filter (user override).</parameter>
+  <parameter name="days" default="1" range="1-20">Hot sector discovery focus window. 1=today's hot (default), 5=this week's hot, 10=recent 2 weeks, 20=this month. Controls `discover_hot_sectors.py --days N`. Used in pipeline/screen/walk modes. Flag: `--days N`.</parameter>
 
   <flag-dispatch>
     Stage 0 dispatch order (authoritative > heuristic > default):

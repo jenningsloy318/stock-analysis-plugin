@@ -209,9 +209,23 @@ def extract_ticker_data(
 
 
 def compute_momentum_scores(
-    batch_df: pd.DataFrame, etf_map: dict, all_tickers: list
+    batch_df: pd.DataFrame, etf_map: dict, all_tickers: list, days: int = 1
 ) -> list:
-    """Score each ETF: 1D return (40%) + 5D return (30%) + volume spike (30%)."""
+    """Score each ETF by momentum. `days` controls focus window:
+    days=1: weight 1D heavily (today's hot)
+    days=5: weight 5D heavily (this week's hot)
+    days=10+: weight 10D/20D heavily (recent trend)
+    """
+    # Adjust weights based on days parameter
+    if days <= 1:
+        w_1d, w_5d, w_vol = 0.40, 0.30, 0.30
+    elif days <= 5:
+        w_1d, w_5d, w_vol = 0.20, 0.50, 0.30
+    elif days <= 10:
+        w_1d, w_5d, w_vol = 0.10, 0.40, 0.50
+    else:  # 20+
+        w_1d, w_5d, w_vol = 0.05, 0.35, 0.60
+
     results = []
     for name, info in etf_map.items():
         ticker = info["etf"]
@@ -224,16 +238,22 @@ def compute_momentum_scores(
 
         ret_1d = (close[-1] / close[-2] - 1) * 100
         ret_5d = (close[-1] / close[-6] - 1) * 100 if len(close) >= 6 else ret_1d
+        # Extended returns for longer lookbacks
+        ret_nd = ret_1d
+        if days >= 5 and len(close) >= days + 1:
+            ret_nd = (close[-1] / close[-(days + 1)] - 1) * 100
+        elif days >= 5:
+            ret_nd = ret_5d
 
         vol_avg_20d = np.mean(volume[-20:]) if len(volume) >= 20 else np.mean(volume)
         volume_ratio = volume[-1] / vol_avg_20d if vol_avg_20d > 0 else 1.0
 
         # Normalize components to 0-10 scale
         m1d_norm = max(0, min(10, (ret_1d + 5) * 1.0))
-        m5d_norm = max(0, min(10, (ret_5d + 10) * 0.5))
+        m5d_norm = max(0, min(10, (ret_nd + 10) * 0.5))
         vol_norm = max(0, min(10, (volume_ratio - 0.5) / 0.3))
 
-        composite = m1d_norm * 0.40 + m5d_norm * 0.30 + vol_norm * 0.30
+        composite = m1d_norm * w_1d + m5d_norm * w_5d + vol_norm * w_vol
         results.append(
             {
                 "name": name,
@@ -728,12 +748,12 @@ def generate_summary_cn(hot_sectors: list, cold_sectors: list) -> str:
 # ---------------------------------------------------------------------------
 
 
-def discover_us_market(method: str = "all", top_n: int = 10) -> dict:
+def discover_us_market(method: str = "all", top_n: int = 10, days: int = 1) -> dict:
     """Run the full US market hot sector discovery pipeline."""
     all_etfs = {**US_SECTOR_ETFS, **US_THEME_ETFS}
     all_tickers = [info["etf"] for info in all_etfs.values()]
 
-    sys.stderr.write(f"Fetching {len(all_tickers)} US ETFs...\n")
+    sys.stderr.write(f"Fetching {len(all_tickers)} US ETFs (days={days})...\n")
     batch_df = fetch_batch_data(all_tickers, period="3mo")
 
     if batch_df is None:
@@ -747,7 +767,9 @@ def discover_us_market(method: str = "all", top_n: int = 10) -> dict:
     # Run discovery methods
     momentum_results, volume_results, breadth_results = [], [], []
     if method in ("all", "momentum"):
-        momentum_results = compute_momentum_scores(batch_df, all_etfs, all_tickers)
+        momentum_results = compute_momentum_scores(
+            batch_df, all_etfs, all_tickers, days=days
+        )
     if method in ("all", "volume"):
         volume_results = detect_volume_spikes(batch_df, all_etfs, all_tickers)
     if method in ("all", "breadth"):
@@ -774,6 +796,7 @@ def discover_us_market(method: str = "all", top_n: int = 10) -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "market": "us",
         "discovery_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "days_focus": days,
         "method": method,
         "data_freshness": freshness,
         "total_sectors_analyzed": len(scored),
@@ -784,7 +807,7 @@ def discover_us_market(method: str = "all", top_n: int = 10) -> dict:
     }
 
 
-def discover_cn_market(method: str = "all", top_n: int = 10) -> dict:
+def discover_cn_market(method: str = "all", top_n: int = 10, days: int = 1) -> dict:
     """Run the full A-share market hot sector discovery pipeline."""
     # Try akshare first (real-time, higher quality)
     akshare_results = discover_ashare_sectors_akshare()
@@ -831,10 +854,10 @@ def discover_cn_market(method: str = "all", top_n: int = 10) -> dict:
     }
 
 
-def discover_both_markets(method: str = "all", top_n: int = 10) -> dict:
+def discover_both_markets(method: str = "all", top_n: int = 10, days: int = 1) -> dict:
     """Run discovery for both US and A-share markets."""
-    us_result = discover_us_market(method=method, top_n=top_n)
-    cn_result = discover_cn_market(method=method, top_n=top_n)
+    us_result = discover_us_market(method=method, top_n=top_n, days=days)
+    cn_result = discover_cn_market(method=method, top_n=top_n, days=days)
 
     # Cross-market analysis
     us_hot = us_result.get("hot_sectors", [])
@@ -918,15 +941,24 @@ Hot Score Categories:
         default="all",
         help="Discovery method (default: all)",
     )
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=1,
+        help="Momentum focus window in days: 1=today (default), 5=this week, 10=recent 2 weeks, 20=this month. "
+        "Controls which timeframe is weighted most heavily for 'hot' ranking.",
+    )
     args = parser.parse_args()
 
     # Run discovery
     if args.market == "us":
-        result = discover_us_market(method=args.method, top_n=args.top)
+        result = discover_us_market(method=args.method, top_n=args.top, days=args.days)
     elif args.market == "cn":
-        result = discover_cn_market(method=args.method, top_n=args.top)
+        result = discover_cn_market(method=args.method, top_n=args.top, days=args.days)
     else:
-        result = discover_both_markets(method=args.method, top_n=args.top)
+        result = discover_both_markets(
+            method=args.method, top_n=args.top, days=args.days
+        )
 
     # Output
     result_json = json.dumps(result, indent=2, ensure_ascii=False)

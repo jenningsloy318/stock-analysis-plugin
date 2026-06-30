@@ -15,6 +15,7 @@ timeout_mins: 8
   <field name="plugin_root" required="true">Resolved absolute path from platform-paths</field>
   <field name="output_dir" required="true">./reports/[RUN_ID]/</field>
   <field name="run_id" required="true">YYYYMMDDHHmm timestamp</field>
+  <field name="days" required="false">Hot sector discovery focus window (1-20, default 1). Pass to discover_hot_sectors.py as --days N.</field>
 </input>
 
 <output>
@@ -45,7 +46,7 @@ timeout_mins: 8
     - uv run python {plugin_root}/scripts/compute_sector_rs.py --level sub-industry --flat --output ./reports/[RUN_ID]/stage1_sub_industry_rs.json
     - uv run python {plugin_root}/scripts/fetch_asia_market_momentum.py --output ./reports/[RUN_ID]/stage1_asia_momentum.json
     - uv run python {plugin_root}/scripts/compute_market_sentiment.py --output ./reports/[RUN_ID]/stage1_sentiment.json
-    - uv run python {plugin_root}/scripts/discover_hot_sectors.py --market both --top 15 --output ./reports/[RUN_ID]/stage1_hot_sectors.json
+    - uv run python {plugin_root}/scripts/discover_hot_sectors.py --market both --top 15 --days {days} --output ./reports/[RUN_ID]/stage1_hot_sectors.json
   </step>
 
   <step n="2" name="Initialize Persistence">
