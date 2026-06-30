@@ -128,6 +128,18 @@ Column definitions:
 ### Constraints
 <constraint mandatory="true">MARKET CLASSIFICATION: A股 (.SH/.SZ/.BJ) uses 板块 (concept/thematic boards) as primary classification — display as "半导体/设备", "新能源/锂电", "AI/算力" in the 板块 column. US stocks use GICS Industry/Sub-Industry — display as "Semiconductors", "Application Software" in the Industry column. Never use GICS codes as the primary label for A-shares (Chinese investors think in 板块). Never use 板块-style Chinese labels for US stocks (US investors think in GICS Industry).</constraint>
 <constraint mandatory="true">Price filter is MANDATORY for ALL markets. US stocks < $100, A-shares < ¥100, all other markets < $100 USD equivalent. Filter OUT companies above the threshold BEFORE ranking. This filter applies ONLY at the screening stage — downstream analysis agents (Stages 5-15) do NOT re-filter.</constraint>
+<constraint mandatory="true">PRICE VERIFICATION PROTOCOL (prevents hallucinated prices):
+1. NEVER trust prices from memory/training data. NEVER write "~$XX" estimated prices.
+2. For EVERY candidate stock, compute actual price from fetched data:
+   - Run: `fetch_financials.py TICKER` → get market_cap + shares_outstanding from profile
+   - Compute: `actual_price = market_cap / shares_outstanding`
+   - OR: read `current_price` directly from the profile section of fetch_financials.py output
+3. The price used for filtering MUST come from one of these computed sources, NEVER from agent memory
+4. After computing prices: reject ANY stock where actual_price >= $100 (US) or ¥100 (A-share)
+5. Log rejected stocks with their actual prices in stage4.md: "REJECTED: CRWD actual_price=$742.91 (>$100)"
+6. Run `validate_stock_data.py` on ALL surviving candidates as final check
+7. If validate_stock_data.py returns INVALID for any ticker, remove it immediately
+This protocol is NON-NEGOTIABLE. A Stage 4 output with unverified prices is an automatic FAIL.</constraint>
 <constraint>Every company table/ranking MUST include a "当前股价" (current price) column. Format: "$XX.XX" or "¥XX.XX".</constraint>
 <constraint>Do not invent financial data — use "Data not available" when a metric cannot be found</constraint>
 <constraint>Market cap filter is a minimum, not a target — do not exclude large caps</constraint>

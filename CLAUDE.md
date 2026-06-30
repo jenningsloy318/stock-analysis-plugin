@@ -40,6 +40,15 @@
 - If analyzing a specific ticker requested by the user (analyze/compare mode), proceed regardless of price (user override)
 - For screening/watchlist: filter OUT companies above the price threshold before ranking
 
+## Price Verification Anti-Hallucination Rule (MUST follow)
+
+- **NEVER estimate stock prices from memory or training data** — prices change daily
+- **ALWAYS compute prices from fetched data**: `fetch_financials.py` → `profile.current_price` or `market_cap / shares_outstanding`
+- **The team-lead and company-screener MUST NOT suggest candidate stocks with "~$XX" approximate prices** — this is the #1 source of screening failures
+- **Stage 4.5 validation is a REAL gate**: the validator must independently read financials.json for each stock and verify price < threshold
+- **If the validator cannot find price data for a stock**: that stock is REJECTED (not "assumed to pass")
+- **Audit trail required**: stage4.md must contain a "Price Verification Log" table showing: ticker | source | computed_price | threshold | PASS/FAIL
+
 ## Current Stock Price Display Rule (MUST follow)
 
 - Whenever a company/stock appears in ANY report table, list, or comparison, include **current stock price** (当前股价) as a column

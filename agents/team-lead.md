@@ -179,7 +179,14 @@ timeout_mins: 60
     Stage 2: Spawn sector-screener agents (3 parallel batches of ~54 sub-industries)
     Stage 3: Spawn sector-screener agents (deep-dive top N, max 4 parallel)
     Stage 4: Spawn company-screener agents (3 parallel batches, pass universe filter)
-    Stage 4.5: Spawn report-validator (screening-completeness). WAIT for VALIDATED: PASS. On FAIL: fix screening gaps and re-validate.
+    Stage 4.5: Spawn report-validator with explicit price-verification mode. The validator MUST:
+      a. Read each company's financials.json (specifically profile.market_cap and profile.shares_outstanding or profile.current_price)
+      b. Independently verify actual_price < $100 (US) or < ¥100 (A-share) for EVERY watchlist stock
+      c. If ANY stock fails price check: report-validator returns FAIL with list of violating tickers
+      d. Team-lead removes violating stocks from watchlist.json, does NOT proceed to Stage 5 with invalid stocks
+      e. This is NOT a rubber-stamp gate — the validator must ACTUALLY READ the data files and COMPUTE
+    CRITICAL: team-lead must NEVER write "all prices verified" without the validator actually running and checking files.
+    Additionally validates screening-completeness. WAIT for VALIDATED: PASS. On FAIL: fix screening gaps and re-validate.
     After Stage 4.5: screen mode → jump to Stage 17→17.5→18→18.5→19 (screening reports + validation + best picks + cleanup)
   </phase>
 
