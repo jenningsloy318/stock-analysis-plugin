@@ -63,10 +63,13 @@
   - 趋势板块 in dashboard: show the hottest A-share concept boards (from sector rotation data)
   - GICS codes are OPTIONAL context for A-shares — 板块 is what Chinese investors recognize and trade on
 
-- **美股 (US stocks, no suffix or common US tickers)**: Use **GICS Industry / Sub-Industry** as the primary classification
-  - Format in tables: `Industry` column showing GICS Level 3 or 4 name, e.g., "Semiconductors", "Application Software", "Data Processing & Outsourced Services"
-  - For screening: GICS Level 4 (Sub-Industry, 8-digit code) remains the structural unit
+- **美股 (US stocks, no suffix or common US tickers)**: Use **GICS Sector + Industry** as the primary classification
+  - GICS is the dominant standard (MSCI + S&P, used by SPDRs, Fidelity, institutional investors)
+  - 4 levels: Sector(11) → Industry Group(25) → Industry(74) → Sub-Industry(163)
+  - **Display in tables**: Show `Sector` column (11 categories: Technology, Financials, Industrials, etc.) — this is what retail traders recognize (equivalent to Yahoo Finance/Fidelity display)
+  - For screening depth: use GICS Level 4 (Sub-Industry) internally but display as readable Industry name (e.g., "Semiconductors" not "45301020")
   - 趋势板块 equivalent for US: show "Sector Leaders" from SPDRs (XLK, XLF, etc.)
+  - Do NOT use SIC/NAICS codes (government systems, not used by investors)
 
 - **日韩台 (JP/KR/TW)**: Use GICS Industry names with local market context
   - Add local exchange sector classification as supplementary context if available
