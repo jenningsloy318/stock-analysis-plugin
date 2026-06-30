@@ -71,7 +71,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
 </orchestration-model>
 
 <stages>
-  <stage n="0" name="Setup">Detect mode: if `--mode <name>` present → use it (one of: pipeline, screen, analyze, compare, walk); else trigger phrase fallback; else default pipeline. Extract parameters: --top-industry (1-163), --total-company (1-40, pipeline only), --days (1-20, default 1), tickers (positional after `--mode analyze` OR comma-list after `--mode compare`), theme (positional after `--mode walk`, quoted multi-word allowed), --universe (US|CN|ALL, default US). Normalize A-share tickers. Create RUN_ID (YYYYMMDDHHmm in LOCAL TIME, not UTC), output directory (./reports/[RUN_ID]/), tracking.json. MUST complete before any data fetch or agent spawning.</stage>
+  <stage n="0" name="Setup">Detect mode: if `--mode <name>` present → use it (one of: pipeline, screen, analyze, compare, walk); else trigger phrase fallback; else default pipeline. Extract parameters: --top-industry (1-163), --total-company (1-50, pipeline only), --top-price (0-9999, default 200), --min-headroom (1-10, default 5), --days (1-20, default 1), tickers (positional after `--mode analyze` OR comma-list after `--mode compare`), theme (positional after `--mode walk`, quoted multi-word allowed), --universe (US|CN|ALL, default US). Normalize A-share tickers. Create RUN_ID (YYYYMMDDHHmm in LOCAL TIME, not UTC), output directory (./reports/[RUN_ID]/), tracking.json. MUST complete before any data fetch or agent spawning.</stage>
   <stage n="1" name="Data Collection" agent="data-collector">Fetch shared data ONCE: macro indicators, economic surprises, sector/sub-industry RS, market breadth, theme performance. Load references/gics_taxonomy.md and references/data_source_matrix.md. All downstream stages reuse this data.</stage>
   <stage n="1.5" name="Data Validation" agent="report-validator" modes="pipeline,screen,analyze,compare">Validate Stage 1 shared data: freshness check, source coverage, required files present. Blocks downstream stages if shared data is stale or incomplete. MUST PASS before Stages 2+.</stage>
 
@@ -130,8 +130,10 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <flag>--mode pipeline (or omit)</flag>
     <trigger>"find best stocks", "top stocks", "全面筛选", "screen and analyze", "top picks"</trigger>
     <parameters>
-      <parameter name="top-industry" default="5" range="1-30">Number of top sub-industries after screening all 163.</parameter>
-      <parameter name="total-company" default="10" range="1-40">Total companies to deep-dive. Selected by score across ALL top sub-industries — NOT quota per sub-industry. Max 40: each company runs 11 analysis stages (5-15), so 40 companies = 440 agent runs minimum. Cap is performance-driven; raise only if you can wait.</parameter>
+      <parameter name="top-industry" default="8" range="1-30">Number of top sub-industries after screening all 163.</parameter>
+      <parameter name="total-company" default="15" range="1-50">Total companies to deep-dive. Selected by score across ALL top sub-industries — NOT quota per sub-industry. Max 50: each company runs 11 analysis stages (5-15), so 50 companies = 550 agent runs minimum. Cap is performance-driven; raise only if you can wait.</parameter>
+      <parameter name="top-price" default="200" range="0-9999">Maximum stock price. Set 0 to disable.</parameter>
+      <parameter name="min-headroom" default="5" range="1-10">Minimum Growth Headroom score. Stocks below are rejected.</parameter>
       <parameter name="days" default="1" range="1-20">Hot sector discovery focus window. 1=today, 5=this week, 10=recent 2 weeks, 20=this month.</parameter>
     </parameters>
     <stages>0→1→1.5→2→3→4→4.5→5-15(waves)→16→16.5→16.6→16.7→17→17.4→17.5→18→18.5→19</stages>
@@ -141,7 +143,9 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <flag>--mode screen</flag>
     <trigger>"screen sectors", "筛选行业", "best industries", "industry screening"</trigger>
     <parameters>
-      <parameter name="top-industry" default="30" range="1-163">Number of top sub-industries to deep-dive.</parameter>
+      <parameter name="top-industry" default="40" range="1-163">Number of top sub-industries to deep-dive.</parameter>
+      <parameter name="top-price" default="200" range="0-9999">Maximum stock price. Set 0 to disable.</parameter>
+      <parameter name="min-headroom" default="5" range="1-10">Minimum Growth Headroom score.</parameter>
       <parameter name="days" default="1" range="1-20">Hot sector discovery focus window. 1=today, 5=this week, 10=recent 2 weeks, 20=this month.</parameter>
     </parameters>
     <stages>0→1→1.5→2→3→4→4.5→17→17.5→18→18.5→19(screening reports + validation + best picks + cleanup)</stages>
@@ -194,7 +198,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <rule name="No team_name">Do NOT pass `team_name` on any `Agent` call — it is silently ignored in modern Claude Code (v2.1.178+). The implicit session team handles peer coordination.</rule>
   <rule name="team-lead-delegation" mandatory="true">Team Lead NEVER analyzes directly. Only spawns agents, coordinates, and quality-gates.</rule>
   <rule name="no-pause" mandatory="true">NEVER pause between stages to ask user for confirmation. The pipeline runs Stage 0 → 19 continuously. No "Continue?" prompts. Only stop if user explicitly asks a question.</rule>
-  <rule name="no-stage-skip" mandatory="true">In pipeline mode, stages 5-15 MUST run for EVERY selected company. NEVER skip deep-dive stages because "too many companies" or "due to scale". If total-company exceeds 40, cap at 40 and proceed with all stages.</rule>
+  <rule name="no-stage-skip" mandatory="true">In pipeline mode, stages 5-15 MUST run for EVERY selected company. NEVER skip deep-dive stages because "too many companies" or "due to scale". If total-company exceeds 50, cap at 50 and proceed with all stages.</rule>
   <rule name="shared-data-once" mandatory="true">Macro, RS, breadth, theme data fetched ONCE in Stage 1. All downstream stages reuse — never re-fetch.</rule>
   <rule name="context-eviction" mandatory="true">After each stage: write summary → drop raw data. If context >80%, offload via persist.py.</rule>
   <rule name="retry-on-null" mandatory="true">If an agent spawn returns null (terminal API error after internal retries), retry up to 10 times. Log each retry. After 10 failures, mark stage as failed and continue — do NOT abort the pipeline. Failed stages are recorded in tracking.json with reason.</rule>

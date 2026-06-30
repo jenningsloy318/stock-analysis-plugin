@@ -910,7 +910,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     .filter(Boolean)
     .flatMap(r => r.sub_industries || [])
     .sort((a, b) => b.score - a.score)
-  const topSubIndustries = allSubIndustries.slice(0, TOP_INDUSTRY || (MODE === 'screen' ? 30 : 5))
+  const topSubIndustries = allSubIndustries.slice(0, TOP_INDUSTRY || (MODE === 'screen' ? 40 : 8))
 
   if (!topSubIndustries.length) {
     return { status: 'failed', stage: 2, reason: 'No sub-industries scored — sector-screener returned empty' }
@@ -967,7 +967,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     .filter(c => c.price_filter_pass !== false)
     .filter(c => passUniverse(c.ticker))
     .sort((a, b) => b.score - a.score)
-  watchlist = allCompanies.slice(0, TOTAL_COMPANY || 10).map((c, i) => ({
+  watchlist = allCompanies.slice(0, TOTAL_COMPANY || 15).map((c, i) => ({
     ...c,
     rank: String(i + 1).padStart(3, '0'),
   }))

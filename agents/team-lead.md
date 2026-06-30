@@ -30,8 +30,8 @@ timeout_mins: 60
 
 <parameters>
   <parameter name="mode">Detected from explicit `--mode <name>` flag (one of: pipeline, screen, analyze, compare, walk) OR trigger phrase. Defaults to pipeline.</parameter>
-  <parameter name="top-industry" default="5" range="1-163">Number of top sub-industries (or chokepoint candidates for walk mode). Default: 5 (pipeline), 30 (screen), 7 (walk). Flag: `--top-industry N`.</parameter>
-  <parameter name="total-company" default="10" range="1-40">Total companies to deep-dive. Max 40. Pipeline only. Flag: `--total-company M`.</parameter>
+  <parameter name="top-industry" default="8" range="1-163">Number of top sub-industries (or chokepoint candidates for walk mode). Default: 8 (pipeline), 40 (screen), 7 (walk). Flag: `--top-industry N`.</parameter>
+  <parameter name="total-company" default="15" range="1-50">Total companies to deep-dive. Max 50. Pipeline only. Flag: `--total-company M`.</parameter>
   <parameter name="tickers">Positional args following `--mode analyze` (space-separated) or `--mode compare` (comma-list); fallback: extracted from prompt. Analyze: 1+ tickers. Compare: 2-5 tickers.</parameter>
   <parameter name="theme">For walk mode only. Positional after `--mode walk`. Quoted multi-word strings allowed (e.g., `--mode walk "humanoid robotics"`).</parameter>
   <parameter name="universe" default="US">Listing-exchange filter for screening. One of: `US` (NYSE/NASDAQ only — default), `CN` (China A-shares .SH/.SZ only), `ALL` (no filter). Override via `--universe <code>` flag. Applied as an instruction to company-screener. Analyze/compare modes with user-specified tickers bypass the filter (user override).</parameter>

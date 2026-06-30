@@ -125,7 +125,7 @@
 - Retry: if agent returns null or throws, retry up to 10 times before marking stage failed.
 - A-share (SH/SZ): Stage 15 is MANDATORY (set `is_a_share=true`), SKIP for all others.
 - **NEVER pause for user confirmation** between stages. The pipeline runs autonomously. No "Continue?" prompts.
-- **NEVER skip stages 5-15** in pipeline mode. All deep-dive stages must run for every selected company. If `total_company` exceeds 40, cap at 40.
+- **NEVER skip stages 5-15** in pipeline mode. All deep-dive stages must run for every selected company. If `total_company` exceeds 50, cap at 50.
 
 ## Web Search & Data Acquisition (MUST follow)
 
