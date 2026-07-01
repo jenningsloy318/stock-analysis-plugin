@@ -22,9 +22,24 @@ def safe_div(numerator: float, denominator: float) -> float | None:
     return numerator / denominator
 
 
-def extract_values(series: list[dict]) -> list[float]:
-    """Extract numeric values from a time-series list of {period, value} dicts."""
-    return [entry["value"] for entry in series if entry.get("value") is not None]
+def extract_values(series: list) -> list[float]:
+    """Extract numeric values from a time-series list.
+
+    Handles both formats:
+    - List of dicts: [{period: "2024", value: 123}, ...]
+    - List of raw numbers: [123, 456, ...]
+    """
+    if not series:
+        return []
+    # Handle raw numeric lists
+    if isinstance(series[0], (int, float)):
+        return [float(v) for v in series if v is not None]
+    # Handle dict format
+    return [
+        float(entry["value"])
+        for entry in series
+        if isinstance(entry, dict) and entry.get("value") is not None
+    ]
 
 
 def compute_cagr(values: list[float]) -> float | None:
