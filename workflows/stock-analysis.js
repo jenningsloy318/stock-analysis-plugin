@@ -968,7 +968,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     .flatMap(r => r.companies || [])
     .filter(c => c.price_filter_pass !== false)
     .filter(c => passUniverse(c.ticker))
-    .filter(c => c.headroom_score === undefined || c.headroom_score >= MIN_HEADROOM)
+    .filter(c => c.headroom_score == null || c.headroom_score >= MIN_HEADROOM)
     .sort((a, b) => b.score - a.score)
   watchlist = allCompanies.slice(0, TOTAL_COMPANY || 15).map((c, i) => ({
     ...c,

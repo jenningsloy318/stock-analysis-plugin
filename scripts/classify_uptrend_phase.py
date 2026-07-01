@@ -560,7 +560,7 @@ def _momentum_score(ctx: dict) -> float:
         elif price > smas[0]:
             pts += 0.5
 
-    return round(min(10.0, pts), 1)
+    return round(max(0.0, min(10.0, pts)), 1)
 
 
 def _trend_health(ctx: dict) -> float:
@@ -608,7 +608,7 @@ def _trend_health(ctx: dict) -> float:
         elif sum(1 for s in spreads if s > 0) >= 2:
             pts += 1.0
 
-    return round(min(10.0, pts), 1)
+    return round(max(0.0, min(10.0, pts)), 1)
 
 
 def _phase_duration(closes: np.ndarray, winning_phase: str, ctx: dict) -> int:

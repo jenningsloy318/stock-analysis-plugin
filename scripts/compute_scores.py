@@ -2434,7 +2434,11 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
     high_components = [
         k for k, v in component_scores.items() if v is not None and v >= 7.5
     ]
-    if len(high_components) >= 3 and not low_components:
+    if (
+        len(high_components) >= 3
+        and not low_components
+        and not risk_obj.get("override")
+    ):
         lollapalooza = True
         conviction = min(10.0, round(conviction + 1.5, 1))
         overrides.append(
