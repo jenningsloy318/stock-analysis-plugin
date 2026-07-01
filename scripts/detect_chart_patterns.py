@@ -273,19 +273,36 @@ def detect_p1_prev_high_breakout(
     # Score calculation
     vol_component = _clamp((volume_ratio - 1.5) * 20, 0, 40)
     days_component = _clamp(days_above * 10, 0, 30)
-    margin_component = _clamp(margin_above_pct * 5, 0, 30)
+    # Margin component: penalize extension beyond 5% (O'Neil: buy within 5% of pivot)
+    if margin_above_pct <= 5:
+        margin_component = _clamp(margin_above_pct * 5, 0, 25)
+    else:
+        # Beyond 5%: penalize instead of reward
+        margin_component = _clamp(25 - (margin_above_pct - 5) * 5, -20, 25)
     score = int(_clamp(vol_component + days_component + margin_component))
+
+    # Chase risk: penalize extended breakouts
+    chase_risk = False
+    if margin_above_pct > 8:
+        score = int(_clamp(score - 20, 0, 100))
+        chase_risk = True
 
     days_since = wn - 1 - breakout_day
 
-    return {
+    # Category: extended breakout if too far above pivot
+    if margin_above_pct > 5:
+        category = "已突破延伸"
+    else:
+        category = "突破确认"
+
+    result = {
         "id": "P1",
         "name": "前高放量突破",
         "name_en": "Previous High Volume Breakout",
         "score": score,
         "detected": True,
         "confidence": "HIGH" if score >= 70 else "MEDIUM" if score >= 40 else "LOW",
-        "category": "突破确认",
+        "category": category,
         "breakout_level": round(prior_high, 2),
         "breakout_date_offset": int(days_since),
         "volume_ratio": round(volume_ratio, 2),
@@ -293,6 +310,12 @@ def detect_p1_prev_high_breakout(
         "days_confirmed": days_above,
         "confirmed": confirmed,
     }
+
+    if chase_risk:
+        result["chase_risk"] = True
+        result["chase_warning"] = "突破后涨幅>8%，追高风险较大"
+
+    return result
 
 
 def detect_p2_pullback_to_breakout(

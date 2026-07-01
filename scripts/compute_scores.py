@@ -1471,17 +1471,17 @@ def compute_weinstein_alignment(technicals: dict) -> dict:
 
     ticker_data = None
     for key, val in technicals.items():
-        if isinstance(val, dict) and "weinstein" in val:
+        if isinstance(val, dict) and "weinstein_stage" in val:
             ticker_data = val
             break
 
-    if not ticker_data or "weinstein" not in ticker_data:
+    if not ticker_data or "weinstein_stage" not in ticker_data:
         return {"score": None, "assessment": "No Weinstein data available"}
 
-    weinstein = ticker_data["weinstein"]
+    weinstein = ticker_data["weinstein_stage"]
     stage = weinstein.get("stage")
     stage_name = weinstein.get("stage_name", "")
-    slope = weinstein.get("30wma_slope", 0)
+    slope = weinstein.get("wma_slope_4wk", 0)
 
     reasons: list[str] = []
     score = 5.0
@@ -2429,11 +2429,12 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
     conviction = round(conviction, 1)
 
     # Lollapalooza bonus — apply BEFORE rating assignment so rating reflects final conviction
+    # Safety: bonus CANNOT apply when low_components exist (any component ≤ 3.0)
     lollapalooza = False
     high_components = [
         k for k, v in component_scores.items() if v is not None and v >= 7.5
     ]
-    if len(high_components) >= 3:
+    if len(high_components) >= 3 and not low_components:
         lollapalooza = True
         conviction = min(10.0, round(conviction + 1.5, 1))
         overrides.append(

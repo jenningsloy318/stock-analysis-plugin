@@ -124,7 +124,7 @@ def _deep_get(d: dict, key: str):
 
 def is_a_share(ticker: str) -> bool:
     """Check if ticker is a China A-share."""
-    return any(ticker.upper().endswith(sfx) for sfx in (".SS", ".SZ", ".BJ"))
+    return any(ticker.upper().endswith(sfx) for sfx in (".SS", ".SZ", ".BJ", ".SH"))
 
 
 def fetch_stockdb_price(ticker: str) -> float | None:
@@ -166,11 +166,15 @@ def fetch_akshare_price(ticker: str) -> float | None:
 
 
 def fetch_yfinance_price(ticker: str) -> float | None:
-    """Fetch US stock price via yfinance fast_info."""
+    """Fetch stock price via yfinance fast_info."""
     try:
         import yfinance as yf
 
-        t = yf.Ticker(ticker)
+        # yfinance uses .SS for Shanghai stocks, not .SH
+        yf_ticker = (
+            ticker.replace(".SH", ".SS") if ticker.upper().endswith(".SH") else ticker
+        )
+        t = yf.Ticker(yf_ticker)
         fi = t.fast_info
         price = getattr(fi, "last_price", None)
         if price is None:
@@ -189,6 +193,10 @@ def fetch_validated_price(ticker: str) -> tuple[float | None, str]:
         price = fetch_akshare_price(ticker)
         if price is not None:
             return price, "akshare spot"
+        # Fallback: yfinance with .SH → .SS conversion
+        price = fetch_yfinance_price(ticker)
+        if price is not None:
+            return price, "yfinance fast_info"
         return None, "unavailable"
     else:
         price = fetch_yfinance_price(ticker)

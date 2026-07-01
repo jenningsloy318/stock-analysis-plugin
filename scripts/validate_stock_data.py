@@ -34,6 +34,7 @@ except ImportError:
 # Optional: akshare
 try:
     import akshare as ak
+
     _AKSHARE_AVAILABLE = True
 except ImportError:
     _AKSHARE_AVAILABLE = False
@@ -64,12 +65,13 @@ VERDICTS = [
 ]
 
 # A-share suffix patterns
-A_SHARE_SUFFIXES = (".SS", ".SZ", ".BJ")
+A_SHARE_SUFFIXES = (".SS", ".SZ", ".BJ", ".SH")
 
 
 # ---------------------------------------------------------------------------
 # Utility Helpers
 # ---------------------------------------------------------------------------
+
 
 def is_a_share(ticker: str) -> bool:
     """Check if a ticker is a China A-share stock."""
@@ -85,7 +87,8 @@ def extract_code(ticker: str) -> str:
 
 def normalize_ticker(raw: str) -> str:
     """Normalize ticker to uppercase, strip whitespace."""
-    return raw.strip().upper()
+    normalized = raw.strip().upper()
+    return normalized
 
 
 def fuzzy_name_match(name1: str, name2: str) -> str:
@@ -159,7 +162,7 @@ def trading_days_ago(date_str: str) -> int:
             # Handle various date formats
             for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y%m%d"):
                 try:
-                    d = datetime.strptime(date_str[:10], fmt[:min(len(fmt), 10)])
+                    d = datetime.strptime(date_str[:10], fmt[: min(len(fmt), 10)])
                     break
                 except ValueError:
                     continue
@@ -180,6 +183,7 @@ def trading_days_ago(date_str: str) -> int:
 # Source 1: yfinance
 # ---------------------------------------------------------------------------
 
+
 def fetch_from_yfinance(ticker: str) -> dict | None:
     """Fetch stock data from yfinance.
 
@@ -187,7 +191,11 @@ def fetch_from_yfinance(ticker: str) -> dict | None:
     Returns None on failure.
     """
     try:
-        t = yf.Ticker(ticker)
+        # yfinance uses .SS for Shanghai stocks, not .SH
+        yf_ticker = (
+            ticker.replace(".SH", ".SS") if ticker.upper().endswith(".SH") else ticker
+        )
+        t = yf.Ticker(yf_ticker)
         info = t.info
 
         if not info or info.get("regularMarketPrice") is None:
@@ -228,7 +236,9 @@ def fetch_from_yfinance(ticker: str) -> dict | None:
         if info.get("regularMarketTime"):
             try:
                 ts = info["regularMarketTime"]
-                data_date = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+                data_date = datetime.fromtimestamp(ts, tz=timezone.utc).strftime(
+                    "%Y-%m-%d"
+                )
             except (TypeError, ValueError, OSError):
                 pass
 
@@ -253,6 +263,7 @@ def fetch_from_yfinance(ticker: str) -> dict | None:
 # ---------------------------------------------------------------------------
 # Source 2: StockDB (A-shares only, local instance)
 # ---------------------------------------------------------------------------
+
 
 def fetch_from_stockdb(ticker: str) -> dict | None:
     """Fetch stock data from local StockDB instance.
@@ -310,11 +321,13 @@ def fetch_from_stockdb(ticker: str) -> dict | None:
 
     # Try alternative POST endpoint
     try:
-        post_data = json.dumps({
-            "code": code,
-            "frequency": "1d",
-            "limit": 1,
-        }).encode("utf-8")
+        post_data = json.dumps(
+            {
+                "code": code,
+                "frequency": "1d",
+                "limit": 1,
+            }
+        ).encode("utf-8")
 
         req = Request(
             STOCKDB_BASE_URL,
@@ -360,6 +373,7 @@ def fetch_from_stockdb(ticker: str) -> dict | None:
 # Source 3: akshare (A-shares, optional)
 # ---------------------------------------------------------------------------
 
+
 def fetch_from_akshare(ticker: str) -> dict | None:
     """Fetch stock data from akshare.
 
@@ -404,7 +418,9 @@ def fetch_from_akshare(ticker: str) -> dict | None:
             "name": str(name) if name else None,
             "pe": float(pe) if pe and pe != "-" else None,
             "pb": float(pb) if pb and pb != "-" else None,
-            "market_cap": float(market_cap) if market_cap and market_cap != "-" else None,
+            "market_cap": float(market_cap)
+            if market_cap and market_cap != "-"
+            else None,
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -417,6 +433,7 @@ def fetch_from_akshare(ticker: str) -> dict | None:
 # ---------------------------------------------------------------------------
 # Validation Check V1: Ticker-Name Consistency
 # ---------------------------------------------------------------------------
+
 
 def check_v1_name(source_data: dict) -> dict:
     """V1: Compare company names across all available sources.
@@ -482,6 +499,7 @@ def check_v1_name(source_data: dict) -> dict:
 # Validation Check V2: Price Consistency
 # ---------------------------------------------------------------------------
 
+
 def check_v2_price(source_data: dict) -> dict:
     """V2: Compare current/latest close price from all available sources.
 
@@ -515,9 +533,11 @@ def check_v2_price(source_data: dict) -> dict:
         for j in range(i + 1, len(sources)):
             diff = compute_pct_diff(prices[sources[i]], prices[sources[j]])
             max_diff = max(max_diff, diff)
-            diff_details.append(f"{sources[i]}={prices[sources[i]]:.2f}, "
-                                f"{sources[j]}={prices[sources[j]]:.2f} "
-                                f"(diff {diff:.2f}%)")
+            diff_details.append(
+                f"{sources[i]}={prices[sources[i]]:.2f}, "
+                f"{sources[j]}={prices[sources[j]]:.2f} "
+                f"(diff {diff:.2f}%)"
+            )
 
     # Score based on maximum discrepancy
     if max_diff <= 2.0:
@@ -547,6 +567,7 @@ def check_v2_price(source_data: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Validation Check V3: Market Cap Consistency
 # ---------------------------------------------------------------------------
+
 
 def check_v3_market_cap(source_data: dict) -> dict:
     """V3: Compare market cap across sources.
@@ -584,8 +605,9 @@ def check_v3_market_cap(source_data: dict) -> dict:
             max_diff = max(max_diff, diff)
             cap_i = f"{caps[sources[i]] / 1e8:.1f}亿"
             cap_j = f"{caps[sources[j]] / 1e8:.1f}亿"
-            diff_details.append(f"{sources[i]}={cap_i}, {sources[j]}={cap_j} "
-                                f"(diff {diff:.1f}%)")
+            diff_details.append(
+                f"{sources[i]}={cap_i}, {sources[j]}={cap_j} " f"(diff {diff:.1f}%)"
+            )
 
     if max_diff <= 10.0:
         score = 100
@@ -607,6 +629,7 @@ def check_v3_market_cap(source_data: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Validation Check V4: Valuation Consistency (PE/PB)
 # ---------------------------------------------------------------------------
+
 
 def check_v4_valuation(source_data: dict) -> dict:
     """V4: Compare PE and PB ratios across sources.
@@ -701,6 +724,7 @@ def _score_valuation_metric(values: dict, metric_name: str) -> dict | None:
 # Validation Check V5: Data Freshness
 # ---------------------------------------------------------------------------
 
+
 def check_v5_freshness(source_data: dict) -> dict:
     """V5: Check how fresh the data is from each source.
 
@@ -753,6 +777,7 @@ def check_v5_freshness(source_data: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Auto-Correction Logic
 # ---------------------------------------------------------------------------
+
 
 def compute_recommended_values(source_data: dict) -> dict:
     """Determine the best-validated values from all sources.
@@ -838,9 +863,13 @@ def compute_recommended_values(source_data: dict) -> dict:
             break
 
     # Annotate source validation
-    validated_by = [s for s in source_data if source_data[s] is not None and s != "yfinance"]
+    validated_by = [
+        s for s in source_data if source_data[s] is not None and s != "yfinance"
+    ]
     if validated_by and consensus_source and "yfinance" in consensus_source:
-        recommended["source"] = f"yfinance (primary, validated by {', '.join(validated_by)})"
+        recommended["source"] = (
+            f"yfinance (primary, validated by {', '.join(validated_by)})"
+        )
 
     return recommended
 
@@ -848,6 +877,7 @@ def compute_recommended_values(source_data: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Per-Ticker Validation Orchestrator
 # ---------------------------------------------------------------------------
+
 
 def validate_ticker(ticker: str, enabled_sources: list) -> dict:
     """Run all validation checks for a single ticker.
@@ -898,11 +928,31 @@ def validate_ticker(ticker: str, enabled_sources: list) -> dict:
             "verdict": "INVALID",
             "verdict_emoji": "❌",
             "checks": {
-                "V1_name": {"score": 0, "pass": False, "detail": "No data from any source"},
-                "V2_price": {"score": 0, "pass": False, "detail": "No data from any source"},
-                "V3_market_cap": {"score": 0, "pass": False, "detail": "No data from any source"},
-                "V4_valuation": {"score": 0, "pass": False, "detail": "No data from any source"},
-                "V5_freshness": {"score": 0, "pass": False, "detail": "No data from any source"},
+                "V1_name": {
+                    "score": 0,
+                    "pass": False,
+                    "detail": "No data from any source",
+                },
+                "V2_price": {
+                    "score": 0,
+                    "pass": False,
+                    "detail": "No data from any source",
+                },
+                "V3_market_cap": {
+                    "score": 0,
+                    "pass": False,
+                    "detail": "No data from any source",
+                },
+                "V4_valuation": {
+                    "score": 0,
+                    "pass": False,
+                    "detail": "No data from any source",
+                },
+                "V5_freshness": {
+                    "score": 0,
+                    "pass": False,
+                    "detail": "No data from any source",
+                },
             },
             "source_data": {k: v for k, v in source_data.items() if v is not None},
             "recommended_values": None,
@@ -921,8 +971,7 @@ def validate_ticker(ticker: str, enabled_sources: list) -> dict:
 
     # Compute composite validation score
     validation_score = sum(
-        checks[k]["score"] * VALIDATION_WEIGHTS[k]
-        for k in VALIDATION_WEIGHTS
+        checks[k]["score"] * VALIDATION_WEIGHTS[k] for k in VALIDATION_WEIGHTS
     )
 
     # Determine verdict
@@ -968,6 +1017,7 @@ def validate_ticker(ticker: str, enabled_sources: list) -> dict:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(

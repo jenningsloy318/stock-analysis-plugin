@@ -41,7 +41,6 @@ except ImportError:
     sys.exit(1)
 
 
-
 # ---------------------------------------------------------------------------
 # Utility helpers
 # ---------------------------------------------------------------------------
@@ -70,8 +69,13 @@ def _clamp(score: float, lo: float = 0.0, hi: float = 10.0) -> float:
 # ---------------------------------------------------------------------------
 
 
-def compute_mfi(high: np.ndarray, low: np.ndarray, close: np.ndarray,
-                volume: np.ndarray, period: int = 14) -> np.ndarray:
+def compute_mfi(
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    volume: np.ndarray,
+    period: int = 14,
+) -> np.ndarray:
     """Compute Money Flow Index (MFI) for the given arrays.
 
     Returns array of same length with NaN for warm-up period.
@@ -121,8 +125,13 @@ def compute_obv(close: np.ndarray, volume: np.ndarray) -> np.ndarray:
     return obv
 
 
-def compute_cmf(high: np.ndarray, low: np.ndarray, close: np.ndarray,
-                volume: np.ndarray, period: int = 20) -> np.ndarray:
+def compute_cmf(
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    volume: np.ndarray,
+    period: int = 20,
+) -> np.ndarray:
     """Compute Chaikin Money Flow (CMF) over given period.
 
     CMF = sum((2*close - high - low) / (high - low) * volume, period) / sum(volume, period)
@@ -138,11 +147,11 @@ def compute_cmf(high: np.ndarray, low: np.ndarray, close: np.ndarray,
     mf_volume = mf_multiplier * volume
 
     for i in range(period - 1, n):
-        vol_sum = np.sum(volume[i - period + 1:i + 1])
+        vol_sum = np.sum(volume[i - period + 1 : i + 1])
         if vol_sum == 0:
             cmf[i] = 0.0
         else:
-            cmf[i] = np.sum(mf_volume[i - period + 1:i + 1]) / vol_sum
+            cmf[i] = np.sum(mf_volume[i - period + 1 : i + 1]) / vol_sum
 
     return cmf
 
@@ -152,7 +161,7 @@ def compute_sma(data: np.ndarray, period: int) -> np.ndarray:
     n = len(data)
     sma = np.full(n, np.nan)
     for i in range(period - 1, n):
-        sma[i] = np.mean(data[i - period + 1:i + 1])
+        sma[i] = np.mean(data[i - period + 1 : i + 1])
     return sma
 
 
@@ -185,8 +194,9 @@ def compute_slope(data: np.ndarray, period: int) -> float:
 # ---------------------------------------------------------------------------
 
 
-def compute_daily_flow_signals(high: np.ndarray, low: np.ndarray,
-                               close: np.ndarray, volume: np.ndarray):
+def compute_daily_flow_signals(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray, volume: np.ndarray
+):
     """Compute per-day flow signals.
 
     Returns dict with arrays: mfi, obv, cmf, volume_ratio, volume_trend,
@@ -202,14 +212,21 @@ def compute_daily_flow_signals(high: np.ndarray, low: np.ndarray,
     # Volume ratio: current volume / 20D SMA volume
     volume_ratio = np.full(n, np.nan)
     for i in range(n):
-        if vol_sma_20[i] is not None and not np.isnan(vol_sma_20[i]) and vol_sma_20[i] > 0:
+        if (
+            vol_sma_20[i] is not None
+            and not np.isnan(vol_sma_20[i])
+            and vol_sma_20[i] > 0
+        ):
             volume_ratio[i] = volume[i] / vol_sma_20[i]
 
     # Volume trend: 5D vol SMA / 20D vol SMA
     volume_trend = np.full(n, np.nan)
     for i in range(n):
-        if (not np.isnan(vol_sma_5[i]) and not np.isnan(vol_sma_20[i])
-                and vol_sma_20[i] > 0):
+        if (
+            not np.isnan(vol_sma_5[i])
+            and not np.isnan(vol_sma_20[i])
+            and vol_sma_20[i] > 0
+        ):
             volume_trend[i] = vol_sma_5[i] / vol_sma_20[i]
 
     # Daily composite flow signal
@@ -269,8 +286,7 @@ def compute_daily_flow_signals(high: np.ndarray, low: np.ndarray,
 # ---------------------------------------------------------------------------
 
 
-def detect_streaks(daily_flow: list, volume_ratio: np.ndarray,
-                   dates: list) -> dict:
+def detect_streaks(daily_flow: list, volume_ratio: np.ndarray, dates: list) -> dict:
     """Detect consecutive inflow/outflow streaks.
 
     Returns current streak info, max streaks, and streak history.
@@ -289,7 +305,9 @@ def detect_streaks(daily_flow: list, volume_ratio: np.ndarray,
 
     # Build streak segments
     streaks = []
-    current_type = daily_flow[0] if daily_flow[0] in ("inflow", "outflow") else "neutral"
+    current_type = (
+        daily_flow[0] if daily_flow[0] in ("inflow", "outflow") else "neutral"
+    )
     streak_start = 0
 
     for i in range(1, n):
@@ -311,16 +329,22 @@ def detect_streaks(daily_flow: list, volume_ratio: np.ndarray,
                     # Check if latter half > first half
                     mid = len(valid_ratios) // 2
                     if mid > 0:
-                        vol_rising = float(np.mean(valid_ratios[mid:])) > float(np.mean(valid_ratios[:mid]))
+                        vol_rising = float(np.mean(valid_ratios[mid:])) > float(
+                            np.mean(valid_ratios[:mid])
+                        )
 
-                streaks.append({
-                    "type": current_type,
-                    "days": i - streak_start,
-                    "start": str(dates[streak_start]) if streak_start < len(dates) else None,
-                    "end": str(dates[i - 1]) if (i - 1) < len(dates) else None,
-                    "avg_vol_ratio": round(avg_vol, 2),
-                    "volume_rising": vol_rising,
-                })
+                streaks.append(
+                    {
+                        "type": current_type,
+                        "days": i - streak_start,
+                        "start": str(dates[streak_start])
+                        if streak_start < len(dates)
+                        else None,
+                        "end": str(dates[i - 1]) if (i - 1) < len(dates) else None,
+                        "avg_vol_ratio": round(avg_vol, 2),
+                        "volume_rising": vol_rising,
+                    }
+                )
 
             current_type = effective_type
             streak_start = i
@@ -334,21 +358,34 @@ def detect_streaks(daily_flow: list, volume_ratio: np.ndarray,
         if len(valid_ratios) >= 2:
             mid = len(valid_ratios) // 2
             if mid > 0:
-                vol_rising = float(np.mean(valid_ratios[mid:])) > float(np.mean(valid_ratios[:mid]))
+                vol_rising = float(np.mean(valid_ratios[mid:])) > float(
+                    np.mean(valid_ratios[:mid])
+                )
 
-        streaks.append({
-            "type": current_type,
-            "days": n - streak_start,
-            "start": str(dates[streak_start]) if streak_start < len(dates) else None,
-            "end": str(dates[n - 1]) if (n - 1) < len(dates) else None,
-            "avg_vol_ratio": round(avg_vol, 2),
-            "volume_rising": vol_rising,
-        })
+        streaks.append(
+            {
+                "type": current_type,
+                "days": n - streak_start,
+                "start": str(dates[streak_start])
+                if streak_start < len(dates)
+                else None,
+                "end": str(dates[n - 1]) if (n - 1) < len(dates) else None,
+                "avg_vol_ratio": round(avg_vol, 2),
+                "volume_rising": vol_rising,
+            }
+        )
 
     # Current streak (last entry)
-    current_streak = streaks[-1] if streaks else {
-        "type": "neutral", "days": 0, "avg_vol_ratio": 1.0, "volume_rising": False
-    }
+    current_streak = (
+        streaks[-1]
+        if streaks
+        else {
+            "type": "neutral",
+            "days": 0,
+            "avg_vol_ratio": 1.0,
+            "volume_rising": False,
+        }
+    )
 
     # Max streaks
     max_inflow = max((s["days"] for s in streaks if s["type"] == "inflow"), default=0)
@@ -424,8 +461,7 @@ def compute_symmetry(streak_info: dict, min_streak: int) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def compute_composite_score(streak_info: dict, signals: dict,
-                            min_streak: int) -> dict:
+def compute_composite_score(streak_info: dict, signals: dict, min_streak: int) -> dict:
     """Compute the 5-component composite money flow score."""
     streak_type = streak_info["current_streak_type"]
     streak_days = streak_info["current_streak_days"]
@@ -530,8 +566,16 @@ def compute_composite_score(streak_info: dict, signals: dict,
     composite = _clamp(composite, 0.0, 10.0)
 
     # Determine OBV trend labels for output
-    obv_trend_5d = "rising" if obv_slope_5d > 0.001 else ("falling" if obv_slope_5d < -0.001 else "flat")
-    obv_trend_20d = "rising" if obv_slope_20d > 0.001 else ("falling" if obv_slope_20d < -0.001 else "flat")
+    obv_trend_5d = (
+        "rising"
+        if obv_slope_5d > 0.001
+        else ("falling" if obv_slope_5d < -0.001 else "flat")
+    )
+    obv_trend_20d = (
+        "rising"
+        if obv_slope_20d > 0.001
+        else ("falling" if obv_slope_20d < -0.001 else "flat")
+    )
 
     components = {
         "streak_strength": {"value": round(streak_score, 1), "weight": 0.30},
@@ -572,8 +616,9 @@ def determine_verdict(score: float) -> str:
         return "STRONG_OUTFLOW"
 
 
-def generate_flags(streak_info: dict, score_data: dict, symmetry: dict,
-                   min_streak: int) -> list:
+def generate_flags(
+    streak_info: dict, score_data: dict, symmetry: dict, min_streak: int
+) -> list:
     """Generate signal flags based on analysis results."""
     flags = []
 
@@ -612,14 +657,17 @@ def generate_flags(streak_info: dict, score_data: dict, symmetry: dict,
     return flags
 
 
-def generate_recommendation(verdict: str, streak_info: dict,
-                            symmetry: dict, flags: list) -> str:
+def generate_recommendation(
+    verdict: str, streak_info: dict, symmetry: dict, flags: list
+) -> str:
     """Generate a Chinese-language recommendation summary."""
     streak_days = streak_info["current_streak_days"]
     streak_type = streak_info["current_streak_type"]
 
     if verdict == "STRONG_INFLOW":
         base = f"资金面强势，连续{streak_days}日量价齐升，机构持续买入信号明确"
+    elif verdict == "DISTRIBUTION_RISK":
+        base = "高位放量疑似派发，价格远超均线，资金流入或为机构出货"
     elif verdict == "MODERATE_INFLOW":
         base = f"资金面积极，连续{streak_days}日流入"
         if "VOLUME_PRICE_SYMMETRY" in flags:
@@ -640,6 +688,8 @@ def generate_recommendation(verdict: str, streak_info: dict,
         base += "。注意：量价背离，需警惕假突破"
     if "OVERBOUGHT_FLOW" in flags:
         base += "。注意：MFI超买，短期或有回调"
+    if "DISTRIBUTION_WARNING" in flags:
+        base += "。警告：价格偏离200日均线>30%且持续流入>20日，需警惕高位派发"
 
     return base
 
@@ -683,7 +733,9 @@ def analyze_ticker(ticker: str, lookback: int, min_streak: int) -> dict:
     df = yf_ticker.history(period=period_str, interval="1d")
 
     if df is None or df.empty or len(df) < 30:
-        return {"error": f"Insufficient data for {ticker}. Got {len(df) if df is not None else 0} rows."}
+        return {
+            "error": f"Insufficient data for {ticker}. Got {len(df) if df is not None else 0} rows."
+        }
 
     # Extract arrays
     high = df["High"].values.astype(float)
@@ -717,6 +769,39 @@ def analyze_ticker(ticker: str, lookback: int, min_streak: int) -> dict:
     composite = score_data["composite"]
     verdict = determine_verdict(composite)
     flags = generate_flags(streak_info, score_data, symmetry, min_streak)
+
+    # Step 7.5: Price extension penalty — detect distribution disguised as inflow
+    sma_200 = None
+    price_extension_pct = 0.0
+    if len(close) >= 200:
+        sma_200 = float(np.mean(close[-200:]))
+    elif len(close) >= 100:
+        # Fallback: use available data as proxy
+        sma_200 = float(np.mean(close))
+
+    if sma_200 is not None and sma_200 > 0:
+        price_extension_pct = (close[-1] - sma_200) / sma_200 * 100
+
+        if price_extension_pct > 50:
+            # Severe extension: likely distribution, not accumulation
+            composite = composite * 0.6
+            score_data["composite"] = composite
+            if verdict == "STRONG_INFLOW":
+                verdict = "DISTRIBUTION_RISK"
+            flags.append("DISTRIBUTION_RISK")
+            # Suppress VOLUME_PRICE_SYMMETRY when severely extended
+            if "VOLUME_PRICE_SYMMETRY" in flags:
+                flags.remove("VOLUME_PRICE_SYMMETRY")
+                symmetry["volume_price_symmetry"] = False
+                symmetry["interpretation"] = (
+                    f"价格远超200日均线({price_extension_pct:.0f}%)，"
+                    "高位放量更可能是派发而非吸筹"
+                )
+        elif price_extension_pct > 30:
+            streak_days = streak_info["current_streak_days"]
+            if streak_days > 20:
+                flags.append("DISTRIBUTION_WARNING")
+
     recommendation = generate_recommendation(verdict, streak_info, symmetry, flags)
 
     # Current price
@@ -768,23 +853,23 @@ def analyze_ticker(ticker: str, lookback: int, min_streak: int) -> dict:
 def main():
     parser = argparse.ArgumentParser(
         description="Compute money flow confirmation score with volume-price "
-                    "symmetry detection (量价齐升)"
+        "symmetry detection (量价齐升)"
     )
     parser.add_argument(
-        "tickers", nargs="+",
-        help="Ticker symbols (e.g., AAPL MSFT NVDA)"
+        "tickers", nargs="+", help="Ticker symbols (e.g., AAPL MSFT NVDA)"
+    )
+    parser.add_argument("--output", help="Output file path (default: stdout)")
+    parser.add_argument(
+        "--lookback",
+        type=int,
+        default=60,
+        help="Days of history to analyze (default: 60)",
     )
     parser.add_argument(
-        "--output",
-        help="Output file path (default: stdout)"
-    )
-    parser.add_argument(
-        "--lookback", type=int, default=60,
-        help="Days of history to analyze (default: 60)"
-    )
-    parser.add_argument(
-        "--min-streak", type=int, default=3,
-        help="Minimum consecutive inflow days to flag as significant (default: 3)"
+        "--min-streak",
+        type=int,
+        default=3,
+        help="Minimum consecutive inflow days to flag as significant (default: 3)",
     )
     args = parser.parse_args()
 

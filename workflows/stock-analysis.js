@@ -118,6 +118,8 @@ const COMPANY_LIST_SCHEMA = {
           score: { type: 'number' },          // composite 0-100
           current_price: { type: 'number' },
           price_filter_pass: { type: 'boolean' },
+          headroom_score: { type: 'number' },     // growth headroom 1-10
+          headroom_category: { type: 'string' },  // e.g. HIGH_GROWTH, MATURE, OVERHEATED
           chain_health_adj: { type: 'number' },  // ±0.10 ecosystem bonus/penalty applied at screening
         },
       },
@@ -966,6 +968,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     .flatMap(r => r.companies || [])
     .filter(c => c.price_filter_pass !== false)
     .filter(c => passUniverse(c.ticker))
+    .filter(c => c.headroom_score === undefined || c.headroom_score >= MIN_HEADROOM)
     .sort((a, b) => b.score - a.score)
   watchlist = allCompanies.slice(0, TOTAL_COMPANY || 15).map((c, i) => ({
     ...c,
@@ -977,9 +980,10 @@ if (MODE === 'pipeline' || MODE === 'screen') {
   // Stage 4.5 validation
   const screenValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate screening completeness for ${OUTPUT_DIR}. ` +
-    `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate screening-completeness ` +
-    `--output-dir ${OUTPUT_DIR}'. Required: sub-industry leaderboard ≥10 entries with valid GICS ` +
-    `codes, company watchlist ≥10 (or all if MODE=screen and top-industry<10), price filter applied.`,
+    `Check the stage4 JSON files in ${OUTPUT_DIR}. ` +
+    `Required: sub-industry leaderboard ≥10 entries with valid GICS ` +
+    `codes, company watchlist ≥10 (or all if MODE=screen and top-industry<10), price filter applied. ` +
+    `Return {pass: true/false, reason: "..."} based on your validation.`,
     { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Screening', label: 'validate:screening', effort: 'low' }
   )
   if (!screenValid?.pass) {

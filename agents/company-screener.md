@@ -62,13 +62,16 @@ After all quantitative filters are applied, run `{plugin_root}/scripts/compute_m
 <step n="9" name="Risk Screening">Customer concentration (any customer >10% of revenue), supplier concentration, debt maturity wall (next 2 years), litigation exposure, regulatory risk specific to company.</step>
 <step n="10" name="Liquidity & Tradability">Score average dollar volume, free float, short interest, borrow/FTD risk, and microcap/slippage risk. Do not recommend illiquid names without a liquidity warning.</step>
 <step n="11" name="Composite Scoring">Score each company 1-10 using weighted composite:
-  - Growth (20%): Revenue CAGR + EPS CAGR + estimate momentum
+  - Growth (15%): Revenue CAGR + EPS CAGR + estimate momentum
   - Profitability/Health (20%): ROIC + FCF margin + Altman Z-Score
-  - Moat (20%): Morningstar moat score
+  - Moat (15%): Morningstar moat score
   - Valuation (15%): P/E percentile + EV/EBITDA percentile + PEG
   - Management (10%): Tenure + ownership + capital allocation
   - Risk (10%): Inverse of risk flags (higher risk = lower score)
-  - Liquidity/Tradability (5%): Dollar volume + free float + borrow/FTD risk</step>
+  - Liquidity/Tradability (5%): Dollar volume + free float + borrow/FTD risk
+  - Momentum/Overheating Penalty (10%): Penalizes overextended stocks. Score: 10 = near base/fresh breakout (<20% from low), 7 = moderate rally (20-30%), 5 = notable rally (30-50%), 3 = large rally (50-80%), 1 = extreme rally (>80% from low). Compute as pct_from_52w_low. This prevents rewarding stocks that have already made their move.
+
+  **Overheating cap rule**: If headroom_score < 6 from compute_growth_headroom.py, cap composite at max 6.5 regardless of other dimension scores. This ensures overheated stocks cannot rank as top picks.</step>
 <step n="12" name="Pattern & Phase Classification">Run `{plugin_root}/scripts/detect_chart_patterns.py` and `{plugin_root}/scripts/classify_uptrend_phase.py` on all watchlist tickers. This adds:
 - Pattern category (突破确认/回踩预警/强势蓄力/无形态) and pattern score (0-100)
 - Uptrend phase (加速上涨/匀速上涨/波动阶段/底部区域/下跌阶段) and momentum score (0-10)

@@ -15,6 +15,7 @@ Output: JSON to stdout or --output file.
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -606,7 +607,11 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
         return None
 
     try:
-        stock = yf.Ticker(ticker)
+        # yfinance uses .SS for Shanghai stocks, not .SH
+        yf_ticker = (
+            ticker.replace(".SH", ".SS") if ticker.upper().endswith(".SH") else ticker
+        )
+        stock = yf.Ticker(yf_ticker)
         info = stock.info or {}
 
         if not info or info.get("regularMarketPrice") is None:
@@ -627,7 +632,9 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
             return [
                 {
                     "period": str(idx.date()) if hasattr(idx, "date") else str(idx),
-                    "value": float(row[idx]) if pd.notna(row[idx]) else None,
+                    "value": float(row[idx])
+                    if pd.notna(row[idx]) and not math.isinf(float(row[idx]))
+                    else None,
                 }
                 for idx in row.index[:years]
             ]
@@ -678,7 +685,9 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
         # Quarterly data for recent trend
         quarterly_income = stock.quarterly_income_stmt
         # Fall back to legacy quarterly_financials if income_stmt is unavailable
-        if quarterly_income is None or (hasattr(quarterly_income, "empty") and quarterly_income.empty):
+        if quarterly_income is None or (
+            hasattr(quarterly_income, "empty") and quarterly_income.empty
+        ):
             quarterly_income = stock.quarterly_financials
         quarterly_revenue = (
             df_to_series(quarterly_income, "Total Revenue")
@@ -742,6 +751,7 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
             "market_cap": info.get("marketCap"),
             "enterprise_value": info.get("enterpriseValue"),
             "shares_outstanding": info.get("sharesOutstanding"),
+            "current_price": info.get("regularMarketPrice") or info.get("currentPrice"),
             "beta": info.get("beta"),
             "52w_high": info.get("fiftyTwoWeekHigh"),
             "52w_low": info.get("fiftyTwoWeekLow"),
@@ -1164,6 +1174,20 @@ def main():
 
         data["years_requested"] = args.years
         results[ticker] = data
+
+    # Sanitize NaN/Infinity values that produce non-standard JSON
+    def _sanitize(obj):
+        if isinstance(obj, float):
+            if math.isnan(obj) or math.isinf(obj):
+                return None
+            return obj
+        if isinstance(obj, dict):
+            return {k: _sanitize(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_sanitize(v) for v in obj]
+        return obj
+
+    results = _sanitize(results)
 
     output = json.dumps(results, indent=2)
     if args.output:

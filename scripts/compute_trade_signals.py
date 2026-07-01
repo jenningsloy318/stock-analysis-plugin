@@ -68,7 +68,9 @@ def compute_rsi(close: pd.Series, period: int = 14) -> pd.Series:
     """Relative Strength Index."""
     delta = close.diff()
     gain = delta.where(delta > 0, 0.0).rolling(window=period, min_periods=period).mean()
-    loss = (-delta.where(delta < 0, 0.0)).rolling(window=period, min_periods=period).mean()
+    loss = (
+        (-delta.where(delta < 0, 0.0)).rolling(window=period, min_periods=period).mean()
+    )
     rs = gain / loss
     rsi = 100.0 - (100.0 / (1.0 + rs))
     return rsi
@@ -95,8 +97,9 @@ def compute_macd(close: pd.Series, fast: int = 12, slow: int = 26, signal: int =
     return macd_line, signal_line, histogram
 
 
-def compute_adx(high: pd.Series, low: pd.Series, close: pd.Series,
-                period: int = 14) -> pd.Series:
+def compute_adx(
+    high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14
+) -> pd.Series:
     """Average Directional Index."""
     prev_high = high.shift(1)
     prev_low = low.shift(1)
@@ -123,14 +126,20 @@ def compute_adx(high: pd.Series, low: pd.Series, close: pd.Series,
 
 def compute_obv(close: pd.Series, volume: pd.Series) -> pd.Series:
     """On-Balance Volume."""
-    direction = np.where(close > close.shift(1), 1,
-                         np.where(close < close.shift(1), -1, 0))
+    direction = np.where(
+        close > close.shift(1), 1, np.where(close < close.shift(1), -1, 0)
+    )
     obv = (volume * direction).cumsum()
     return pd.Series(obv, index=close.index)
 
 
-def compute_mfi(high: pd.Series, low: pd.Series, close: pd.Series,
-                volume: pd.Series, period: int = 14) -> pd.Series:
+def compute_mfi(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    volume: pd.Series,
+    period: int = 14,
+) -> pd.Series:
     """Money Flow Index."""
     typical_price = (high + low + close) / 3.0
     money_flow = typical_price * volume
@@ -147,19 +156,27 @@ def compute_mfi(high: pd.Series, low: pd.Series, close: pd.Series,
     return mfi
 
 
-def compute_cmf(high: pd.Series, low: pd.Series, close: pd.Series,
-                volume: pd.Series, period: int = 20) -> pd.Series:
+def compute_cmf(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    volume: pd.Series,
+    period: int = 20,
+) -> pd.Series:
     """Chaikin Money Flow."""
     hl_range = high - low
     clv = ((close - low) - (high - close)) / hl_range.replace(0, np.nan)
     mf_volume = clv * volume
-    cmf = mf_volume.rolling(window=period, min_periods=period).sum() / \
-        volume.rolling(window=period, min_periods=period).sum()
+    cmf = (
+        mf_volume.rolling(window=period, min_periods=period).sum()
+        / volume.rolling(window=period, min_periods=period).sum()
+    )
     return cmf
 
 
-def compute_atr(high: pd.Series, low: pd.Series, close: pd.Series,
-                period: int = 14) -> pd.Series:
+def compute_atr(
+    high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14
+) -> pd.Series:
     """Average True Range."""
     prev_close = close.shift(1)
     tr1 = high - low
@@ -175,10 +192,15 @@ def compute_atr(high: pd.Series, low: pd.Series, close: pd.Series,
 # ---------------------------------------------------------------------------
 
 
-def check_b1_volume_breakout(close: pd.Series, volume: pd.Series,
-                             sma20: pd.Series, sma50: pd.Series,
-                             mfi: pd.Series, cmf: pd.Series,
-                             money_flow_data: dict | None) -> dict | None:
+def check_b1_volume_breakout(
+    close: pd.Series,
+    volume: pd.Series,
+    sma20: pd.Series,
+    sma50: pd.Series,
+    mfi: pd.Series,
+    cmf: pd.Series,
+    money_flow_data: dict | None,
+) -> dict | None:
     """B1: 量价齐升突破 (Volume Breakout Buy)."""
     if len(close) < 25:
         return None
@@ -214,7 +236,9 @@ def check_b1_volume_breakout(close: pd.Series, volume: pd.Series,
 
     conditions_met = []
     conditions_met.append(f"Price ${curr_close:.2f} > 20-SMA ${curr_sma20:.2f}")
-    conditions_met.append(f"Volume {curr_vol:.0f} = {curr_vol/avg_vol_20:.1f}x avg (>1.5x)")
+    conditions_met.append(
+        f"Volume {curr_vol:.0f} = {curr_vol/avg_vol_20:.1f}x avg (>1.5x)"
+    )
     conditions_met.append(f"Close > 5-day high ${high_5d:.2f} (breakout)")
     if money_flow_data:
         conditions_met.append("Money flow composite > 5 (institutional participation)")
@@ -234,9 +258,13 @@ def check_b1_volume_breakout(close: pd.Series, volume: pd.Series,
     }
 
 
-def check_b2_oversold_reversal(close: pd.Series, volume: pd.Series,
-                               rsi: pd.Series, bb_lower: pd.Series,
-                               sma200: pd.Series) -> dict | None:
+def check_b2_oversold_reversal(
+    close: pd.Series,
+    volume: pd.Series,
+    rsi: pd.Series,
+    bb_lower: pd.Series,
+    sma200: pd.Series,
+) -> dict | None:
     """B2: 超跌反转 (Oversold Reversal Buy)."""
     if len(close) < 200:
         return None
@@ -254,8 +282,9 @@ def check_b2_oversold_reversal(close: pd.Series, volume: pd.Series,
     touches_lower_bb = curr_close <= curr_bb_lower * 1.01  # within 1%
     reversal_candle = curr_close > prev_close
     vol_on_reversal = curr_vol > avg_vol
-    trend_intact = curr_close > curr_sma200 or \
-        (curr_close > curr_sma200 * 0.95)  # within 5% of 200-SMA
+    trend_intact = curr_close > curr_sma200 or (
+        curr_close > curr_sma200 * 0.95
+    )  # within 5% of 200-SMA
 
     if not (oversold and touches_lower_bb and reversal_candle and vol_on_reversal):
         return None
@@ -286,9 +315,14 @@ def check_b2_oversold_reversal(close: pd.Series, volume: pd.Series,
     }
 
 
-def check_b3_golden_cross(close: pd.Series, volume: pd.Series,
-                          sma20: pd.Series, sma50: pd.Series,
-                          sma200: pd.Series, adx: pd.Series) -> dict | None:
+def check_b3_golden_cross(
+    close: pd.Series,
+    volume: pd.Series,
+    sma20: pd.Series,
+    sma50: pd.Series,
+    sma200: pd.Series,
+    adx: pd.Series,
+) -> dict | None:
     """B3: 均线金叉 + 量能确认 (Moving Average Golden Cross)."""
     if len(close) < 55:
         return None
@@ -302,13 +336,17 @@ def check_b3_golden_cross(close: pd.Series, volume: pd.Series,
     # Check for golden cross within last 3 days
     cross_detected = False
     for i in range(-3, 0):
-        if (len(sma20) + i >= 1 and len(sma50) + i >= 1):
+        if len(sma20) + i >= 1 and len(sma50) + i >= 1:
             prev_sma20 = sma20.iloc[i - 1]
             prev_sma50 = sma50.iloc[i - 1]
             cur_sma20 = sma20.iloc[i]
             cur_sma50 = sma50.iloc[i]
-            if (not pd.isna(prev_sma20) and not pd.isna(prev_sma50) and
-                    not pd.isna(cur_sma20) and not pd.isna(cur_sma50)):
+            if (
+                not pd.isna(prev_sma20)
+                and not pd.isna(prev_sma50)
+                and not pd.isna(cur_sma20)
+                and not pd.isna(cur_sma50)
+            ):
                 if prev_sma20 <= prev_sma50 and cur_sma20 > cur_sma50:
                     cross_detected = True
                     break
@@ -326,8 +364,11 @@ def check_b3_golden_cross(close: pd.Series, volume: pd.Series,
     if not (above_cross and vol_expanding and trend_strength):
         return None
 
-    major_uptrend = (curr_sma200 is not None and not pd.isna(curr_sma200) and
-                     curr_sma50 > curr_sma200)
+    major_uptrend = (
+        curr_sma200 is not None
+        and not pd.isna(curr_sma200)
+        and curr_sma50 > curr_sma200
+    )
     confidence = "HIGH" if major_uptrend else "MEDIUM"
 
     conditions_met = [
@@ -352,9 +393,13 @@ def check_b3_golden_cross(close: pd.Series, volume: pd.Series,
     }
 
 
-def check_b4_pullback_to_support(close: pd.Series, volume: pd.Series,
-                                 rsi: pd.Series, sma20: pd.Series,
-                                 sma50: pd.Series) -> dict | None:
+def check_b4_pullback_to_support(
+    close: pd.Series,
+    volume: pd.Series,
+    rsi: pd.Series,
+    sma20: pd.Series,
+    sma50: pd.Series,
+) -> dict | None:
     """B4: 缩量回踩支撑 (Low-Volume Pullback to Support)."""
     if len(close) < 55:
         return None
@@ -420,8 +465,9 @@ def check_b4_pullback_to_support(close: pd.Series, volume: pd.Series,
     }
 
 
-def check_b5_accumulation_coiling(close: pd.Series, bb_bandwidth: pd.Series,
-                                  money_flow_data: dict | None) -> dict | None:
+def check_b5_accumulation_coiling(
+    close: pd.Series, bb_bandwidth: pd.Series, money_flow_data: dict | None
+) -> dict | None:
     """B5: 资金持续流入 + 蓄势 (Accumulation + Coiling). Requires money-flow-json."""
     if money_flow_data is None:
         return None
@@ -449,7 +495,9 @@ def check_b5_accumulation_coiling(close: pd.Series, bb_bandwidth: pd.Series,
         return None
     curr_bw = bb_bandwidth.iloc[-1]
     avg_bw = bb_bandwidth.iloc[-20:].mean()
-    squeezing = curr_bw < avg_bw if not pd.isna(curr_bw) and not pd.isna(avg_bw) else False
+    squeezing = (
+        curr_bw < avg_bw if not pd.isna(curr_bw) and not pd.isna(avg_bw) else False
+    )
 
     if not (vol_price_sym and tight_consolidation and squeezing):
         return None
@@ -474,8 +522,9 @@ def check_b5_accumulation_coiling(close: pd.Series, bb_bandwidth: pd.Series,
     }
 
 
-def check_b6_breakout_retest(close: pd.Series, volume: pd.Series,
-                             high_52w: float) -> dict | None:
+def check_b6_breakout_retest(
+    close: pd.Series, volume: pd.Series, high_52w: float
+) -> dict | None:
     """B6: 突破新高回踩确认 (Breakout Retest Buy)."""
     if len(close) < 15:
         return None
@@ -524,10 +573,15 @@ def check_b6_breakout_retest(close: pd.Series, volume: pd.Series,
     }
 
 
-def check_s1_volume_breakdown(close: pd.Series, volume: pd.Series,
-                              sma20: pd.Series, sma50: pd.Series,
-                              mfi: pd.Series, obv: pd.Series,
-                              money_flow_data: dict | None) -> dict | None:
+def check_s1_volume_breakdown(
+    close: pd.Series,
+    volume: pd.Series,
+    sma20: pd.Series,
+    sma50: pd.Series,
+    mfi: pd.Series,
+    obv: pd.Series,
+    money_flow_data: dict | None,
+) -> dict | None:
     """S1: 放量跌破支撑 (Volume Breakdown Sell)."""
     if len(close) < 55:
         return None
@@ -547,7 +601,7 @@ def check_s1_volume_breakdown(close: pd.Series, volume: pd.Series,
     below_50sma = curr_close < curr_sma50
     vol_surge = curr_vol > 1.5 * avg_vol
     breakdown_5d = curr_close < low_5d
-    flow_negative = (curr_mfi < 50 and obv_declining)
+    flow_negative = curr_mfi < 50 and obv_declining
 
     # Override with money flow composite
     if money_flow_data and "composite_score" in money_flow_data:
@@ -585,9 +639,13 @@ def check_s1_volume_breakdown(close: pd.Series, volume: pd.Series,
     }
 
 
-def check_s2_overbought_reversal(close: pd.Series, volume: pd.Series,
-                                 rsi: pd.Series, bb_upper: pd.Series,
-                                 macd_hist: pd.Series) -> dict | None:
+def check_s2_overbought_reversal(
+    close: pd.Series,
+    volume: pd.Series,
+    rsi: pd.Series,
+    bb_upper: pd.Series,
+    macd_hist: pd.Series,
+) -> dict | None:
     """S2: 超买反转 (Overbought Reversal Sell)."""
     if len(close) < 25:
         return None
@@ -603,7 +661,9 @@ def check_s2_overbought_reversal(close: pd.Series, volume: pd.Series,
 
     # Conditions
     overbought = curr_rsi > 70 if not pd.isna(curr_rsi) else False
-    touches_upper_bb = curr_close >= curr_bb_upper * 0.99 if not pd.isna(curr_bb_upper) else False
+    touches_upper_bb = (
+        curr_close >= curr_bb_upper * 0.99 if not pd.isna(curr_bb_upper) else False
+    )
     reversal_candle = curr_close < prev_close
     vol_spike = curr_vol > avg_vol
 
@@ -611,8 +671,11 @@ def check_s2_overbought_reversal(close: pd.Series, volume: pd.Series,
         return None
 
     # MACD histogram turning negative
-    macd_turning = (not pd.isna(curr_macd_hist) and not pd.isna(prev_macd_hist) and
-                    curr_macd_hist < prev_macd_hist)
+    macd_turning = (
+        not pd.isna(curr_macd_hist)
+        and not pd.isna(prev_macd_hist)
+        and curr_macd_hist < prev_macd_hist
+    )
     confidence = "HIGH" if macd_turning else "MEDIUM"
 
     conditions_met = [
@@ -637,9 +700,14 @@ def check_s2_overbought_reversal(close: pd.Series, volume: pd.Series,
     }
 
 
-def check_s3_death_cross(close: pd.Series, volume: pd.Series,
-                         sma20: pd.Series, sma50: pd.Series,
-                         sma200: pd.Series, adx: pd.Series) -> dict | None:
+def check_s3_death_cross(
+    close: pd.Series,
+    volume: pd.Series,
+    sma20: pd.Series,
+    sma50: pd.Series,
+    sma200: pd.Series,
+    adx: pd.Series,
+) -> dict | None:
     """S3: 均线死叉 (Death Cross)."""
     if len(close) < 55:
         return None
@@ -653,13 +721,17 @@ def check_s3_death_cross(close: pd.Series, volume: pd.Series,
     # Check for death cross within last 3 days
     cross_detected = False
     for i in range(-3, 0):
-        if (len(sma20) + i >= 1 and len(sma50) + i >= 1):
+        if len(sma20) + i >= 1 and len(sma50) + i >= 1:
             prev_sma20 = sma20.iloc[i - 1]
             prev_sma50 = sma50.iloc[i - 1]
             cur_sma20 = sma20.iloc[i]
             cur_sma50 = sma50.iloc[i]
-            if (not pd.isna(prev_sma20) and not pd.isna(prev_sma50) and
-                    not pd.isna(cur_sma20) and not pd.isna(cur_sma50)):
+            if (
+                not pd.isna(prev_sma20)
+                and not pd.isna(prev_sma50)
+                and not pd.isna(cur_sma20)
+                and not pd.isna(cur_sma50)
+            ):
                 if prev_sma20 >= prev_sma50 and cur_sma20 < cur_sma50:
                     cross_detected = True
                     break
@@ -677,8 +749,11 @@ def check_s3_death_cross(close: pd.Series, volume: pd.Series,
     if not (below_cross and vol_not_declining and trend_strength):
         return None
 
-    major_downtrend = (curr_sma200 is not None and not pd.isna(curr_sma200) and
-                       curr_sma50 < curr_sma200)
+    major_downtrend = (
+        curr_sma200 is not None
+        and not pd.isna(curr_sma200)
+        and curr_sma50 < curr_sma200
+    )
     confidence = "HIGH" if major_downtrend else "MEDIUM"
 
     conditions_met = [
@@ -703,8 +778,9 @@ def check_s3_death_cross(close: pd.Series, volume: pd.Series,
     }
 
 
-def check_s4_volume_price_divergence(close: pd.Series, volume: pd.Series,
-                                     obv: pd.Series, mfi: pd.Series) -> dict | None:
+def check_s4_volume_price_divergence(
+    close: pd.Series, volume: pd.Series, obv: pd.Series, mfi: pd.Series
+) -> dict | None:
     """S4: 量价背离 (Volume-Price Divergence Sell)."""
     if len(close) < 25:
         return None
@@ -770,8 +846,9 @@ def check_s4_volume_price_divergence(close: pd.Series, volume: pd.Series,
     }
 
 
-def check_s5_sustained_outflow(close: pd.Series, volume: pd.Series,
-                               money_flow_data: dict | None) -> dict | None:
+def check_s5_sustained_outflow(
+    close: pd.Series, volume: pd.Series, money_flow_data: dict | None
+) -> dict | None:
     """S5: 资金持续流出 (Sustained Outflow Sell). Requires money-flow-json."""
     if money_flow_data is None:
         return None
@@ -792,7 +869,7 @@ def check_s5_sustained_outflow(close: pd.Series, volume: pd.Series,
     # Price breaking lower lows
     if len(close) < 10:
         return None
-    lower_lows = close.iloc[-1] < close.iloc[-5:].min()
+    lower_lows = close.iloc[-1] < close.iloc[-6:-1].min()
 
     if not (vol_expanding and lower_lows):
         return None
@@ -816,8 +893,9 @@ def check_s5_sustained_outflow(close: pd.Series, volume: pd.Series,
     }
 
 
-def check_s6_200sma_breakdown(close: pd.Series, volume: pd.Series,
-                              sma200: pd.Series) -> dict | None:
+def check_s6_200sma_breakdown(
+    close: pd.Series, volume: pd.Series, sma200: pd.Series
+) -> dict | None:
     """S6: 跌破200日均线 (200-SMA Breakdown)."""
     if len(close) < 220 or len(sma200.dropna()) < 20:
         return None
@@ -844,7 +922,9 @@ def check_s6_200sma_breakdown(close: pd.Series, volume: pd.Series,
     vol_elevated = curr_vol > avg_vol
 
     # 200-SMA slope turning negative
-    sma200_slope_neg = sma200.iloc[-1] < sma200.iloc[-5] if len(sma200.dropna()) >= 5 else False
+    sma200_slope_neg = (
+        sma200.iloc[-1] < sma200.iloc[-5] if len(sma200.dropna()) >= 5 else False
+    )
 
     if not (below_200 and above_prior and vol_elevated):
         return None
@@ -877,10 +957,15 @@ def check_s6_200sma_breakdown(close: pd.Series, volume: pd.Series,
 # ---------------------------------------------------------------------------
 
 
-def check_hold_signals(close: pd.Series, rsi: pd.Series,
-                       sma20: pd.Series, sma50: pd.Series,
-                       volume: pd.Series,
-                       buy_signals: list, sell_signals: list) -> dict | None:
+def check_hold_signals(
+    close: pd.Series,
+    rsi: pd.Series,
+    sma20: pd.Series,
+    sma50: pd.Series,
+    volume: pd.Series,
+    buy_signals: list,
+    sell_signals: list,
+) -> dict | None:
     """Check for H1 (no direction) or H2 (conflicting) signals."""
     if len(close) < 55:
         return None
@@ -911,7 +996,9 @@ def check_hold_signals(close: pd.Series, rsi: pd.Series,
     # H1: No clear signal
     if not buy_signals and not sell_signals:
         rsi_neutral = (40 <= curr_rsi <= 60) if not pd.isna(curr_rsi) else True
-        between_smas = (min(curr_sma20, curr_sma50) <= curr_close <= max(curr_sma20, curr_sma50))
+        between_smas = (
+            min(curr_sma20, curr_sma50) <= curr_close <= max(curr_sma20, curr_sma50)
+        )
         curr_vol = volume.iloc[-1]
         avg_vol = volume.iloc[-20:].mean()
         vol_average = 0.8 <= curr_vol / avg_vol <= 1.2
@@ -942,9 +1029,15 @@ def check_hold_signals(close: pd.Series, rsi: pd.Series,
 # ---------------------------------------------------------------------------
 
 
-def compute_key_levels(close: pd.Series, sma20: pd.Series, sma50: pd.Series,
-                       sma200: pd.Series, atr: pd.Series,
-                       high_52w: float, low_52w: float) -> dict:
+def compute_key_levels(
+    close: pd.Series,
+    sma20: pd.Series,
+    sma50: pd.Series,
+    sma200: pd.Series,
+    atr: pd.Series,
+    high_52w: float,
+    low_52w: float,
+) -> dict:
     """Compute support/resistance levels."""
     curr_close = close.iloc[-1]
     curr_sma20 = sma20.iloc[-1]
@@ -958,7 +1051,11 @@ def compute_key_levels(close: pd.Series, sma20: pd.Series, sma50: pd.Series,
         supports.append(("20-SMA", curr_sma20))
     if not pd.isna(curr_sma50) and curr_sma50 < curr_close:
         supports.append(("50-SMA", curr_sma50))
-    if curr_sma200 is not None and not pd.isna(curr_sma200) and curr_sma200 < curr_close:
+    if (
+        curr_sma200 is not None
+        and not pd.isna(curr_sma200)
+        and curr_sma200 < curr_close
+    ):
         supports.append(("200-SMA", curr_sma200))
 
     supports.sort(key=lambda x: x[1], reverse=True)
@@ -975,7 +1072,9 @@ def compute_key_levels(close: pd.Series, sma20: pd.Series, sma50: pd.Series,
     resistances.append(("52w-high", high_52w))
     resistances.sort(key=lambda x: x[1])
 
-    immediate_resistance = resistances[0][1] if resistances else curr_close + 2 * curr_atr
+    immediate_resistance = (
+        resistances[0][1] if resistances else curr_close + 2 * curr_atr
+    )
     breakout_trigger = high_52w
 
     # ATR-based stop loss
@@ -990,8 +1089,7 @@ def compute_key_levels(close: pd.Series, sma20: pd.Series, sma50: pd.Series,
     }
 
 
-def compute_risk_management(curr_close: float, atr: float,
-                            net_direction: str) -> dict:
+def compute_risk_management(curr_close: float, atr: float, net_direction: str) -> dict:
     """Compute risk management parameters."""
     if net_direction == "BUY":
         stop_loss = curr_close - 2 * atr
@@ -1038,8 +1136,9 @@ def determine_net_direction(buy_signals: list, sell_signals: list) -> str:
         return "HOLD"
 
 
-def determine_recommended_action(net_direction: str, buy_signals: list,
-                                 sell_signals: list, hold_signal: dict | None) -> dict:
+def determine_recommended_action(
+    net_direction: str, buy_signals: list, sell_signals: list, hold_signal: dict | None
+) -> dict:
     """Determine the recommended action with reasoning."""
     if net_direction == "BUY":
         # Check if any signal is 建仓 vs 加仓
@@ -1060,7 +1159,9 @@ def determine_recommended_action(net_direction: str, buy_signals: list,
         signal_names = [s["name"] for s in buy_signals]
         reasoning = f"{'、'.join(signal_names)}同时触发，多重买入信号共振"
 
-        sizing = "可建仓至目标仓位的30%" if action == "建仓" else "可加仓至目标仓位的25%"
+        sizing = (
+            "可建仓至目标仓位的30%" if action == "建仓" else "可加仓至目标仓位的25%"
+        )
 
         return {
             "action": action,
@@ -1118,7 +1219,9 @@ def filter_by_horizon(signals: list, horizon: str) -> list:
     """Filter signals by time horizon."""
     if horizon == "both":
         return signals
-    return [s for s in signals if s.get("horizon", "both") == horizon or horizon == "both"]
+    return [
+        s for s in signals if s.get("horizon", "both") == horizon or horizon == "both"
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -1126,8 +1229,7 @@ def filter_by_horizon(signals: list, horizon: str) -> list:
 # ---------------------------------------------------------------------------
 
 
-def analyze_ticker(ticker: str, money_flow_data: dict | None,
-                   horizon: str) -> dict:
+def analyze_ticker(ticker: str, money_flow_data: dict | None, horizon: str) -> dict:
     """Run full signal analysis for a single ticker."""
     try:
         stock = yf.Ticker(ticker)
@@ -1149,7 +1251,9 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None,
         sma50 = compute_sma(close, 50)
         sma200 = compute_sma(close, 200)
         rsi = compute_rsi(close, 14)
-        bb_middle, bb_upper, bb_lower, bb_bandwidth, bb_position = compute_bollinger(close)
+        bb_middle, bb_upper, bb_lower, bb_bandwidth, bb_position = compute_bollinger(
+            close
+        )
         macd_line, macd_signal, macd_hist = compute_macd(close)
         adx = compute_adx(high, low, close, 14)
         obv = compute_obv(close, volume)
@@ -1163,14 +1267,28 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None,
 
         # Price context snapshot
         price_context = {
-            "sma_20": round(float(sma20.iloc[-1]), 2) if not pd.isna(sma20.iloc[-1]) else None,
-            "sma_50": round(float(sma50.iloc[-1]), 2) if not pd.isna(sma50.iloc[-1]) else None,
-            "sma_200": round(float(sma200.iloc[-1]), 2) if len(sma200.dropna()) > 0 and not pd.isna(sma200.iloc[-1]) else None,
-            "rsi_14": round(float(rsi.iloc[-1]), 1) if not pd.isna(rsi.iloc[-1]) else None,
-            "macd_histogram": round(float(macd_hist.iloc[-1]), 3) if not pd.isna(macd_hist.iloc[-1]) else None,
+            "sma_20": round(float(sma20.iloc[-1]), 2)
+            if not pd.isna(sma20.iloc[-1])
+            else None,
+            "sma_50": round(float(sma50.iloc[-1]), 2)
+            if not pd.isna(sma50.iloc[-1])
+            else None,
+            "sma_200": round(float(sma200.iloc[-1]), 2)
+            if len(sma200.dropna()) > 0 and not pd.isna(sma200.iloc[-1])
+            else None,
+            "rsi_14": round(float(rsi.iloc[-1]), 1)
+            if not pd.isna(rsi.iloc[-1])
+            else None,
+            "macd_histogram": round(float(macd_hist.iloc[-1]), 3)
+            if not pd.isna(macd_hist.iloc[-1])
+            else None,
             "adx": round(float(adx.iloc[-1]), 1) if not pd.isna(adx.iloc[-1]) else None,
-            "bollinger_position": round(float(bb_position.iloc[-1]), 2) if not pd.isna(bb_position.iloc[-1]) else None,
-            "atr_14": round(float(atr.iloc[-1]), 2) if not pd.isna(atr.iloc[-1]) else None,
+            "bollinger_position": round(float(bb_position.iloc[-1]), 2)
+            if not pd.isna(bb_position.iloc[-1])
+            else None,
+            "atr_14": round(float(atr.iloc[-1]), 2)
+            if not pd.isna(atr.iloc[-1])
+            else None,
             "distance_52w_high_pct": round((curr_close - high_52w) / high_52w * 100, 1),
             "distance_52w_low_pct": round((curr_close - low_52w) / low_52w * 100, 1),
         }
@@ -1180,7 +1298,9 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None,
         sell_signals_raw = []
 
         # BUY signals
-        b1 = check_b1_volume_breakout(close, volume, sma20, sma50, mfi, cmf, money_flow_data)
+        b1 = check_b1_volume_breakout(
+            close, volume, sma20, sma50, mfi, cmf, money_flow_data
+        )
         if b1:
             buy_signals_raw.append(b1)
 
@@ -1205,7 +1325,9 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None,
             buy_signals_raw.append(b6)
 
         # SELL signals
-        s1 = check_s1_volume_breakdown(close, volume, sma20, sma50, mfi, obv, money_flow_data)
+        s1 = check_s1_volume_breakdown(
+            close, volume, sma20, sma50, mfi, obv, money_flow_data
+        )
         if s1:
             sell_signals_raw.append(s1)
 
@@ -1233,12 +1355,27 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None,
         buy_signals = filter_by_horizon(buy_signals_raw, horizon)
         sell_signals = filter_by_horizon(sell_signals_raw, horizon)
 
+        # Overextension guard: suppress BUY signals when stock is >50% above 200MA
+        # Affected signals: B1 (量价突破), B3 (金叉), B4 (回踩支撑), B6 (突破回踩)
+        overextension_suppressed_ids = {"B1", "B3", "B4", "B6"}
+        if len(sma200.dropna()) > 0 and not pd.isna(sma200.iloc[-1]):
+            curr_sma200_val = float(sma200.iloc[-1])
+            if curr_sma200_val > 0:
+                pct_above_200ma = (curr_close - curr_sma200_val) / curr_sma200_val * 100
+                if pct_above_200ma > 50:
+                    buy_signals = [
+                        s
+                        for s in buy_signals
+                        if s["id"] not in overextension_suppressed_ids
+                    ]
+
         # Determine net direction and action
         net_direction = determine_net_direction(buy_signals, sell_signals)
 
         # HOLD signal check
-        hold_signal = check_hold_signals(close, rsi, sma20, sma50, volume,
-                                         buy_signals, sell_signals)
+        hold_signal = check_hold_signals(
+            close, rsi, sma20, sma50, volume, buy_signals, sell_signals
+        )
 
         # Combine all active signals
         active_signals = buy_signals + sell_signals
@@ -1246,7 +1383,9 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None,
             active_signals.append(hold_signal)
 
         # Add invalidation and stop/target to each signal
-        curr_atr = float(atr.iloc[-1]) if not pd.isna(atr.iloc[-1]) else curr_close * 0.02
+        curr_atr = (
+            float(atr.iloc[-1]) if not pd.isna(atr.iloc[-1]) else curr_close * 0.02
+        )
         for sig in active_signals:
             if "invalidation" not in sig:
                 trigger = sig.get("trigger_price", curr_close)
@@ -1276,9 +1415,11 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None,
         signal_strength = {
             "buy_signals_active": len(buy_signals),
             "sell_signals_active": len(sell_signals),
-            "net": f"+{len(buy_signals)} (偏多)" if len(buy_signals) > len(sell_signals)
-                   else f"-{len(sell_signals)} (偏空)" if len(sell_signals) > len(buy_signals)
-                   else "0 (中性)",
+            "net": f"+{len(buy_signals)} (偏多)"
+            if len(buy_signals) > len(sell_signals)
+            else f"-{len(sell_signals)} (偏空)"
+            if len(sell_signals) > len(buy_signals)
+            else "0 (中性)",
         }
 
         # Recommended action
@@ -1287,8 +1428,9 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None,
         )
 
         # Key levels
-        key_levels = compute_key_levels(close, sma20, sma50, sma200, atr,
-                                        high_52w, low_52w)
+        key_levels = compute_key_levels(
+            close, sma20, sma50, sma200, atr, high_52w, low_52w
+        )
 
         # Risk management
         risk_mgmt = compute_risk_management(curr_close, curr_atr, net_direction)
@@ -1298,7 +1440,11 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None,
         trend_duration = 0
         if len(close) >= 50:
             for i in range(len(close) - 1, max(len(close) - 90, 0), -1):
-                sma20_val = sma20.iloc[i] if i < len(sma20) and not pd.isna(sma20.iloc[i]) else None
+                sma20_val = (
+                    sma20.iloc[i]
+                    if i < len(sma20) and not pd.isna(sma20.iloc[i])
+                    else None
+                )
                 if sma20_val is None:
                     break
                 if close.iloc[i] > sma20_val:
@@ -1335,24 +1481,21 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None,
 def main():
     parser = argparse.ArgumentParser(
         description="Generate BUY/SELL/HOLD trade signals combining technical, "
-                    "flow, and fundamental triggers (多重条件共振)"
+        "flow, and fundamental triggers (多重条件共振)"
     )
     parser.add_argument(
-        "tickers", nargs="+",
-        help="Ticker symbols (e.g., AAPL MSFT NVDA)"
+        "tickers", nargs="+", help="Ticker symbols (e.g., AAPL MSFT NVDA)"
     )
-    parser.add_argument(
-        "--output",
-        help="Output file path (default: stdout)"
-    )
+    parser.add_argument("--output", help="Output file path (default: stdout)")
     parser.add_argument(
         "--money-flow-json",
-        help="Path to compute_money_flow.py output JSON (enriches signals)"
+        help="Path to compute_money_flow.py output JSON (enriches signals)",
     )
     parser.add_argument(
-        "--horizon", default="both",
+        "--horizon",
+        default="both",
         choices=["short", "mid", "both"],
-        help="Signal horizon: short (days-weeks), mid (weeks-months), both (default)"
+        help="Signal horizon: short (days-weeks), mid (weeks-months), both (default)",
     )
     args = parser.parse_args()
 

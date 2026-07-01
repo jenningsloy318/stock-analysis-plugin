@@ -533,10 +533,13 @@ def _momentum_score(ctx: dict) -> float:
     elif ctx["ret_20d"] > 0:
         pts += 0.5
 
-    # RSI contribution (max 3)
+    # RSI contribution (max 3, but penalize extremes)
     if ctx["rsi"] is not None:
-        if ctx["rsi"] > 70:
-            pts += 3.0
+        if ctx["rsi"] > 80:
+            # Overbought extreme: SUBTRACT instead of rewarding
+            pts -= 1.0
+        elif ctx["rsi"] > 70:
+            pts += 2.0
         elif ctx["rsi"] > 60:
             pts += 2.5
         elif ctx["rsi"] > 50:
@@ -672,9 +675,23 @@ def _phase_duration(closes: np.ndarray, winning_phase: str, ctx: dict) -> int:
     return min(duration, 120)  # Cap at 120 days
 
 
-def _phase_change_risk(winning_phase: str, ctx: dict) -> tuple[str, str]:
+def _phase_change_risk(
+    winning_phase: str, ctx: dict, duration: int = 0
+) -> tuple[str, str]:
     """Assess probability that phase is about to change. Returns (level, reason)."""
     if winning_phase == "ACCELERATING":
+        # Check cumulative rally from recent base (pct_from_base)
+        pct_from_base = ctx.get("pct_from_base_90d", 0.0)
+        if pct_from_base > 100 and duration > 30:
+            return "HIGH", f"累计涨幅过大(>{pct_from_base:.0f}%)，有见顶风险"
+        if pct_from_base > 60:
+            # Only upgrade to at least MEDIUM; don't downgrade from HIGH
+            if ctx["rsi"] is not None and ctx["rsi"] > 80:
+                return (
+                    "HIGH",
+                    f"RSI极度超买(>80)且累计涨幅{pct_from_base:.0f}%，见顶风险极高",
+                )
+            return "MEDIUM", f"涨幅较大({pct_from_base:.0f}%)，注意回调风险"
         if ctx["rsi"] is not None and ctx["rsi"] > 80:
             return "HIGH", "RSI极度超买 (>80)，加速可能耗尽"
         if ctx["rsi"] is not None and ctx["rsi"] > 70:
@@ -835,6 +852,13 @@ def _build_context(
         else 0.0
     )
 
+    # Percent from base in last 60-120 days (for late-acceleration detection)
+    base_window = min(90, n)  # Use ~90 days as the base window
+    base_low = float(np.min(lows[-base_window:]))
+    ctx["pct_from_base_90d"] = (
+        float((closes[-1] - base_low) / base_low * 100) if base_low > 0 else 0.0
+    )
+
     # 20-SMA slope
     ctx["sma20_slope"] = _sma_slope(sma20, 5) if not np.all(np.isnan(sma20)) else None
 
@@ -911,7 +935,7 @@ def classify_ticker(ticker: str, lookback: int) -> dict:
     duration = _phase_duration(
         closes[-lookback:] if len(closes) >= lookback else closes, winning_phase, ctx
     )
-    risk_level, risk_reason = _phase_change_risk(winning_phase, ctx)
+    risk_level, risk_reason = _phase_change_risk(winning_phase, ctx, duration)
 
     # MA alignment check
     smas = [ctx["sma_5"], ctx["sma_10"], ctx["sma_20"], ctx["sma_50"]]
