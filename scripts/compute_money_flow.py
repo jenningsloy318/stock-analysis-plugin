@@ -480,16 +480,18 @@ def compute_composite_score(streak_info: dict, signals: dict, min_streak: int) -
 
     # Component 1: Current streak strength (30% weight)
     if streak_type == "inflow":
-        if streak_days >= 5:
-            streak_score = 10.0
-        elif streak_days == 4:
-            streak_score = 8.0
-        elif streak_days == 3:
-            streak_score = 6.0
-        elif streak_days == 2:
-            streak_score = 4.0
+        if streak_days <= 0:
+            streak_score = 0
+        elif streak_days <= 3:
+            streak_score = streak_days * 2.5  # ramp up: 2.5, 5.0, 7.5
+        elif streak_days <= 7:
+            streak_score = 10.0  # peak zone
+        elif streak_days <= 14:
+            streak_score = 10.0 - (streak_days - 7) * 0.5  # gentle decay: 9.5→6.5
+        elif streak_days <= 30:
+            streak_score = 6.5 - (streak_days - 14) * 0.3  # steeper decay: 6.2→1.7
         else:
-            streak_score = 2.0
+            streak_score = max(1.0, 1.7 - (streak_days - 30) * 0.05)  # floor at 1.0
     elif streak_type == "outflow":
         if streak_days >= 3:
             streak_score = 0.0

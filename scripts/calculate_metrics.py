@@ -1160,7 +1160,9 @@ def compute_monte_carlo(
                 annual_growth = np_random.normal(growth, max(growth_sigma * 0.7, 0.01))
                 annual_growth = max(-0.30, min(1.0, annual_growth))
                 fcf = fcf * (1 + annual_growth)
-                fcf_projections.append(max(0, fcf))
+                fcf_projections.append(
+                    fcf
+                )  # Allow negative FCF (realistic for capex-heavy companies)
 
             # WACC variation
             wacc_varied = max(
@@ -1169,11 +1171,15 @@ def compute_monte_carlo(
             if wacc_varied <= terminal_growth:
                 wacc_varied = terminal_growth + 0.01
 
-            terminal_value = (
-                fcf_projections[-1]
-                * (1 + terminal_growth)
-                / (wacc_varied - terminal_growth)
-            )
+            # Terminal value: skip if final-year FCF is negative (no perpetuity on losses)
+            final_fcf = fcf_projections[-1]
+            if final_fcf > 0:
+                terminal_value = (
+                    final_fcf * (1 + terminal_growth) / (wacc_varied - terminal_growth)
+                )
+            else:
+                terminal_value = 0  # No terminal value for negative FCF trajectories
+
             pv_fcfs = sum(
                 f / ((1 + wacc_varied) ** y) for y, f in enumerate(fcf_projections, 1)
             )

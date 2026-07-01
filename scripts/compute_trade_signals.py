@@ -645,6 +645,7 @@ def check_s2_overbought_reversal(
     rsi: pd.Series,
     bb_upper: pd.Series,
     macd_hist: pd.Series,
+    sma200: pd.Series | None = None,
 ) -> dict | None:
     """S2: 超买反转 (Overbought Reversal Sell)."""
     if len(close) < 25:
@@ -659,8 +660,22 @@ def check_s2_overbought_reversal(
     curr_macd_hist = macd_hist.iloc[-1]
     prev_macd_hist = macd_hist.iloc[-2] if len(macd_hist) >= 2 else 0
 
+    # Contextual RSI threshold based on distance from 200MA
+    # Stocks far above 200MA are in strong trends where RSI 70 is normal consolidation
+    rsi_threshold = 70  # default
+    pct_above_200ma = 0.0
+    if sma200 is not None and len(sma200.dropna()) > 0:
+        curr_sma200 = sma200.iloc[-1]
+        if not pd.isna(curr_sma200) and curr_sma200 > 0:
+            pct_above_200ma = (curr_close - curr_sma200) / curr_sma200 * 100
+            if pct_above_200ma > 80:
+                rsi_threshold = 60
+            elif pct_above_200ma > 50:
+                rsi_threshold = 65
+            # else: keep default 70
+
     # Conditions
-    overbought = curr_rsi > 70 if not pd.isna(curr_rsi) else False
+    overbought = curr_rsi > rsi_threshold if not pd.isna(curr_rsi) else False
     touches_upper_bb = (
         curr_close >= curr_bb_upper * 0.99 if not pd.isna(curr_bb_upper) else False
     )
@@ -679,7 +694,7 @@ def check_s2_overbought_reversal(
     confidence = "HIGH" if macd_turning else "MEDIUM"
 
     conditions_met = [
-        f"RSI-14 = {curr_rsi:.1f} (> 70, overbought)",
+        f"RSI-14 = {curr_rsi:.1f} (> {rsi_threshold}, overbought; 200MA距离={pct_above_200ma:.0f}%)",
         f"Price ${curr_close:.2f} at/above upper BB ${curr_bb_upper:.2f}",
         f"Reversal candle: close ${curr_close:.2f} < prev ${prev_close:.2f}",
         f"Volume spike: {curr_vol/avg_vol:.1f}x avg (distribution)",
@@ -1080,6 +1095,14 @@ def compute_key_levels(
     # ATR-based stop loss
     stop_loss = curr_close - 2 * curr_atr
 
+    # Mean-reversion aware stop: tighten if price is extended far above 200MA
+    if curr_sma200 is not None and not pd.isna(curr_sma200):
+        pct_above = curr_close / curr_sma200 - 1.0
+        if pct_above > 0.30:
+            # Tighten stop: use max of ATR-based and 200MA-extension-based
+            ma_based_stop = curr_sma200 * (1 + min(pct_above * 0.5, 0.30))
+            stop_loss = max(stop_loss, ma_based_stop)
+
     return {
         "immediate_support": round(float(immediate_support), 2),
         "major_support": round(float(major_support), 2),
@@ -1089,16 +1112,26 @@ def compute_key_levels(
     }
 
 
-def compute_risk_management(curr_close: float, atr: float, net_direction: str) -> dict:
-    """Compute risk management parameters."""
+def compute_risk_management(
+    curr_close: float, atr: float, net_direction: str, sma200: float | None = None
+) -> dict:
+    """Compute risk management parameters with mean-reversion awareness."""
     if net_direction == "BUY":
         stop_loss = curr_close - 2 * atr
+        # Mean-reversion aware stop tightening for BUY
+        if sma200 and not pd.isna(sma200):
+            pct_above = curr_close / sma200 - 1.0
+            if pct_above > 0.30:
+                ma_based_stop = sma200 * (1 + min(pct_above * 0.5, 0.30))
+                stop_loss = max(stop_loss, ma_based_stop)
         risk = curr_close - stop_loss
         target_1 = curr_close + 2 * risk
         target_2 = curr_close + 3 * risk
         max_loss_pct = -round((risk / curr_close) * 100, 1)
         target_gain_pct = round((target_1 - curr_close) / curr_close * 100, 1)
-        rr_ratio = round(2.0, 1)  # minimum 2:1 by construction
+        # Compute actual risk/reward from stop to target
+        reward = target_1 - curr_close
+        rr_ratio = round(reward / risk, 2) if risk > 0 else 2.0
     elif net_direction == "SELL":
         stop_loss = curr_close + 2 * atr
         risk = stop_loss - curr_close
@@ -1106,15 +1139,23 @@ def compute_risk_management(curr_close: float, atr: float, net_direction: str) -
         target_2 = curr_close - 3 * risk
         max_loss_pct = round((risk / curr_close) * 100, 1)
         target_gain_pct = -round((curr_close - target_1) / curr_close * 100, 1)
-        rr_ratio = round(2.0, 1)
+        reward = curr_close - target_1
+        rr_ratio = round(reward / risk, 2) if risk > 0 else 2.0
     else:
         stop_loss = curr_close - 2 * atr
-        risk = 2 * atr
+        # Mean-reversion aware stop tightening for HOLD
+        if sma200 and not pd.isna(sma200):
+            pct_above = curr_close / sma200 - 1.0
+            if pct_above > 0.30:
+                ma_based_stop = sma200 * (1 + min(pct_above * 0.5, 0.30))
+                stop_loss = max(stop_loss, ma_based_stop)
+        risk = curr_close - stop_loss
         target_1 = curr_close + risk
         target_2 = curr_close + 1.5 * risk
-        max_loss_pct = -round((risk / curr_close) * 100, 1)
-        target_gain_pct = round((risk / curr_close) * 100, 1)
-        rr_ratio = 1.0
+        max_loss_pct = -round((risk / curr_close) * 100, 1) if risk > 0 else 0.0
+        target_gain_pct = round((target_1 - curr_close) / curr_close * 100, 1)
+        reward = target_1 - curr_close
+        rr_ratio = round(reward / risk, 2) if risk > 0 else 1.0
 
     return {
         "atr_stop": round(float(stop_loss), 2),
@@ -1331,7 +1372,9 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None, horizon: str) -> d
         if s1:
             sell_signals_raw.append(s1)
 
-        s2 = check_s2_overbought_reversal(close, volume, rsi, bb_upper, macd_hist)
+        s2 = check_s2_overbought_reversal(
+            close, volume, rsi, bb_upper, macd_hist, sma200
+        )
         if s2:
             sell_signals_raw.append(s2)
 
@@ -1433,7 +1476,14 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None, horizon: str) -> d
         )
 
         # Risk management
-        risk_mgmt = compute_risk_management(curr_close, curr_atr, net_direction)
+        curr_sma200_val = (
+            float(sma200.iloc[-1])
+            if len(sma200.dropna()) > 0 and not pd.isna(sma200.iloc[-1])
+            else None
+        )
+        risk_mgmt = compute_risk_management(
+            curr_close, curr_atr, net_direction, sma200=curr_sma200_val
+        )
 
         # Historical signal context (simplified)
         # Find last direction change by scanning backwards

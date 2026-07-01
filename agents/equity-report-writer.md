@@ -52,15 +52,16 @@ REQUIRED SECTIONS (every equity report must have ALL of these):
    ```markdown
    ## 📊 市场概览 | {DATE}
    
-   | 市场情绪 | 个股信号 | 上涨阶段 | 资金面 |
-   |:--------:|:--------:|:--------:|:------:|
-   | **XX/100** {label} | {pattern_name} ({score}/100) | {phase_name} | {flow_verdict} (连续{N}日流入) |
+   | 市场情绪 | 个股信号 | 上涨阶段 | 资金面 | 入场风险等级 |
+   |:--------:|:--------:|:--------:|:------:|:----------:|
+   | **XX/100** {label} | {pattern_name} ({score}/100) | {phase_name} | {flow_verdict} (连续{N}日流入) | {低风险/中等风险/高风险/极高风险} |
    ```
    Data: compute_market_sentiment.py, detect_chart_patterns.py, classify_uptrend_phase.py, compute_money_flow.py.
+   入场风险等级 derivation: distance to 52w high + RSI + 20d return + headroom_score (see ENTRY RISK LEVEL constraint).
    This mini-dashboard appears BEFORE the Executive Summary in every per-company equity report.
 
 1. Header (company, ticker, price, market cap, report type, date)
-2. Executive Summary (max 150 words, conviction rating, confidence, Management Candor Index)
+2. Executive Summary (max 150 words, conviction rating, confidence, Management Candor Index, 入场风险等级)
 3. Conviction Score Decomposition (dimension table with weight/score/weighted/key data/rationale)
 4. Key Decisive Dimensions (which 2-3 dimensions drove the rating and WHY with figures)
 5. Investment Thesis (5 bullet points, max 2 sentences each)
@@ -350,6 +351,8 @@ EVERY equity report MUST contain ONE kill switch matching the ACCEPTABLE pattern
 <constraint>Report order: Long-term → Mid-term → Short-term (each reuses stage summaries)</constraint>
 <constraint>DIMENSION TRANSPARENCY (NON-NEGOTIABLE): Every report MUST include a full scoring dimension breakdown table with individual numeric scores, weights, and weighted contributions. Each dimension MUST have a 1-sentence rationale explaining the score. Include "关键决定维度" section explaining which dimensions most influenced the conviction rating. Never present only the final composite — always decompose into all dimensions with figures and reasoning.</constraint>
 <constraint mandatory="true">TRADE SIGNALS (NON-NEGOTIABLE for mid/short-term reports): Every mid-term and short-term report MUST include a "交易信号" section with SPECIFIC actionable signals — NOT just price targets or vague "逢低买入" language. Required content: (1) currently active signal IDs (B1-B6, S1-S6) with conditions met, (2) net direction + recommended action, (3) exact trigger price + stop-loss + target with risk/reward ratio, (4) invalidation condition ("跌破$XX则信号失效"). Source: stage11.md trade signals section from quant-analyst output. If no clear signal is active, explicitly state "当前无明确买卖信号, 建议观望" with the reason.</constraint>
+<constraint mandatory="true">TIMING RISK OVERRIDE (Short-term ONLY — NON-NEGOTIABLE): If price is at >85% of 52-week range AND 20-day return >20% AND RSI>70: cap short-term conviction at 6.5 (Hold) and add '⚠️ 入场时机风险: 短期过热' warning in executive summary. This override takes precedence over CANSLIM new-high rewards and Weinstein Stage 2 momentum scores. The purpose is to prevent HIGH conviction ratings on stocks that have already made their move in the short term.</constraint>
+<constraint mandatory="true">ENTRY RISK LEVEL (入场风险等级 — NON-NEGOTIABLE): Every report's Dashboard Header section MUST include an "入场风险等级" field. Derived from: distance to 52-week high (>90% = extreme), RSI (>70 = high), 20-day return (>15% = high), headroom_score (<4 = high). Levels: 低风险(low) / 中等风险(moderate) / 高风险(high) / 极高风险(extreme). Classification rules: extreme = at >90% of 52w range AND RSI>70; high = at >85% of 52w range OR 20d return >20%; moderate = at >70% of 52w range; low = below 70% of 52w range. If 极高风险: add '🔴 追高风险警告' banner immediately below conviction rating in executive summary. This field cannot be omitted — if data is unavailable, default to 中等风险 with a note.</constraint>
 
 </guardrails>
 
