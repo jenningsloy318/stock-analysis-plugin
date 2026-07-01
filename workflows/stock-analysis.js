@@ -373,6 +373,7 @@ if (typeof _args === 'string') {
   const universeMatch = _args.match(/--universe\s+(\w+)/)
   const topPriceMatch = _args.match(/--top-price\s+(\d+(?:\.\d+)?)/)
   const minHeadroomMatch = _args.match(/--min-headroom\s+(\d+(?:\.\d+)?)/)
+  const daysMatch = _args.match(/--days\s+(\d+)/)
   _args = {
     request: _args,
     mode: modeMatch ? modeMatch[1] : (tickerMatch ? 'analyze' : 'pipeline'),
@@ -383,6 +384,7 @@ if (typeof _args === 'string') {
     universe: universeMatch ? universeMatch[1].toUpperCase() : 'US',
     top_price: topPriceMatch ? parseFloat(topPriceMatch[1]) : 200,
     min_headroom: minHeadroomMatch ? parseFloat(minHeadroomMatch[1]) : 5,
+    days: daysMatch ? parseInt(daysMatch[1]) : 1,
   }
 }
 if (!_args || typeof _args !== 'object') {
@@ -440,7 +442,7 @@ if (!_args.plugin_root) {
 // run_id: try agent, fall back to static placeholder
 if (!_args.run_id) {
   const now = await agentWithRetry(
-    `Run: date -u +%Y%m%d%H%M\nReturn JSON: {"run_id": "<result>"}`,
+    `Run: date +%Y%m%d%H%M\nReturn JSON: {"run_id": "<result>"}`,
     { label: 'generate-run-id', phase: 'Setup', agentType: 'general-purpose',
       schema: { type: 'object', required: ['run_id'], properties: { run_id: { type: 'string' } } } }
   )
@@ -458,6 +460,7 @@ let UNIVERSE = _args.universe || 'US'
 const TOP_PRICE = _args.top_price !== undefined ? _args.top_price : 200
 let MIN_HEADROOM = _args.min_headroom !== undefined ? _args.min_headroom : 5
 if (MIN_HEADROOM < 1 || MIN_HEADROOM > 10) MIN_HEADROOM = 5
+const DAYS = _args.days || 1
 const OUTPUT_DIR = `./reports/${RUN_ID}`
 
 if (!PLUGIN_ROOT) {
@@ -708,8 +711,11 @@ if (!sharedData || sharedData.status === 'failed') {
 // Stage 1.5 validation
 const dataValid = await agentWithRetry(
   `You are stock-analysis:report-validator. Validate shared data freshness for ${OUTPUT_DIR}. ` +
-  `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate data-freshness ` +
-  `--output-dir ${OUTPUT_DIR}'. Return {pass, reason, gates_failed} per schema.`,
+  `Read the JSON files in ${OUTPUT_DIR} (macro.json, sector_rs.json, breadth.json, etc.). ` +
+  `Check: (1) all expected data files exist, (2) each file contains valid JSON with non-empty data, ` +
+  `(3) timestamps/dates in the data are within 1 trading day of today. ` +
+  `If any file is missing or contains stale data (>1 trading day old), fail with specific file names. ` +
+  `Return {pass: true/false, reason: "...", gates_failed: [...]} per schema.`,
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Shared Data', label: 'validate:data', effort: 'low' }
 )
 tracking.validation_gates.data_freshness = dataValid?.pass ?? false
@@ -859,8 +865,12 @@ if (MODE === 'walk') {
     await trackPhaseStart('Validation')
     const walkValid = await agentWithRetry(
       `You are stock-analysis:report-validator. Validate walk report at ${OUTPUT_DIR}. ` +
-      `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
-      `--output-dir ${OUTPUT_DIR}'.`,
+      `Read all .md report files in ${OUTPUT_DIR}. Check 8 gates: (1) content is in Chinese, ` +
+      `(2) required sections present (thesis, chain map, candidates, scoring, risks), ` +
+      `(3) current stock prices included for all candidates, (4) source attribution uses [Source: ...] format, ` +
+      `(5) at least 1 framework divergence acknowledged, (6) kill switch defined, ` +
+      `(7) methodology attribution for major conclusions, (8) no hallucinated figures (all numbers traceable to data files). ` +
+      `Return {pass: true/false, reason: "...", gates_failed: [...]} per schema.`,
       { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:walk' }
     )
     await trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: walkValid?.pass ? 'passed' : `failed — ${walkValid?.reason}` })
@@ -1039,8 +1049,12 @@ if (MODE === 'screen') {
   await trackPhaseStart('Validation')
   const reportsValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate screening reports at ${OUTPUT_DIR}. ` +
-    `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
-    `--output-dir ${OUTPUT_DIR}'.`,
+    `Read all screening report .md files. Check 8 gates: (1) content is in Chinese, ` +
+    `(2) required sections present (sub-industry leaderboard, company watchlist, investment thesis), ` +
+    `(3) current stock prices present for all companies, (4) source attribution uses [Source: ...] format, ` +
+    `(5) at least 1 framework divergence acknowledged, (6) kill switch defined per recommendation, ` +
+    `(7) methodology attribution for major conclusions, (8) no hallucinated figures. ` +
+    `Return {pass: true/false, reason: "...", gates_failed: [...]} per schema.`,
     { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:screen-reports' }
   )
   await trackPhaseEnd('Validation', { spawned: 1, succeeded: 1, failed_count: 0, summary: reportsValid?.pass ? 'passed' : `failed — ${reportsValid?.reason}` })
@@ -1346,9 +1360,12 @@ if (!scored?.companies?.length) {
 // Stage 16.5 validation
 const scoreValid = await agentWithRetry(
   `You are stock-analysis:report-validator. Validate scoring consistency for ${OUTPUT_DIR}/ranking.json. ` +
-  `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate score-consistency ` +
-  `--output-dir ${OUTPUT_DIR}'. Required: all 11 components present in 1-10 range, composite ` +
-  `matches weighted sum, rating bracket consistent, no unresolved contradictions, ranking sorted.`,
+  `Read ranking.json and verify: (1) all 11 scoring components are present with values in 1-10 range, ` +
+  `(2) composite score matches the weighted sum of components (tolerance ±0.1), ` +
+  `(3) rating bracket (Strong Buy/Buy/Hold/Sell) is consistent with the composite score, ` +
+  `(4) no unresolved contradictions flagged in cross_check output, ` +
+  `(5) companies are sorted by composite score descending. ` +
+  `Return {pass: true/false, reason: "...", gates_failed: [...]} per schema.`,
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Scoring', label: 'validate:scoring', effort: 'low' }
 )
 if (!scoreValid?.pass) {
@@ -1572,7 +1589,8 @@ while (reportIter < REPORT_MAX_ITERS) {
       `into the report as dedicated "对手方观点 (Bear Case)" and "多框架交叉验证" sections. Include ` +
       `推荐标的排名, 当前股价, dimension breakdown table, methodology attribution, kill switch. ` +
       `Composite weights: see SKILL.md composite-weights.\n\n` +
-      `After writing the report file, run validate_report.py and return a structured result per schema:\n` +
+      `After writing the report file, self-validate by checking: Chinese content, required sections, ` +
+      `current prices, source attribution, kill switch defined. Return a structured result per schema:\n` +
       `- ticker: "${t.ticker}"\n` +
       `- horizon: "${t.horizon}"\n` +
       `- status: "written" if report file saved successfully, "partial" if some sections missing, "failed" if unable to write\n` +
@@ -1582,7 +1600,7 @@ while (reportIter < REPORT_MAX_ITERS) {
       `- conviction_score: the final composite score from scores.json\n` +
       `- rating: the mapped rating (Strong Buy / Buy / Hold / Sell / Strong Sell)\n` +
       `- kill_switch: the VERBATIM kill switch text you wrote in the report\n` +
-      `- validation_passed: result of validate_report.py\n` +
+      `- validation_passed: result of self-validation (did all 8 quality gates pass?)\n` +
       `- validation_errors: list of failing gates if any\n` +
       `- notes: any issues encountered` +
       buildFeedback(t),
@@ -1637,10 +1655,13 @@ while (reportIter < REPORT_MAX_ITERS) {
   phase('Validation')
   reportValid = await agentWithRetry(
     `You are stock-analysis:report-validator. Validate all generated reports at ${OUTPUT_DIR}. ` +
-    `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate report-quality ` +
-    `--output-dir ${OUTPUT_DIR}'. 8 gates: Chinese content, required sections, current price ` +
-    `present, source attribution, framework divergence acknowledged, kill switch defined, ` +
-    `methodology attribution, no hallucinated figures.`,
+    `Read each .md report file and check 8 gates: (1) content is in Chinese (中文), ` +
+    `(2) required sections present (executive summary, dimension breakdown, investment thesis, risks), ` +
+    `(3) current stock price (当前股价) present for every mentioned company, ` +
+    `(4) source attribution uses [Source: ... | Retrieved: ...] format, ` +
+    `(5) at least 1 framework divergence acknowledged, (6) kill switch defined per horizon, ` +
+    `(7) methodology attribution for all major conclusions, (8) no hallucinated figures (every number traceable to data). ` +
+    `Return {pass: true/false, reason: "...", gates_failed: [...]} per schema.`,
     { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: `validate:reports${reportIter > 1 ? `:r${reportIter}` : ''}`, effort: 'low' }
   )
 
@@ -1728,9 +1749,10 @@ if (!bestPicksResult || bestPicksResult.status === 'failed') {
 
 const bestPicksValid = await agentWithRetry(
   `You are stock-analysis:report-validator. Validate HIGHLIGHTS_BEST_PICKS.md at ${OUTPUT_DIR}. ` +
-  `Run 'uv run python ${PLUGIN_ROOT}/scripts/validate_report.py --gate best-picks ` +
-  `--output-dir ${OUTPUT_DIR}'. Required: ranked table with required columns, kill switch per ` +
-  `company, 当前股价 present.`,
+  `Read the file and check: (1) contains a ranked table with columns for rank, ticker, name, score, ` +
+  `and recommendation, (2) kill switch defined for each company, (3) 当前股价 (current price) present ` +
+  `for every listed company, (4) content is in Chinese. ` +
+  `Return {pass: true/false, reason: "...", gates_failed: [...]} per schema.`,
   { agentType: 'stock-analysis:report-validator', schema: VALIDATION_SCHEMA, phase: 'Validation', label: 'validate:best-picks', effort: 'low' }
 )
 tracking.validation_gates.best_picks = bestPicksValid?.pass ?? false

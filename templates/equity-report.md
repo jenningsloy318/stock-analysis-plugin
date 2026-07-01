@@ -19,37 +19,36 @@
 
 ## Conviction Scoring Formulas
 
+Source of truth: `scripts/compute_scores.py` → `compute_conviction()`
+
 ### Long-term Report Conviction
 ```
-Conviction = (Financial_Health × 0.10) + (Capital_Allocation × 0.10) +
-             (Earnings_Quality × 0.05) + (Moat_Quality × 0.15) +
-             (Management_Quality × 0.10) + (Supply_Chain_Resilience × 0.05) +
-             (Valuation_Attractiveness × 0.10) + (Macro_Tailwind × 0.05) +
-             (Risk_Profile × 0.10) + (ESG_Sustainability × 0.05) +
-             (Catalyst_Alignment × 0.05) + (Weinstein_Alignment × 0.05) +
-             (Ecosystem_Momentum × 0.05) + (Industry_Trajectory × 0.05)
+Conviction = (financial_health × 0.15) + (moat_quality × 0.15) +
+             (management_quality × 0.15) + (valuation_attractiveness × 0.15) +
+             (capital_structure × 0.10) + (macro_tailwind × 0.05) +
+             (risk_profile × 0.10) + (weinstein_alignment × 0.05) +
+             (ecosystem_momentum × 0.05) + (industry_trajectory × 0.05)
 ```
 Note: Ecosystem_Momentum = upstream supplier health + downstream customer health composite.
 Industry_Trajectory = is the industry improving or deteriorating (6-dimension directional score).
 
 ### Mid-term Report Conviction
 ```
-Conviction = (Financial_Health × 0.05) + (Capital_Allocation × 0.05) +
-             (Moat_Quality × 0.10) + (Valuation_Attractiveness × 0.10) +
-             (Macro_Tailwind × 0.10) + (Supply_Chain_Resilience × 0.05) +
-             (Risk_Profile × 0.10) + (ESG_Sustainability × 0.05) +
-             (Catalyst_Alignment × 0.10) + (Weinstein_Alignment × 0.10) +
-             (CANSLIM × 0.10) + (Ecosystem_Momentum × 0.05) +
-             (Industry_Trajectory × 0.05)
+Conviction = (financial_health × 0.10) + (moat_quality × 0.10) +
+             (management_quality × 0.10) + (valuation_attractiveness × 0.15) +
+             (macro_tailwind × 0.10) + (risk_profile × 0.10) +
+             (weinstein_alignment × 0.10) + (canslim × 0.10) +
+             (ecosystem_momentum × 0.05) + (industry_trajectory × 0.05) +
+             (money_flow_confirmation × 0.05)
 ```
 
 ### Short-term Report Conviction
 ```
-Conviction = (Valuation_Attractiveness × 0.10) + (Macro_Tailwind × 0.10) +
-             (Risk_Profile × 0.10) + (Alternative_Alignment × 0.10) +
-             (Catalyst_Alignment × 0.10) + (Technical_Setup × 0.15) +
-             (Weinstein_Alignment × 0.10) + (CANSLIM × 0.10) +
-             (Ecosystem_Momentum × 0.10) + (Industry_Trajectory × 0.05)
+Conviction = (valuation_attractiveness × 0.10) + (macro_tailwind × 0.10) +
+             (risk_profile × 0.10) + (alternative_alignment × 0.15) +
+             (technical_setup × 0.15) + (weinstein_alignment × 0.10) +
+             (canslim × 0.10) + (ecosystem_momentum × 0.10) +
+             (industry_trajectory × 0.05) + (money_flow_confirmation × 0.05)
 ```
 Note: Industry_Trajectory weighted higher in short-term than long-term because industry momentum
 (fund flows, RS acceleration, margin direction) is a strong 3-6 month signal.
@@ -171,16 +170,16 @@ Replace `[SCORE]` with actual 1-10 values from `scores.json`. Omit dimensions wi
 
 | Dimension | Weight | Score | Weighted | Key Data Points | Rationale |
 |-----------|--------|-------|----------|-----------------|-----------|
-| Financial Health | 15% | X.X | X.XX | ROIC: XX%, FCF margin: XX%, Z-Score: X.X | [1-sentence: why this score] |
-| Moat Quality | 20% | X.X | X.XX | [Moat type], market share: XX%, retention: XX% | [1-sentence: why this score] |
-| Management | 15% | X.X | X.XX | CEO tenure: X yrs, insider own: X%, alloc: [grade] | [1-sentence: why this score] |
-| Valuation | 20% | X.X | X.XX | P/E: XX.X (vs XX.X), MoS: XX%, PEG: X.X | [1-sentence: why this score] |
-| Capital Structure | 10% | X.X | X.XX | Buyback ROI: XX%, SBC: X%, D/E: X.X | [1-sentence: why this score] |
-| Macro Tailwind | 5% | X.X | X.XX | [Key tailwind/headwind with data] | [1-sentence: why this score] |
-| Risk Profile | 10% | X.X | X.XX | Red flags: X, Z-Score: X.X, litigation: [Y/N] | [1-sentence: why this score] |
-| Weinstein | 5% | X.X | X.XX | Stage: X, decay-wtd RS: X.XX, 30W MA: [direction] | [1-sentence: why this score] |
-| Ecosystem Momentum | — | X.X | — | Upstream: [X.X], downstream: [X.X], direction: [up/flat/down] | [1-sentence] |
-| Industry Trajectory | — | X.X | — | Rev accel: [Y/N], margin: [expanding/flat/contracting], fund flows: [in/out] | [1-sentence] |
+| financial_health | 15% | X.X | X.XX | ROIC: XX%, FCF margin: XX%, Z-Score: X.X | [1-sentence: why this score] |
+| moat_quality | 15% | X.X | X.XX | GM stability CV: X.XX, ROIC-WACC: X.Xpp, retention: XX% | [1-sentence: why this score] |
+| management_quality | 15% | X.X | X.XX | CEO tenure: X yrs, insider own: X%, alloc: [grade] | [1-sentence: why this score] |
+| valuation_attractiveness | 15% | X.X | X.XX | P/E: XX.X (vs XX.X), MoS: XX%, PEG: X.X | [1-sentence: why this score] |
+| capital_structure | 10% | X.X | X.XX | Buyback ROI: XX%, SBC: X%, D/E: X.X | [1-sentence: why this score] |
+| macro_tailwind | 5% | X.X | X.XX | [Key tailwind/headwind with data] | [1-sentence: why this score] |
+| risk_profile | 10% | X.X | X.XX | Red flags: X, Z-Score: X.X, litigation: [Y/N] | [1-sentence: why this score] |
+| weinstein_alignment | 5% | X.X | X.XX | Stage: X, decay-wtd RS: X.XX, 30W MA: [direction] | [1-sentence: why this score] |
+| ecosystem_momentum | 5% | X.X | X.XX | Upstream: [X.X], downstream: [X.X], direction: [up/flat/down] | [1-sentence] |
+| industry_trajectory | 5% | X.X | X.XX | Rev accel: [Y/N], margin: [expanding/flat/contracting], fund flows: [in/out] | [1-sentence] |
 | **TOTAL** | 100% | — | **X.XX** | — | — |
 
 **Three-Layer Alignment**: [fully_aligned/partially_aligned/divergent] — Stock([X.X]) × Industry([X.X]) × Macro([X.X]) → adj: [+0.5/0/-0.5]
@@ -401,16 +400,17 @@ State explicitly: **widening / stable / narrowing** with specific 12-24 month ev
 
 | Dimension | Weight | Score | Weighted | Key Data Points | Rationale |
 |-----------|--------|-------|----------|-----------------|-----------|
-| Financial Health | 10% | X.X | X.XX | ROIC: XX%, FCF: $XM, coverage: X.Xx | [1-sentence] |
-| Moat Quality | 10% | X.X | X.XX | [Moat source + evidence] | [1-sentence] |
-| Management | 10% | X.X | X.XX | CEO tenure: X yrs, beat rate: X/X qtrs | [1-sentence] |
-| Valuation | 20% | X.X | X.XX | P/E: XX.X vs peer XX.X, PEG: X.X | [1-sentence] |
-| Macro Tailwind | 20% | X.X | X.XX | [Rates/GDP/PMI direction + impact] | [1-sentence] |
-| Risk Profile | 10% | X.X | X.XX | Red flags: X, maturity wall: [Y/N] | [1-sentence] |
-| Weinstein | 10% | X.X | X.XX | Stage: X, RS rank: top X%, decay-wtd RS: X.XX | [1-sentence] |
-| CANSLIM | 10% | X.X | X.XX | [X/7 pass]: C[P/F] A[P/F] N[P/F] S[P/F] L[P/F] I[P/F(rev momentum ±adj)] M[P/F] | [1-sentence] |
-| Ecosystem Momentum | 5% | X.X | X.XX | Upstream: [healthy/mixed/weak], downstream: [healthy/mixed/weak] | [1-sentence] |
-| Industry Trajectory | 5% | X.X | X.XX | Direction: [improving/stable/deteriorating], fund flows: [inflow/outflow] | [1-sentence] |
+| financial_health | 10% | X.X | X.XX | ROIC: XX%, FCF: $XM, coverage: X.Xx | [1-sentence] |
+| moat_quality | 10% | X.X | X.XX | GM stability CV: X.XX, ROIC-WACC: X.Xpp | [1-sentence] |
+| management_quality | 10% | X.X | X.XX | CEO tenure: X yrs, beat rate: X/X qtrs | [1-sentence] |
+| valuation_attractiveness | 15% | X.X | X.XX | P/E: XX.X vs peer XX.X, PEG: X.X | [1-sentence] |
+| macro_tailwind | 10% | X.X | X.XX | [Rates/GDP/PMI direction + impact] | [1-sentence] |
+| risk_profile | 10% | X.X | X.XX | Red flags: X, maturity wall: [Y/N] | [1-sentence] |
+| weinstein_alignment | 10% | X.X | X.XX | Stage: X, RS rank: top X%, decay-wtd RS: X.XX | [1-sentence] |
+| canslim | 10% | X.X | X.XX | [X/7 pass]: C[P/F] A[P/F] N[P/F] S[P/F] L[P/F] I[P/F(rev momentum ±adj)] M[P/F] | [1-sentence] |
+| ecosystem_momentum | 5% | X.X | X.XX | Upstream: [healthy/mixed/weak], downstream: [healthy/mixed/weak] | [1-sentence] |
+| industry_trajectory | 5% | X.X | X.XX | Direction: [improving/stable/deteriorating], fund flows: [inflow/outflow] | [1-sentence] |
+| money_flow_confirmation | 5% | X.X | X.XX | MFI/OBV/CMF: [bullish/neutral/bearish], inflow streak: X days | [1-sentence] |
 | **TOTAL** | 100% | — | **X.XX** | — | — |
 
 ### 关键决定维度 (Key Decisive Dimensions — Mid-term)
@@ -604,15 +604,16 @@ For full $10B counterfactual + anti-pattern checks + peer-pair table, refer to t
 
 | Dimension | Weight | Score | Weighted | Key Data Points | Rationale |
 |-----------|--------|-------|----------|-----------------|-----------|
-| Valuation | 10% | X.X | X.XX | P/E vs sector: XXx vs XXx, catalyst premium: [Y/N] | [1-sentence] |
-| Macro Tailwind | 10% | X.X | X.XX | [Rate direction, PMI trend, sector rotation] | [1-sentence] |
-| Risk Profile | 10% | X.X | X.XX | Earnings in X days, event risk: [low/med/high] | [1-sentence] |
-| Alt Alignment | 25% | X.X | X.XX | Web traffic: +X%, app rank: #X, social: [bullish/bearish] | [1-sentence] |
-| Technical Setup | 20% | X.X | X.XX | RSI: XX, MACD: [signal], decay-wtd RS: X.XX, above MA: [Y/N] | [1-sentence] |
-| Weinstein | 15% | X.X | X.XX | Stage: X, breakout: [confirmed/pending], volume: [X vs avg] | [1-sentence] |
-| CANSLIM | 10% | X.X | X.XX | M-factor: [confirmed uptrend/correction], rev momentum: X.X/10 | [1-sentence] |
-| Ecosystem Momentum | 10% | X.X | X.XX | Upstream health: X.X, downstream: X.X, direction: [up/down] | [1-sentence] |
-| Industry Trajectory | 5% | X.X | X.XX | Sector RS: [rising/falling], fund flows: [in/out] | [1-sentence] |
+| valuation_attractiveness | 10% | X.X | X.XX | P/E vs sector: XXx vs XXx, catalyst premium: [Y/N] | [1-sentence] |
+| macro_tailwind | 10% | X.X | X.XX | [Rate direction, PMI trend, sector rotation] | [1-sentence] |
+| risk_profile | 10% | X.X | X.XX | Earnings in X days, event risk: [low/med/high] | [1-sentence] |
+| alternative_alignment | 15% | X.X | X.XX | Web traffic: +X%, app rank: #X, social: [bullish/bearish] | [1-sentence] |
+| technical_setup | 15% | X.X | X.XX | RSI: XX, MACD: [signal], decay-wtd RS: X.XX, above MA: [Y/N] | [1-sentence] |
+| weinstein_alignment | 10% | X.X | X.XX | Stage: X, breakout: [confirmed/pending], volume: [X vs avg] | [1-sentence] |
+| canslim | 10% | X.X | X.XX | M-factor: [confirmed uptrend/correction], rev momentum: X.X/10 | [1-sentence] |
+| ecosystem_momentum | 10% | X.X | X.XX | Upstream health: X.X, downstream: X.X, direction: [up/down] | [1-sentence] |
+| industry_trajectory | 5% | X.X | X.XX | Sector RS: [rising/falling], fund flows: [in/out] | [1-sentence] |
+| money_flow_confirmation | 5% | X.X | X.XX | MFI/OBV/CMF: [bullish/neutral/bearish], volume-price: [量价齐升/背离] | [1-sentence] |
 | **TOTAL** | 100% | — | **X.XX** | — | — |
 
 ### 关键决定维度 (Key Decisive Dimensions — Short-term)

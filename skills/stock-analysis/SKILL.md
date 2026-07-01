@@ -75,7 +75,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <stage n="1" name="Data Collection" agent="data-collector">Fetch shared data ONCE: macro indicators, economic surprises, sector/sub-industry RS, market breadth, theme performance. Load references/gics_taxonomy.md and references/data_source_matrix.md. All downstream stages reuse this data.</stage>
   <stage n="1.5" name="Data Validation" agent="report-validator" modes="pipeline,screen,analyze,compare">Validate Stage 1 shared data: freshness check, source coverage, required files present. Blocks downstream stages if shared data is stale or incomplete. MUST PASS before Stages 2+.</stage>
 
-  <stage n="2" name="Sub-Industry Screening" agent="sector-screener" modes="pipeline,screen">Score ALL 163 GICS Level 4 sub-industries on 11 dimensions (Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent Quality, Supply/Demand). Process in 3 parallel batches of ~54. Select top N sub-industries.</stage>
+  <stage n="2" name="Sub-Industry Screening" agent="sector-screener" modes="pipeline,screen">Score ALL 163 GICS Level 4 sub-industries on 11 dimensions (Growth, Profitability, Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Technical Health, Supply/Demand). Process in 3 parallel batches of ~54. Select top N sub-industries.</stage>
   <stage n="3" name="Sub-Industry Deep-Dive" agent="sector-screener" modes="pipeline,screen">Deep-dive top N sub-industries: Porter, TAM, catalysts, barriers, company universe, competitive dynamics, growth catalysts, profit pools. Process in parallel waves of max 4 agents.</stage>
   <stage n="4" name="Company Screening" agent="company-screener" modes="pipeline,screen">Screen companies across ALL top N sub-industries. Apply filters (market cap, growth, FCF, ROIC, price per --top-price, Growth Headroom per --min-headroom, universe filter). Score on growth/profitability/moat/valuation/management/risk/liquidity. Select top M by score across ALL sub-industries — NOT quota per sub-industry.</stage>
   <stage n="4.5" name="Screening Validation" agent="report-validator" modes="pipeline,screen">Validate screening outputs: sub-industry leaderboard has 10+ entries with valid GICS codes, company watchlist has 10+ companies, price filter applied, headroom filter applied, universe filter applied, 推荐标的排名 format correct. Blocks report generation if screening is incomplete.</stage>
@@ -233,19 +233,24 @@ Do NOT trigger on: general market commentary, non-financial queries.
 </criteria>
 
 <composite-weights>
+  Source of truth: `scripts/compute_scores.py` → `compute_conviction()`
+
   | Dimension | Long-term | Mid-term | Short-term |
   |-----------|-----------|----------|------------|
-  | Growth | 25% | 20% | 10% |
-  | Profitability | 20% | 15% | 5% |
-  | Valuation | 10% | 15% | 10% |
-  | Macro Fit | 10% | 15% | 10% |
-  | Innovation | 15% | 10% | 5% |
-  | Regulatory | 5% | 5% | 5% |
-  | Capital Flows | 5% | 5% | 20% |
-  | Relative Strength | 5% | 10% | 20% |
-  | Cyclicality | 5% | 5% | 5% |
-  | Constituent Quality | 0% | 0% | 10% |
-  | Supply/Demand Cycle | 0% | 0% | 0% |
+  | financial_health | 15% | 10% | — |
+  | moat_quality | 15% | 10% | — |
+  | management_quality | 15% | 10% | — |
+  | valuation_attractiveness | 15% | 15% | 10% |
+  | capital_structure | 10% | — | — |
+  | macro_tailwind | 5% | 10% | 10% |
+  | risk_profile | 10% | 10% | 10% |
+  | alternative_alignment | — | — | 15% |
+  | technical_setup | — | — | 15% |
+  | weinstein_alignment | 5% | 10% | 10% |
+  | canslim | — | 10% | 10% |
+  | ecosystem_momentum | 5% | 5% | 10% |
+  | industry_trajectory | 5% | 5% | 5% |
+  | money_flow_confirmation | — | 5% | 5% |
 </composite-weights>
 
 <references>

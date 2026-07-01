@@ -214,19 +214,24 @@ Do NOT trigger on: general market commentary, non-financial queries.
 </criteria>
 
 <composite-weights>
+  Source of truth: `scripts/compute_scores.py` → `compute_conviction()`
+
   | Dimension | Long-term | Mid-term | Short-term |
   |-----------|-----------|----------|------------|
-  | Growth | 25% | 20% | 10% |
-  | Profitability | 20% | 15% | 5% |
-  | Valuation | 10% | 15% | 10% |
-  | Macro Fit | 10% | 15% | 10% |
-  | Innovation | 15% | 10% | 5% |
-  | Regulatory | 5% | 5% | 5% |
-  | Capital Flows | 5% | 5% | 20% |
-  | Relative Strength | 5% | 10% | 20% |
-  | Cyclicality | 5% | 5% | 5% |
-  | Constituent Quality | 0% | 0% | 10% |
-  | Supply/Demand Cycle | 0% | 0% | 0% |
+  | financial_health | 15% | 10% | — |
+  | moat_quality | 15% | 10% | — |
+  | management_quality | 15% | 10% | — |
+  | valuation_attractiveness | 15% | 15% | 10% |
+  | capital_structure | 10% | — | — |
+  | macro_tailwind | 5% | 10% | 10% |
+  | risk_profile | 10% | 10% | 10% |
+  | alternative_alignment | — | — | 15% |
+  | technical_setup | — | — | 15% |
+  | weinstein_alignment | 5% | 10% | 10% |
+  | canslim | — | 10% | 10% |
+  | ecosystem_momentum | 5% | 5% | 10% |
+  | industry_trajectory | 5% | 5% | 5% |
+  | money_flow_confirmation | — | 5% | 5% |
 </composite-weights>
 
 <references>

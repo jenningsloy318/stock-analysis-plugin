@@ -63,7 +63,7 @@ These dimensions are applied at sector level (Pass 1) for quick filtering, then 
 | Capital Flows | 5% | 5% | 20% | ETF flows (1M/3M/6M), institutional positioning |
 | Relative Strength | 5% | 10% | 20% | Sub-industry ETF performance vs SPX over 1M/3M/6M/12M |
 | Cyclicality | 5% | 5% | 5% | GDP beta, earnings volatility, early/mid/late-cycle fit |
-| Constituent Quality | 0% | 0% | 10% | Breadth of profitable/FCF-positive companies, revision breadth, concentration risk |
+| Technical Health | 0% | 0% | 10% | Average technical health score of constituent companies (from compute_health_index.py GF-DMA Health Index — fundamental speed × DMA structure) |
 | Supply/Demand Cycle | 0% | 0% | 0% | Inventory, utilization, backlog, input costs; use as disclosed reallocation for cycle-sensitive sub-industries |
 
 For cycle-sensitive sectors, the analyst may reallocate up to 5% from Innovation or Capital Flows to Supply/Demand Cycle. Any reallocation must be stated in the Methodology Appendix.

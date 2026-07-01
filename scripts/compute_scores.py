@@ -26,6 +26,7 @@ weighted formulas, applying override rules (component ≤3 caps at Hold,
 import argparse
 import json
 import os
+import statistics
 import sys
 from collections import Counter
 from datetime import datetime, timezone
@@ -180,10 +181,18 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
 
     # --- ROE / ROIC ---
     roe = ratios.get("roe")
+    roic = ratios.get("roic")
     incremental_roic = ratios.get("incremental_roic")
     dupont = ratios.get("dupont", {})
+    negative_equity = dupont.get("negative_equity", False)
     score_roe = None
-    if roe is not None:
+    if negative_equity and roic is not None:
+        # Negative equity (buyback-heavy companies like SBUX, MCD, PM) — use ROIC instead
+        score_roe = _score_from_percentile(roic, 0.12, 0.20, 0.06, 0.02)
+        reasons.append(
+            f"Negative equity → using ROIC: {roic:.1%} (substituted for ROE) → sub-score {score_roe:.1f}"
+        )
+    elif roe is not None:
         # Penalize leverage-driven ROE
         leverage_driven = dupont.get("interpretation", {}).get("leverage_driven", False)
         if leverage_driven:
@@ -363,75 +372,147 @@ def compute_financial_health(metrics: dict, sector: int | None = None) -> dict:
 
 
 def compute_moat_quality(metrics: dict, sector: int | None = None) -> dict:
-    """Score competitive moat from quantitative proxies.
+    """Score competitive moat from DISTINCT indicators (no overlap with Financial Health).
 
-    Since true moat analysis requires qualitative assessment, this provides
-    quantitative proxies that the LLM agent can adjust ±2 points based on
-    qualitative search findings.
+    Sub-metrics (designed to avoid double-counting with Financial Health):
+    1. Gross Margin Stability (25%): CV of gross margin over 5 years — pricing power
+    2. ROIC vs WACC Spread Persistence (25%): sustained excess returns — moat durability
+    3. Revenue Retention Rate (25%): absence of revenue declines — customer stickiness
+    4. Market Share Trend (25%): revenue growth vs industry — competitive position
     """
     ratios = metrics.get("ratios", {})
+    eva_data = metrics.get("economic_value_added", {})
     reasons: list[str] = []
     sub_scores: dict[str, float | None] = {}
 
-    # --- Pricing Power (via margin stability/level) ---
-    op_margin = ratios.get("operating_margin")
-    net_margin = ratios.get("net_margin")
-    score_pricing = None
-    if op_margin is not None:
-        if op_margin > 0.30:
-            score_pricing = 9.0
-        elif op_margin > 0.20:
-            score_pricing = 7.5
-        elif op_margin > 0.10:
-            score_pricing = 5.5
-        elif op_margin > 0.05:
-            score_pricing = 4.0
+    # --- 1. Gross Margin Stability (CV of gross margin over available years) ---
+    score_gm_stability = None
+    margin_traj = ratios.get("margin_trajectory")
+    if margin_traj and isinstance(margin_traj, dict):
+        gm_history = margin_traj.get("history", [])
+        if len(gm_history) >= 3:
+            mean_gm = statistics.mean(gm_history)
+            if mean_gm > 0:
+                stdev_gm = statistics.stdev(gm_history)
+                cv = stdev_gm / mean_gm
+                # Score: CV < 0.05 = 10, CV > 0.20 = 2
+                if cv < 0.05:
+                    score_gm_stability = 10.0
+                elif cv < 0.08:
+                    score_gm_stability = 8.5
+                elif cv < 0.12:
+                    score_gm_stability = 7.0
+                elif cv < 0.15:
+                    score_gm_stability = 5.5
+                elif cv < 0.20:
+                    score_gm_stability = 4.0
+                else:
+                    score_gm_stability = 2.0
+                reasons.append(
+                    f"Gross margin CV: {cv:.3f} (over {len(gm_history)} years, mean={mean_gm:.1%}) → stability {score_gm_stability:.1f}"
+                )
+            else:
+                score_gm_stability = 2.0
+                reasons.append("Gross margin mean ≤ 0 → no pricing power")
+    sub_scores["gross_margin_stability"] = score_gm_stability
+
+    # --- 2. ROIC vs WACC Spread Persistence ---
+    score_spread = None
+    roic = ratios.get("roic")
+    # Get WACC from EVA data or from ratios
+    wacc = eva_data.get("wacc") if eva_data else None
+    if wacc is None:
+        # Default WACC assumption if not computed
+        wacc = 0.09  # 9% reasonable default for spread calculation
+    if roic is not None:
+        spread_pp = (roic - wacc) * 100  # in percentage points
+        # Score: spread > 15pp = 10, spread < 0 = 2
+        if spread_pp > 15:
+            score_spread = 10.0
+        elif spread_pp > 10:
+            score_spread = 8.5
+        elif spread_pp > 6:
+            score_spread = 7.0
+        elif spread_pp > 3:
+            score_spread = 5.5
+        elif spread_pp > 0:
+            score_spread = 4.0
+        elif spread_pp > -3:
+            score_spread = 3.0
         else:
-            score_pricing = 2.0
+            score_spread = 2.0
         reasons.append(
-            f"Operating margin {op_margin:.1%} → pricing power proxy {score_pricing:.1f}"
+            f"ROIC-WACC spread: {spread_pp:.1f}pp (ROIC={roic:.1%}, WACC={wacc:.1%}) → {score_spread:.1f}"
         )
-    sub_scores["pricing_power"] = score_pricing
+    sub_scores["roic_wacc_spread"] = score_spread
 
-    # --- Returns on Capital (moat durability proxy) ---
-    roe = ratios.get("roe")
-    score_returns = None
-    if roe is not None:
-        if roe > 0.25:
-            score_returns = 9.0
-        elif roe > 0.18:
-            score_returns = 7.5
-        elif roe > 0.12:
-            score_returns = 6.0
-        elif roe > 0.08:
-            score_returns = 4.5
-        elif roe > 0:
-            score_returns = 3.0
-        else:
-            score_returns = 1.0
-        reasons.append(f"ROE {roe:.1%} → capital return proxy {score_returns:.1f}")
-    sub_scores["returns_on_capital"] = score_returns
-
-    # --- Revenue Growth Consistency (moat trajectory proxy) ---
+    # --- 3. Revenue Retention Rate (absence of declines = sticky customers) ---
+    score_retention = None
     rev_cagr = ratios.get("revenue_cagr_5yr")
-    score_growth = None
+    ni_cagr = ratios.get("ni_cagr_5yr")
     if rev_cagr is not None:
-        if rev_cagr > 0.20:
-            score_growth = 8.5
-        elif rev_cagr > 0.12:
-            score_growth = 7.5
-        elif rev_cagr > 0.06:
-            score_growth = 6.0
-        elif rev_cagr > 0.02:
-            score_growth = 5.0
-        elif rev_cagr > -0.02:
-            score_growth = 3.5
+        # Use CAGR as proxy: strongly positive = no meaningful declines
+        # Negative CAGR implies at least some years had declines
+        if rev_cagr >= 0.10:
+            score_retention = 10.0  # Strong consistent growth — no declines
+        elif rev_cagr >= 0.05:
+            score_retention = 8.5
+        elif rev_cagr >= 0.02:
+            score_retention = 7.0
+        elif rev_cagr >= 0.0:
+            score_retention = 5.5  # Flat but no decline
+        elif rev_cagr >= -0.05:
+            score_retention = 4.0  # Mild decline
+        elif rev_cagr >= -0.10:
+            score_retention = 3.0
         else:
-            score_growth = 2.0
+            score_retention = 2.0  # Significant revenue loss > 20% decline somewhere
         reasons.append(
-            f"5yr revenue CAGR {rev_cagr:.1%} → growth proxy {score_growth:.1f}"
+            f"Revenue CAGR 5yr: {rev_cagr:.1%} → retention proxy {score_retention:.1f}"
         )
-    sub_scores["growth_consistency"] = score_growth
+    sub_scores["revenue_retention"] = score_retention
+
+    # --- 4. Market Share Trend (rev growth vs industry benchmark) ---
+    score_mkt_share = None
+    # Industry growth proxy: use sector-typical growth rates
+    sector_growth_benchmarks = {
+        45: 0.10,  # Technology — high secular growth
+        35: 0.08,  # Healthcare
+        25: 0.05,  # Consumer Discretionary
+        30: 0.03,  # Consumer Staples
+        20: 0.04,  # Industrials
+        10: 0.02,  # Energy — low organic growth
+        15: 0.03,  # Materials
+        40: 0.04,  # Financials
+        50: 0.06,  # Communication Services
+        55: 0.02,  # Utilities
+        60: 0.03,  # Real Estate
+    }
+    industry_growth = sector_growth_benchmarks.get(sector, 0.04) if sector else 0.04
+
+    if rev_cagr is not None:
+        excess_growth_pp = (rev_cagr - industry_growth) * 100
+        # Score: +10pp excess = 10, -10pp = 2
+        if excess_growth_pp >= 10:
+            score_mkt_share = 10.0
+        elif excess_growth_pp >= 6:
+            score_mkt_share = 8.5
+        elif excess_growth_pp >= 3:
+            score_mkt_share = 7.0
+        elif excess_growth_pp >= 0:
+            score_mkt_share = 5.5
+        elif excess_growth_pp >= -3:
+            score_mkt_share = 4.5
+        elif excess_growth_pp >= -6:
+            score_mkt_share = 3.5
+        elif excess_growth_pp >= -10:
+            score_mkt_share = 2.5
+        else:
+            score_mkt_share = 2.0
+        reasons.append(
+            f"Rev growth vs industry: {excess_growth_pp:+.1f}pp (rev={rev_cagr:.1%}, industry≈{industry_growth:.1%}) → {score_mkt_share:.1f}"
+        )
+    sub_scores["market_share_trend"] = score_mkt_share
 
     # --- Sector premium (tech/healthcare get structural moat bonus) ---
     sector_bonus = 0.0
@@ -449,24 +530,27 @@ def compute_moat_quality(metrics: dict, sector: int | None = None) -> dict:
         }
 
     weights = {
-        "pricing_power": 0.35,
-        "returns_on_capital": 0.35,
-        "growth_consistency": 0.30,
+        "gross_margin_stability": 0.25,
+        "roic_wacc_spread": 0.25,
+        "revenue_retention": 0.25,
+        "market_share_trend": 0.25,
     }
     total = sum(valid[k] * weights[k] for k in valid) / sum(weights[k] for k in valid)
     total += sector_bonus
     final = _clamp(total)
 
     if final >= 7.5:
-        assessment = (
-            "Wide moat — sustained high returns, pricing power, consistent growth"
-        )
+        assessment = "Wide moat — stable margins, persistent excess returns, growing market share"
     elif final >= 6.0:
-        assessment = "Narrow moat — competitive advantages present but not dominant"
+        assessment = (
+            "Narrow moat — some competitive advantages but not fully entrenched"
+        )
     elif final >= 4.0:
-        assessment = "No moat — returns near cost of capital, undifferentiated"
+        assessment = "No moat — returns near cost of capital, market share stagnant"
     else:
-        assessment = "Moat erosion — declining returns, competitive pressure evident"
+        assessment = (
+            "Moat erosion — declining share, narrowing spreads, unstable margins"
+        )
 
     return {
         "score": final,
@@ -476,7 +560,7 @@ def compute_moat_quality(metrics: dict, sector: int | None = None) -> dict:
         "adjustable": True,
         "adjustment_range": [-2.0, 2.0],
         "adjustment_note": "LLM agent may adjust ±2.0 based on qualitative moat analysis (Morningstar framework findings)",
-        "methodology": "Moat = PricingPower(35%) + Returns(35%) + Growth(30%) + SectorBonus",
+        "methodology": "Moat = GM_Stability(25%) + ROIC-WACC_Spread(25%) + Revenue_Retention(25%) + Market_Share_Trend(25%) + SectorBonus",
     }
 
 
@@ -494,21 +578,31 @@ def compute_management_quality(metrics: dict, sentiment: dict | None = None) -> 
     reasons: list[str] = []
     sub_scores: dict[str, float | None] = {}
 
-    # --- Capital Allocation (ROIC vs WACC spread proxy via ROE) ---
+    # --- Capital Allocation (ROIC vs WACC spread proxy via ROE or ROIC) ---
     roe = ratios.get("roe")
+    roic = ratios.get("roic")
+    dupont = ratios.get("dupont", {})
+    negative_equity = dupont.get("negative_equity", False)
+    # Use ROIC instead of ROE when equity is negative (buyback-heavy companies)
+    capital_metric = roic if negative_equity and roic is not None else roe
+    capital_metric_name = "ROIC" if (negative_equity and roic is not None) else "ROE"
     score_capital = None
-    if roe is not None:
-        if roe > 0.20:
+    if capital_metric is not None:
+        if capital_metric > 0.20:
             score_capital = 8.5
-        elif roe > 0.14:
+        elif capital_metric > 0.14:
             score_capital = 7.0
-        elif roe > 0.10:
+        elif capital_metric > 0.10:
             score_capital = 5.5
-        elif roe > 0.05:
+        elif capital_metric > 0.05:
             score_capital = 4.0
         else:
             score_capital = 2.0
-        reasons.append(f"ROE {roe:.1%} → capital allocation proxy {score_capital:.1f}")
+        reasons.append(
+            f"{capital_metric_name} {capital_metric:.1%} → capital allocation proxy {score_capital:.1f}"
+        )
+        if negative_equity:
+            reasons.append("(Negative equity from buybacks — substituted ROIC for ROE)")
     sub_scores["capital_allocation"] = score_capital
 
     # --- Insider Activity ---

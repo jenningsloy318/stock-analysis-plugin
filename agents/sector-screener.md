@@ -1,6 +1,6 @@
 ---
 name: sector-screener
-description: "Analyzes GICS sectors (Level 1) and sub-industries (Level 4) for growth, profitability, valuation, macro sensitivity, innovation dynamics, regulatory environment, capital flows, relative strength, cyclicality, constituent quality, and supply/demand cycles. Performs two-pass analysis: Pass 1 scores sectors, Pass 2 ranks sub-industries within above-median sectors. In deep-dive mode, performs focused GICS Level 4 sub-industry analysis with competitive dynamics, profit pools, TAM, and complete company universe mapping. Handles Stage 2-3 of the screening pipeline workflow."
+description: "Analyzes GICS sectors (Level 1) and sub-industries (Level 4) for growth, profitability, valuation, macro sensitivity, innovation dynamics, regulatory environment, capital flows, relative strength, cyclicality, technical health, and supply/demand cycles. Performs two-pass analysis: Pass 1 scores sectors, Pass 2 ranks sub-industries within above-median sectors. In deep-dive mode, performs focused GICS Level 4 sub-industry analysis with competitive dynamics, profit pools, TAM, and complete company universe mapping. Handles Stage 2-3 of the screening pipeline workflow."
 model: inherit
 kind: local
 tools:
@@ -63,13 +63,13 @@ The screening workflow uses Level 4 as the atomic classification for company dis
 <step n="5" name="Macro Fit">Assess sensitivity to current macro regime: interest rates, inflation, GDP growth, yield curve. Rate tailwind/headwind per sector.</step>
 <step n="6" name="Innovation & Disruption">R&D intensity, patent activity, technology adoption curves, disruption risk, secular growth themes (AI, electrification, biotech, etc.).</step>
 <step n="7" name="Regulatory Landscape">Current and pending regulation, antitrust risk, subsidy exposure (IRA, CHIPS, etc.), political sensitivity.</step>
-<step n="8" name="Capital Flows">Load `./reports/[RUN_ID]/theme_data.json` for sector ETF returns (1D/5D/1M), theme group momentum, style factor rotation. Load `./reports/[RUN_ID]/breadth_data.json` for up/down volume ratio by sector. Supplement with web search for institutional positioning shifts, insider cluster activity.</step>
-<step n="9" name="Relative Strength">Use pre-computed sector_rs.json for multi-timeframe RS rankings (1M/3M/6M/12M). Cross-reference with theme_data.json regime_summary for sector leaders/laggards and growth/value bias. Score sector performance vs SPX and identify improving/deteriorating momentum. Flag RS signals that conflict with breadth data (e.g., high RS but deteriorating constituent participation).</step>
+<step n="8" name="Capital Flows">Load `./reports/[RUN_ID]/stage1_themes.json` for sector ETF returns (1D/5D/1M), theme group momentum, style factor rotation. Load `./reports/[RUN_ID]/stage1_breadth.json` for up/down volume ratio by sector. Supplement with web search for institutional positioning shifts, insider cluster activity.</step>
+<step n="9" name="Relative Strength">Use pre-computed stage1_sector_rs.json for multi-timeframe RS rankings (1M/3M/6M/12M). Cross-reference with stage1_themes.json regime_summary for sector leaders/laggards and growth/value bias. Score sector performance vs SPX and identify improving/deteriorating momentum. Flag RS signals that conflict with breadth data (e.g., high RS but deteriorating constituent participation).</step>
 <step n="10" name="Cyclicality">Classify Defensive/Moderate/Cyclical/Highly Cyclical using GDP beta, earnings volatility, and current cycle fit.</step>
-<step n="11" name="Constituent Quality">Load `./reports/[RUN_ID]/breadth_data.json` for % stocks above 50/200-day MAs, advance/decline ratio, new highs/lows, McClellan Oscillator. Measure breadth: share of market cap with positive FCF, ROIC > WACC, low leverage, and positive estimate revisions. Cross-reference with breadth data: is sector performance broad-based or concentrated in a few mega-caps? Flag concentration-driven sector scores. A sector with strong RS but weak constituent breadth (low % above MAs) receives a quality downgrade.</step>
+<step n="11" name="Technical Health">Average technical health score of constituent companies (from compute_health_index.py GF-DMA Health Index — fundamental speed × DMA structure). Load `./reports/[RUN_ID]/stage1_breadth.json` for % stocks above 50/200-day MAs, advance/decline ratio, new highs/lows, McClellan Oscillator. Measure breadth: share of market cap with positive FCF, ROIC > WACC, low leverage, and positive estimate revisions. Cross-reference with breadth data: is sector performance broad-based or concentrated in a few mega-caps? Flag concentration-driven sector scores. A sector with strong RS but weak constituent breadth (low % above MAs) receives a quality downgrade.</step>
 <step n="12" name="Supply/Demand Cycle">For cycle-sensitive sectors, assess inventory, backlog, utilization, pricing, capacity, and input costs.</step>
 <step n="13" name="Scoring">Score each sector 1-10 on each dimension with evidence. Produce composite weighted score.</step>
-<step n="14" name="Sub-Industry Ranking (Pass 2)">For sectors scoring above median in Pass 1, load `./reports/[RUN_ID]/sub_industry_rs.json` and `references/gics_taxonomy.md`. Rank all Level 4 sub-industries within each above-median sector by:
+<step n="14" name="Sub-Industry Ranking (Pass 2)">For sectors scoring above median in Pass 1, load `./reports/[RUN_ID]/stage1_sub_industry_rs.json` and `references/gics_taxonomy.md`. Rank all Level 4 sub-industries within each above-median sector by:
   - Sub-Industry RS (from pre-computed data)
   - Growth attractiveness (fastest-growing constituents)
   - Structural tailwinds (secular vs cyclical)
@@ -123,7 +123,7 @@ When invoked for Phase 2 (sub-industry deep-dive), the target is a specific GICS
 - references/data_source_matrix.md (source tiers, sector add-ons, confidence caps)
 
 ### Data Acquisition & Scripts
-Run `{plugin_root}/scripts/compute_sector_rs.py --level sub-industry --flat --output ./reports/[RUN_ID]/sub_industry_rs.json` for flat sub-industry RS leaderboard.
+Run `{plugin_root}/scripts/compute_sector_rs.py --level sub-industry --flat --output ./reports/[RUN_ID]/stage1_sub_industry_rs.json` for flat sub-industry RS leaderboard.
 Run `{plugin_root}/scripts/fetch_sub_industry_universe.py --code [GICS_CODE] --output ./reports/[RUN_ID]/universe_[CODE].json` for constituent discovery.
 
 IMPORTANT: ALL search queries should target GICS Level 4 sub-industry names directly.

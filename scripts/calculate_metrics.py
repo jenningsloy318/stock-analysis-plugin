@@ -93,17 +93,34 @@ def compute_dupont(
     ROE = Tax Burden × Interest Burden × Operating Margin × Asset Turnover × Equity Multiplier
     Where: Tax Burden = NI/EBT, Interest Burden = EBT/EBIT
     Falls back to 3-factor if EBIT/EBT unavailable.
+    Handles negative equity (buyback-heavy companies) by flagging and computing ROIC instead.
     """
     net_margin = safe_div(net_income, revenue)
     asset_turnover = safe_div(revenue, assets)
-    equity_multiplier = safe_div(assets, equity)
-    roe = safe_div(net_income, equity)
+
+    # Handle negative equity (common for buyback-heavy companies like SBUX, MCD, PM)
+    negative_equity = equity is not None and equity <= 0
+
+    if negative_equity:
+        equity_multiplier = None
+        roe = None
+        # Compute ROIC as alternative: NOPAT / Invested Capital
+        # Invested Capital ≈ Total Assets - non-interest-bearing current liabilities
+        # Simplified: use assets as invested capital proxy
+        roic_alternative = (
+            safe_div(net_income, assets) if assets and assets > 0 else None
+        )
+    else:
+        equity_multiplier = safe_div(assets, equity)
+        roe = safe_div(net_income, equity)
+        roic_alternative = None
 
     result = {
         "roe": round(roe, 4) if roe else None,
         "net_profit_margin": round(net_margin, 4) if net_margin else None,
         "asset_turnover": round(asset_turnover, 4) if asset_turnover else None,
         "equity_multiplier": round(equity_multiplier, 4) if equity_multiplier else None,
+        "negative_equity": negative_equity,
         "interpretation": {
             "margin_driven": net_margin is not None and net_margin > 0.15,
             "turnover_driven": asset_turnover is not None and asset_turnover > 1.0,
@@ -111,6 +128,14 @@ def compute_dupont(
             and equity_multiplier > 3.0,
         },
     }
+
+    if negative_equity:
+        result["roic_alternative"] = (
+            round(roic_alternative, 4) if roic_alternative else None
+        )
+        result["negative_equity_note"] = (
+            "Negative equity from buybacks — use ROIC instead of ROE"
+        )
 
     if ebit and ebt and ebit != 0 and ebt != 0:
         tax_burden = safe_div(net_income, ebt)
@@ -137,6 +162,11 @@ def compute_dupont(
         result["methodology"] = (
             "DuPont 3-Factor: ROE = Margin × Turnover × Leverage "
             "(EBIT/EBT unavailable for 5-factor)"
+        )
+
+    if negative_equity:
+        result["methodology"] += (
+            " | NOTE: Equity ≤ 0 — DuPont decomposition not meaningful, ROIC substituted"
         )
 
     return result
@@ -214,32 +244,173 @@ def compute_beneish_mscore(
 
 
 def compute_beneish_from_financials(years_data: dict) -> dict:
-    """Attempt to compute Beneish variables from multi-year financials."""
+    """Attempt to compute Beneish variables from multi-year financials.
+
+    Implements all 8 variables where data permits. Uses 1.0 (neutral) for
+    variables that cannot be computed due to missing data. If fewer than 5
+    variables have real data, marks M-Score as INCOMPLETE.
+    """
     income = years_data.get("income_statement", {})
     balance = years_data.get("balance_sheet", {})
+    cash_flow_data = years_data.get("cash_flow", {})
 
     rev = extract_values(income.get("revenue", []))
     ni = extract_values(income.get("net_income", []))
     assets = extract_values(balance.get("total_assets", []))
+    gross_profit = extract_values(income.get("gross_profit", []))
+    receivables = extract_values(balance.get("accounts_receivable", []))
+    current_assets = extract_values(balance.get("current_assets", []))
+    current_liabilities = extract_values(balance.get("current_liabilities", []))
+    total_liabilities = extract_values(balance.get("total_liabilities", []))
+    total_debt = extract_values(balance.get("total_debt", []))
+    ocf = extract_values(cash_flow_data.get("operating_cash_flow", []))
 
     if len(rev) < 2 or len(assets) < 2:
         return compute_beneish_mscore(None, None, None, None, None, None, None, None)
 
+    computed_vars: list[str] = []
+
     # SGI (Sales Growth Index) = Revenue[t] / Revenue[t-1]
     sgi = safe_div(rev[0], rev[1])
+    if sgi is not None:
+        computed_vars.append("SGI")
+    else:
+        sgi = 1.0
 
-    # Remaining variables require AR, gross profit, depreciation, SGA, etc.
-    # which may not be in the EDGAR companyfacts data. Return partial.
-    return compute_beneish_mscore(
-        dsri=None,
-        gmi=None,
-        aqi=None,
+    # DSRI (Days Sales Receivable Index)
+    # = (Receivables_t / Revenue_t) / (Receivables_t-1 / Revenue_t-1)
+    dsri = None
+    if len(receivables) >= 2 and len(rev) >= 2:
+        ratio_t = safe_div(receivables[0], rev[0])
+        ratio_t1 = safe_div(receivables[1], rev[1])
+        if ratio_t is not None and ratio_t1 is not None:
+            dsri = safe_div(ratio_t, ratio_t1)
+    if dsri is not None:
+        computed_vars.append("DSRI")
+    else:
+        dsri = 1.0
+
+    # GMI (Gross Margin Index) = GM_t-1 / GM_t (inverted — higher if declining)
+    gmi = None
+    if len(gross_profit) >= 2 and len(rev) >= 2:
+        gm_t = safe_div(gross_profit[0], rev[0])
+        gm_t1 = safe_div(gross_profit[1], rev[1])
+        if gm_t is not None and gm_t1 is not None and gm_t > 0:
+            gmi = gm_t1 / gm_t
+    if gmi is not None:
+        computed_vars.append("GMI")
+    else:
+        gmi = 1.0
+
+    # AQI (Asset Quality Index) = 1 - (PPE_t + CA_t) / TA_t
+    # Since PPE is not directly available, approximate using:
+    # AQI = 1 - (current_assets_t + (TA_t - total_liabilities_t - current_assets_t)) / TA_t
+    # Simplified: AQI measures intangible asset growth. Without PPE, use
+    # (1 - current_assets / total_assets) as proxy for non-current non-tangible portion
+    aqi = None
+    if len(current_assets) >= 1 and len(assets) >= 1 and assets[0] > 0:
+        # Approximate: assume tangible = current_assets (conservative)
+        # AQI_t = 1 - CA_t / TA_t (higher = more intangibles)
+        aqi_t = 1.0 - (current_assets[0] / assets[0])
+        if len(current_assets) >= 2 and len(assets) >= 2 and assets[1] > 0:
+            aqi_t1 = 1.0 - (current_assets[1] / assets[1])
+            if aqi_t1 > 0:
+                aqi = aqi_t / aqi_t1
+                computed_vars.append("AQI")
+    if aqi is None:
+        aqi = 1.0
+
+    # DEPI (Depreciation Index) — requires depreciation and PPE data
+    # Not available in standard fetch_financials output. Use neutral default.
+    depi = 1.0
+
+    # SGAI (SGA Expense Index) — SGA not directly available
+    # Approximate SGA as: Gross Profit - Operating Income (if both available)
+    sgai = None
+    operating_income = extract_values(income.get("operating_income", []))
+    if len(gross_profit) >= 2 and len(operating_income) >= 2 and len(rev) >= 2:
+        sga_t = (
+            gross_profit[0] - operating_income[0]
+            if gross_profit[0] and operating_income[0]
+            else None
+        )
+        sga_t1 = (
+            gross_profit[1] - operating_income[1]
+            if gross_profit[1] and operating_income[1]
+            else None
+        )
+        if sga_t is not None and sga_t1 is not None and sga_t >= 0 and sga_t1 >= 0:
+            ratio_t = safe_div(sga_t, rev[0])
+            ratio_t1 = safe_div(sga_t1, rev[1])
+            if ratio_t is not None and ratio_t1 is not None:
+                sgai = safe_div(ratio_t, ratio_t1)
+    if sgai is not None:
+        computed_vars.append("SGAI")
+    else:
+        sgai = 1.0
+
+    # TATA (Total Accruals to Total Assets) = (NI_t - CFO_t) / TA_t
+    tata = None
+    if len(ni) >= 1 and len(ocf) >= 1 and len(assets) >= 1 and assets[0] > 0:
+        tata = (ni[0] - ocf[0]) / assets[0]
+        computed_vars.append("TATA")
+    if tata is None:
+        tata = 0.0  # Neutral for TATA is 0 (no accruals)
+
+    # LVGI (Leverage Index) = ((LTD_t + CL_t) / TA_t) / ((LTD_t-1 + CL_t-1) / TA_t-1)
+    lvgi = None
+    if len(assets) >= 2:
+        # Use total_debt + current_liabilities, or total_liabilities as fallback
+        if len(total_debt) >= 2 and len(current_liabilities) >= 2:
+            lev_t = safe_div(total_debt[0] + current_liabilities[0], assets[0])
+            lev_t1 = safe_div(total_debt[1] + current_liabilities[1], assets[1])
+            if lev_t is not None and lev_t1 is not None:
+                lvgi = safe_div(lev_t, lev_t1)
+        elif len(total_liabilities) >= 2:
+            lev_t = safe_div(total_liabilities[0], assets[0])
+            lev_t1 = safe_div(total_liabilities[1], assets[1])
+            if lev_t is not None and lev_t1 is not None:
+                lvgi = safe_div(lev_t, lev_t1)
+    if lvgi is not None:
+        computed_vars.append("LVGI")
+    else:
+        lvgi = 1.0
+
+    # Check completeness — need at least 5 real variables for meaningful M-Score
+    result = compute_beneish_mscore(
+        dsri=dsri,
+        gmi=gmi,
+        aqi=aqi,
         sgi=sgi,
-        depi=None,
-        sgai=None,
-        tata=None,
-        lvgi=None,
+        depi=depi,
+        sgai=sgai,
+        tata=tata,
+        lvgi=lvgi,
     )
+
+    # Add metadata about which variables were computed vs defaulted
+    result["variables_computed"] = computed_vars
+    result["variables_defaulted"] = [
+        v
+        for v in ["DSRI", "GMI", "AQI", "SGI", "DEPI", "SGAI", "TATA", "LVGI"]
+        if v not in computed_vars
+    ]
+    result["completeness"] = len(computed_vars)
+
+    if len(computed_vars) < 5:
+        result["confidence"] = "INCOMPLETE"
+        result["confidence_note"] = (
+            f"Only {len(computed_vars)}/8 variables computed from available data. "
+            f"M-Score reliability is low. Computed: {', '.join(computed_vars)}."
+        )
+    else:
+        result["confidence"] = "ADEQUATE"
+        result["confidence_note"] = (
+            f"{len(computed_vars)}/8 variables computed. "
+            f"Defaulted (neutral): {', '.join(result['variables_defaulted'])}."
+        )
+
+    return result
 
 
 def compute_altman_zscore(
