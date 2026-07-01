@@ -223,12 +223,16 @@ def _score_accelerating(ctx: dict) -> int:
         elif price > smas[0] > smas[1] > smas[2]:
             score += 12
 
-    # RSI > 60 but < 85 — weight 10
+    # RSI > 60 but < 85 — weight 10 (penalize extreme overbought in acceleration)
     total_weight += 10
     if ctx["rsi"] is not None:
-        if 60 < ctx["rsi"] < 85:
+        if 60 <= ctx["rsi"] <= 75:
             score += 10
-        elif 55 < ctx["rsi"] <= 60:
+        elif 75 < ctx["rsi"] <= 85:
+            score += 5
+        elif ctx["rsi"] > 85:
+            score += 2
+        elif 55 < ctx["rsi"] < 60:
             score += 5
 
     # 5D return acceleration: recent 5D > prior 5D — weight 15
