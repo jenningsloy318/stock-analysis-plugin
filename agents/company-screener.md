@@ -81,12 +81,13 @@ After all quantitative filters are applied, run `{plugin_root}/scripts/compute_m
 This step catches wrong ticker codes, stale prices, and incorrect financial data BEFORE they enter the final report.
 
 **GROWTH HEADROOM FILTER (MANDATORY after data validation):** Run `{plugin_root}/scripts/compute_growth_headroom.py` on ALL validated watchlist tickers. This produces a headroom_score (1-10) combining:
-- TAM Runway (25%): penetration rate + TAM growth — can revenue grow 2-5 more years?
-- Growth Gap (20%): intrinsic CAGR vs market-implied CAGR — is growth underpriced?
-- Inflection Signal (15%): revenue acceleration 2nd derivative + segment shift + margin regime change
-- Phase Quality (15%): uptrend phase (加速>匀速>底部>波动>下跌)
-- Valuation Attractiveness (15%): DCF margin of safety + PEG + FCF yield
-- Money Flow Confirmation (10%): institutional demand + volume-price symmetry
+- Overheating Penalty (25%): HIGHEST WEIGHT — rally from 52w low, distance from 200MA/50MA. Stocks up 60%+ get severe penalty. This prevents "buying at the mountain top."
+- TAM Runway (20%): penetration rate + TAM growth — can revenue grow 2-5 more years?
+- Growth Gap (15%): intrinsic CAGR vs market-implied CAGR — is growth underpriced?
+- Valuation Attractiveness (15%): FCF yield + EV/EBITDA + P/B
+- Inflection Signal (10%): revenue acceleration 2nd derivative + segment shift + margin regime change
+- Phase Quality (10%): uptrend phase (加速>匀速>底部>波动>下跌)
+- Money Flow Confirmation (5%): institutional demand + volume-price symmetry
 
 **Application:**
 - headroom_score < min_headroom (default 5) → REJECT with reason "成长空间不足 (headroom=X.X)"

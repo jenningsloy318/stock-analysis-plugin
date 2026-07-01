@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 """Growth Headroom Score — measures upside potential vs "fully developed" status.
 
-Aggregates 6 existing dimensions into a unified 1-10 score:
-  1. TAM Runway (25%): from compute_tam_adj_peg.py — penetration + TAM CAGR
-  2. Growth Gap (20%): from compute_bayesian_growth.py — intrinsic vs market-implied CAGR
-  3. Inflection Signal (15%): from detect_growth_inflection.py — revenue acceleration 2nd derivative
-  4. Phase Quality (15%): from classify_uptrend_phase.py — uptrend phase + momentum
+Aggregates 7 dimensions into a unified 1-10 score:
+  1. TAM Runway (20%): from compute_tam_adj_peg.py — penetration + TAM CAGR
+  2. Growth Gap (15%): from compute_bayesian_growth.py — intrinsic vs market-implied CAGR
+  3. Inflection Signal (10%): from detect_growth_inflection.py — revenue acceleration 2nd derivative
+  4. Phase Quality (10%): from classify_uptrend_phase.py — uptrend phase + momentum
   5. Valuation Attractiveness (15%): from calculate_metrics.py — PEG + FCF yield + reverse DCF
-  6. Money Flow Confirmation (10%): from compute_money_flow.py — institutional demand
+  6. Money Flow Confirmation (5%): from compute_money_flow.py — institutional demand
+  7. Overheating Penalty (25%): HIGHEST WEIGHT — penalizes stocks that already rallied
+     60-170% and are likely near a top. Prevents "buying at the mountain top."
+     Signals: rally from 52w low, distance from 200MA/50MA, range position.
 
 Interpretation:
-  9-10  MASSIVE_HEADROOM  — newly inflecting, underpriced growth, strong TAM runway
-  7-8   HIGH_HEADROOM     — accelerating fundamentals, decent valuation, runway >2yr
-  5-6   MODERATE_HEADROOM — steady growth, fairly valued, runway 1-2yr
-  3-4   LIMITED_HEADROOM  — slowing/cyclical, expensive, near peak penetration
-  1-2   CAPPED            — stagnating, overpriced, distribution phase
+  9-10  MASSIVE_HEADROOM  — newly inflecting, underpriced growth, NOT overheated
+  7-8   HIGH_HEADROOM     — accelerating fundamentals, decent valuation, moderate rally
+  5-6   MODERATE_HEADROOM — steady growth, fairly valued, some run-up
+  3-4   LIMITED_HEADROOM  — slowing/cyclical OR already rallied 60%+, pullback likely
+  1-2   CAPPED            — stagnating OR extreme rally (100%+), buying at the top
 
 Usage:
     compute_growth_headroom.py TICKER [--data-dir ./reports/RUN_ID/] [--output headroom.json]
@@ -50,6 +53,7 @@ def clamp(val, lo=1.0, hi=10.0):
 
 # ─── Dimension 1: TAM Runway Score ───────────────────────────────────────────
 
+
 def compute_tam_runway(raw: dict) -> tuple[float | None, dict]:
     """Assess how much growth runway remains (TAM penetration vs TAM growth)."""
     ticker = list(raw.keys())[0] if raw else "UNKNOWN"
@@ -66,8 +70,16 @@ def compute_tam_runway(raw: dict) -> tuple[float | None, dict]:
         ann_rev = annual.get("revenue") or []
         if len(ann_rev) >= 2:
             try:
-                latest = float(ann_rev[-1]) if not isinstance(ann_rev[-1], dict) else float(ann_rev[-1].get("value", 0))
-                prior = float(ann_rev[-2]) if not isinstance(ann_rev[-2], dict) else float(ann_rev[-2].get("value", 0))
+                latest = (
+                    float(ann_rev[-1])
+                    if not isinstance(ann_rev[-1], dict)
+                    else float(ann_rev[-1].get("value", 0))
+                )
+                prior = (
+                    float(ann_rev[-2])
+                    if not isinstance(ann_rev[-2], dict)
+                    else float(ann_rev[-2].get("value", 0))
+                )
                 if prior > 0:
                     rev_growth = (latest - prior) / prior
             except (ValueError, TypeError):
@@ -106,6 +118,7 @@ def compute_tam_runway(raw: dict) -> tuple[float | None, dict]:
 
 # ─── Dimension 2: Growth Gap ─────────────────────────────────────────────────
 
+
 def compute_growth_gap(raw: dict) -> tuple[float | None, dict]:
     """Compare intrinsic growth potential to what market prices in."""
     ticker = list(raw.keys())[0] if raw else "UNKNOWN"
@@ -116,6 +129,23 @@ def compute_growth_gap(raw: dict) -> tuple[float | None, dict]:
     earnings_growth = info.get("earningsGrowth") or info.get("earningsQuarterlyGrowth")
     forward_pe = info.get("forwardPE") or info.get("forward_pe")
     trailing_pe = info.get("trailingPE") or info.get("pe_ratio")
+
+    # Type safety: yfinance sometimes returns 'Infinity' as string
+    def safe_num(v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                v = float(v)
+            except (ValueError, OverflowError):
+                return None
+        if isinstance(v, (int, float)) and v != float("inf") and v != float("-inf"):
+            return float(v)
+        return None
+
+    earnings_growth = safe_num(earnings_growth)
+    forward_pe = safe_num(forward_pe)
+    trailing_pe = safe_num(trailing_pe)
 
     evidence = {}
     score = 5.0
@@ -150,6 +180,7 @@ def compute_growth_gap(raw: dict) -> tuple[float | None, dict]:
 
 
 # ─── Dimension 3: Inflection Signal ──────────────────────────────────────────
+
 
 def compute_inflection(raw: dict) -> tuple[float | None, dict]:
     """Detect revenue acceleration / deceleration signals."""
@@ -202,6 +233,7 @@ def compute_inflection(raw: dict) -> tuple[float | None, dict]:
 
 # ─── Dimension 4: Phase Quality ──────────────────────────────────────────────
 
+
 def compute_phase(raw: dict) -> tuple[float | None, dict]:
     """Score based on uptrend phase and momentum indicators."""
     ticker = list(raw.keys())[0] if raw else "UNKNOWN"
@@ -216,8 +248,15 @@ def compute_phase(raw: dict) -> tuple[float | None, dict]:
     fifty_two_high = info.get("fiftyTwoWeekHigh")
     fifty_two_low = info.get("fiftyTwoWeekLow")
 
-    if current_price and fifty_two_high and fifty_two_low and fifty_two_high > fifty_two_low:
-        range_position = (current_price - fifty_two_low) / (fifty_two_high - fifty_two_low)
+    if (
+        current_price
+        and fifty_two_high
+        and fifty_two_low
+        and fifty_two_high > fifty_two_low
+    ):
+        range_position = (current_price - fifty_two_low) / (
+            fifty_two_high - fifty_two_low
+        )
         evidence["52w_range_position"] = round(range_position, 3)
 
         # Sweet spot: 0.4-0.7 (advancing but not overextended)
@@ -243,6 +282,7 @@ def compute_phase(raw: dict) -> tuple[float | None, dict]:
 
 
 # ─── Dimension 5: Valuation Attractiveness ───────────────────────────────────
+
 
 def compute_valuation(raw: dict) -> tuple[float | None, dict]:
     """Score valuation headroom (margin of safety)."""
@@ -297,6 +337,7 @@ def compute_valuation(raw: dict) -> tuple[float | None, dict]:
 
 # ─── Dimension 6: Money Flow Confirmation ────────────────────────────────────
 
+
 def compute_flow(raw: dict) -> tuple[float | None, dict]:
     """Score institutional demand / supply dynamics."""
     ticker = list(raw.keys())[0] if raw else "UNKNOWN"
@@ -341,15 +382,99 @@ def compute_flow(raw: dict) -> tuple[float | None, dict]:
     return clamp(score), evidence
 
 
-# ─── Composite Score ─────────────────────────────────────────────────────────
+# ─── Dimension 7: Overheating Penalty ────────────────────────────────────────
+
+
+def compute_overheating(raw: dict) -> tuple[float | None, dict]:
+    """Penalize stocks that have already run up excessively (buying at the top).
+
+    Key insight: a stock that's up 60-170% in 3 months has LIMITED remaining
+    upside and HIGH pullback probability. Even if fundamentals are good,
+    the risk/reward is skewed negative at this entry point.
+
+    Signals:
+    - Price vs 52-week low: if current > 2x low → overheated
+    - Price vs 200-day MA: if current > 1.4x 200MA → extended
+    - Price vs 50-day MA: if current > 1.15x 50MA → near-term stretched
+    """
+    ticker = list(raw.keys())[0] if raw else "UNKNOWN"
+    company = raw.get(ticker, {})
+    info = company.get("info", {}) or {}
+
+    evidence = {}
+    score = 7.0  # start above average (not overheated = positive)
+
+    current_price = info.get("currentPrice") or info.get("regularMarketPrice")
+    fifty_two_low = info.get("fiftyTwoWeekLow")
+    fifty_two_high = info.get("fiftyTwoWeekHigh")
+    fifty_ma = info.get("fiftyDayAverage")
+    two_hundred_ma = info.get("twoHundredDayAverage")
+
+    # Signal 1: Price rally from 52-week low (strongest overheating signal)
+    if current_price and fifty_two_low and fifty_two_low > 0:
+        rally_from_low = (current_price - fifty_two_low) / fifty_two_low
+        evidence["rally_from_52w_low"] = round(rally_from_low, 3)
+
+        if rally_from_low > 1.5:
+            score -= 5.0  # up 150%+ from low → extreme overheating
+        elif rally_from_low > 1.0:
+            score -= 3.5  # up 100%+ → severe
+        elif rally_from_low > 0.6:
+            score -= 2.0  # up 60%+ → moderate overheating
+        elif rally_from_low > 0.3:
+            score -= 0.5  # up 30%+ → mild
+        elif rally_from_low < 0.1:
+            score += 1.0  # near 52w low → contrarian opportunity
+
+    # Signal 2: Distance from 200-day MA (mean reversion pressure)
+    if current_price and two_hundred_ma and two_hundred_ma > 0:
+        dist_200ma = (current_price - two_hundred_ma) / two_hundred_ma
+        evidence["dist_from_200ma"] = round(dist_200ma, 3)
+
+        if dist_200ma > 0.5:
+            score -= 2.0  # 50%+ above 200MA → extreme
+        elif dist_200ma > 0.3:
+            score -= 1.0  # 30%+ above → stretched
+        elif dist_200ma > 0.15:
+            score -= 0.5
+        elif dist_200ma < -0.1:
+            score += 1.0  # below 200MA → room to revert up
+
+    # Signal 3: Distance from 50-day MA (short-term overextension)
+    if current_price and fifty_ma and fifty_ma > 0:
+        dist_50ma = (current_price - fifty_ma) / fifty_ma
+        evidence["dist_from_50ma"] = round(dist_50ma, 3)
+
+        if dist_50ma > 0.2:
+            score -= 1.5  # 20%+ above 50MA → short-term top
+        elif dist_50ma > 0.1:
+            score -= 0.5
+        elif dist_50ma < -0.05:
+            score += 0.5  # below 50MA → pullback entry
+
+    # Signal 4: 52-week range position extreme (near all-time high)
+    if (
+        current_price
+        and fifty_two_high
+        and fifty_two_low
+        and fifty_two_high > fifty_two_low
+    ):
+        range_pct = (current_price - fifty_two_low) / (fifty_two_high - fifty_two_low)
+        evidence["52w_range_pct"] = round(range_pct, 3)
+        if range_pct > 0.95:
+            score -= 1.0  # at the very top of range
+
+    return clamp(score), evidence
+
 
 WEIGHTS = {
-    "tam_runway": 0.25,
-    "growth_gap": 0.20,
-    "inflection": 0.15,
-    "phase": 0.15,
+    "tam_runway": 0.20,
+    "growth_gap": 0.15,
+    "inflection": 0.10,
+    "phase": 0.10,
     "valuation": 0.15,
-    "money_flow": 0.10,
+    "money_flow": 0.05,
+    "overheating": 0.25,  # HIGHEST weight — buying at the top is the #1 failure mode
 }
 
 
@@ -363,14 +488,44 @@ def compute_headroom(raw: dict) -> dict:
     phase_score, phase_ev = compute_phase(raw)
     val_score, val_ev = compute_valuation(raw)
     flow_score, flow_ev = compute_flow(raw)
+    heat_score, heat_ev = compute_overheating(raw)
 
     dimensions = {
-        "tam_runway": {"score": tam_score, "weight": WEIGHTS["tam_runway"], "evidence": tam_ev},
-        "growth_gap": {"score": gap_score, "weight": WEIGHTS["growth_gap"], "evidence": gap_ev},
-        "inflection": {"score": infl_score, "weight": WEIGHTS["inflection"], "evidence": infl_ev},
-        "phase": {"score": phase_score, "weight": WEIGHTS["phase"], "evidence": phase_ev},
-        "valuation": {"score": val_score, "weight": WEIGHTS["valuation"], "evidence": val_ev},
-        "money_flow": {"score": flow_score, "weight": WEIGHTS["money_flow"], "evidence": flow_ev},
+        "tam_runway": {
+            "score": tam_score,
+            "weight": WEIGHTS["tam_runway"],
+            "evidence": tam_ev,
+        },
+        "growth_gap": {
+            "score": gap_score,
+            "weight": WEIGHTS["growth_gap"],
+            "evidence": gap_ev,
+        },
+        "inflection": {
+            "score": infl_score,
+            "weight": WEIGHTS["inflection"],
+            "evidence": infl_ev,
+        },
+        "phase": {
+            "score": phase_score,
+            "weight": WEIGHTS["phase"],
+            "evidence": phase_ev,
+        },
+        "valuation": {
+            "score": val_score,
+            "weight": WEIGHTS["valuation"],
+            "evidence": val_ev,
+        },
+        "money_flow": {
+            "score": flow_score,
+            "weight": WEIGHTS["money_flow"],
+            "evidence": flow_ev,
+        },
+        "overheating": {
+            "score": heat_score,
+            "weight": WEIGHTS["overheating"],
+            "evidence": heat_ev,
+        },
     }
 
     # Weighted average (skip None dimensions)
@@ -419,6 +574,7 @@ def compute_headroom(raw: dict) -> dict:
 
 # ─── Pre-computed Data Path ──────────────────────────────────────────────────
 
+
 def load_precomputed(data_dir: str, ticker: str) -> dict | None:
     """If sub-score JSONs already exist in data_dir, load and aggregate them."""
     # Look for outputs from prior scripts
@@ -440,7 +596,11 @@ def load_precomputed(data_dir: str, ticker: str) -> dict | None:
         tam_runway_score = data.get("tam_runway_score", 1.0)
         # Normalize 0.5-2.0 range to 1-10
         normalized = clamp((tam_runway_score - 0.5) / 1.5 * 9 + 1)
-        dimensions["tam_runway"] = {"score": round(normalized, 2), "weight": WEIGHTS["tam_runway"], "source": tam_path}
+        dimensions["tam_runway"] = {
+            "score": round(normalized, 2),
+            "weight": WEIGHTS["tam_runway"],
+            "source": tam_path,
+        }
 
     if os.path.isfile(bayesian_path):
         found_any = True
@@ -449,7 +609,11 @@ def load_precomputed(data_dir: str, ticker: str) -> dict | None:
         gap = data.get("intrinsic_minus_implied", 0)
         # Normalize: -20 to +20 pp → 1-10
         normalized = clamp((gap + 20) / 40 * 9 + 1)
-        dimensions["growth_gap"] = {"score": round(normalized, 2), "weight": WEIGHTS["growth_gap"], "source": bayesian_path}
+        dimensions["growth_gap"] = {
+            "score": round(normalized, 2),
+            "weight": WEIGHTS["growth_gap"],
+            "source": bayesian_path,
+        }
 
     if os.path.isfile(inflection_path):
         found_any = True
@@ -458,7 +622,11 @@ def load_precomputed(data_dir: str, ticker: str) -> dict | None:
         composite = data.get("inflection_composite", 0)
         # Normalize: -10 to +10 → 1-10
         normalized = clamp((composite + 10) / 20 * 9 + 1)
-        dimensions["inflection"] = {"score": round(normalized, 2), "weight": WEIGHTS["inflection"], "source": inflection_path}
+        dimensions["inflection"] = {
+            "score": round(normalized, 2),
+            "weight": WEIGHTS["inflection"],
+            "source": inflection_path,
+        }
 
     if os.path.isfile(phase_path):
         found_any = True
@@ -466,11 +634,21 @@ def load_precomputed(data_dir: str, ticker: str) -> dict | None:
             data = json.load(f)
         phase = data.get("phase", "")
         momentum = data.get("momentum_score", 5)
-        phase_map = {"ACCELERATING": 9, "STEADY": 7, "OSCILLATING": 5, "BOTTOMING": 6, "DECLINING": 2}
+        phase_map = {
+            "ACCELERATING": 9,
+            "STEADY": 7,
+            "OSCILLATING": 5,
+            "BOTTOMING": 6,
+            "DECLINING": 2,
+        }
         base = phase_map.get(phase, 5)
         # Blend phase type with momentum score
         normalized = clamp(base * 0.6 + momentum * 0.4)
-        dimensions["phase"] = {"score": round(normalized, 2), "weight": WEIGHTS["phase"], "source": phase_path}
+        dimensions["phase"] = {
+            "score": round(normalized, 2),
+            "weight": WEIGHTS["phase"],
+            "source": phase_path,
+        }
 
     if os.path.isfile(money_flow_path):
         found_any = True
@@ -478,7 +656,11 @@ def load_precomputed(data_dir: str, ticker: str) -> dict | None:
             data = json.load(f)
         flow_composite = data.get("composite_score", 5)
         # Already 0-10, just clamp
-        dimensions["money_flow"] = {"score": clamp(flow_composite), "weight": WEIGHTS["money_flow"], "source": money_flow_path}
+        dimensions["money_flow"] = {
+            "score": clamp(flow_composite),
+            "weight": WEIGHTS["money_flow"],
+            "source": money_flow_path,
+        }
 
     if not found_any:
         return None
@@ -523,10 +705,13 @@ def load_precomputed(data_dir: str, ticker: str) -> dict | None:
 
 # ─── Main ────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(description="Compute Growth Headroom Score (1-10)")
     parser.add_argument("input", help="raw-data.json file OR ticker symbol")
-    parser.add_argument("--data-dir", help="Directory with pre-computed sub-score JSONs")
+    parser.add_argument(
+        "--data-dir", help="Directory with pre-computed sub-score JSONs"
+    )
     parser.add_argument("--output", "-o", help="Output JSON path (default: stdout)")
     args = parser.parse_args()
 
@@ -545,14 +730,24 @@ def main():
             candidates = [
                 f"{input_path.lower()}_raw-data.json",
                 "raw-data.json",
-                os.path.join(args.data_dir or ".", f"{input_path.upper()}", "raw-data.json"),
+                os.path.join(
+                    args.data_dir or ".", f"{input_path.upper()}", "raw-data.json"
+                ),
             ]
             for c in candidates:
                 if os.path.isfile(c):
                     input_path = c
                     break
             else:
-                print(json.dumps({"error": f"Cannot find data for {args.input}", "headroom_score": None, "headroom_category": "INSUFFICIENT_DATA"}))
+                print(
+                    json.dumps(
+                        {
+                            "error": f"Cannot find data for {args.input}",
+                            "headroom_score": None,
+                            "headroom_category": "INSUFFICIENT_DATA",
+                        }
+                    )
+                )
                 sys.exit(1)
 
         with open(input_path) as f:

@@ -273,7 +273,7 @@
 | `compute_tam_adj_peg.py` | Serenity TAM-Adj-PEG: PEG ÷ (TAM runway × quality). Category: CORE_GROWTH / HIGH_BETA_GROWTH / OPTION_LIKE / TURNAROUND / CYCLICAL | 10 |
 | `compute_bayesian_growth.py` | Bayesian 5-hypothesis intrinsic CAGR vs market-implied growth, FOMO score | 10 |
 | `compute_health_index.py` | GF-DMA Health Index 0-100: fundamental speed × DMA structure × escape ratio | 11 |
-| `compute_growth_headroom.py` | Growth Headroom Score 1-10: TAM runway + growth gap + inflection + phase + valuation + money flow. Filters "fully developed" stocks at Stage 4 | 4 |
+| `compute_growth_headroom.py` | Growth Headroom Score 1-10: overheating penalty (25%, highest weight — prevents buying at the top) + TAM runway + growth gap + valuation + inflection + phase + money flow. Filters "already rallied 60%+" stocks at Stage 4 | 4 |
 | `analyze_alpha_elasticity.py` | Serenity-Alpha 7-dim composite: demand→revenue transmission elasticity (thematic theses only) | 13 |
 
 ## Report Quality Gates (MUST follow)
