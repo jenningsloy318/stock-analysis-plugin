@@ -456,7 +456,8 @@ let TICKERS = _args.tickers || []
 const THEME = _args.theme
 let UNIVERSE = _args.universe || 'US'
 const TOP_PRICE = _args.top_price !== undefined ? _args.top_price : 200
-const MIN_HEADROOM = _args.min_headroom !== undefined ? _args.min_headroom : 5
+let MIN_HEADROOM = _args.min_headroom !== undefined ? _args.min_headroom : 5
+if (MIN_HEADROOM < 1 || MIN_HEADROOM > 10) MIN_HEADROOM = 5
 const OUTPUT_DIR = `./reports/${RUN_ID}`
 
 if (!PLUGIN_ROOT) {
@@ -944,6 +945,7 @@ if (MODE === 'pipeline' || MODE === 'screen') {
                             `Accept any listing exchange. `) +
       `Apply price filter (US < $` + TOP_PRICE + `, China A-shares < ¥` + TOP_PRICE + `, all other markets < $` + TOP_PRICE + ` USD equiv). ` +
       `Apply Growth Headroom filter: run 'uv run python ${PLUGIN_ROOT}/scripts/compute_growth_headroom.py [TICKER]' for each candidate. ` +
+      `If compute_growth_headroom.py fails or returns INSUFFICIENT_DATA, assign headroom_score=4.0 (below default threshold, conservative reject). ` +
       `REJECT any stock with headroom_score < ` + MIN_HEADROOM + ` (even if price passes). ` +
       `Include headroom_score and headroom_category in the output table. ` +
       `Score growth/profitability/moat/valuation/management/risk/liquidity. ` +
@@ -963,11 +965,17 @@ if (MODE === 'pipeline' || MODE === 'screen') {
 
   // Flatten + rank top companies across ALL sub-industries (NOT quota per sub-industry).
   // Apply listing-universe gate deterministically as a backstop — LLM screener may drift.
-  const allCompanies = (watchlist || [])
+  // Note: headroom filter is applied BEFORE slice to ensure low-headroom stocks don't occupy slots.
+  const allCandidates = (watchlist || [])
     .filter(Boolean)
     .flatMap(r => r.companies || [])
     .filter(c => c.price_filter_pass !== false)
     .filter(c => passUniverse(c.ticker))
+  const headroomRejected = allCandidates.filter(c => c.headroom_score != null && c.headroom_score < MIN_HEADROOM)
+  if (headroomRejected.length > 0) {
+    log(`[screening] headroom filter rejected ${headroomRejected.length} companies: ${headroomRejected.map(c => `${c.ticker}(${c.headroom_score})`).join(', ')}`)
+  }
+  const allCompanies = allCandidates
     .filter(c => c.headroom_score == null || c.headroom_score >= MIN_HEADROOM)
     .sort((a, b) => b.score - a.score)
   watchlist = allCompanies.slice(0, TOTAL_COMPANY || 15).map((c, i) => ({

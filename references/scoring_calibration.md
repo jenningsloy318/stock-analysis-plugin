@@ -94,6 +94,7 @@ Avoid these common biases that inflate scores:
 | China Policy Score ≤ 3.0 (A-share only) | Max rating = Hold (5.9) | Regulatory headwinds override fundamentals in A-shares |
 | Margin balance % of free float > 8% (A-share) | Flag as speculative risk; reduce confidence 1 level | High margin concentration = forced liquidation risk |
 | Taleb Fragility Score < 25 | Max rating for long-term = Hold (5.9) | Fragile companies are unsuitable for long-term buy-and-hold |
+| Price within 5% of 52-week high AND Valuation_Attractiveness ≤ 4.0 AND 30-day return > 25% | Max short-term rating = Hold (6.0) | Overextended stock with poor valuation — short-term entry risk too high |
 
 ## Historical Calibration Benchmarks
 

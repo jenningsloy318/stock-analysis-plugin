@@ -46,7 +46,7 @@ def validate_ticker(ticker: str) -> str:
     if re.match(r"^[A-Z]{1,5}([.\-][A-Z]{1,2})?$", cleaned):
         return cleaned
     # China format: 000001.SZ, 600000.SH, 000001, 600000
-    if re.match(r"^\d{6}(\.(SZ|SH|BJ|HK))?$", cleaned, re.IGNORECASE):
+    if re.match(r"^\d{6}(\.(SZ|SH|SS|BJ|HK))?$", cleaned, re.IGNORECASE):
         return cleaned
     raise ValueError(f"Invalid ticker format: {ticker}")
 
@@ -443,6 +443,8 @@ def fetch_from_baostock(ticker: str, years: int) -> dict | None:
                         hist[c] = pd.to_numeric(hist[c], errors="coerce")
 
                     last = hist.iloc[-1]
+                    if pd.notna(last["close"]) and float(last["close"]) <= 0:
+                        return None
                     result["profile"]["current_price"] = (
                         float(last["close"]) if pd.notna(last["close"]) else None
                     )
@@ -742,24 +744,43 @@ def fetch_from_yfinance(ticker: str, years: int) -> dict | None:
             pass
 
         # Profile info
+        def _safe_float(v):
+            """Return None for None/NaN/Inf/string-Infinity values."""
+            if v is None:
+                return None
+            if isinstance(v, str):
+                if v.lower() in ("inf", "-inf", "infinity", "-infinity", "nan"):
+                    return None
+                try:
+                    v = float(v)
+                except (ValueError, TypeError):
+                    return None
+            if isinstance(v, (int, float)):
+                if math.isnan(v) or math.isinf(v):
+                    return None
+                return float(v)
+            return None
+
         profile = {
             "sector": info.get("sector", ""),
             "industry": info.get("industry", ""),
             "employees": info.get("fullTimeEmployees"),
             "website": info.get("website", ""),
             "description": info.get("longBusinessSummary", "")[:500],
-            "market_cap": info.get("marketCap"),
-            "enterprise_value": info.get("enterpriseValue"),
-            "shares_outstanding": info.get("sharesOutstanding"),
-            "current_price": info.get("regularMarketPrice") or info.get("currentPrice"),
-            "beta": info.get("beta"),
-            "52w_high": info.get("fiftyTwoWeekHigh"),
-            "52w_low": info.get("fiftyTwoWeekLow"),
-            "pe_ratio": info.get("trailingPE"),
-            "forward_pe": info.get("forwardPE"),
-            "peg_ratio": info.get("pegRatio"),
-            "dividend_yield": info.get("dividendYield"),
-            "payout_ratio": info.get("payoutRatio"),
+            "market_cap": _safe_float(info.get("marketCap")),
+            "enterprise_value": _safe_float(info.get("enterpriseValue")),
+            "shares_outstanding": _safe_float(info.get("sharesOutstanding")),
+            "current_price": _safe_float(
+                info.get("regularMarketPrice") or info.get("currentPrice")
+            ),
+            "beta": _safe_float(info.get("beta")),
+            "52w_high": _safe_float(info.get("fiftyTwoWeekHigh")),
+            "52w_low": _safe_float(info.get("fiftyTwoWeekLow")),
+            "pe_ratio": _safe_float(info.get("trailingPE")),
+            "forward_pe": _safe_float(info.get("forwardPE")),
+            "peg_ratio": _safe_float(info.get("pegRatio")),
+            "dividend_yield": _safe_float(info.get("dividendYield")),
+            "payout_ratio": _safe_float(info.get("payoutRatio")),
         }
 
         return {
@@ -1078,6 +1099,28 @@ def fetch_from_fmp(ticker: str, api_key: str, years: int) -> dict | None:
         if profile_resp.status_code == 200:
             results["profile"] = profile_resp.json()
 
+        # FMP profile is a list; normalize to dict with standard keys for schema consistency
+        # FMP schema differs from yfinance: profile is a list of dicts with keys like
+        # 'price', 'mktCap', 'peRatio' instead of 'current_price', 'market_cap', 'pe_ratio'
+        if isinstance(results.get("profile"), list) and results["profile"]:
+            fmp_prof = results["profile"][0]
+            results["profile"] = {
+                "current_price": fmp_prof.get("price"),
+                "market_cap": fmp_prof.get("mktCap"),
+                "pe_ratio": fmp_prof.get("peRatio")
+                if fmp_prof.get("peRatio")
+                else None,
+                "sector": fmp_prof.get("sector", ""),
+                "industry": fmp_prof.get("industry", ""),
+                "_raw_fmp_profile": fmp_prof,
+            }
+        elif "profile" not in results:
+            results["profile"] = {
+                "current_price": None,
+                "market_cap": None,
+                "pe_ratio": None,
+            }
+
         time.sleep(0.3)
         insider_resp = requests.get(
             f"{FMP_BASE_URL}/insider-trading",
@@ -1173,6 +1216,27 @@ def main():
             }
 
         data["years_requested"] = args.years
+        # Staleness check: warn if last price data point is >5 trading days old
+        try:
+            profile = data.get("profile", {})
+            retrieved = data.get("retrieved_at", "")
+            if retrieved and isinstance(profile, dict):
+                retrieved_dt = datetime.fromisoformat(retrieved.replace("Z", "+00:00"))
+                # Check if historical price data has a last date >5 trading days old
+                hist = data.get("historical_prices", [])
+                if hist and isinstance(hist, list) and len(hist) > 0:
+                    last_date_str = (
+                        hist[-1].get("date", "") if isinstance(hist[-1], dict) else ""
+                    )
+                    if last_date_str:
+                        last_date = datetime.fromisoformat(last_date_str).replace(
+                            tzinfo=timezone.utc
+                        )
+                        days_diff = (retrieved_dt - last_date).days
+                        if days_diff > 7:  # 5 trading days ~ 7 calendar days
+                            data["stale_warning"] = True
+        except Exception:
+            pass
         results[ticker] = data
 
     # Sanitize NaN/Infinity values that produce non-standard JSON

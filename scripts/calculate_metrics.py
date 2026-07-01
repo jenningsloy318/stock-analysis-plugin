@@ -679,6 +679,7 @@ def compute_dcf(
             "methodology": "DCF",
             "dcf_value": None,
             "error": "FCF and WACC must be positive.",
+            "note": "Consider using EV/Revenue or milestone-based valuation for pre-profit companies",
         }
 
     fcf_projections = []
@@ -909,7 +910,11 @@ def compute_ratios(
         "roa": round(safe_div(ni, assets), 4) if ni and assets else None,
         "roe": round(safe_div(ni, equity), 4) if ni and equity else None,
         "roic": round(safe_div(oi * (1 - effective_tax_rate), equity + debt - cash), 4)
-        if oi and equity and debt is not None and cash is not None
+        if oi
+        and equity
+        and debt is not None
+        and cash is not None
+        and (equity + debt - cash) != 0
         else None,
         "incremental_roic": None,
         "effective_tax_rate": round(effective_tax_rate, 4),
@@ -1011,8 +1016,8 @@ def compute_ratios(
         and len(debt_series) >= 2
         and len(cash_series) >= 2
     ):
-        nopat_curr = oi_series[0] * (1 - 0.21) if oi_series[0] else None
-        nopat_prior = oi_series[1] * (1 - 0.21) if oi_series[1] else None
+        nopat_curr = oi_series[0] * (1 - effective_tax_rate) if oi_series[0] else None
+        nopat_prior = oi_series[1] * (1 - effective_tax_rate) if oi_series[1] else None
         ic_curr = (
             (equity_series[0] or 0) + (debt_series[0] or 0) - (cash_series[0] or 0)
         )
@@ -1020,7 +1025,12 @@ def compute_ratios(
             (equity_series[1] or 0) + (debt_series[1] or 0) - (cash_series[1] or 0)
         )
         delta_ic = ic_curr - ic_prior
-        if nopat_curr and nopat_prior and delta_ic and abs(delta_ic) > 0:
+        if (
+            nopat_curr is not None
+            and nopat_prior is not None
+            and delta_ic
+            and abs(delta_ic) > 0
+        ):
             ratios["incremental_roic"] = round((nopat_curr - nopat_prior) / delta_ic, 4)
 
     # DuPont
@@ -1036,9 +1046,21 @@ def compute_peer_comparison(ticker_data: dict, peer_data: dict) -> dict:
     """Compare this ticker's key multiples against a peer set.
 
     peer_data should be {ticker: {...ratios...}, ...} from compute_ratios output.
+    Note: No GICS validation is performed here by design — peers are pre-selected
+    by the upstream agent (fetch_peer_universe.py) which handles GICS matching.
     """
     own = ticker_data.get("ratios", {})
     peers = {t: p.get("ratios", {}) for t, p in peer_data.items()}
+
+    # Metrics where lower values are better (cheaper valuation, less leverage)
+    lower_is_better = {
+        "pe_ratio",
+        "ev_ebitda",
+        "price_to_book",
+        "debt_to_equity",
+        "pb_ratio",
+        "ps_ratio",
+    }
 
     comparison = {}
     for metric in [
@@ -1074,6 +1096,20 @@ def compute_peer_comparison(ticker_data: dict, peer_data: dict) -> dict:
         below = sum(1 for v in peer_vals if v <= own_val)
         percentile = round(below / len(peer_vals) * 100, 1)
 
+        # For lower-is-better metrics, flip interpretation
+        if metric in lower_is_better:
+            interpretation = (
+                f"Cheaper than {100 - percentile}% of peers"
+                if percentile < 50
+                else f"More expensive than {percentile}% of peers"
+            )
+        else:
+            interpretation = (
+                f"Higher than {percentile}% of peers"
+                if percentile > 50
+                else f"Lower than {100 - percentile}% of peers"
+            )
+
         comparison[metric] = {
             "value": own_val,
             "peer_median": round(peer_median, 4),
@@ -1082,11 +1118,8 @@ def compute_peer_comparison(ticker_data: dict, peer_data: dict) -> dict:
             "peer_max": round(max(peer_vals), 4),
             "peer_count": len(peer_vals),
             "percentile": percentile,
-            "interpretation": (
-                f"Higher than {percentile}% of peers"
-                if percentile > 50
-                else f"Lower than {100 - percentile}% of peers"
-            ),
+            "lower_is_better": metric in lower_is_better,
+            "interpretation": interpretation,
         }
 
     return {
@@ -1133,31 +1166,33 @@ def compute_monte_carlo(
     if fcf_current <= 0 or wacc <= 0 or wacc <= terminal_growth:
         return {"methodology": "Monte Carlo DCF", "error": "Invalid inputs"}
 
-    np_random = __import__("numpy").random
-    np_random.seed(seed)
+    numpy = __import__("numpy")
+    rng = numpy.random.default_rng(seed)
 
     ev_results = []
     per_share_results = []
 
     for _ in range(simulations):
         try:
-            # Draw growth rate from log-normal distribution
+            # Draw growth rate from log-normal (positive mu) or normal (negative mu)
             if growth_mu > 0:
                 sigma_log = max(0.01, growth_sigma / max(growth_mu, 0.01))
                 sigma_log = min(sigma_log, 2.0)
-                growth = np_random.lognormal(
+                growth = rng.lognormal(
                     mean=math.log(max(growth_mu, 0.001)),
                     sigma=sigma_log,
                 )
                 growth = max(-0.50, min(2.0, growth))
             else:
-                growth = growth_mu
+                # Negative or zero growth: use normal distribution allowing negative draws
+                growth = rng.normal(growth_mu, max(growth_sigma, 0.01))
+                growth = max(-0.50, min(0.50, growth))
 
             # Project FCF with annual variation
             fcf_projections = []
             fcf = fcf_current
             for _ in range(years):
-                annual_growth = np_random.normal(growth, max(growth_sigma * 0.7, 0.01))
+                annual_growth = rng.normal(growth, max(growth_sigma * 0.7, 0.01))
                 annual_growth = max(-0.30, min(1.0, annual_growth))
                 fcf = fcf * (1 + annual_growth)
                 fcf_projections.append(
@@ -1166,7 +1201,7 @@ def compute_monte_carlo(
 
             # WACC variation
             wacc_varied = max(
-                wacc * 0.85, min(wacc * 1.15, np_random.normal(wacc, wacc * 0.15))
+                wacc * 0.85, min(wacc * 1.15, rng.normal(wacc, wacc * 0.15))
             )
             if wacc_varied <= terminal_growth:
                 wacc_varied = terminal_growth + 0.01

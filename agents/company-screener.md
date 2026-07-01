@@ -83,6 +83,8 @@ After all quantitative filters are applied, run `{plugin_root}/scripts/compute_m
 - Log all validation results in the report's "数据缺失与局限性" section
 This step catches wrong ticker codes, stale prices, and incorrect financial data BEFORE they enter the final report.
 
+Note: compute_growth_headroom.py is run as part of data validation in this step. The headroom_score is then used to CAP composite scores in Step 11 (the cap is applied retroactively before final ranking in Step 13).
+
 **GROWTH HEADROOM FILTER (MANDATORY after data validation):** Run `{plugin_root}/scripts/compute_growth_headroom.py` on ALL validated watchlist tickers. This produces a headroom_score (1-10) combining:
 - Overheating Penalty (25%): HIGHEST WEIGHT — rally from 52w low, distance from 200MA/50MA. Stocks up 60%+ get severe penalty. This prevents "buying at the mountain top."
 - TAM Runway (20%): penetration rate + TAM growth — can revenue grow 2-5 more years?
@@ -120,7 +122,7 @@ If pattern_category = "无形态", the stock only appears in the flat ranking ta
 <step n="13" name="Flat Ranking & Thesis">Rank all qualifying companies by composite score. For top 10-20, write a 2-sentence investment thesis: what the company does, why it's well-positioned in the industry, and the primary growth catalyst.
 
 The output ranking table MUST include the following mandatory columns:
-| # | 代码 | 名称 | 形态 | 当前股价 | 市净率(P/B) | 静态市盈率(TTM P/E) | 动态市盈率(Forward P/E) | 资金流向 | 连续流入天数 | 量价对称 | 上涨阶段 | 综合评分 | 5日 | 10日 | 20日 | 近期上涨逻辑 | 投资论点 |
+| # | 代码 | 名称 | 形态 | 当前股价 | 成长空间 | 市净率(P/B) | 静态市盈率(TTM P/E) | 动态市盈率(Forward P/E) | 资金流向 | 连续流入天数 | 量价对称 | 上涨阶段 | 综合评分 | 5日 | 10日 | 20日 | 近期上涨逻辑 | 投资论点 |
 
 Column definitions:
 - 近期上涨逻辑 (Recent Uptrend Logic): A concise one-sentence description of WHY the stock has been rising recently and what phase it's in. Examples:
@@ -131,7 +133,13 @@ Column definitions:
   Compose from: classify_uptrend_phase.py (phase + returns) + compute_money_flow.py (flow) + detect_distribution.py (warning)
   This is NOT optional — every stock must have a 近期上涨逻辑 description.
 
+  **近期上涨逻辑 mandatory warning thresholds:**
+  - 5-day return > 15% OR 10-day > 25% OR 20-day > 40%: MUST prefix with "⚠️ 短期过热: "
+  - 20-day > 60%: MUST prefix with "🔴 极端过热: "
+  - classify_uptrend_phase returns "LATE_ACCELERATING" or phase_change_risk="HIGH": MUST include "见顶风险"
+
 Column definitions:
+- 成长空间 (Growth Headroom): headroom_category_zh from compute_growth_headroom.py — 高成长潜力/中等空间. MANDATORY column.
 - 市净率 (P/B ratio): Price-to-Book ratio
 - 静态市盈率 (Trailing P/E, TTM): Trailing twelve-month P/E ratio
 - 动态市盈率 (Forward P/E): Forward P/E based on consensus FY+1 estimates

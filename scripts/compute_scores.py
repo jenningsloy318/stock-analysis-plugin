@@ -84,6 +84,9 @@ def _score_from_percentile(
     """
     if value is None:
         return None
+    # Guard: if bullish_25 == bullish_75, simple threshold scoring to avoid division by zero
+    if bullish_75 == bullish_25:
+        return 7.5 if value >= bullish_25 else 5.0
     if higher_is_better:
         if value >= bullish_75:
             return 9.0 + (value - bullish_75) / (bullish_75 * 2)  # 9-10 range
@@ -680,6 +683,9 @@ def compute_valuation(metrics: dict, sector: int | None = None) -> dict:
             score_pe = 3.5
         else:
             score_pe = 1.5
+        # Percentile-based correction: tech stocks (sector 45) with PE > 40 are overvalued
+        if sector == 45 and pe > 40:
+            score_pe = min(score_pe, 4.0)
         reasons.append(
             f"P/E: {pe:.1f} (GICS {sector or 'generic'} adjusted) → sub-score {score_pe:.1f}"
         )
@@ -1606,13 +1612,20 @@ def compute_canslim(
     ticker_data = None
     for key, val in (technicals or {}).items():
         if isinstance(val, dict) and (
-            "price_52w_position" in val or "trend_strength" in val
+            "weinstein_stage" in val or "trend_strength" in val
         ):
             ticker_data = val
             break
 
     if ticker_data:
-        pos_52w = ticker_data.get("price_52w_position")
+        # position_in_52wk_range is inside weinstein_stage sub-dict (0-100 scale)
+        weinstein = ticker_data.get("weinstein_stage", {})
+        pos_52w_pct = (
+            weinstein.get("position_in_52wk_range")
+            if isinstance(weinstein, dict)
+            else None
+        )
+        pos_52w = pos_52w_pct / 100.0 if pos_52w_pct is not None else None
         if pos_52w is not None:
             if pos_52w > 0.90:
                 factors["N"] = 9.0
@@ -2425,6 +2438,15 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
     if risk_obj.get("override"):
         conviction = min(conviction, 3.9)
         overrides.append("3+ forensic red flags → capped at Sell (3.9)")
+
+    # Rule: long-term report valuation penalty — prevent "Buy overvalued stock for long-term"
+    if report_type == "long":
+        val_score = component_scores.get("valuation_attractiveness")
+        if val_score is not None and val_score <= 4.0:
+            conviction = min(conviction, 7.0)
+            overrides.append(
+                f"Valuation ≤ 4.0 ({val_score:.1f}) for long-term → conviction capped at 7.0"
+            )
 
     conviction = round(conviction, 1)
 

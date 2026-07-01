@@ -158,7 +158,7 @@ def fetch_akshare_price(ticker: str) -> float | None:
             symbol = code
         df = ak.stock_zh_a_spot_em()
         row = df[df["代码"] == code]
-        if not row.empty:
+        if len(row) > 0:
             return float(row.iloc[0]["最新价"])
     except Exception:
         pass
@@ -257,7 +257,7 @@ def validate_ticker(ticker: str, blob: dict, tolerance: float) -> dict:
 
     status = classify_difference(diff_pct, tolerance)
 
-    return {
+    result = {
         "price_in_file": price_in_file,
         "price_validated": validated_price,
         "source": source,
@@ -265,6 +265,10 @@ def validate_ticker(ticker: str, blob: dict, tolerance: float) -> dict:
         "status": status,
         "action": "flagged_only",
     }
+    # Add note for ambiguous STALE range (5-15%) where timing may explain difference
+    if status == "STALE":
+        result["note"] = "Price difference may be due to intra-day timing"
+    return result
 
 
 # ---------------------------------------------------------------------------

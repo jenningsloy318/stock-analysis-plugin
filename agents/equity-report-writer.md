@@ -96,6 +96,7 @@ REQUIRED SECTIONS (every equity report must have ALL of these):
     - Risk/reward ratio
     - For long-term reports: include a simplified version showing only Weinstein stage + key support/resistance levels
 23. Recommendation (rating, target, margin of safety, entry criteria, position size, kill switch)
+    - Must include '入场条件' subsection listing: (1) price pullback level, (2) volume confirmation, (3) technical setup required
 24. Per-Stock Summary Annotation (近期逻辑 — MANDATORY at end of each per-company report):
     ```markdown
     ---
@@ -149,7 +150,10 @@ Also load {plugin_root}/references/data_source_matrix.md for coverage caps and {
   - For each dimension, include a 1-sentence explanation of WHY it scored high/low (e.g., "Moat: 8.5/10 — 强网络效应 + 高转换成本，客户留存率95%", "Ecosystem_Momentum: 7.2/10 — 上游供应商营收增长15%+，下游客户毛利扩张", "Industry_Trajectory: 8.0/10 — 行业营收加速+利润扩张+资金流入,处于早期周期")
   - Include "关键决定维度" (Key Decisive Dimensions) paragraph explaining which 2-3 dimensions MOST influenced the final conviction rating and WHY
   - If peer comparisons exist, show dimension-by-dimension comparison table vs peers to explain relative positioning
-  - Never present only the final composite score — always decompose into dimensions with figures</step>
+  - Never present only the final composite score — always decompose into dimensions with figures
+
+  HORIZON DIVERGENCE ENFORCEMENT:
+  - If Long-term conviction > 7.0 but stock is >90% of 52-week range: Short-term conviction MUST be at least 2 points lower than Long-term (enforces buy-wait messaging for overextended stocks with good fundamentals).</step>
 <step n="5b" name="Short-Term 3-Axis Structure Section (mandatory for short-term report)">For the short-term report file ONLY, render a "## 三轴结构检查 (Direction × Vega × Asymmetry)" section. This is a HARD requirement enforced by `validate_report.py` `gate_three_axis_check`.
 
 Inputs (from designated company directory):

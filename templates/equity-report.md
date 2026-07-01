@@ -592,6 +592,8 @@ For full $10B counterfactual + anti-pattern checks + peer-pair table, refer to t
 ## Setup Summary
 [1 paragraph: why now, what's the trade? What is priced in vs what is likely?]
 
+**52周位置: XX% | 20日涨幅: +XX% | RSI-14: XX | 入场风险: 低/中/高/极高**
+
 **Conviction Rating: [X.X]/10 | Confidence: [Low/Medium/High]**
 
 ---

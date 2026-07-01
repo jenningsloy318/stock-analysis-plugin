@@ -974,6 +974,19 @@ def validate_ticker(ticker: str, enabled_sources: list) -> dict:
         checks[k]["score"] * VALIDATION_WEIGHTS[k] for k in VALIDATION_WEIGHTS
     )
 
+    # Hard-fail: PE/PB sign mismatch (one source profit, other loss) forces INVALID
+    # This catches cases where V4_valuation has only 15% weight but data is fundamentally wrong
+    if checks["V4_valuation"]["score"] == 0:
+        pe_values = [
+            d.get("pe") for d in available_data.values() if d.get("pe") is not None
+        ]
+        if len(pe_values) >= 2:
+            has_positive = any(v > 0 for v in pe_values)
+            has_negative = any(v < 0 for v in pe_values)
+            if has_positive and has_negative:
+                # Sign mismatch: one source shows profit, another loss
+                validation_score = min(validation_score, 40)
+
     # Determine verdict
     verdict_name, verdict_emoji = get_verdict(validation_score)
 

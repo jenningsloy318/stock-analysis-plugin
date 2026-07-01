@@ -287,6 +287,13 @@ def detect_p1_prev_high_breakout(
         score = int(_clamp(score - 20, 0, 100))
         chase_risk = True
 
+    # Base distance check: if price has doubled from lookback low, flag extreme extension
+    lookback_low = min(window_closes)
+    extreme_extension = False
+    if lookback_low > 0 and current_close / lookback_low > 2.0:
+        extreme_extension = True
+        score = int(_clamp(score - 25, 0, 100))
+
     days_since = wn - 1 - breakout_day
 
     # Category: extended breakout if too far above pivot
@@ -314,6 +321,10 @@ def detect_p1_prev_high_breakout(
     if chase_risk:
         result["chase_risk"] = True
         result["chase_warning"] = "突破后涨幅>8%，追高风险较大"
+
+    if extreme_extension:
+        result["extreme_extension"] = True
+        result["extreme_warning"] = "股价距底部已翻倍，极端延伸风险"
 
     return result
 
@@ -1272,16 +1283,30 @@ def compute_context(
 
     # Days since breakout (if any recent break above 20-day high)
     days_since_breakout = None
+    breakout_level = None
     if n >= 25:
         high_20_excl_recent = max(closes[-25:-5])
+        breakout_level = high_20_excl_recent
         for i in range(n - 1, max(n - 20, 0), -1):
             if closes[i] > high_20_excl_recent:
                 days_since_breakout = n - 1 - i
                 break
 
+    # Extension risk: breakout > 5 days ago AND price still >5% above breakout level
+    extension_risk = False
+    if (
+        days_since_breakout is not None
+        and days_since_breakout > 5
+        and breakout_level is not None
+        and breakout_level > 0
+        and current > breakout_level * 1.05
+    ):
+        extension_risk = True
+
     return {
         "distance_from_52w_high_pct": round(distance_52w, 2),
         "days_since_breakout": days_since_breakout,
+        "extension_risk": extension_risk,
         "volume_trend_5d": vol_trend,
         "price_trend_20d": price_trend,
     }

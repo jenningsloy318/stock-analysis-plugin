@@ -71,8 +71,9 @@ def compute_rsi(close: pd.Series, period: int = 14) -> pd.Series:
     loss = (
         (-delta.where(delta < 0, 0.0)).rolling(window=period, min_periods=period).mean()
     )
-    rs = gain / loss
+    rs = gain / loss.replace(0, np.nan)
     rsi = 100.0 - (100.0 / (1.0 + rs))
+    rsi = rsi.fillna(100.0)
     return rsi
 
 
@@ -119,7 +120,7 @@ def compute_adx(
     plus_di = 100.0 * plus_dm.ewm(span=period, adjust=False).mean() / atr
     minus_di = 100.0 * minus_dm.ewm(span=period, adjust=False).mean() / atr
 
-    dx = 100.0 * (plus_di - minus_di).abs() / (plus_di + minus_di)
+    dx = 100.0 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan)
     adx = dx.ewm(span=period, adjust=False).mean()
     return adx
 
@@ -1414,6 +1415,15 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None, horizon: str) -> d
 
         # Determine net direction and action
         net_direction = determine_net_direction(buy_signals, sell_signals)
+
+        # Overextension override: when >30% above 200MA, SELL dominates in conflict
+        if net_direction == "CONFLICTING":
+            if len(sma200.dropna()) > 0 and not pd.isna(sma200.iloc[-1]):
+                _sma200_val = float(sma200.iloc[-1])
+                if _sma200_val > 0:
+                    _pct_above = (curr_close - _sma200_val) / _sma200_val
+                    if _pct_above > 0.30:
+                        net_direction = "SELL"
 
         # HOLD signal check
         hold_signal = check_hold_signals(

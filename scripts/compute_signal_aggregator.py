@@ -150,7 +150,7 @@ def compute_l1_technical(trade_signals_data: dict | None) -> dict:
         for sig in buy_signals:
             sid = sig.get("signal_id", sig.get("id", "B?"))
             name = sig.get("name", sig.get("name_cn", f"买入信号{sid}"))
-            conf = sig.get("confidence", 0.7)
+            conf = sig.get("confidence") or 0.7
             reason = sig.get("rationale", sig.get("description", ""))
             signals.append(_make_signal(sid, name, DIR_BUY, conf, reason))
 
@@ -159,7 +159,7 @@ def compute_l1_technical(trade_signals_data: dict | None) -> dict:
         for sig in sell_signals:
             sid = sig.get("signal_id", sig.get("id", "S?"))
             name = sig.get("name", sig.get("name_cn", f"卖出信号{sid}"))
-            conf = sig.get("confidence", 0.7)
+            conf = sig.get("confidence") or 0.7
             reason = sig.get("rationale", sig.get("description", ""))
             signals.append(_make_signal(sid, name, DIR_SELL, conf, reason))
 
@@ -387,6 +387,7 @@ def compute_l2_factor(
             )
 
         # --- F5: Low Volatility (低波动因子) ---
+        # NOTE: F5 is BUY-only — creates structural bullish asymmetry
         # beta < 0.8 + financial_health >= 6 → BUY (defensive quality)
         beta = _safe_get(factors_data, "factor_exposures", "market", default=None)
         if beta is None:
@@ -407,6 +408,7 @@ def compute_l2_factor(
                 )
 
         # --- F6: Size + Momentum Combo (小盘+动量组合) ---
+        # NOTE: F6 is BUY-only — creates structural bullish asymmetry
         # market_cap < $10B + momentum positive → BUY
         mkt_cap = _safe_get(factors_data, "market_cap", default=None)
         if mkt_cap is None:
@@ -583,6 +585,7 @@ def compute_l3_event(
                 )
 
         # --- E3: Buyback (回购信号) ---
+        # NOTE: E3 is BUY-only — creates structural bullish asymmetry
         # active buyback > 5% float → BUY
         buyback_pct = _safe_get(
             capital_structure_data, "buyback", "pct_of_float", default=None
@@ -625,13 +628,21 @@ def compute_l3_event(
             )
 
         # --- E4: Activist Entry (激进投资者进入) ---
+        # NOTE: E4 is BUY-only — creates structural bullish asymmetry
         # 13D filing by known activist → BUY
         has_13d = _safe_get(activist_data, "has_recent_13d", default=False)
         activist_name = _safe_get(activist_data, "activist_name", default=None)
         activist_stake = _safe_get(activist_data, "stake_pct", default=None)
 
         if has_13d:
-            conf = 0.70 if activist_stake and activist_stake > 0.05 else 0.55
+            # Safe numeric coercion — activist_stake may be string from JSON
+            _stake_num = (
+                float(activist_stake)
+                if isinstance(activist_stake, (int, float, str))
+                and str(activist_stake).replace(".", "", 1).isdigit()
+                else 0
+            )
+            conf = 0.70 if _stake_num > 0.05 else 0.55
             signals.append(
                 _make_signal(
                     "E4",
@@ -718,6 +729,8 @@ def compute_l4_institutional(
 
     try:
         # --- M1: Short Interest (做空挤压设置) ---
+        # NOTE: M1 creates structural bullish asymmetry (BUY-only signal type).
+        # Counterpart SELL added below when momentum is breaking down.
         # SI > 20% + DTC > 5 + CTB rising → BUY squeeze setup
         si_pct = _safe_get(short_interest_data, "short_interest_pct", default=None)
         if si_pct is None:
@@ -755,6 +768,22 @@ def compute_l4_institutional(
                     0.55,
                     f"空头比例{si_pct:.1%}, 逼空评分{squeeze_score}/10",
                     {"si_pct": si_pct, "squeeze_score": squeeze_score},
+                )
+            )
+
+        # M1 counterpart SELL: momentum breakdown (RSI < 30 from oversold collapse)
+        m1_rsi = _safe_get(tech_data, "rsi", "rsi_14", default=None)
+        if m1_rsi is None:
+            m1_rsi = _safe_get(tech_data, "indicators", "rsi_14", default=None)
+        if m1_rsi is not None and m1_rsi < 30:
+            signals.append(
+                _make_signal(
+                    "M1",
+                    "动量崩溃",
+                    DIR_SELL,
+                    0.60,
+                    f"RSI={m1_rsi:.1f} < 30, 动量崩溃/持续下行",
+                    {"rsi_14": m1_rsi},
                 )
             )
 
@@ -1270,6 +1299,7 @@ def compute_l6_alt_data(
                 )
 
         # --- A4: Search Trend (搜索趋势) ---
+        # NOTE: A4 is BUY-only — creates structural bullish asymmetry
         # brand search spike > 2x → BUY for consumer
         search_spike = _safe_get(
             alternatives_data, "google_trends", "brand_spike_ratio", default=None
@@ -1916,8 +1946,10 @@ def _identify_risk_factors(layers: list[dict], verdict: dict) -> list[dict]:
         )
 
     # Risk: Low confidence across layers
-    avg_conf = sum(l.get("layer_confidence", 0) for l in available) / max(
-        len(available), 1
+    # Exclude layers with zero signals from average — they shouldn't pull down confidence
+    layers_with_signals = [l for l in available if l.get("signals")]
+    avg_conf = sum(l.get("layer_confidence", 0) for l in layers_with_signals) / max(
+        len(layers_with_signals), 1
     )
     if avg_conf < 0.4:
         risks.append(

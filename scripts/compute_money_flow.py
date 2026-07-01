@@ -266,7 +266,7 @@ def compute_daily_flow_signals(
                 daily_flow.append("outflow")
             else:
                 daily_flow.append("neutral")
-            daily_strength[i] = votes / 3.0
+            daily_strength[i] = ratio
 
     return {
         "mfi": mfi,
@@ -531,16 +531,17 @@ def compute_composite_score(streak_info: dict, signals: dict, min_streak: int) -
         symmetry_score = 5.0  # neutral
 
     # Component 4: MFI level (10% weight)
-    if current_mfi > 70:
-        mfi_score = 8.0
+    # MFI > 80 is overbought (distribution risk), 55-70 is healthy inflow zone
+    if current_mfi > 80:
+        mfi_score = 4.0
+    elif current_mfi > 70:
+        mfi_score = 6.0
     elif current_mfi > 55:
         mfi_score = 10.0
-    elif current_mfi > 45:
-        mfi_score = 5.0
-    elif current_mfi > 30:
-        mfi_score = 3.0
+    elif current_mfi > 40:
+        mfi_score = 8.0
     else:
-        mfi_score = 1.0
+        mfi_score = 5.0
 
     # Component 5: OBV trend (10% weight)
     obv_slope_5d = compute_slope(obv, 5)
@@ -805,6 +806,14 @@ def analyze_ticker(ticker: str, lookback: int, min_streak: int) -> dict:
                 flags.append("DISTRIBUTION_WARNING")
 
     recommendation = generate_recommendation(verdict, streak_info, symmetry, flags)
+
+    # Additional distribution warning: sustained inflow at high composite may be distribution
+    if (
+        streak_info["current_streak_type"] == "inflow"
+        and streak_info["current_streak_days"] > 20
+        and composite > 7
+    ):
+        recommendation += "。注意: 连续流入超20天，高位可能为派发"
 
     # Current price
     current_price = _safe_float(close[-1])

@@ -739,7 +739,13 @@ def _phase_change_risk(
 def _build_context(
     closes: np.ndarray, highs: np.ndarray, lows: np.ndarray, volumes: np.ndarray
 ) -> dict:
-    """Build the indicator context dict from raw OHLCV arrays."""
+    """Build the indicator context dict from raw OHLCV arrays.
+
+    NOTE: This function intentionally receives FULL price history (not trimmed to lookback).
+    SMAs (especially SMA-50) need warmup data beyond the lookback window. The caller
+    (classify_ticker) fetches lookback + 80 extra bars to ensure SMA stability.
+    pct_from_base_90d uses an explicit slice; pct_from_low uses all available data.
+    """
     n = len(closes)
     ctx = {}
 
@@ -853,6 +859,8 @@ def _build_context(
     )
 
     # Percent from base in last 60-120 days (for late-acceleration detection)
+    # Uses lows[-base_window:] intentionally — a 90-day window for recent base detection,
+    # distinct from pct_from_low which uses the FULL lookback history
     base_window = min(90, n)  # Use ~90 days as the base window
     base_low = float(np.min(lows[-base_window:]))
     ctx["pct_from_base_90d"] = (
