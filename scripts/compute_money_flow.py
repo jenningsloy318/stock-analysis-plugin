@@ -789,7 +789,14 @@ def analyze_ticker(ticker: str, lookback: int, min_streak: int) -> dict:
             # Severe extension: likely distribution, not accumulation
             composite = composite * 0.6
             score_data["composite"] = composite
-            if verdict == "STRONG_INFLOW":
+            # Recompute verdict from penalized composite
+            if composite >= 8.0:
+                verdict = "STRONG_INFLOW"
+            elif composite >= 6.0:
+                verdict = "MODERATE_INFLOW"
+            elif composite >= 4.0:
+                verdict = "DISTRIBUTION_RISK"
+            else:
                 verdict = "DISTRIBUTION_RISK"
             flags.append("DISTRIBUTION_RISK")
             # Suppress VOLUME_PRICE_SYMMETRY when severely extended

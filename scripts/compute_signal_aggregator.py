@@ -643,13 +643,17 @@ def compute_l3_event(
                 else 0
             )
             conf = 0.70 if _stake_num > 0.05 else 0.55
+            try:
+                stake_str = f"持股{float(activist_stake):.1%}"
+            except (ValueError, TypeError):
+                stake_str = f"持股{activist_stake}"
             signals.append(
                 _make_signal(
                     "E4",
                     "激进投资者进入",
                     DIR_BUY,
                     conf,
-                    f"13D备案: {activist_name or '未知'} 持股{activist_stake:.1%}"
+                    f"13D备案: {activist_name or '未知'} {stake_str}"
                     if activist_stake
                     else f"13D备案: {activist_name or '未知激进投资者'}",
                     {
@@ -707,6 +711,7 @@ def compute_l3_event(
 def compute_l4_institutional(
     short_interest_data: dict | None,
     money_flow_data: dict | None,
+    tech_data: dict | None = None,
 ) -> dict:
     """Institutional flow signals: short squeeze, dark pool, accumulation, ETF flow.
 
@@ -2182,7 +2187,9 @@ def main():
     )
 
     # L4: Institutional Flow
-    layers.append(compute_l4_institutional(short_interest_data, money_flow_data))
+    layers.append(
+        compute_l4_institutional(short_interest_data, money_flow_data, tech_data)
+    )
 
     # L5: Options
     layers.append(compute_l5_options(options_data))

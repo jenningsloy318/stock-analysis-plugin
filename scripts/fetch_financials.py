@@ -28,6 +28,13 @@ except ImportError:
     sys.stderr.write("Error: 'requests' package required. Run: pip install requests\n")
     sys.exit(1)
 
+try:
+    import numpy as np
+
+    _HAS_NUMPY = True
+except ImportError:
+    _HAS_NUMPY = False
+
 EDGAR_HEADERS = {"User-Agent": "StockAnalysisSkill/1.0 (research@example.com)"}
 EDGAR_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 EDGAR_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
@@ -57,7 +64,7 @@ def detect_market(ticker: str) -> str:
     Returns: 'china' | 'hongkong' | 'us'
     """
     t = ticker.upper()
-    if re.match(r"^\d{6}\.(SZ|SH|BJ)$", t) or re.match(r"^\d{6}$", t):
+    if re.match(r"^\d{6}\.(SZ|SH|SS|BJ)$", t) or re.match(r"^\d{6}$", t):
         return "china"
     if re.match(r"^\d{4,5}\.HK$", t):
         return "hongkong"
@@ -482,10 +489,16 @@ def fetch_from_baostock(ticker: str, years: int) -> dict | None:
 def _get_baostock_code(ticker: str) -> str | None:
     """Convert ticker to baostock exchange-prefixed format."""
     t = ticker.upper()
-    code = t.replace(".SZ", "").replace(".SH", "").replace(".BJ", "").replace(".HK", "")
+    code = (
+        t.replace(".SZ", "")
+        .replace(".SH", "")
+        .replace(".SS", "")
+        .replace(".BJ", "")
+        .replace(".HK", "")
+    )
     if ".SZ" in t:
         return f"sz.{code}"
-    elif ".SH" in t:
+    elif ".SH" in t or ".SS" in t:
         return f"sh.{code}"
     elif ".BJ" in t:
         return f"bj.{code}"
@@ -1216,31 +1229,33 @@ def main():
             }
 
         data["years_requested"] = args.years
-        # Staleness check: warn if last price data point is >5 trading days old
+        # Staleness check: warn if data retrieval is >7 days old or missing
         try:
-            profile = data.get("profile", {})
             retrieved = data.get("retrieved_at", "")
-            if retrieved and isinstance(profile, dict):
+            if retrieved:
                 retrieved_dt = datetime.fromisoformat(retrieved.replace("Z", "+00:00"))
-                # Check if historical price data has a last date >5 trading days old
-                hist = data.get("historical_prices", [])
-                if hist and isinstance(hist, list) and len(hist) > 0:
-                    last_date_str = (
-                        hist[-1].get("date", "") if isinstance(hist[-1], dict) else ""
-                    )
-                    if last_date_str:
-                        last_date = datetime.fromisoformat(last_date_str).replace(
-                            tzinfo=timezone.utc
-                        )
-                        days_diff = (retrieved_dt - last_date).days
-                        if days_diff > 7:  # 5 trading days ~ 7 calendar days
-                            data["stale_warning"] = True
+                now = datetime.now(timezone.utc)
+                days_diff = (now - retrieved_dt).days
+                if days_diff > 7:
+                    data["stale_warning"] = True
+            else:
+                # No retrieved_at timestamp — treat as potentially stale
+                data["stale_warning"] = True
         except Exception:
             pass
         results[ticker] = data
 
     # Sanitize NaN/Infinity values that produce non-standard JSON
     def _sanitize(obj):
+        if _HAS_NUMPY:
+            if isinstance(obj, np.integer):
+                return int(obj)
+            if isinstance(obj, np.floating):
+                if np.isnan(obj) or np.isinf(obj):
+                    return None
+                return float(obj)
+            if isinstance(obj, np.bool_):
+                return bool(obj)
         if isinstance(obj, float):
             if math.isnan(obj) or math.isinf(obj):
                 return None

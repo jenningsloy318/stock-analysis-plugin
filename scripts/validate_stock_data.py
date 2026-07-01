@@ -976,7 +976,7 @@ def validate_ticker(ticker: str, enabled_sources: list) -> dict:
 
     # Hard-fail: PE/PB sign mismatch (one source profit, other loss) forces INVALID
     # This catches cases where V4_valuation has only 15% weight but data is fundamentally wrong
-    if checks["V4_valuation"]["score"] == 0:
+    if checks["V4_valuation"]["score"] <= 30:
         pe_values = [
             d.get("pe") for d in available_data.values() if d.get("pe") is not None
         ]

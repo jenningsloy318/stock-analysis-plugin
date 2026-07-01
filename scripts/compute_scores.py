@@ -579,7 +579,11 @@ def compute_management_quality(metrics: dict, sentiment: dict | None = None) -> 
         "insider_activity": 0.35,
         "guidance_accuracy": 0.25,
     }
-    valid = {k: v for k, v in sub_scores.items() if k != "shareholder_returns"}
+    valid = {
+        k: v
+        for k, v in sub_scores.items()
+        if k != "shareholder_returns" and v is not None
+    }
     if not valid:
         return {
             "score": None,
@@ -1493,7 +1497,7 @@ def compute_weinstein_alignment(technicals: dict) -> dict:
     score = 5.0
 
     if stage == 2:
-        score = 9.0 if slope > 0.002 else 7.5
+        score = 9.0 if slope > 0.2 else 7.5
         reasons.append(f"Weinstein Stage 2 (Advancing) — 30WMA slope: {slope:.4f}")
     elif stage == 1:
         score = 5.5
@@ -1522,15 +1526,15 @@ def compute_weinstein_alignment(technicals: dict) -> dict:
         effective_rs = composite_rs
 
     if effective_rs is not None:
-        if effective_rs > 1.1:
+        if effective_rs > 10.0:
             score = min(10.0, score + 1.0)
             reasons.append(
-                f"RS (decay-weighted) {effective_rs:.2f} > 1.1 — outperforming market"
+                f"RS (decay-weighted) {effective_rs:.2f}pp > 10pp — outperforming market"
             )
-        elif effective_rs < 0.9:
+        elif effective_rs < -10.0:
             score = max(1.0, score - 1.0)
             reasons.append(
-                f"RS (decay-weighted) {effective_rs:.2f} < 0.9 — underperforming market"
+                f"RS (decay-weighted) {effective_rs:.2f}pp < -10pp — underperforming market"
             )
 
     final = _clamp(score)
@@ -1649,7 +1653,7 @@ def compute_canslim(
     # S — Supply/demand (volume trend)
     if ticker_data:
         volume_data = ticker_data.get("volume", {})
-        vol_ratio = volume_data.get("volume_vs_avg")
+        vol_ratio = volume_data.get("volume_ratio")
         if vol_ratio is not None:
             if vol_ratio > 1.5:
                 factors["S"] = 8.5
@@ -1669,17 +1673,17 @@ def compute_canslim(
         rs = ticker_data.get("relative_strength", {})
         composite = rs.get("composite_rs")
         if composite is not None:
-            if composite > 1.20:
+            if composite > 20.0:
                 factors["L"] = 9.5
-            elif composite > 1.05:
-                factors["L"] = 7.5
-            elif composite > 0.95:
-                factors["L"] = 5.0
-            elif composite > 0.80:
-                factors["L"] = 3.0
+            elif composite > 5.0:
+                factors["L"] = 8.0
+            elif composite > -5.0:
+                factors["L"] = 6.0
+            elif composite > -20.0:
+                factors["L"] = 4.0
             else:
                 factors["L"] = 1.5
-            reasons.append(f"L: RS composite {composite:.2f}")
+            reasons.append(f"L: RS composite {composite:.2f}pp")
         else:
             factors["L"] = None
     else:
@@ -2461,11 +2465,28 @@ def compute_conviction(scores: dict, report_type: str) -> dict:
         and not low_components
         and not risk_obj.get("override")
     ):
-        lollapalooza = True
-        conviction = min(10.0, round(conviction + 1.5, 1))
-        overrides.append(
-            f"Lollapalooza Effect detected ({len(high_components)} strong components) → +1.5 bonus"
-        )
+        # M10: Timing-risk guard for short-term — don't apply bonus when overextended
+        apply_bonus = True
+        if report_type == "short":
+            canslim_n = scores.get("canslim", {}).get("factors", {}).get("N")
+            if canslim_n is not None and canslim_n >= 9.0:
+                # 52w position > 90% — too extended for short-term bonus
+                apply_bonus = False
+                overrides.append(
+                    "Lollapalooza suppressed: short-term + 52w position > 90%"
+                )
+        if apply_bonus:
+            lollapalooza = True
+            conviction = min(10.0, round(conviction + 1.5, 1))
+            overrides.append(
+                f"Lollapalooza Effect detected ({len(high_components)} strong components) → +1.5 bonus"
+            )
+
+    # Re-apply valuation cap after Lollapalooza — bonus must not bypass the cap
+    if report_type == "long":
+        val_score = component_scores.get("valuation_attractiveness")
+        if val_score is not None and val_score <= 4.0:
+            conviction = min(conviction, 7.0)
 
     # Rating
     if conviction >= 9.0:
@@ -2837,12 +2858,16 @@ def _enrich_conviction_count_with_cot(
             bull_factors.append(
                 {"name": "cot_institutional_bullish", "value": net_position}
             )
-            conviction_count["bull_count"] = conviction_count.get("bull_count", 0) + 1
+            conviction_count["bull_conviction_count"] = (
+                conviction_count.get("bull_conviction_count", 0) + 1
+            )
         elif net_position < 0 and trend == "decreasing":
             bear_factors.append(
                 {"name": "cot_institutional_bearish", "value": net_position}
             )
-            conviction_count["bear_count"] = conviction_count.get("bear_count", 0) + 1
+            conviction_count["bear_conviction_count"] = (
+                conviction_count.get("bear_conviction_count", 0) + 1
+            )
 
     conviction_count["bull_factors"] = bull_factors
     conviction_count["bear_factors"] = bear_factors

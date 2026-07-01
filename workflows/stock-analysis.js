@@ -969,14 +969,14 @@ if (MODE === 'pipeline' || MODE === 'screen') {
   const allCandidates = (watchlist || [])
     .filter(Boolean)
     .flatMap(r => r.companies || [])
-    .filter(c => c.price_filter_pass !== false)
+    .filter(c => c.price_filter_pass === true)
     .filter(c => passUniverse(c.ticker))
   const headroomRejected = allCandidates.filter(c => c.headroom_score != null && c.headroom_score < MIN_HEADROOM)
   if (headroomRejected.length > 0) {
     log(`[screening] headroom filter rejected ${headroomRejected.length} companies: ${headroomRejected.map(c => `${c.ticker}(${c.headroom_score})`).join(', ')}`)
   }
   const allCompanies = allCandidates
-    .filter(c => c.headroom_score == null || c.headroom_score >= MIN_HEADROOM)
+    .filter(c => c.headroom_score != null && c.headroom_score >= MIN_HEADROOM)
     .sort((a, b) => b.score - a.score)
   watchlist = allCompanies.slice(0, TOTAL_COMPANY || 15).map((c, i) => ({
     ...c,

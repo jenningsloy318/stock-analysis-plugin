@@ -1179,7 +1179,7 @@ def compute_monte_carlo(
                 sigma_log = max(0.01, growth_sigma / max(growth_mu, 0.01))
                 sigma_log = min(sigma_log, 2.0)
                 growth = rng.lognormal(
-                    mean=math.log(max(growth_mu, 0.001)),
+                    mean=math.log(max(growth_mu, 0.001)) - sigma_log**2 / 2,
                     sigma=sigma_log,
                 )
                 growth = max(-0.50, min(2.0, growth))

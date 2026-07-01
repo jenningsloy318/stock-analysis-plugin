@@ -1146,7 +1146,15 @@ def detect_p6_wedge_breakout(
         _clamp(convergence_score + linearity_score + vol_component + momentum_component)
     )
 
-    return {
+    # Extension penalty (same logic as P1): penalize if too far above breakout
+    chase_risk = False
+    if margin_above_pct > 5:
+        score = int(_clamp(score - (margin_above_pct - 5) * 5, 0, 100))
+    if margin_above_pct > 8:
+        score = int(_clamp(score - 20, 0, 100))
+        chase_risk = True
+
+    result = {
         "id": "P6",
         "name": "楔形收敛突破",
         "name_en": "Wedge Convergence Breakout",
@@ -1164,6 +1172,10 @@ def detect_p6_wedge_breakout(
         "breakout_volume_ratio": round(vol_ratio, 2),
         "margin_above_pct": round(margin_above_pct, 2),
     }
+    if chase_risk:
+        result["chase_risk"] = True
+        result["category"] = "追高风险"
+    return result
 
 
 def _linear_regression_slope_xy(x: list[float], y: list[float]) -> float:

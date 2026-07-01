@@ -1100,8 +1100,8 @@ def compute_key_levels(
     if curr_sma200 is not None and not pd.isna(curr_sma200):
         pct_above = curr_close / curr_sma200 - 1.0
         if pct_above > 0.30:
-            # Tighten stop: use max of ATR-based and 200MA-extension-based
-            ma_based_stop = curr_sma200 * (1 + min(pct_above * 0.5, 0.30))
+            # Tighten stop: use max of ATR-based and extension-based
+            ma_based_stop = curr_close * (1 - min(pct_above * 0.3, 0.15))
             stop_loss = max(stop_loss, ma_based_stop)
 
     return {
@@ -1400,8 +1400,8 @@ def analyze_ticker(ticker: str, money_flow_data: dict | None, horizon: str) -> d
         sell_signals = filter_by_horizon(sell_signals_raw, horizon)
 
         # Overextension guard: suppress BUY signals when stock is >50% above 200MA
-        # Affected signals: B1 (量价突破), B3 (金叉), B4 (回踩支撑), B6 (突破回踩)
-        overextension_suppressed_ids = {"B1", "B3", "B4", "B6"}
+        # Affected signals: B1 (量价突破), B3 (金叉), B4 (回踩支撑), B5 (蓄势), B6 (突破回踩)
+        overextension_suppressed_ids = {"B1", "B3", "B4", "B5", "B6"}
         if len(sma200.dropna()) > 0 and not pd.isna(sma200.iloc[-1]):
             curr_sma200_val = float(sma200.iloc[-1])
             if curr_sma200_val > 0:
