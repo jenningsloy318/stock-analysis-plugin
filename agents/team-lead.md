@@ -5,7 +5,7 @@ model: inherit
 kind: local
 tools:
   - "*"
-max_turns: 50
+max_turns: 100
 timeout_mins: 60
 ---
 
@@ -219,12 +219,25 @@ timeout_mins: 60
   </phase>
 
   <phase n="3-walk" name="Top-down Chain Walk" modes="walk">
-    For walk mode (triggered by `--mode walk THEME`):
+    **Walk Mode Flow:**
+    1. Stage 0: Setup (extract theme, parameters)
+    2. Stage 1: Shared data collection
+    3. Stage 1.5: Data validation
+    4. Walk stage: Spawn roadmap-walker agent → produces ranked list of chokepoint candidates (top N based on --top-industry, default 7)
+    5. Select TOP 3-5 candidates from roadmap-walker output (by asymmetry_composite score)
+    6. Stages 5-15: Run FULL deep-dive analysis on selected top 3-5 (same as pipeline mode per-company waves)
+    7. Stage 16: Scoring
+    8. Stage 17-19: Reports + Validation + Best Picks
+
+    Walk mode does NOT run Stage 2-4 (sub-industry screening / company screening) — the roadmap-walker replaces that with supply-chain-based candidate selection. But it DOES run Stages 5-15 on the selected candidates.
+
+    Implementation:
     1. Spawn ONE roadmap-walker agent with: theme, top_industry (default 7), shared_data_path, output_dir, plugin_root, run_id.
     2. The walker performs Steps 1-6 from references/frameworks_bottleneck_investing.md.
     3. Outputs: walk_roadmap.json, walk_chain.json, walk_candidates.json, walk.md (all in output_dir).
-    4. After walk completes, jump to Stage 17 → 17.5 → 18 → 18.5 → 19.
-    5. Walk mode SKIPS stages 2-16.7.
+    4. After walk completes, select TOP 3-5 candidates by asymmetry_composite score from walk_candidates.json.
+    5. Spawn company-orchestrators for selected candidates (same Wave1-4 pattern as pipeline mode).
+    6. After Stages 5-15 complete → Stage 16 (scoring) → Stage 16.5 → 17 → 17.5 → 18 → 18.5 → 19.
   </phase>
 
   <phase n="4" name="Scoring, Verification & Reports">

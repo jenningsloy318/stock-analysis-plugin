@@ -40,6 +40,8 @@
 - After screening, do NOT re-filter or exclude companies during analysis stages (5-15) or report generation (17-18)
 - If analyzing a specific ticker requested by the user (analyze/compare mode), proceed regardless of filters (user override)
 - For screening/watchlist: filter OUT companies above price threshold OR below headroom threshold before ranking
+- Companies with negative FCF may qualify via the aggressive channel if they meet high-growth exemption criteria (see company-screener.md Step 3).
+- Cyclical stocks (Energy/Materials/Semiconductors) are automatically evaluated with normalized mid-cycle earnings at trough. See company-screener.md Step 3.5.
 
 ## Price Verification Anti-Hallucination Rule (MUST follow)
 

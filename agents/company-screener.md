@@ -36,7 +36,24 @@ Handles Phase 3 (Company Screening).
 
 <workflow>
 
-<step n="1" name="Universe Construction">Identify all publicly traded companies in the target sub-industry using the GICS Level 4 code (8-digit). Reference `references/gics_taxonomy.md` for the sub-industry definition and representative tickers. Source from sector ETF holdings, sub-industry ETF proxy holdings (see taxonomy), industry classification databases, and web search. Cross-reference with exchange-listed companies sharing the same GICS sub-industry code. Target: complete universe for the sub-industry.</step>
+**Data Scarcity Handling (IPOs, spin-offs, <3 years history):**
+- If a company has < 3 years of financial history: use whatever years are available
+  - 1 year: compute 1Y growth instead of 3Y CAGR, use TTM metrics only
+  - 2 years: compute 2Y CAGR, limited ratio history
+- For dimensions requiring multi-year data (Growth Consistency, Moat Stability): reduce that dimension's weight to 50% of normal and redistribute to available dimensions
+- Tag these companies as "LIMITED_DATA (N years)" in the output table
+- In compute_scores.py Stage 16: conviction cap = 7.0 for companies with < 3 years data (cannot give STRONG_BUY without sufficient history)
+- Do NOT exclude companies solely for having limited history — many high-growth IPOs are in this category
+
+<step n="1" name="Universe Construction">Identify all publicly traded companies in the target sub-industry using the GICS Level 4 code (8-digit). Reference `references/gics_taxonomy.md` for the sub-industry definition and representative tickers. Source from sector ETF holdings, sub-industry ETF proxy holdings (see taxonomy), industry classification databases, and web search. Cross-reference with exchange-listed companies sharing the same GICS sub-industry code. Target: complete universe for the sub-industry.
+
+**Universe Expansion (reduce survivorship bias):**
+In addition to ETF holdings, augment the universe with exchange-listed companies:
+- For US stocks: include all NYSE/NASDAQ-listed companies in the target GICS sub-industry (via akshare `ak.stock_us_spot_em()` or yfinance screener)
+- For A-shares: include all companies from akshare `ak.stock_zh_a_spot_em()` filtered by 板块/行业 matching
+- Take the UNION of ETF holdings ∪ exchange-listed companies in the sub-industry
+- This ensures recently-IPO'd companies not yet in ETFs are included in the candidate pool
+</step>
 <step n="2" name="Data Fetch">For each company, gather: market cap, revenue (trailing + 3-year history), EPS (trailing + 3-year history), FCF, total debt, cash, P/E, EV/EBITDA, ROIC, ROE, revenue growth (3Y CAGR), average dollar volume, free float, short interest, and sector-specific KPIs. Use finance tool, Firecrawl, Tavily, and official/public sources from `references/data_source_matrix.md` for data acquisition.
 
 **POST-FETCH CROSS-VALIDATION (MANDATORY):** After fetching financials for all candidates, run `{plugin_root}/scripts/cross_validate_prices.py` on EACH company's raw-data.json with `--patch --tolerance 5`. This:
@@ -46,14 +63,49 @@ Handles Phase 3 (Company Screening).
 - Any ticker with CRITICAL_MISMATCH must be re-fetched or removed from the candidate universe</step>
 <step n="3" name="Quantitative Filters">Apply minimum thresholds. Companies that fail any filter are excluded with reason noted:
   - Market cap ≥ $500M (adjustable by user)
-  - Revenue growth (3Y CAGR) ≥ industry median (or ≥ 0% for cyclical industries)
-  - Positive trailing FCF
+  - Revenue growth (3Y CAGR) absolute thresholds by sector type:
+    - Technology / Healthcare / Communications (GICS 45, 35, 50): ≥ 10%
+    - Default (Industrials, Consumer, Financials): ≥ 5%
+    - Cyclical at TROUGH (detected in Step 3.5): ≥ 0% (or skip — see Step 3.5)
+    - Utilities / REITs (GICS 55, 60): ≥ 3%
+    Note: These are ABSOLUTE thresholds, not relative to an undefined "industry median." This ensures deterministic, reproducible filtering independent of the candidate pool composition.
+  - **Free Cash Flow — Dual-Channel Filter:**
+    - **稳健通道 (Conservative Channel, default):** Positive trailing FCF required.
+    - **激进通道 (Aggressive Channel, requires `--speculative` flag OR headroom_score ≥ 7):** Negative FCF allowed IF the company meets ANY of these exemption criteria:
+      - Revenue CAGR 3Y > 40% (hyper-growth justifies cash burn)
+      - Revenue CAGR 3Y > 25% AND Gross Margin > 60% (high-quality SaaS model)
+      - Revenue CAGR 3Y > 20% AND R&D/Revenue > 25% (heavy R&D investment phase)
+      - AND in ALL cases: Cash & Equivalents > |FCF| × 2 (at least 2 years of cash runway)
+    - Companies in the aggressive channel are tagged "⚠️ 激进/烧钱成长" and conviction is capped at 7.0 (cannot receive STRONG_BUY).
+    - If a company has negative FCF but does NOT meet any exemption criterion → REJECT.
   - ROIC ≥ WACC (or ROE ≥ 10% for financials)
   - Debt/Equity ≤ industry 75th percentile (or ≤ 3.0x for capital-intensive sectors)
 
 After all quantitative filters are applied, run `{plugin_root}/scripts/compute_money_flow.py` on all surviving candidates to assess capital flow dynamics:
   - Stocks with verdict "STRONG_OUTFLOW" (持续放量流出) → flag as ⚠️ CAUTION in the output table, but do NOT automatically exclude (the user decides)
   - Stocks with "VOLUME_PRICE_SYMMETRY" flag (量价对称确认) → award a +1 bonus to the composite score in Step 11</step>
+<step n="3.5" name="Cyclical Adjustment">For companies in cyclical sectors (GICS: 10 Energy, 15 Materials, 20 parts of Industrials, 45301020 Semiconductors), automatically detect cycle position:
+
+**Cycle Detection Logic:**
+- Compute: `margin_ratio = current_operating_margin / 5yr_average_operating_margin`
+- If margin_ratio < 0.5 → TROUGH (底部): relax growth filter (allow negative growth), use 5yr-average earnings for P/E normalization, add "周期底部" tag
+- If margin_ratio > 1.5 → PEAK (顶部): tighten valuation filter (P/E must be > 5yr avg P/E to confirm not at peak-earnings-cheap), add "⚠️ 周期顶部风险" warning
+- If 0.5 ≤ margin_ratio ≤ 1.5 → MID_CYCLE: apply standard filters
+
+**At TROUGH:**
+- Skip the revenue growth filter (it's normal for cyclicals to have negative growth at bottom)
+- Compute normalized_PE = Price / (5yr_avg_EPS) instead of trailing P/E
+- Valuation scoring uses normalized_PE, not trailing P/E
+- Add +1.0 bonus to composite score (contrarian opportunity at cycle bottom)
+
+**At PEAK:**
+- The stock "looks cheap" (low P/E due to peak earnings) but is actually expensive
+- Apply -1.5 penalty to composite score
+- In output table, add "⚠️ 周期顶部: P/E虚低，利润接近峰值" warning
+
+**Cyclical Sector GICS Codes:**
+10xx (Energy), 15xx (Materials), 201020-201070 (Capital Goods), 203010-203050 (Transportation), 45301020 (Semiconductors), 25102010 (Automobiles)
+</step>
 <step n="4" name="Financial Health">For qualifying companies: quick ratio, interest coverage, Altman Z-Score. Flag any with Z-Score below 1.8 (distress zone).</step>
 <step n="5" name="Moat Assessment">Evaluate moat quality using Morningstar framework: cost advantages, network effects, intangible assets (brands, patents), switching costs, efficient scale. Score 0-10.</step>
 <step n="6" name="Management Quality">CEO tenure (years), insider ownership (%), capital allocation track record (M&A, buybacks, dividends). Flag companies with recent CEO departures or insider selling clusters.</step>

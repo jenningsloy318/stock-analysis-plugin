@@ -958,6 +958,16 @@ if (MODE === 'pipeline' || MODE === 'screen') {
       `If compute_growth_headroom.py fails or returns INSUFFICIENT_DATA, assign headroom_score=4.0 (below default threshold, conservative reject). ` +
       `REJECT any stock with headroom_score < ` + MIN_HEADROOM + ` (even if price passes). ` +
       `Include headroom_score and headroom_category in the output table. ` +
+      `FREE CASH FLOW — DUAL-CHANNEL FILTER: ` +
+      `Conservative channel (default): positive trailing FCF required. ` +
+      `Aggressive channel (activated if headroom_score >= 7): negative FCF allowed IF: ` +
+      `(a) Rev CAGR 3Y > 40%, OR (b) Rev CAGR 3Y > 25% AND Gross Margin > 60%, OR (c) Rev CAGR 3Y > 20% AND R&D/Rev > 25%; ` +
+      `AND in ALL cases Cash & Equivalents > |FCF| × 2 (2yr runway). ` +
+      `Tag aggressive-channel companies "⚠️ 激进/烧钱成长", cap conviction at 7.0. Reject negative-FCF stocks not meeting any exemption. ` +
+      `CYCLICAL ADJUSTMENT (Step 3.5): For cyclical sectors (GICS 10xx Energy, 15xx Materials, 201020-201070 Capital Goods, ` +
+      `203010-203050 Transportation, 45301020 Semiconductors, 25102010 Automobiles), compute margin_ratio = current_op_margin / 5yr_avg_op_margin. ` +
+      `TROUGH (<0.5): skip growth filter, use normalized_PE (Price/5yr_avg_EPS), add +1.0 score bonus, tag "周期底部". ` +
+      `PEAK (>1.5): apply -1.5 score penalty, add "⚠️ 周期顶部: P/E虚低" warning. MID_CYCLE (0.5-1.5): standard filters. ` +
       `Score growth/profitability/moat/valuation/management/risk/liquidity. ` +
       `ALSO run 'uv run python ${PLUGIN_ROOT}/scripts/fetch_supply_chain_ecosystem.py [TICKER]' ` +
       `for each top-5 candidate to get ecosystem health. Apply chain_health_adj (±10% score bonus/penalty): ` +
