@@ -927,6 +927,29 @@ def compute_dcf(
     if shares_outstanding and shares_outstanding > 0:
         result["per_share_value"] = round(enterprise_value / shares_outstanding, 2)
 
+    # Damodaran-aligned terminal value assessment
+    # High TV% is NORMAL for growth companies — flag for transparency, not defect
+    tv_pct = result["terminal_pct_of_total"]
+    if tv_pct > 85:
+        result["tv_sensitivity"] = "HIGH"
+        result["tv_note"] = (
+            "Terminal value dominates (>85%). This is normal for growth companies "
+            "(Damodaran: 'you should not be surprised to see bulk of value in terminal value'). "
+            "Key risk: small changes in terminal growth (±1%) create large valuation swings. "
+            "Focus on growth-period assumptions and narrative coherence."
+        )
+        result["confidence"] = "MODERATE"
+    elif tv_pct > 75:
+        result["tv_sensitivity"] = "MODERATE"
+        result["tv_note"] = (
+            "Terminal value significant (>75%). Standard for growth companies. "
+            "Review sensitivity table for assumption impact."
+        )
+        result["confidence"] = "STANDARD"
+    else:
+        result["tv_sensitivity"] = "LOW"
+        result["confidence"] = "HIGH"
+
     return result
 
 

@@ -267,6 +267,7 @@ State explicitly: **widening / stable / narrowing** with specific 12-24 month ev
 [Include Economic Value Added (EVA) calculation and ROIC vs WACC spread to assess moat expansion/destruction]
 [Gross margin trajectory: expanding/stable/contracting (delta in bps). Incremental ROIC: efficiency of new capital deployment.]
 [Multiple methods: DCF (base case), Trading Comps, SOTP if applicable. Sensitivity table: WACC vs terminal growth. Reverse DCF implied growth. Margin of safety calculation.]
+[DCF terminal value disclosure (Damodaran framework): TV as % of total value. If TV>75%: this is NORMAL for growth companies — disclose assumptions transparently, show sensitivity to ±1% terminal growth rate. If TV>85%: add explicit narrative coherence check — "Does the story (TAM, competitive position, margin trajectory) justify these numbers?" Never switch away from DCF solely because TV is high — instead, scrutinize growth-period assumptions more carefully.]
 [Private market comp / LBO floor (if market cap < $100B): maximum PE buyout price at 20% IRR. Precedent transaction premiums in sector.]
 
 ## 4. Capital Structure & Shareholder Returns

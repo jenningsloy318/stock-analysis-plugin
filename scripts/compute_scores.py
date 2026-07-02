@@ -753,6 +753,19 @@ def compute_valuation(metrics: dict, sector: int | None = None) -> dict:
             )
     sub_scores["dcf_mos"] = score_dcf
 
+    # Damodaran-aligned: Adjust DCF confidence based on terminal value sensitivity
+    # High TV% is NORMAL for growth — don't abandon DCF, but note reduced precision
+    tv_sensitivity = dcf.get("tv_sensitivity", "LOW")
+    if score_dcf is not None and tv_sensitivity == "HIGH":
+        # Pull DCF score toward neutral (5.0) by 30% — reflects higher uncertainty
+        score_dcf_adj = score_dcf * 0.7 + 5.0 * 0.3
+        reasons.append(
+            f"DCF terminal-value-sensitive (TV>85%): score moderated {score_dcf:.1f}→{score_dcf_adj:.1f} "
+            f"(Damodaran: normal for growth, but assumption-dependent)"
+        )
+        score_dcf = round(score_dcf_adj, 1)
+        sub_scores["dcf_mos"] = score_dcf
+
     # --- P/E vs history / sector ---
     score_pe = None
     if pe and pe > 0:
