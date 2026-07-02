@@ -177,7 +177,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
       <parameter name="theme" required="true">Universal roadmap theme (positional after `--mode walk`, quoted multi-word allowed). Examples: "humanoid robotics", "AI optical interconnect", "rare-earth permanent magnets", "defense electronics", "grid transmission", "biologic manufacturing".</parameter>
       <parameter name="top-industry" default="7" range="1-20">Maximum candidate companies to score and return.</parameter>
     </parameters>
-    <stages>0→1→1.5→walk(roadmap-walker)→5-15(top 3-5)→16→16.5→17→17.5→18→18.5→19</stages>
+    <stages>0→1→1.5→walk(roadmap-walker)→5-15(top 3-5)→16→16.5→16.6→16.7→17→17.4→17.5→18→18.5→19</stages>
     <constraints>Universal — applies to AI infra, EV/battery, robotics, defense, solar, biopharma, grid, semi capex, advanced materials. Roadmap MUST be quantitative + dated (numbers + timeline). Walk mode selects TOP 3-5 candidates from roadmap-walker output (by asymmetry_composite score) and runs FULL deep-dive (Stages 5-15) on them. Output recommends `--mode analyze TICKER` follow-up for tier-1/strong candidates.</constraints>
   </mode>
 </modes>

@@ -688,6 +688,7 @@ await trackPhaseStart('Shared Data')
 const sharedData = await agentWithRetry(
   `You are stock-analysis:data-collector. Fetch macro indicators, economic surprises, ` +
   `sector/sub-industry relative strength, market breadth, theme performance. ` +
+  `Hot sector discovery: use --days ${DAYS} for discover_hot_sectors.py. ` +
   `plugin_root=${PLUGIN_ROOT} output_dir=${OUTPUT_DIR}. Run scripts via ` +
   `'uv run python ${PLUGIN_ROOT}/scripts/<script>.py'. Write all outputs under ` +
   `${OUTPUT_DIR}/. Return {status, files, notes} per schema.`,
@@ -901,9 +902,9 @@ if (MODE === 'pipeline' || MODE === 'screen') {
   const sectorBatchResults = await parallel(batches.map((range, i) => () =>
     agentWithRetry(
       `You are stock-analysis:sector-screener. Process GICS Level 4 batch ${range} (i=${i}). ` +
-      `Read shared data from ${OUTPUT_DIR}/stage1.json. Score 12 dimensions (Growth, Profitability, ` +
-      `Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Constituent ` +
-      `Quality, Supply/Demand, Industry Trajectory). ` +
+      `Read shared data from ${OUTPUT_DIR}/stage1.json. Score 11 dimensions (Growth, Profitability, ` +
+      `Valuation, Macro Fit, Innovation, Regulatory, Capital Flows, RS, Cyclicality, Technical ` +
+      `Health, Supply/Demand, Industry Trajectory). ` +
       `For Industry Trajectory: run 'uv run python ${PLUGIN_ROOT}/scripts/compute_industry_trajectory.py ` +
       `--etf [SUB_INDUSTRY_ETF]' for each sub-industry ETF proxy to assess whether the industry ` +
       `is improving or deteriorating (revenue acceleration, margin direction, RS momentum, fund flows, ` +
@@ -996,9 +997,9 @@ if (MODE === 'pipeline' || MODE === 'screen') {
     log(`[screening] headroom filter rejected ${headroomRejected.length} companies: ${headroomRejected.map(c => `${c.ticker}(${c.headroom_score})`).join(', ')}`)
   }
   const allCompanies = allCandidates
-    .filter(c => c.headroom_score != null && c.headroom_score >= MIN_HEADROOM)
+    .filter(c => (c.headroom_score ?? 5.0) >= MIN_HEADROOM)
     .sort((a, b) => b.score - a.score)
-  watchlist = allCompanies.slice(0, TOTAL_COMPANY || 15).map((c, i) => ({
+  watchlist = allCompanies.slice(0, Math.min(TOTAL_COMPANY || 15, 50)).map((c, i) => ({
     ...c,
     rank: String(i + 1).padStart(3, '0'),
   }))

@@ -35,13 +35,13 @@ The screening workflow uses Level 4 as the atomic classification for company dis
 - Hot sectors receive a **Minervini-style staged momentum adjustment** to their Pass 1 composite score:
 
 **Hot Sector Momentum Adjustment (Minervini-style staged scoring):**
-Based on the sector's rally magnitude from discover_hot_sectors.py output:
-- Rally < 10% (early-stage breakout): +15% score boost — reward early discovery
-- Rally 10-25% (mid-stage momentum): +5% score boost — trend still valid, reduced edge
-- Rally > 30% (overheated): -10% score penalty — mean-reversion risk, avoid chasing
-- Rally 25-30%: 0% (neutral — no adjustment)
+Based on the sector's momentum_5d_pct from discover_hot_sectors.py output:
+- momentum_5d_pct < 3% (early-stage breakout, ~10% monthly pace): +15% score boost
+- momentum_5d_pct 3-7% (mid-stage momentum, ~15-30% monthly pace): +5% boost
+- momentum_5d_pct > 8% (overheated, >30% monthly pace): -10% penalty
+- momentum_5d_pct 7-8%: neutral (no adjustment)
 
-Implementation: Use the `momentum_20d` or equivalent field from discover_hot_sectors.py output to determine which tier applies. The adjustment is multiplicative on the sub-industry's composite score.
+Implementation: Use the `momentum_5d_pct` field from discover_hot_sectors.py output to determine which tier applies. The adjustment is multiplicative on the sub-industry's composite score.
 
 - When ranking sub-industries (Pass 2), prioritize sub-industries that BELONG TO hot sectors — they have near-term momentum tailwind
 - Include "热度加成" (Hot Sector Bonus) as a visible component in the scoring breakdown

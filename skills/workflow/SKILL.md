@@ -98,7 +98,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
   <stage n="walk" name="Bottleneck Walk" agent="roadmap-walker" modes="walk" runs-in="workflow">Replaces stages 2-4 in walk mode (supply-chain-based candidate selection instead of company screening). Top-down chain decomposition + 4-element chokepoint scoring + bottleneck asymmetry composite. After walk, select TOP 3-5 candidates by asymmetry_composite score for full deep-dive (Stages 5-15). Reference: `references/frameworks_bottleneck_investing.md`.</stage>
 
   <stage n="16" name="Scoring & Cross-Check" agent="scorer" modes="pipeline,analyze,compare,walk" runs-in="workflow">compute_scores.py + cross_check.py + calibrate_conviction.py. Writes ranking.json.</stage>
-  <stage n="16.5" name="Score Validation" agent="report-validator" modes="pipeline,analyze,compare" runs-in="workflow">All 11 components in range, composite consistent, ranking sorted.</stage>
+  <stage n="16.5" name="Score Validation" agent="report-validator" modes="pipeline,analyze,compare,walk" runs-in="workflow">All 11 components in range, composite consistent, ranking sorted.</stage>
   <stage n="16.6" name="Adversarial Verify" agent="risk-analyst" modes="pipeline,analyze,compare" runs-in="workflow">For top 5 picks: 3 perspective-diverse skeptics per company (fundamentals / macro / flow lens), prompted to REFUTE the bull thesis with Bayesian-skeptic default. A pick "survives" if ≥2 of 3 do NOT refute. Findings persisted to `verify_findings.json` and folded into reports + best-picks. Flagged picks are NOT dropped — surfaced to user with ⚠️ caution.</stage>
   <stage n="16.7" name="Judge Panel" agent="quant-analyst" modes="pipeline,analyze,compare" runs-in="workflow">For top 5 picks: 4 investment-framework lenses (Buffett / Lynch / Marks / Druckenmiller), each independently rates 0-10 with verdict (STRONG_BUY/BUY/HOLD/AVOID). Synthesized to panel consensus (HIGH_CONSENSUS_BUY / MIXED / LOW_CONSENSUS / HIGH_CONSENSUS_AVOID) + score spread (wide spread = framework disagreement). Persisted to `judge_panel.json`.</stage>
   <stage n="17" name="Report Generation" agent="screening-report-writer,equity-report-writer" runs-in="workflow">3-horizon reports per company (long/mid/short × N companies) via `parallel()`. Each report folds in the bear-case verdicts and panel consensus as dedicated "对手方观点" and "多框架交叉验证" sections.</stage>
@@ -121,7 +121,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
       <parameter name="min-headroom" default="5" range="1-10">Minimum Growth Headroom score.</parameter>
       <parameter name="days" default="1" range="1-20">Hot sector discovery focus window. 1=today, 5=this week, 10=recent 2 weeks, 20=this month.</parameter>
     </parameters>
-    <stages>0→1→1.5→2→3→4→4.5→5-15(waves)→16→16.5→17→17.5→18→18.5→19</stages>
+    <stages>0→1→1.5→2→3→4→4.5→5-15(waves)→16→16.5→16.6→16.7→17→17.4→17.5→18→18.5→19</stages>
   </mode>
 
   <mode name="screen">
@@ -142,7 +142,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="tickers" required="true">One or more ticker symbols (positional after `--mode analyze`, OR extracted from prompt).</parameter>
     </parameters>
-    <stages>0→1→1.5→5-15(waves)→16→16.5→17→17.5→18→18.5→19(best picks + validation + cleanup)</stages>
+    <stages>0→1→1.5→5-15(waves)→16→16.5→16.6→16.7→17→17.4→17.5→18→18.5→19(best picks + validation + cleanup)</stages>
   </mode>
 
   <mode name="compare">
@@ -151,7 +151,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
     <parameters>
       <parameter name="tickers" required="true">2-5 ticker symbols (comma-list after `--mode compare`, OR extracted from prompt).</parameter>
     </parameters>
-    <stages>0→1→1.5→5-15(waves)→16(rank+merge)→16.5→17→17.5→18→18.5→19(comparison + validation + best picks + cleanup)</stages>
+    <stages>0→1→1.5→5-15(waves)→16(rank+merge)→16.5→16.6→16.7→17→17.4→17.5→18→18.5→19(comparison + validation + best picks + cleanup)</stages>
     <constraints>Max 5 stocks. Identical valuation methodology across all.</constraints>
   </mode>
 
@@ -162,7 +162,7 @@ Do NOT trigger on: general market commentary, non-financial queries.
       <parameter name="theme" required="true">Universal roadmap theme (positional after `--mode walk`, quoted multi-word allowed). Examples: "humanoid robotics", "AI optical interconnect", "rare-earth permanent magnets", "defense electronics", "grid transmission", "biologic manufacturing".</parameter>
       <parameter name="top-industry" default="7" range="1-20">Maximum candidate companies to score and return.</parameter>
     </parameters>
-    <stages>0→1→1.5→walk(roadmap-walker)→5-15(top 3-5)→16→16.5→17→17.5→18→18.5→19</stages>
+    <stages>0→1→1.5→walk(roadmap-walker)→5-15(top 3-5)→16→16.5→16.6→16.7→17→17.4→17.5→18→18.5→19</stages>
     <constraints>Universal — applies to AI infra, EV/battery, robotics, defense, solar, biopharma, grid, semi capex, advanced materials. Roadmap MUST be quantitative + dated (numbers + timeline). Walk mode selects TOP 3-5 candidates from roadmap-walker output (by asymmetry_composite score) and runs FULL deep-dive (Stages 5-15) on them. Output recommends `--mode analyze TICKER` follow-up for tier-1/strong candidates.</constraints>
   </mode>
 </modes>

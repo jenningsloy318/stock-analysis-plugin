@@ -76,6 +76,7 @@ In addition to ETF holdings, augment the universe with exchange-listed companies
       - Revenue CAGR 3Y > 25% AND Gross Margin > 60% (high-quality SaaS model)
       - Revenue CAGR 3Y > 20% AND R&D/Revenue > 25% (heavy R&D investment phase)
       - AND in ALL cases: Cash & Equivalents > |FCF| × 2 (at least 2 years of cash runway)
+      Cash runway check: Cash & Equivalents is found in fetch_financials.py output at profile.cash_and_short_term_investments or balance_sheet.cash[0] (latest year). Extract the scalar value from the most recent period. Compare: if cash_value > abs(trailing_FCF) × 2, the runway check passes.
     - Companies in the aggressive channel are tagged "⚠️ 激进/烧钱成长" and conviction is capped at 7.0 (cannot receive STRONG_BUY).
     - If a company has negative FCF but does NOT meet any exemption criterion → REJECT.
   - ROIC ≥ WACC (or ROE ≥ 10% for financials)
@@ -87,14 +88,15 @@ After all quantitative filters are applied, run `{plugin_root}/scripts/compute_m
 <step n="3.5" name="Cyclical Adjustment">For companies in cyclical sectors (GICS: 10 Energy, 15 Materials, 20 parts of Industrials, 45301020 Semiconductors), automatically detect cycle position:
 
 **Cycle Detection Logic:**
-- Compute: `margin_ratio = current_operating_margin / 5yr_average_operating_margin`
-- If margin_ratio < 0.5 → TROUGH (底部): relax growth filter (allow negative growth), use 5yr-average earnings for P/E normalization, add "周期底部" tag
-- If margin_ratio > 1.5 → PEAK (顶部): tighten valuation filter (P/E must be > 5yr avg P/E to confirm not at peak-earnings-cheap), add "⚠️ 周期顶部风险" warning
+- Compute: `margin_ratio = current_operating_margin / average_operating_margin_over_available_history`
+  (Use 3-5 years of data from fetch_financials.py annual income_statement. If < 3 years available, skip cyclical adjustment and apply standard filters.)
+- If margin_ratio < 0.5 → TROUGH (底部): relax growth filter (allow negative growth), use available-history-average earnings for P/E normalization, add "周期底部" tag
+- If margin_ratio > 1.5 → PEAK (顶部): tighten valuation filter (P/E must be > available-history avg P/E to confirm not at peak-earnings-cheap), add "⚠️ 周期顶部风险" warning
 - If 0.5 ≤ margin_ratio ≤ 1.5 → MID_CYCLE: apply standard filters
 
 **At TROUGH:**
 - Skip the revenue growth filter (it's normal for cyclicals to have negative growth at bottom)
-- Compute normalized_PE = Price / (5yr_avg_EPS) instead of trailing P/E
+- Compute normalized_PE = Price / (avg_EPS_over_available_history) instead of trailing P/E
 - Valuation scoring uses normalized_PE, not trailing P/E
 - Add +1.0 bonus to composite score (contrarian opportunity at cycle bottom)
 
@@ -150,6 +152,10 @@ Note: compute_growth_headroom.py is run as part of data validation in this step.
 - headroom_score < min_headroom (default 5) → REJECT with reason "成长空间不足 (headroom=X.X)"
 - headroom_score 5-6 → keep, tag "中等空间"
 - headroom_score ≥ 7 → keep, tag "高成长潜力"
+- If compute_growth_headroom.py returns headroom_score=None (INSUFFICIENT_DATA):
+  - Assign headroom_score = 5.0 (neutral pass — benefit of doubt for data-scarce companies)
+  - Tag as "数据不足，headroom中性" in the output
+  - This aligns with the Data Scarcity Handling policy (do NOT exclude solely for limited history)
 - Include headroom_score and headroom_category (高成长潜力/中等空间) in all output tables
 
 The output must GROUP stocks by signal category instead of a single flat ranking:
